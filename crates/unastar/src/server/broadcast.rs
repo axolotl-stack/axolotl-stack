@@ -168,44 +168,12 @@ pub fn sync_spatial_chunks(
     }
 }
 
-/// System: Broadcast despawn for players being removed.
-///
-/// Reads `PlayerDespawnedEvent` events instead of querying for marker components,
-/// eliminating archetype changes when players despawn.
-///
-/// Runs in NetworkSendSet before CleanupSet removes the entities.
-/// Note: EntityGrid cleanup is handled by SpatialChunk's on_remove hook.
-/// Note: ChunkViewers cleanup is handled by ChunkLoader's on_remove hook.
-pub fn broadcast_despawn_system(
-    mut events: MessageReader<PlayerDespawnedEvent>,
-    all_sessions: Query<(Entity, &PlayerSession), With<Player>>,
-) {
-    for event in events.read() {
-        let despawn_entity = event.entity;
-        let runtime_id = event.runtime_id;
-
-        // Note: EntityGrid removal handled by SpatialChunk on_remove hook
-        // Note: ChunkViewers removal handled by ChunkLoader on_remove hook
-
-        let remove_packet = build_remove_actor_packet(runtime_id);
-
-        // Send to all OTHER players
-        for (other_entity, other_session) in all_sessions.iter() {
-            if other_entity != despawn_entity {
-                let _ = other_session.send(McpePacket::from(remove_packet.clone()));
-            }
-        }
-    }
-}
-
 /// System: Despawn entities that emitted PlayerDespawnedEvent.
 ///
-/// Runs in CleanupSet after broadcast_despawn_system has sent packets.
-/// Component on_remove hooks (SpatialChunk, ChunkLoader) handle cleanup automatically.
+/// Runs in CleanupSet. Component on_remove hooks handle the rest: SpatialChunk
+/// and ChunkLoader clean up, and `ActorViewers` sends `RemoveActor` to the
+/// players the leaving player was shown to (and to no one else).
 ///
-/// Note: We re-read the events here since we need to despawn the entities
-/// after the broadcast system has processed them. Events are double-buffered,
-/// so reading them in multiple systems within the same tick is safe.
 pub fn cleanup_despawned_entities(
     mut commands: Commands,
     mut events: MessageReader<PlayerDespawnedEvent>,
