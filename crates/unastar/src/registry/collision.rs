@@ -395,9 +395,16 @@ impl ConnectionCache {
         for entry in registry.iter() {
             let kind = connectable(entry);
             let gate = has_property(entry, "in_wall_bit");
-            let verdict = faces.verdict(&entry.string_id);
+            let block_verdict = faces.verdict(&entry.string_id);
+            let state_verdicts: Vec<_> = faces.state_verdicts(&entry.string_id).collect();
             let wall_like = has_property(entry, "wall_post_bit");
             for state in entry.min_state_id..=entry.max_state_id {
+                let verdict = block_verdict.or_else(|| {
+                    state_verdicts
+                        .iter()
+                        .find(|(states, _)| has_states(entry, state, states))
+                        .map(|(_, verdict)| *verdict)
+                });
                 let transition = if let Some(kind) = kind {
                     let set = |property, value| {
                         entry
@@ -504,6 +511,25 @@ impl ConnectionCache {
         }
         neighbour.connecting_faces & (1 << side.opposite() as u8) != 0
     }
+}
+
+/// Whether `state` of `entry` has every listed property value (booleans
+/// are byte properties).
+fn has_states(
+    entry: &BlockEntry,
+    state: u32,
+    states: &serde_json::Map<String, serde_json::Value>,
+) -> bool {
+    states.iter().all(
+        |(property, value)| match (entry.state_value(state, property), value) {
+            (Some(StateValue::Byte(b)), serde_json::Value::Bool(v)) => (b != 0) == *v,
+            (Some(StateValue::Int(i)), serde_json::Value::Number(v)) => {
+                v.as_i64() == Some(i64::from(i))
+            }
+            (Some(StateValue::Str(s)), serde_json::Value::String(v)) => s == v,
+            _ => false,
+        },
+    )
 }
 
 /// The state of `state` at `pos`, with neighbour-derived fence/wall/pane/bar

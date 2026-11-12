@@ -809,16 +809,51 @@ def placements(ctx: Context, job: dict):
     player is teleported with a look direction; a chat marker
     `bds-sweep:mark <key>` lets the client's capture be cut per item; then
     the client clicks (`bds-sweep:use`) and the arena and the held stack are
-    read back. Offsets are relative to `arena.placements.origin`."""
+    read back. Offsets are relative to `arena.placements.origin`.
+
+    With `job.watcher`, a second scripted player stands at the item's
+    `watcher` spot (default `arena.placements.watcher`) and records what
+    another player is sent; it gets the same markers.
+
+    `after` steps follow the first click: `['wait', n]`, `['hand', who,
+    item, count]` (`/replaceitem`; `item` null empties the hand), `['use',
+    who, click]` and `['sign', who, offset, front, text]` (a sign text edit
+    sent by that client). `timeline` records the tick (relative to the
+    first click) of every click and edit, `read_tick` the tick of the reads;
+    `read_later` = [ticks, offsets] reads again that many ticks later."""
     arena = job['arena']['placements']
     origin = arena['origin']
     low, high = arena['clear']
     name = job['player']
-    ctx.must(f'gamemode survival "{name}"')
+    watcher_name = job.get('watcher')
+    players = {'player': (name, ctx.player)}
+    if watcher_name:
+        watcher = ctx.server.get_player(watcher_name)
+        if watcher is None:
+            raise RuntimeError(f'watcher {watcher_name} is not online')
+        players['watcher'] = (watcher_name, watcher)
+    for player_name, _ in players.values():
+        ctx.must(f'gamemode survival "{player_name}"')
+        ctx.cmd(f'clear "{player_name}"')
     yield 10
 
     def at(offset) -> tuple[int, int, int]:
         return (origin[0] + offset[0], origin[1] + offset[1], origin[2] + offset[2])
+
+    def mark(text: str) -> None:
+        for _, player in players.values():
+            player.send_message(text)
+
+    def give(who: str, spec) -> None:
+        player_name = players[who][0]
+        # `/clear` fails (and says so) when there is nothing to clear.
+        ctx.cmd(f'clear "{player_name}"')
+        if spec is not None:
+            ctx.must(f'replaceitem entity "{player_name}" slot.hotbar 0 {spec["item"]} {spec.get("count", 1)}')
+
+    def read(offsets) -> list:
+        return [[list(offset), ctx.block(at(offset)).data.type, ctx.block(at(offset)).data.block_states]
+                for offset in offsets]
 
     for item in job['items']:
         if item['key'] in ctx.done:
@@ -833,30 +868,61 @@ def placements(ctx: Context, job: dict):
             ctx.block(at((x, y, z))).set_data(ctx.server.create_block_data(block, states), True)
         # `/replaceitem` (not the inventory API) so BDS syncs the stack to the
         # client, which must click with the stack the server holds.
-        held = item['hand']
-        ctx.must(f'replaceitem entity "{name}" slot.hotbar 0 {held["item"]} {held.get("count", 1)}')
+        give('player', item['hand'])
         px, py, pz, yaw, pitch = item['player']
         ctx.must(f'tp "{name}" {origin[0] + px} {origin[1] + py} {origin[2] + pz} {yaw} {pitch}')
+        if 'watcher' in players:
+            give('watcher', item.get('watcher_hand'))
+            wx, wy, wz, wyaw, wpitch = item.get('watcher') or arena['watcher']
+            ctx.must(f'tp "{watcher_name}" {origin[0] + wx} {origin[1] + wy} {origin[2] + wz} {wyaw} {wpitch}')
         # The new hand stack and the teleport reach the client over the next
         # ticks; the click must carry the stack the server holds.
         yield 20
-        ctx.player.send_message(f'bds-sweep:mark {item["key"]}')
+        mark(f'bds-sweep:mark {item["key"]}')
         yield 2
-        cx, cy, cz, face, ux, uy, uz = item['click']
-        clicked = at((cx, cy, cz))
-        target = ctx.block(clicked).data.runtime_id
-        ctx.player.send_message(f'bds-sweep:use {clicked[0]} {clicked[1]} {clicked[2]} {face} '
-                                f'{ux} {uy} {uz} {target}')
-        yield 10
+        start = ctx.plugin.ticks
+        timeline = []
+        for step in [['use', 'player', item['click']]] + item.get('after', []):
+            kind = step[0]
+            if kind == 'wait':
+                yield int(step[1])
+            elif kind == 'hand':
+                give(step[1], None if step[2] is None else {'item': step[2], 'count': step[3]})
+                yield 20
+            elif kind == 'use':
+                cx, cy, cz, face, ux, uy, uz = step[2]
+                clicked = at((cx, cy, cz))
+                target = ctx.block(clicked).data.runtime_id
+                timeline.append([ctx.plugin.ticks - start, step[1], 'use'])
+                players[step[1]][1].send_message(f'bds-sweep:use {clicked[0]} {clicked[1]} {clicked[2]} {face} '
+                                                 f'{ux} {uy} {uz} {target}')
+                yield 10
+            elif kind == 'sign':
+                pos = at(step[2])
+                text = step[4].encode('utf-8').hex() or '-'
+                timeline.append([ctx.plugin.ticks - start, step[1], 'sign'])
+                players[step[1]][1].send_message(f'bds-sweep:sign {pos[0]} {pos[1]} {pos[2]} '
+                                                 f'{1 if step[3] else 0} {text}')
+                yield 10
+            else:
+                raise RuntimeError(f'unknown placement step {step!r}')
         held = ctx.player.inventory.item_in_main_hand
-        ctx.record({
+        row = {
             'key': item['key'],
-            'reads': [[list(offset), ctx.block(at(offset)).data.type, ctx.block(at(offset)).data.block_states]
-                      for offset in item['read']],
+            'reads': read(item['read']),
             'held': None if held is None else [held.type.id, held.amount],
             'items': sorted(ctx.take_items()),
-        })
-        ctx.player.send_message('bds-sweep:mark end')
+            'timeline': timeline,
+            'read_tick': ctx.plugin.ticks - start,
+        }
+        if item.get('read_later'):
+            wait, offsets = item['read_later']
+            yield int(wait)
+            row['reads_later'] = read(offsets)
+            row['read_later_tick'] = ctx.plugin.ticks - start
+            row['items_later'] = sorted(ctx.take_items())
+        ctx.record(row)
+        mark('bds-sweep:mark end')
         yield 2
 
 
