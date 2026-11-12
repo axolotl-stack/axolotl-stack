@@ -17,7 +17,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Blocks](#blocks) | 1477 | 0 | 564 | 633 | 113 | 167 | 56.9% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
-| [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
+| [Commands](#commands) | 82 | 29 | 24 | 3 | 25 | 1 | 34.6% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 44 | 14 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
@@ -71,11 +71,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Item use | lane ITEMS | 2026-10-29 | 950 |
 
-**Commands**: 0 open rows free, 65 claimed.
+**Commands**: 0 open rows free, 53 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Commands | lane COMMANDS | 2026-10-29 | 65 |
+| Commands | lane COMMANDS | 2026-10-29 | 53 |
 
 **Protocol**: 158 open rows free, 0 claimed.
 
@@ -563,8 +563,8 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | admin | 7 | 5 | 2 | 0 | 0 | 0 | 0.0% |
-| any | 4 | 1 | 0 | 3 | 0 | 0 | 75.0% |
-| gamedirectors | 60 | 41 | 7 | 12 | 0 | 0 | 20.0% |
+| any | 4 | 1 | 0 | 0 | 3 | 0 | 75.0% |
+| gamedirectors | 60 | 14 | 22 | 2 | 22 | 0 | 40.0% |
 | host | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | owner | 10 | 8 | 0 | 1 | 0 | 1 | 11.1% |
 
@@ -581,13 +581,13 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 **gamedirectors**
 
-- `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused
-- `fill`: legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
-- `give`: no recipe unlocking after a give (BDS follows with UnlockedRecipes); legacy data values of flattened item families (wool with data 14) are not remapped
-- `setblock`: legacy block names with old block states (wool with a color state) answer a not-implemented failure
-- `setworldspawn`: the world spawn is not saved, and joining players still spawn by the configured spawn rules
-- 2 more partial rows with other gaps (see [commands.toml](commands.toml))
-- missing: `aimassist`, `camera`, `camerashake`, `clearspawnpoint`, `controlscheme`, `damage`, `daylock`, `dialogue`, `event`, `execute`, `fog`, `function` and 29 more
+- `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
+- `damage`: the hurt ActorEvent carries no damage cause (BDS sends the cause id, -1 for none)
+- `effect`: speed and slowness do not change movement and no visible-effect actor data is sent: BDS follows an effect with SetActorData and movement UpdateAttributes (no attribute-modifier system)
+- `event`: players have no actor definition in unastar, so every event on a player is refused (BDS refused the one captured)
+- `execute`: in nether and in the_end answer a not-implemented failure (unastar runs one dimension per world)
+- 17 more partial rows with other gaps (see [commands.toml](commands.toml))
+- missing: `aimassist`, `camera`, `controlscheme`, `dialogue`, `function`, `gametest`, `locate`, `loot`, `recipe`, `ride`, `schedule`, `spreadplayers` and 2 more
 
 **host**
 

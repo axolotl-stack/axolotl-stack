@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import commit_fixtures  # noqa: E402
 import knockback_fixture  # noqa: E402
 import replication_fixture  # noqa: E402
 import leveldb_read  # noqa: E402
@@ -117,6 +118,30 @@ class ToolSets(unittest.TestCase):
                          'minecraft:oak_log[a=1,b=false,pillar_axis="y"]')
 
 
+class CommandFeedback(unittest.TestCase):
+    def test_commands_take_the_last_segment_above_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / 'commands.txt'
+            lines = ['# intro', '/a', '# segment: one', '', '/b', '#note', '/c', '# segment: two', '/d']
+            script.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+            self.assertEqual(commit_fixtures.script_segments(script),
+                             [('', '/a'), ('one', '/b'), ('one', '/c'), ('two', '/d')])
+
+    def test_world_packets_count_only_on_the_platform_or_at_the_origin(self):
+        relevance = commit_fixtures.Relevance.__new__(commit_fixtures.Relevance)
+        relevance.player_runtime, relevance.player_unique = 1, -5
+        relevance.runtime, relevance.unique = {1}, {-5}
+        event = {'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'event_id': 3001, 'data': 65535}
+        self.assertTrue(relevance.keep('/weather rain', 'LevelEventPacket', event, 30))
+        far = dict(event, position={'x': 100.5, 'y': 64.0, 'z': -28.5})
+        self.assertFalse(relevance.keep('/weather rain', 'LevelEventPacket', far, 30))
+        other = {'target_runtime_id': {'actor_runtime_id': 9}}
+        self.assertFalse(relevance.keep('/time query day', 'SetActorDataPacket', other, 30))
+        added = {'target_runtime_id': {'actor_runtime_id': 9}, 'target_actor_id': {'actor_unique_id': -9}}
+        self.assertTrue(relevance.keep('/execute align xyz run summon pig ~ ~ ~', 'AddActorPacket', added, 50))
+        self.assertTrue(relevance.keep('/damage @e 1', 'SetActorDataPacket', other, 30))
+        self.assertFalse(relevance.keep('/damage @e 1', 'SetActorDataPacket', other, 400))
+        self.assertFalse(relevance.keep('/say hi', 'UnlockedRecipesPacket', {}, 30))
 class HeldAndEffectVariants(unittest.TestCase):
     def args(self, **overrides):
         import argparse

@@ -21,15 +21,16 @@
 //! overloads instead of probing names.
 
 use super::parser::{ArgValue, CommandPosition, IntRange, StateLiteral, Target};
-use std::collections::HashMap;
 use unastar_data::commands::{BasicType, CommandDefinition, ParamKind};
 
-/// The raw arguments of the overload a command line matched.
+/// The raw arguments of the overload a command line matched, by parameter
+/// position (two parameters of one overload may share a name: `/execute if
+/// score … <objective> … <objective>`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Args {
     definition: &'static CommandDefinition,
     overload: usize,
-    values: HashMap<&'static str, ArgValue>,
+    values: Vec<Option<ArgValue>>,
 }
 
 impl Args {
@@ -37,12 +38,18 @@ impl Args {
         Self {
             definition,
             overload,
-            values: HashMap::new(),
+            values: vec![None; definition.overloads[overload].params.len()],
         }
     }
 
-    pub(super) fn insert(&mut self, name: &'static str, value: ArgValue) {
-        self.values.insert(name, value);
+    /// Stores the value of the overload's parameter `index`.
+    pub(super) fn insert(&mut self, index: usize, value: ArgValue) {
+        self.values[index] = Some(value);
+    }
+
+    /// The value of the overload's parameter `index`, if the line supplied it.
+    pub fn at(&self, index: usize) -> Option<&ArgValue> {
+        self.values.get(index).and_then(Option::as_ref)
     }
 
     /// The captured command (its canonical name, not the alias typed).
@@ -55,14 +62,19 @@ impl Args {
         self.overload
     }
 
-    /// The raw parsed value of a parameter of the matched overload.
+    /// The raw parsed value of the first parameter of the matched overload
+    /// with this name.
     pub fn raw(&self, name: &str) -> Option<&ArgValue> {
-        self.values.get(name)
+        self.definition.overloads[self.overload]
+            .params
+            .iter()
+            .position(|param| param.name == name)
+            .and_then(|index| self.at(index))
     }
 
     /// Whether the line supplied this parameter.
     pub fn has(&self, name: &str) -> bool {
-        self.values.contains_key(name)
+        self.raw(name).is_some()
     }
 }
 
@@ -343,8 +355,9 @@ from_arg!(
 pub trait Param: Sized {
     const OPTIONAL: bool;
     fn accepts(kind: &ParamKind) -> bool;
-    /// Reads the field from the matched overload's arguments.
-    fn take(args: &Args, name: &str) -> Self;
+    /// Reads the field from the matched overload's parameter `index`
+    /// (fields are declared in captured order).
+    fn take(args: &Args, index: usize, name: &str) -> Self;
 }
 
 impl<T: FromArg> Param for T {
@@ -352,8 +365,8 @@ impl<T: FromArg> Param for T {
     fn accepts(kind: &ParamKind) -> bool {
         T::accepts(kind)
     }
-    fn take(args: &Args, name: &str) -> Self {
-        args.raw(name)
+    fn take(args: &Args, index: usize, name: &str) -> Self {
+        args.at(index)
             .and_then(T::from_arg)
             .unwrap_or_else(|| panic!("/{} {name}: required by the syntax", args.command().name))
     }
@@ -364,8 +377,8 @@ impl<T: FromArg> Param for Option<T> {
     fn accepts(kind: &ParamKind) -> bool {
         T::accepts(kind)
     }
-    fn take(args: &Args, name: &str) -> Self {
-        args.raw(name).map(|value| {
+    fn take(args: &Args, index: usize, name: &str) -> Self {
+        args.at(index).map(|value| {
             T::from_arg(value).unwrap_or_else(|| {
                 panic!(
                     "/{} {name}: {value:?} has another type",
@@ -487,15 +500,23 @@ macro_rules! overloads {
                 } ),*
             ];
 
-            #[allow(unused_variables)]
+            #[allow(unused_variables, unused_mut, unused_assignments)]
             fn from_args(args: &$crate::command::args::Args) -> Self {
                 match args.overload() {
-                    $( $index => Self::$variant { $(
-                        $field: <$ty as $crate::command::args::Param>::take(
-                            args,
-                            $crate::command::args::overloads!(@name $field $($param)?),
-                        ),
-                    )* }, )*
+                    $( $index => {
+                        let mut position = 0usize;
+                        Self::$variant { $(
+                            $field: {
+                                let value = <$ty as $crate::command::args::Param>::take(
+                                    args,
+                                    position,
+                                    $crate::command::args::overloads!(@name $field $($param)?),
+                                );
+                                position += 1;
+                                value
+                            },
+                        )* }
+                    }, )*
                     other => unreachable!(
                         "/{} has no overload {other} (the registry checked the shape)",
                         $command

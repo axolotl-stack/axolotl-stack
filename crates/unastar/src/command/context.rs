@@ -2,17 +2,19 @@
 
 use super::args::{BlockPosition, RelativeFloat};
 use super::output::CommandOutput;
-use super::parser::{CommandPosition, Target};
+use super::parser::{CommandPosition, Coordinate, Target};
+use super::registry::CommandRegistry;
 use super::schema::CommandSchema;
 use super::selector::{Candidate, CarriedItem, Selector};
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, Experience, GameMode, MainInventory, OffhandSlot, Player, PlayerName,
-    PlayerSession,
+    ArmourInventory, Experience, GameMode, InputLocks, MainInventory, OffhandSlot, Player,
+    PlayerName, PlayerSession, Tags,
 };
 use crate::entity::geometry::feet_position;
 use crate::entity::item_drop::{EntityRandom, PLAYER_EYE_HEIGHT};
 use crate::item::ItemStack;
+use crate::world::scoreboard::{ScoreHolder, Scoreboard};
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use jolyne::valentine::McpePacket;
@@ -28,6 +30,8 @@ pub struct Operator;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceKind {
     Player(Entity),
+    /// Another actor, as `/execute as @e[type=cow]` makes the source.
+    Actor(Entity),
     /// The server console (dedicated-server origin).
     Server,
 }
@@ -45,6 +49,9 @@ pub struct CommandSource {
     pub pitch: f32,
     /// Name used in messages (`Server` for the console, as BDS).
     pub name: String,
+    /// Height above `position` that local (`^`) coordinates start from: 0
+    /// (the feet) unless `/execute anchored eyes` moved it to the eyes.
+    pub anchor: f64,
 }
 
 impl CommandSource {
@@ -69,6 +76,7 @@ impl CommandSource {
             yaw: rotation.yaw,
             pitch: rotation.pitch,
             name,
+            anchor: 0.0,
         })
     }
 
@@ -80,12 +88,13 @@ impl CommandSource {
             yaw: 0.0,
             pitch: 0.0,
             name: "Server".into(),
+            anchor: 0.0,
         }
     }
 
     pub fn entity(&self) -> Option<Entity> {
         match self.kind {
-            SourceKind::Player(entity) => Some(entity),
+            SourceKind::Player(entity) | SourceKind::Actor(entity) => Some(entity),
             SourceKind::Server => None,
         }
     }
@@ -105,15 +114,23 @@ pub struct CommandContext<'w> {
     pub world: &'w mut World,
     pub source: CommandSource,
     pub schema: Arc<CommandSchema>,
+    registry: &'w CommandRegistry,
 }
 
 impl<'w> CommandContext<'w> {
-    pub fn new(world: &'w mut World, source: CommandSource, schema: Arc<CommandSchema>) -> Self {
+    pub fn new(world: &'w mut World, source: CommandSource, registry: &'w CommandRegistry) -> Self {
         Self {
             world,
             source,
-            schema,
+            schema: Arc::clone(registry.schema()),
+            registry,
         }
+    }
+
+    /// Runs another command line for `source` through the same registry
+    /// (`/execute … run`), with its own permission check and parse.
+    pub fn run(&mut self, source: CommandSource, line: &str) -> CommandOutput {
+        super::dispatch(self.world, self.registry, source, line)
     }
 
     /// Resolves a target parameter to entities; an omitted optional target is
@@ -150,8 +167,19 @@ impl<'w> CommandContext<'w> {
     }
 
     /// Like [`Self::entities`], but every match must be a player
-    /// (`commands.generic.targetNotPlayer` otherwise).
+    /// (`commands.generic.targetNotPlayer` otherwise). Measured: a selector
+    /// that can select other entities (`@e[type=cow]`) is refused before
+    /// anything is matched, even when nothing would match.
     pub fn players(&mut self, target: Option<&Target>) -> Result<Vec<Entity>, CommandOutput> {
+        if let Some(Target::Selector(selector)) = target
+            && selector.kind() == super::selector::SelectorKind::AllEntities
+            && !selector.players_only()
+        {
+            return Err(CommandOutput::failure(
+                "commands.generic.targetNotPlayer",
+                vec![],
+            ));
+        }
         let found = self.entities(target)?;
         if found.iter().any(|&e| self.world.get::<Player>(e).is_none()) {
             return Err(CommandOutput::failure(
@@ -182,10 +210,16 @@ impl<'w> CommandContext<'w> {
     }
 
     /// A position parameter resolved against the source; omitted is the
-    /// source's own (feet) position.
+    /// source's own (feet) position. Local (`^`) coordinates start at the
+    /// source's anchor.
     pub fn position(&self, position: Option<CommandPosition>) -> DVec3 {
         position.map_or(self.source.position, |p| {
-            p.resolve(self.source.position, self.source.yaw, self.source.pitch)
+            let origin = if matches!(p.0[0], Coordinate::Local(_)) {
+                self.source.position + DVec3::Y * self.source.anchor
+            } else {
+                self.source.position
+            };
+            p.resolve(origin, self.source.yaw, self.source.pitch)
         })
     }
 
@@ -288,6 +322,9 @@ pub fn candidates(world: &mut World) -> Vec<Candidate> {
             alive: world
                 .get::<crate::entity::mob::state::Dead>(entity)
                 .is_none(),
+            tags: tags(world, entity),
+            scores: scores(world, entity),
+            input_locks: Some(world.get::<InputLocks>(entity).map_or(0, |l| l.0)),
         });
     }
     let mut actors = world.query_filtered::<(Entity, &Position), Without<Player>>();
@@ -316,9 +353,32 @@ pub fn candidates(world: &mut World) -> Vec<Candidate> {
             level: 0,
             alive: true,
             items: Vec::new(),
+            tags: tags(world, entity),
+            scores: scores(world, entity),
+            input_locks: None,
         });
     }
     out
+}
+
+fn tags(world: &World, entity: Entity) -> Vec<String> {
+    world
+        .get::<Tags>(entity)
+        .map(|tags| tags.0.clone())
+        .unwrap_or_default()
+}
+
+/// The entity's scores by objective name.
+fn scores(world: &World, entity: Entity) -> Vec<(String, i32)> {
+    world
+        .get_resource::<Scoreboard>()
+        .map_or_else(Vec::new, |board| {
+            board
+                .scores_of(&ScoreHolder::Entity(entity))
+                .into_iter()
+                .map(|(objective, score)| (objective.name.clone(), score))
+                .collect()
+        })
 }
 
 /// Namespaced type of a non-player actor, or `None` for entities that are not actors.
