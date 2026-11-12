@@ -474,6 +474,12 @@ impl GameServer {
                 .chain()
                 .in_set(PhysicsSet),
         );
+        // Wall climbers show whether their move climbed.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::ai::sync_wall_climbing
+                .in_set(PhysicsSet)
+                .after(tick_physics),
+        );
         // Projectiles fly after the living bodies moved.
         ecs.schedule_mut().add_systems(
             crate::entity::projectile::tick_projectiles

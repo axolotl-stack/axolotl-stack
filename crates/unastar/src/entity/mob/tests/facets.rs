@@ -52,6 +52,8 @@ const PARCHED: &str = "minecraft:parched";
 /// `hostile::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon`).
 const ZOMBIE_VILLAGER: &str = "minecraft:zombie_villager_v2";
 const SILVERFISH: &str = "minecraft:silverfish";
+const SPIDER: &str = "minecraft:spider";
+const CAVE_SPIDER: &str = "minecraft:cave_spider";
 
 pub(super) fn block(name: &str) -> u32 {
     BlockRegistry::vanilla()
@@ -178,7 +180,7 @@ impl Arena {
         }
     }
 
-    fn set_block(&mut self, pos: IVec3, name: &str) {
+    pub(super) fn set_block(&mut self, pos: IVec3, name: &str) {
         let state = block(name);
         let world = self.world();
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(pos.x, pos.z);
@@ -194,7 +196,7 @@ impl Arena {
             .set_block(x, y, z, state);
     }
 
-    fn move_player(&mut self, feet: DVec3) {
+    pub(super) fn move_player(&mut self, feet: DVec3) {
         let player = self.player;
         self.world().get_mut::<Position>(player).unwrap().0 =
             feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
@@ -282,6 +284,8 @@ fn listed_mobs_fall_and_stay_on_the_ground() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SPIDER,
+        CAVE_SPIDER,
     ] {
         let mut a = floor(1, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, 70.0, 0.5));
@@ -406,6 +410,8 @@ fn overlapping_listed_mobs_push_each_other_apart() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SPIDER,
+        CAVE_SPIDER,
     ] {
         let mut a = floor(7, Difficulty::Normal, GameMode::Creative);
         let first = a.adult(identifier, DVec3::new(0.4, SURFACE, 0.5));
@@ -545,6 +551,8 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SPIDER,
+        CAVE_SPIDER,
     ] {
         let mut a = floor(15, Difficulty::Normal, GameMode::Creative);
         let near = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -562,7 +570,7 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 11] = [
+    let cases: [(&str, &[&str], &str); 13] = [
         (SKELETON, &["skeleton", "undead", "monster", "mob"], "stray"),
         (
             STRAY,
@@ -614,6 +622,12 @@ fn listed_mobs_belong_to_their_authored_families() {
             &["silverfish", "monster", "mob", "arthropod"],
             "undead",
         ),
+        (SPIDER, &["spider", "monster", "mob", "arthropod"], "undead"),
+        (
+            CAVE_SPIDER,
+            &["cavespider", "monster", "arthropod", "mob"],
+            "spider",
+        ),
     ];
     let mut a = floor(17, Difficulty::Normal, GameMode::Creative);
     for (identifier, families, absent) in cases {
@@ -641,7 +655,7 @@ fn listed_mobs_belong_to_their_authored_families() {
 fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
     // The stray, bogged and parched also drop a tipped arrow on a player
     // kill (`set_potion`), which loot does not implement.
-    let cases: [(&str, &[&str], Option<&str>, u32); 8] = [
+    let cases: [(&str, &[&str], Option<&str>, u32); 10] = [
         (
             SKELETON,
             &["minecraft:arrow", "minecraft:bone"],
@@ -688,6 +702,18 @@ fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
         ),
         (ENDERMITE, &[], None, 3),
         (SILVERFISH, &[], None, 5),
+        (
+            SPIDER,
+            &["minecraft:string", "minecraft:spider_eye"],
+            Some("minecraft:string"),
+            5,
+        ),
+        (
+            CAVE_SPIDER,
+            &["minecraft:string", "minecraft:spider_eye"],
+            Some("minecraft:string"),
+            5,
+        ),
         (
             ZOMBIE_PIGMAN,
             &[
@@ -740,6 +766,8 @@ fn listed_mobs_standing_in_lava_are_hurt_by_it() {
         BOGGED,
         PARCHED,
         SILVERFISH,
+        SPIDER,
+        CAVE_SPIDER,
     ] {
         let mut a = floor(21, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -816,6 +844,7 @@ fn listed_hostile_mobs_target_and_hit_a_survival_player() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SPIDER,
     ] {
         let mut a = floor(23, Difficulty::Normal, GameMode::Survival);
         tough_player(&mut a);
@@ -848,6 +877,8 @@ fn listed_hostile_mobs_ignore_creative_players() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SPIDER,
+        CAVE_SPIDER,
     ] {
         let mut a = floor(25, Difficulty::Hard, GameMode::Creative);
         a.move_player(DVec3::new(4.5, SURFACE, 0.5));

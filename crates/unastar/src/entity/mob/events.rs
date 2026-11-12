@@ -74,7 +74,8 @@ impl MobFacts<'_> {
         }
     }
 
-    fn biome_tags(&self, entity: Entity) -> Option<&'static [String]> {
+    /// The biome at the actor's feet.
+    fn biome(&self, entity: Entity) -> Option<&'static unastar_data::biomes::BiomeData> {
         let position = self.world.get::<Position>(entity)?.0.floor().as_ivec3();
         let (cx, cz) = world_to_chunk_coords(position.x, position.z);
         let chunk = self.world.get::<ChunkData>(
@@ -87,7 +88,10 @@ impl MobFacts<'_> {
         unastar_data::biomes::vanilla()
             .iter()
             .find(|row| row.id == biome)
-            .map(|row| row.tags.as_slice())
+    }
+
+    fn biome_tags(&self, entity: Entity) -> Option<&'static [String]> {
+        self.biome(entity).map(|row| row.tags.as_slice())
     }
 
     /// The block-space feet of `entity` (a player's position is its eye).
@@ -180,6 +184,26 @@ impl MobFacts<'_> {
         }))
     }
 
+    /// `is_brightness`: the overworld brightness ramp at the light of the
+    /// feet block (sky light after the time of day darkened it; block
+    /// light is not modelled), as the spider's day and night sensors read
+    /// it.
+    fn brightness(&self, entity: Entity) -> Option<f32> {
+        let feet = self.feet(entity)?.floor().as_ivec3();
+        let light = crate::world::clock::sky_brightness(self.world, feet);
+        Some(super::constants::OVERWORLD_BRIGHTNESS_RAMP[usize::from(light.min(15))])
+    }
+
+    /// `is_snow_covered`: snow falls on the biome at the feet (its temperature
+    /// is below [`SNOW_TEMPERATURE`](super::constants::SNOW_TEMPERATURE)).
+    /// Provisional and unobservable for now: only the spider's jockey events
+    /// test it, and each of their branches adds the same groups but for the
+    /// rider, which riding (not implemented) would spawn.
+    fn snow_covered(&self, entity: Entity) -> Option<bool> {
+        let climate = self.biome(entity)?.climate.as_ref()?;
+        Some(climate.temperature < super::constants::SNOW_TEMPERATURE)
+    }
+
     fn under_water(&self, entity: Entity) -> Option<bool> {
         let point = self.breathing_point(entity)?;
         let block = point.floor().as_ivec3();
@@ -255,6 +279,9 @@ impl FilterContext for MobFacts<'_> {
                 Fact::Matches(self.biome_tags(entity)?.iter().any(|tag| tag == want))
             }
             BuiltinTest::InLava => Fact::Bool(self.in_liquid(entity, true)?),
+            BuiltinTest::IsBrightness => Fact::Number(f64::from(self.brightness(entity)?)),
+            BuiltinTest::IsDaytime => Fact::Bool(crate::world::clock::is_daytime(self.world)),
+            BuiltinTest::IsSnowCovered => Fact::Bool(self.snow_covered(entity)?),
             BuiltinTest::InWater => Fact::Bool(self.in_liquid(entity, false)?),
             BuiltinTest::IsUnderwater => Fact::Bool(self.under_water(entity)?),
             // Riding is not implemented: no actor ever has a vehicle.

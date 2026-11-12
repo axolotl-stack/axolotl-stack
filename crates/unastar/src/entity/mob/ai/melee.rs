@@ -66,7 +66,7 @@ impl GoalContext<'_> {
         let Some(target) = self.melee_target() else {
             return false;
         };
-        self.path_toward(Self::target_ground(&target))
+        self.chase_path_toward(Self::target_ground(&target))
     }
 
     pub(super) fn melee_start(&mut self) {
@@ -181,7 +181,7 @@ impl GoalContext<'_> {
         } else if distance_sq > goal.inner_boundary_sq {
             timer += goal.inner_boundary_ticks;
         }
-        if self.path_toward(Self::target_ground(target)) {
+        if self.chase_path_toward(Self::target_ground(target)) {
             self.follow_staged(goal.speed_multiplier);
         } else {
             timer += goal.path_fail_ticks;

@@ -11,6 +11,7 @@
 //! ([`facets`]).
 
 mod anger;
+mod bds_mob;
 mod chicken;
 mod creeper;
 mod doors;
@@ -22,4 +23,5 @@ mod projectiles;
 mod sensors;
 mod silverfish;
 mod spawn;
+mod spider;
 mod zombie;

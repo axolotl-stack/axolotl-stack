@@ -381,7 +381,16 @@ fn watch_zombies(
 }
 
 fn monster_server(terrain: &Terrain, time: u64, difficulty: Difficulty) -> TestServer {
-    let (mut server, rx) = build_server(terrain, 7);
+    monster_server_seeded(terrain, time, difficulty, 7)
+}
+
+fn monster_server_seeded(
+    terrain: &Terrain,
+    time: u64,
+    difficulty: Difficulty,
+    seed: u64,
+) -> TestServer {
+    let (mut server, rx) = build_server(terrain, seed);
     let registry = server
         .ecs
         .world()
@@ -401,7 +410,10 @@ type TestServer = (GameServer, mpsc::Receiver<jolyne::valentine::McpePacket>);
 
 #[test]
 fn zombies_spawn_in_herds_of_two_to_four_at_night_within_the_caps() {
-    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+    // Spiders share the monster cap with zombies; this seed draws zombie
+    // herds of more than one before the cap fills.
+    let (mut server, mut rx) =
+        monster_server_seeded(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy, 8);
     let herds = watch_zombies(&mut server, &mut rx, 4000);
     assert!(!herds.is_empty(), "zombies spawned at night");
     for herd in &herds {

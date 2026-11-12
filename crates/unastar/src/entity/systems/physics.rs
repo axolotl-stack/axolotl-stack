@@ -519,10 +519,19 @@ pub fn step_body_sensed(
         on_ground,
         age,
         EffectPhysics::default(),
+        None,
     )
 }
 
-/// [`step_body_sensed`] for a living body under levitation or slow falling.
+/// [`step_body_sensed`] for a living body under levitation or slow falling,
+/// and, with `climbing`, a wall climber's climbing state (see
+/// [`WallClimbing`]): when its move is blocked horizontally while it was
+/// already climbing, the body leaves the move rising at
+/// [`CLIMB_SPEED`](crate::entity::mob::constants::CLIMB_SPEED) in place of
+/// gravity and drag (a BDS 1.26.51 spider rises 0.2 a tick up a wall from
+/// the second tick it walks into it, and leaves the top at
+/// `(0.2 - 0.08) × 0.98`). Out of liquids only.
+#[allow(clippy::too_many_arguments)]
 pub fn step_body_with_effects(
     blocks: &impl BlockSource,
     body: &PhysicsBody,
@@ -531,6 +540,7 @@ pub fn step_body_with_effects(
     on_ground: &mut bool,
     age: u64,
     effects: EffectPhysics,
+    climbing: Option<&mut WallClimbing>,
 ) -> (DVec3, Option<LiquidKind>) {
     let aabb = Aabb::from_feet(position, body.width, body.height);
     let flotation = if body.model == PhysicsModel::Item {
@@ -571,6 +581,7 @@ pub fn step_body_with_effects(
     // A living body's friction is decided by where it stood before the move.
     let started_on_ground = *on_ground;
     let result = move_aabb(blocks, aabb, *velocity, body.step_height, *on_ground);
+    let blocked_horizontally = result.moved.x != velocity.x || result.moved.z != velocity.z;
     if result.moved.x != velocity.x {
         velocity.x = 0.0;
     }
@@ -597,6 +608,14 @@ pub fn step_body_with_effects(
             effects,
             velocity,
         );
+        if let Some(climbing) = climbing
+            && body.wall_climber
+        {
+            if climbing.0 && blocked_horizontally && living_liquid.is_none() {
+                velocity.y = crate::entity::mob::constants::CLIMB_SPEED;
+            }
+            climbing.0 = blocked_horizontally;
+        }
         return (feet, living_liquid);
     }
 
@@ -636,14 +655,18 @@ pub fn tick_physics(
         &Age,
         Option<&mut FallDistance>,
         Option<&EffectPhysics>,
+        Option<&mut WallClimbing>,
     )>,
 ) {
-    for (mut position, mut velocity, mut on_ground, body, age, fall, effects) in query.iter_mut() {
+    for (mut position, mut velocity, mut on_ground, body, age, fall, effects, climbing) in
+        query.iter_mut()
+    {
         if blocks.block_at(position.0.floor().as_ivec3()).is_none() {
             continue;
         }
         let mut vel = velocity.0;
         let mut grounded = on_ground.0;
+        let mut climb = climbing.as_deref().copied().filter(|_| body.wall_climber);
         let (feet, liquid) = step_body_with_effects(
             &blocks,
             body,
@@ -652,7 +675,11 @@ pub fn tick_physics(
             &mut grounded,
             age.0,
             effects.copied().unwrap_or_default(),
+            climb.as_mut(),
         );
+        if let (Some(mut climbing), Some(climb)) = (climbing, climb) {
+            climbing.set_if_neq(climb);
+        }
         if let Some(mut fall) = fall {
             let mut next = fall.after_move(feet.y - position.0.y, grounded, liquid);
             // A slow-falling body counts no fall (BDS 1.26.51: a cow slow

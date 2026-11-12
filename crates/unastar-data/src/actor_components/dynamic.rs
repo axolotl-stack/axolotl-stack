@@ -852,6 +852,12 @@ pub struct NavigationWalk {
     pub using_door_annotation: Option<bool>,
 }
 
+/// `minecraft:navigation.climb`: the fields of `minecraft:navigation.walk`,
+/// for a mob that also climbs walls.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(transparent)]
+pub struct NavigationClimb(pub NavigationWalk);
+
 /// `minecraft:offspring` (1.26): the offspring half of the old breedable
 /// fields.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -1570,6 +1576,7 @@ dynamic_bodies!(
     Movement,
     MovementBasic,
     Nameable,
+    NavigationClimb,
     NavigationWalk,
     Offspring,
     PushableByBlock,

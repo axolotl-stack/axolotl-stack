@@ -878,3 +878,39 @@ pub const SILVERFISH_WAKE_RANGE_Y: i32 = 5;
 /// moved this far along x (BDS 1.26.51: every released silverfish's
 /// `AddActor`).
 pub const SILVERFISH_RELEASE_OFFSET_X: f64 = -0.2;
+
+// --- Wall climbing (`minecraft:navigation.climb`, `systems::physics`) ---------------
+
+/// A climbing wall climber whose move is blocked horizontally leaves the move
+/// rising at this speed, with no gravity or drag that tick (BDS 1.26.51: a
+/// spider walking into a wall rises exactly 0.2 a tick from its second tick
+/// against it, and 0.1176 = (0.2 − 0.08) × 0.98 on the tick after it clears
+/// the top).
+pub const CLIMB_SPEED: f64 = 0.2;
+
+// --- Filters -----------------------------------------------------------------------
+
+/// `is_snow_covered` holds in a biome colder than this; provisional: the
+/// published Bedrock snowfall temperature (0.15), unmeasured because the
+/// only vanilla use (the spider's jockey events) has no observable effect
+/// until riding exists.
+pub const SNOW_TEMPERATURE: f32 = 0.15;
+
+// --- Leaping (`behavior.leap_at_target`, `mob::ai::leap`) --------------------------
+
+/// The leap needs the target's position at least this squared distance from
+/// the feet; provisional: the closest BDS 1.26.51 leap was 2.2 from the
+/// player's eyes (squared 4.9) and nothing closer was measured.
+pub const LEAP_MIN_DISTANCE_SQ: f64 = 4.0;
+/// ... and at most this; provisional within the measured bracket: BDS
+/// 1.26.51 spiders 3.9 from the player's eyes (squared 14.9) leapt, 4.8 and
+/// 5.7 away (squared 22.9 and 32.9) never did in 40 cycles.
+pub const LEAP_MAX_DISTANCE_SQ: f64 = 16.0;
+/// One roll in this many per tick starts a leap; provisional: the four
+/// leaps of the `leap` sweep came one or two ticks after they could, too few
+/// to fit a rate.
+pub const LEAP_CHANCE: u32 = 5;
+/// A leap's horizontal speed toward the target (BDS 1.26.51: exactly 0.4
+/// from a standing start; what a moving spider keeps of its own velocity is
+/// not measured).
+pub const LEAP_HORIZONTAL_SPEED: f64 = 0.4;
