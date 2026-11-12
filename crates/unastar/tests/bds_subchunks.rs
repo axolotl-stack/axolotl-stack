@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 
 use bleveldb::options::Compression;
 use bleveldb::{DB, Options, ReadOptions, WriteBatch, WriteOptions};
+use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unastar::registry::BlockRegistry;
@@ -262,26 +263,22 @@ fn hex_sha256(bytes: &[u8]) -> String {
         .collect()
 }
 
-/// Canonical state of a cell-form string `name|key=<b|i|s>value,...`.
-fn parse_state(text: &str) -> u32 {
-    let (name, states) = text.split_once('|').unwrap();
-    let states: Vec<(&str, SavedStateValue<'_>)> = states
-        .split(',')
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let (key, value) = part.split_once('=').unwrap();
-            let value = match &value[..1] {
-                "b" => SavedStateValue::Byte(value[1..].parse().unwrap()),
-                "i" => SavedStateValue::Int(value[1..].parse().unwrap()),
-                "s" => SavedStateValue::Str(&value[1..]),
-                other => panic!("state type {other}"),
-            };
-            (key, value)
-        })
-        .collect();
-    BlockRegistry::vanilla()
-        .state_by_properties(name, &states)
-        .unwrap_or_else(|error| panic!("{text}: {error}"))
+/// One `state_table` entry of the edit fixture: a block name and its saved
+/// states, keys sorted.
+#[derive(serde::Deserialize)]
+struct FixtureState<'a> {
+    name: &'a str,
+    #[serde(borrow)]
+    states: Vec<(&'a str, SavedStateValue<'a>)>,
+}
+
+impl FixtureState<'_> {
+    /// The canonical state this entry names.
+    fn state(&self) -> u32 {
+        BlockRegistry::vanilla()
+            .state_by_properties(self.name, &self.states)
+            .unwrap_or_else(|error| panic!("{}: {error}", self.name))
+    }
 }
 
 /// One write of the edit fixture: local x, absolute y, local z, both layers.
@@ -304,11 +301,10 @@ struct EditedSection {
 fn edited_sections() -> Vec<EditedSection> {
     let fixture: Value =
         serde_json::from_str(include_str!("fixtures/bds_1_26_51_subchunk_edits.json")).unwrap();
-    let states: Vec<u32> = fixture["state_table"]
-        .as_array()
+    let states: Vec<u32> = Vec::<FixtureState<'_>>::deserialize(&fixture["state_table"])
         .unwrap()
         .iter()
-        .map(|text| parse_state(text.as_str().unwrap()))
+        .map(FixtureState::state)
         .collect();
     let liquid = |index: i64| (index >= 0).then(|| states[index as usize]);
     let number = |value: &Value| value.as_i64().unwrap();

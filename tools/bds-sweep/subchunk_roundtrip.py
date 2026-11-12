@@ -695,6 +695,14 @@ def step_generate(out: Path):
     cargo_example('generate', str(world / 'db'), str(out / 'generate.json'), str(out / 'generated-cells.json'))
 
 
+def state_entry(state: tuple) -> dict:
+    """A state as the edit fixture stores it, `{name, states: [[key, {kind: value}]]}`
+    with the kinds `byte`, `int` and `str`, which deserializes into unastar's saved state."""
+    name, states = state
+    kinds = {'byte': 'byte', 'int': 'int', 'string': 'str'}
+    return {'name': name, 'states': [[k, {kinds[t]: v}] for k, t, v in states]}
+
+
 def parse_cell(text: str) -> tuple:
     name, _, states = text.partition('|')
     parsed = []
@@ -776,13 +784,15 @@ def step_fixture(out: Path):
     bds = leveldb_read.read_db(out / 'bds-edited-world' / 'db')
     plan = load_plan(out)
     expected, writes = apply_plan(source, plan, include_measure=False)
-    states: list[str] = []
+    seen: list[str] = []
+    states: list[dict] = []
 
     def state_index(state: tuple) -> int:
         text = cell(state)
-        if text not in states:
-            states.append(text)
-        return states.index(text)
+        if text not in seen:
+            seen.append(text)
+            states.append(state_entry(state))
+        return seen.index(text)
 
     sections = []
     for key in sorted(expected):
@@ -819,7 +829,8 @@ def step_fixture(out: Path):
                   'edited with /setblock and /fill; the edited chunks were unloaded (ticking areas removed) so '
                   'BDS saved them through its unload path',
         'generator': 'tools/bds-sweep/subchunk_roundtrip.py (steps source, plan, bds-edit, fixture)',
-        'states': 'cell form name|key=<b|i|s>value,... (keys sorted), indexed by the writes and builds',
+        'states': 'state_table entries {name, states: [[key, {byte|int|str: value}]]} (keys sorted), '
+                  'indexed by the writes and builds',
         'before': 'BDS record before the edits (hex), or before_build: [x, y, z, state] placements into an '
                   'air section that rebuild it, with its before_sha256; null when the section had no record',
         'writes': '[x, y, z, state, liquid state or -1] in order (both layers of one cell, as /setblock left '

@@ -141,12 +141,13 @@ async fn generate(db: &str, spec: &str, cells: &str) -> Result<()> {
     let mut chunks: BTreeMap<(i32, i32, i32), Chunk> = BTreeMap::new();
     for column in spec["columns"].as_array().ok_or("columns")? {
         let (dim, cx, cz) = (int(&column[0])?, int(&column[1])?, int(&column[2])?);
+        let dimension = match dim {
+            0 => JavaDimension::Overworld,
+            1 => JavaDimension::Nether,
+            2 => JavaDimension::End,
+            other => return Err(format!("unknown dimension {other}").into()),
+        };
         let pipeline = pipelines.entry(dim).or_insert_with(|| {
-            let dimension = match dim {
-                1 => JavaDimension::Nether,
-                2 => JavaDimension::End,
-                _ => JavaDimension::Overworld,
-            };
             // Structure templates are only embedded with the `java-templates`
             // build feature; terrain, carvers and biome features need nothing.
             let options = JavaGenerationOptions {
