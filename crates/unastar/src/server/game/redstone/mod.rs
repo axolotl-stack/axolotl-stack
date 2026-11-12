@@ -37,6 +37,7 @@ mod live;
 #[cfg(test)]
 mod piston_packets;
 pub(crate) mod pistons;
+pub(crate) mod plates;
 pub(crate) mod power;
 #[cfg(test)]
 mod tests;
@@ -53,7 +54,7 @@ use crate::registry::BlockRegistry;
 use crate::registry::block::StateValue;
 use crate::server::game::block_update::support::Face;
 use kinds::{Consumer, FACES, Kind, Table};
-pub(crate) use live::{note_change, tick_redstone};
+pub(crate) use live::{note_change, press_plates, tick_redstone};
 use power::View;
 
 /// Turn-offs within [`BURNOUT_TICKS`] that burn a torch out.

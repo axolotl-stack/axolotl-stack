@@ -88,10 +88,12 @@ pub(crate) enum Kind {
         attached: Face,
         on: bool,
     },
-    /// Pressure plates: their signal to every neighbour, strong power into
-    /// the block below.
+    /// Pressure plates: their power to every neighbour, strong power into
+    /// the block below (`super::plates`: a pressed wooden or stone plate
+    /// stores 1 and powers 15, a weighted plate powers what it stores).
     Plate {
         signal: u8,
+        plate: super::plates::PlateKind,
     },
     /// Tripwire hooks: like a switch.
     Hook {
@@ -427,9 +429,10 @@ fn classify(entry: &BlockEntry, state: u32) -> Kind {
             on: byte(entry, state, "button_pressed_bit") == Some(true),
         });
     }
-    if id.ends_with("_pressure_plate") {
+    if let Some(plate) = super::plates::PlateKind::of(id) {
         return Kind::Plate {
             signal: signal(entry, state),
+            plate,
         };
     }
     if id.ends_with("copper_bulb") {

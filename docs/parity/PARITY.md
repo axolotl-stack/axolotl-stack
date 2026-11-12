@@ -14,7 +14,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 120 | 1 | 3 | 9 | 4 | 9.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1213 | 2645 | 170 | 8 | 46 | 4.4% |
-| [Blocks](#blocks) | 1477 | 0 | 402 | 511 | 397 | 167 | 69.3% |
+| [Blocks](#blocks) | 1477 | 0 | 385 | 511 | 414 | 167 | 70.6% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
@@ -45,7 +45,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 59 |
 
-**Blocks**: 237 open rows free, 165 claimed.
+**Blocks**: 237 open rows free, 148 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -61,7 +61,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 148 |
+| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 131 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
@@ -230,7 +230,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | ores | 19 | 0 | 14 | 5 | 0 | 0 | 26.3% |
 | panes_bars | 26 | 0 | 4 | 0 | 22 | 0 | 84.6% |
 | plants | 54 | 0 | 17 | 19 | 18 | 0 | 68.5% |
-| pressure_plates | 17 | 0 | 17 | 0 | 0 | 0 | 0.0% |
+| pressure_plates | 17 | 0 | 0 | 0 | 17 | 0 | 100.0% |
 | rails | 4 | 0 | 3 | 0 | 1 | 0 | 25.0% |
 | redstone | 39 | 0 | 16 | 0 | 23 | 0 | 59.0% |
 | saplings | 10 | 0 | 10 | 0 | 0 | 0 | 0.0% |
@@ -346,10 +346,6 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:crimson_fungus`, `minecraft:warped_fungus`: bone meal does not grow huge fungi
 - `minecraft:closed_eyeblossom`: does not open at night
 - 8 more partial rows with other gaps (see [blocks.toml](blocks.toml))
-
-**pressure_plates**
-
-- `minecraft:acacia_pressure_plate`, `minecraft:bamboo_pressure_plate`, `minecraft:birch_pressure_plate`, `minecraft:cherry_pressure_plate`, `minecraft:crimson_pressure_plate`, `minecraft:dark_oak_pressure_plate`, `minecraft:heavy_weighted_pressure_plate`, `minecraft:jungle_pressure_plate`, `minecraft:light_weighted_pressure_plate`, `minecraft:mangrove_pressure_plate`, `minecraft:pale_oak_pressure_plate`, `minecraft:polished_blackstone_pressure_plate` and 5 more: not pressed by entities: a plate powers circuits only while its state says so
 
 **rails**
 

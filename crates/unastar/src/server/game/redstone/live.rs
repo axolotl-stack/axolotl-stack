@@ -5,6 +5,7 @@ use bevy_ecs::prelude::*;
 use glam::{IVec3, Vec3};
 use zuri_nbt::tag;
 
+use super::plates::{PlateKind, Plates, Presser};
 use super::{Circuit, Redstone};
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
@@ -135,6 +136,113 @@ pub(crate) fn tick_redstone(world: &mut World) {
     });
 }
 
+/// The actors that can press plates: mobs (dying ones too), items and
+/// players that are not spectating.
+fn pressers(world: &mut World) -> Vec<Presser> {
+    use crate::entity::components::{DroppedItem, GameMode, PhysicsBody, Player, Position};
+    use crate::registry::collision::Aabb;
+    let mut out = Vec::new();
+    let mut actors =
+        world.query_filtered::<(&Position, &PhysicsBody, Has<DroppedItem>), Without<Player>>();
+    for (position, body, item) in actors.iter(world) {
+        out.push(Presser {
+            aabb: Aabb::from_feet(position.0, body.width, body.height),
+            item,
+        });
+    }
+    let mut players = world.query_filtered::<(&Position, Option<&GameMode>), With<Player>>();
+    for (position, mode) in players.iter(world) {
+        if mode == Some(&GameMode::Spectator) {
+            continue;
+        }
+        let feet = position.0 - glam::DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
+        out.push(Presser {
+            aabb: Aabb::from_feet(feet, 0.6, 1.8),
+            item: false,
+        });
+    }
+    out.retain(|presser| presser.aabb.min.is_finite() && presser.aabb.max.is_finite());
+    out
+}
+
+/// Press and release the pressure plates actors touch (`super::plates`),
+/// before the circuit steps: a plate's change is an outside change.
+pub(crate) fn press_plates(world: &mut World) {
+    let now = world
+        .get_resource::<crate::ecs::resources::TickCounter>()
+        .map_or(0, |ticks| ticks.current);
+    let pressers = pressers(world);
+    let registry = world.registry().clone();
+    let mut candidates: Vec<IVec3> = world
+        .get_resource::<Plates>()
+        .map(|plates| plates.pressed().collect())
+        .unwrap_or_default();
+    for presser in &pressers {
+        let min = presser.aabb.min.floor().as_ivec3();
+        let max = presser.aabb.max.floor().as_ivec3();
+        for x in min.x..=max.x {
+            for z in min.z..=max.z {
+                for y in min.y..=min.y.max(max.y.min(min.y + 1)) {
+                    let pos = IVec3::new(x, y, z);
+                    if !candidates.contains(&pos) {
+                        candidates.push(pos);
+                    }
+                }
+            }
+        }
+    }
+    let mut plates = Vec::new();
+    for pos in candidates {
+        let Some(state) = world.block_at(pos) else {
+            continue;
+        };
+        let Some(entry) = registry.get_by_runtime_id(state) else {
+            continue;
+        };
+        match PlateKind::of(&entry.string_id) {
+            Some(kind) => {
+                let stored = match entry.state_value(state, "redstone_signal") {
+                    Some(crate::registry::block::StateValue::Int(signal)) => {
+                        u8::try_from(signal.clamp(0, 15)).unwrap_or(0)
+                    }
+                    _ => 0,
+                };
+                plates.push((pos, kind, stored, state));
+            }
+            None => {
+                if let Some(mut tracked) = world.get_resource_mut::<Plates>() {
+                    tracked.removed(pos);
+                }
+            }
+        }
+    }
+    if plates.is_empty() {
+        return;
+    }
+    let listed: Vec<(IVec3, PlateKind, u8)> = plates
+        .iter()
+        .map(|(pos, kind, stored, _)| (*pos, *kind, *stored))
+        .collect();
+    let changes = world
+        .get_resource_or_init::<Plates>()
+        .tick(now, &listed, &pressers);
+    for (pos, signal) in changes {
+        let Some((_, _, _, state)) = plates.iter().find(|(at, ..)| *at == pos) else {
+            continue;
+        };
+        let Some(next) = registry.get_by_runtime_id(*state).and_then(|entry| {
+            entry.with_state_value(
+                *state,
+                "redstone_signal",
+                crate::registry::block::StateValue::Int(i32::from(signal)),
+            )
+        }) else {
+            continue;
+        };
+        crate::server::game::blocks::set_block(world, pos, next, false);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bevy_ecs::message::Messages;
@@ -204,5 +312,81 @@ mod tests {
             entry.state_value(state, "redstone_signal"),
             Some(StateValue::Int(15))
         );
+    }
+
+    /// A running server presses a wooden plate under a dropped item and lights
+    /// the lamp behind it, and a stone plate ignores the item (the plate rules
+    /// of `redstone::plates`, replayed against BDS in `redstone/tests.rs`).
+    #[test]
+    fn a_dropped_item_presses_a_wooden_plate_in_a_running_server() {
+        use crate::world::chunk::Chunk;
+
+        let mut server = crate::GameServer::with_config(crate::ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..crate::ServerConfig::default()
+        });
+        {
+            let world = server.ecs.world_mut();
+            let mut column = Chunk::new(0, 0);
+            for x in 0..16 {
+                for z in 0..16 {
+                    column.set_block(x, 63, z, id("minecraft:stone"));
+                }
+            }
+            let chunk = world.spawn(ChunkData::new(column)).id();
+            world
+                .resource_mut::<ChunkManager>()
+                .insert(ChunkPosition::new(0, 0), chunk);
+            set_block(
+                world,
+                IVec3::new(4, 64, 4),
+                id("minecraft:wooden_pressure_plate"),
+                false,
+            );
+            set_block(
+                world,
+                IVec3::new(5, 64, 4),
+                id("minecraft:redstone_lamp"),
+                false,
+            );
+            set_block(
+                world,
+                IVec3::new(8, 64, 4),
+                id("minecraft:stone_pressure_plate"),
+                false,
+            );
+        }
+        for _ in 0..4 {
+            server.tick();
+        }
+        for x in [4.5, 8.5] {
+            let world = server.ecs.world_mut();
+            let item = crate::entity::spawn_item_drop(
+                world,
+                glam::DVec3::new(x, 64.1, 4.5),
+                crate::item::test_support::stack("minecraft:stone", 1),
+                None,
+            )
+            .expect("an item");
+            // Dropped straight down (a drop scatters at random otherwise).
+            world
+                .get_mut::<crate::entity::components::Velocity>(item)
+                .expect("an item moves")
+                .0 = glam::DVec3::ZERO;
+        }
+        for _ in 0..40 {
+            server.tick();
+        }
+        let world = server.ecs.world_mut();
+        let signal = |pos: IVec3| {
+            let state = block_at(world, (pos.x, pos.y, pos.z)).unwrap();
+            let entry = BlockRegistry::vanilla().get_by_runtime_id(state).unwrap();
+            entry.state_value(state, "redstone_signal")
+        };
+        use crate::registry::block::StateValue;
+        assert_eq!(signal(IVec3::new(4, 64, 4)), Some(StateValue::Int(1)));
+        assert_eq!(signal(IVec3::new(8, 64, 4)), Some(StateValue::Int(0)));
+        let lamp = block_at(world, (5, 64, 4)).unwrap();
+        assert_eq!(lamp, id("minecraft:lit_redstone_lamp"));
     }
 }

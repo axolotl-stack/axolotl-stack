@@ -557,7 +557,11 @@ impl GameServer {
         // Redstone, after this tick's other block changes, then random block
         // ticks (exclusive: edit chunks).
         ecs.schedule_mut().add_systems(
-            (redstone::tick_redstone, random_ticks::tick_random_blocks)
+            (
+                redstone::press_plates,
+                redstone::tick_redstone,
+                random_ticks::tick_random_blocks,
+            )
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(block_use::tick_scheduled_blocks)

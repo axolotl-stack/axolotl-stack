@@ -709,9 +709,13 @@ blocks power acts on: lamps, doors, trapdoors, fence gates, copper bulbs, hopper
 dispensers, droppers, crafters (`triggered_bit` only) and powered and activator rails. Which
 blocks conduct, cut climbing dust and let dust climb are measured per block
 (`unastar_data::redstone`). Levers and buttons switch through `block_use.rs`. Not modelled:
-entities on pressure plates and tripwires, target blocks, daylight measurement, sculk
+tripwires pressed by actors, target blocks, daylight measurement, sculk
 sensors, note block sounds and dispensing; a circuit already in a chunk loaded
 from disk starts working once a block next to it changes.
+
+Pressure plates (`redstone/plates.rs`) press in the tick an actor touches them and release at a
+check every 20 ticks (10 for weighted plates), replayed against BDS from the measured actor
+positions.
 
 Pistons (`redstone/pistons.rs`, decision
 [0050](../../docs/decisions/0050-move-pistons-from-the-circuit-update.md)) read their power in

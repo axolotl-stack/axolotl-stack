@@ -13,7 +13,7 @@
 
 use std::collections::HashMap;
 
-use glam::IVec3;
+use glam::{DVec3, IVec3};
 use serde_json::{Map, Value};
 
 use super::{Circuit, Redstone, container_reading};
@@ -820,4 +820,116 @@ fn blocks_pistons_break_drop_like_bds() {
         failures.len(),
         failures.join("\n")
     );
+}
+
+/// The box an actor of the sweep presses plates with.
+fn presser_size(kind: &str) -> Option<(f64, f64)> {
+    Some(match kind {
+        "armor_stand" => (0.5, 1.975),
+        "pig" => (0.9, 0.9),
+        "item" => (0.25, 0.25),
+        _ => return None,
+    })
+}
+
+/// Every plate row replayed from the actors BDS had in the cell each tick:
+/// the plate's stored signal matches at every read (wooden, stone,
+/// blackstone and weighted plates under armour stands, pigs, items and
+/// stacks; the weighted plates under 1-64 items as they merge).
+#[test]
+fn plates_press_like_bds_under_the_measured_actors() {
+    use super::plates::{PlateKind, Plates, Presser};
+    use crate::registry::collision::Aabb;
+    let mut failures = Vec::new();
+    let mut compared = 0;
+    for family in ["plates_press", "plates_weighted"] {
+        for row in rows(family) {
+            let name = &row[0];
+            let plate = full_name(name[0].as_str().unwrap());
+            let kind = PlateKind::of(&plate).expect("a plate");
+            let pos = IVec3::new(1, 0, 0);
+            let plate_at = |trace: &[Value], t: u64| {
+                trace
+                    .iter()
+                    .rev()
+                    .find(|e| e[1] == 1 && e[0].as_u64().unwrap() <= t)
+                    .map_or(0, |e| e[3]["redstone_signal"].as_u64().unwrap_or(0) as u8)
+            };
+            let trace = row[3].as_array().unwrap();
+            let actors = row[5].as_array().unwrap();
+            let ticks = row[2]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|step| step[0] == "timeline")
+                .unwrap()[1]
+                .as_u64()
+                .unwrap();
+            let mut plates = Plates::default();
+            let mut stored = 0u8;
+            // The actors at each read: (id, presser).
+            let at_read = |read: u64| -> Vec<(i64, Presser)> {
+                actors
+                    .iter()
+                    .rev()
+                    .find(|entry| entry[0].as_u64().unwrap() <= read)
+                    .map(|entry| {
+                        entry[1]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|a| {
+                                let (width, height) = presser_size(a[1].as_str()?)?;
+                                let feet =
+                                    DVec3::new(a[2].as_f64()?, a[3].as_f64()?, a[4].as_f64()?);
+                                Some((
+                                    a[0].as_i64()?,
+                                    Presser {
+                                        aabb: Aabb::from_feet(feet, width, height),
+                                        item: a[1] == "item",
+                                    },
+                                ))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            };
+            for t in 0..ticks.saturating_sub(1) {
+                // Tick t reads the actors that existed when it began (in
+                // read t), where its movement left them (read t + 1); a mob
+                // removed in the tick still counts where it was, an item
+                // merged into another does not.
+                let after = at_read(t + 1);
+                let seen: Vec<Presser> = at_read(t)
+                    .into_iter()
+                    .filter_map(|(id, presser)| {
+                        match after.iter().find(|(other, _)| *other == id) {
+                            Some((_, moved)) => Some(*moved),
+                            // Items merge before plates read; a mob is removed after.
+                            None => (!presser.item).then_some(presser),
+                        }
+                    })
+                    .collect();
+                for (_, signal) in plates.tick(t, &[(pos, kind, stored)], &seen) {
+                    stored = signal;
+                }
+                compared += 1;
+                let bds = plate_at(trace, t + 1);
+                if bds != stored {
+                    failures.push(format!(
+                        "{name}: read {}: BDS {bds}, unastar {stored}",
+                        t + 1
+                    ));
+                    break;
+                }
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} rows differ:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+    assert!(compared > 3000, "{compared}");
 }

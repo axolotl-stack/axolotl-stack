@@ -49,7 +49,10 @@ pub(crate) fn emits(view: &impl View, pos: IVec3, toward: Face) -> (u8, bool) {
                 (0, false)
             }
         }
-        Kind::Plate { signal } => (signal, signal > 0 && toward == Face::Down),
+        Kind::Plate { signal, plate } => {
+            let power = plate.power(signal);
+            (power, power > 0 && toward == Face::Down)
+        }
         Kind::Daylight { signal } => (signal, false),
         Kind::Torch { attached, lit } => {
             if lit && toward != attached {
