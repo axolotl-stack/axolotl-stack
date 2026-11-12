@@ -7,15 +7,15 @@ use crate::entity::components::{
     ArmourInventory, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory, OffhandSlot,
     PlayerSession, PlayerUi, RuntimeEntityId,
 };
+use crate::entity::player_life::actor_data::{PlayerActorData, join_actor_data};
 use crate::entity::player_life::attributes::player_attributes;
 use crate::world::clock;
 use crate::world::rules::{Difficulty, GameRules, WorldTime};
 use bevy_ecs::prelude::{Entity, World};
 use jolyne::valentine::types::{
-    ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DataItemEntry,
-    DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload, DataItemShortPayload,
-    EnumsCommandPermissionLevel, EnumsDataItemType, EnumsGameType, EnumsPlayerPermissionLevel,
-    PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
+    ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData,
+    EnumsCommandPermissionLevel, EnumsGameType, EnumsPlayerPermissionLevel, PropertySyncData,
+    SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
     SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{
@@ -23,7 +23,6 @@ use jolyne::valentine::{
     SetDifficultyPacket, SetPlayerGameTypePacket,
 };
 use jolyne::valentine::{SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket};
-use jolyne::valentine::{actor_data_i_ds as actor_data_ids, actor_flags};
 use tracing::debug;
 
 const BUILD: u32 = 1;
@@ -187,7 +186,16 @@ impl GameServer {
             tick: input_tick.clone(),
         }));
 
-        let actor_data = initial_player_actor_data();
+        let name = &world
+            .get::<crate::entity::components::PlayerName>(entity)
+            .expect("spawned players have a name")
+            .0;
+        let actor_data = join_actor_data(
+            name,
+            world
+                .get::<PlayerActorData>(entity)
+                .expect("spawn_player inserts the player's actor data"),
+        );
 
         let _ = session.send(McpePacket::from(SetActorDataPacket {
             target_runtime_id: ActorRuntimeId {
@@ -281,61 +289,15 @@ pub(crate) fn game_type(game_mode: GameMode) -> EnumsGameType {
     }
 }
 
-fn initial_player_actor_data() -> Vec<DataItemEntry> {
-    let flags = (1u64 << actor_flags::CANCLIMB)
-        | (1u64 << actor_flags::HAS_COLLISION)
-        | (1u64 << actor_flags::HAS_GRAVITY);
-    vec![
-        DataItemEntry {
-            id: actor_data_ids::RESERVED_0,
-            payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
-                type_: EnumsDataItemType::Int64,
-                value: flags as i64,
-            }),
-        },
-        DataItemEntry {
-            id: actor_data_ids::AIR_SUPPLY,
-            payload: DataItemEntryPayload::DataItemShortPayload(DataItemShortPayload {
-                type_: EnumsDataItemType::Short,
-                value: 300,
-            }),
-        },
-        DataItemEntry {
-            id: actor_data_ids::AIR_SUPPLY_MAX,
-            payload: DataItemEntryPayload::DataItemShortPayload(DataItemShortPayload {
-                type_: EnumsDataItemType::Short,
-                value: 300,
-            }),
-        },
-        DataItemEntry {
-            id: actor_data_ids::RESERVED_053,
-            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                type_: EnumsDataItemType::Float,
-                value: 0.6,
-            }),
-        },
-        DataItemEntry {
-            id: actor_data_ids::RESERVED_054,
-            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                type_: EnumsDataItemType::Float,
-                value: 1.8,
-            }),
-        },
-        DataItemEntry {
-            id: actor_data_ids::RESERVED_038,
-            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                type_: EnumsDataItemType::Float,
-                value: 1.0,
-            }),
-        },
-    ]
-}
-
 #[cfg(test)]
 mod metadata_control_tests {
     use super::*;
+    use jolyne::valentine::types::DataItemEntryPayload;
     use valentine::bedrock::codec::BedrockCodec;
 
+    /// The join `SetActorData` is every row of BDS's (member join capture),
+    /// value for value: the player's name and index, flags without
+    /// `BREATHING` and full air, and no box rows.
     #[test]
     fn initial_player_flags_match_native_join_control() {
         let bytes = include_bytes!(
@@ -344,31 +306,18 @@ mod metadata_control_tests {
         let mut input = &bytes[1..];
         let native = SetActorDataPacket::decode(&mut input, ()).unwrap();
         assert!(input.is_empty());
-        let actual = initial_player_actor_data();
-        for id in [0, 7, 42] {
-            let expected = &native
-                .actor_data
-                .data
-                .iter()
-                .find(|row| row.id == id)
-                .unwrap()
-                .payload;
-            let observed = &actual.iter().find(|row| row.id == id).unwrap().payload;
-            match (observed, expected) {
-                (
-                    DataItemEntryPayload::DataItemInt64Payload(actual),
-                    DataItemEntryPayload::DataItemInt64Payload(expected),
-                ) => {
-                    assert_eq!(actual.value, expected.value, "initial player metadata {id}");
+        let name = native
+            .actor_data
+            .data
+            .iter()
+            .find_map(|row| match &row.payload {
+                DataItemEntryPayload::DataItemStringPayload(name) if row.id == 4 => {
+                    Some(name.value.to_string())
                 }
-                (
-                    DataItemEntryPayload::DataItemShortPayload(actual),
-                    DataItemEntryPayload::DataItemShortPayload(expected),
-                ) => {
-                    assert_eq!(actual.value, expected.value, "initial player metadata {id}");
-                }
-                _ => panic!("native player metadata {id} payload type changed"),
-            }
-        }
+                _ => None,
+            })
+            .expect("the join names the player");
+        let actual = join_actor_data(&name, &PlayerActorData::joined(1));
+        assert_eq!(actual, native.actor_data.data);
     }
 }

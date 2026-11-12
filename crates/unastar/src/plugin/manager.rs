@@ -1415,6 +1415,8 @@ mod tests {
                     player_id: "test".into(),
                     position: (0, 1, 0),
                     block_id: 1,
+                    clicked: (0, 0, 0),
+                    face: 1,
                 },
                 ServerEvent::BlockBreak {
                     entity,
@@ -1758,6 +1760,8 @@ mod tests {
                 player_id: "test".into(),
                 position: (1, 65, 1),
                 block_id: *blocks::STONE,
+                clicked: (1, 64, 1),
+                face: 1,
             });
             world.insert_resource(events);
             manager.tick(&mut world);

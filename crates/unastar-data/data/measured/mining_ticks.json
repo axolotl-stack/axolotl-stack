@@ -581,6 +581,2268 @@
    }
   }
  },
+ "minecraft:dirt[]": {
+  "apple": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:apple"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "arrow": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:arrow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "black_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 15,
+   "on_ground": true,
+   "ticks": [
+    15
+   ],
+   "tool_item": {
+    "item": "minecraft:black_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "blue_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:blue_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "bow": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:bow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "breeze_rod": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:breeze_rod"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brewing_stand": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:brewing_stand"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brown_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:brown_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brush": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:brush"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cake": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:cake"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "campfire": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:campfire"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "carrot_on_a_stick": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:carrot_on_a_stick"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cauldron": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:cauldron"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "charcoal": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:charcoal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "coal": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:coal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "comparator": {
+   "commands": [],
+   "in_water": false,
+   "median": 13,
+   "on_ground": true,
+   "ticks": [
+    13
+   ],
+   "tool_item": {
+    "item": "minecraft:comparator"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 15,
+   "on_ground": true,
+   "ticks": [
+    15
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "crossbow": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:crossbow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cyan_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:cyan_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 13,
+   "on_ground": true,
+   "ticks": [
+    13
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "elytra": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:elytra"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "fishing_rod": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:fishing_rod"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "flower_pot": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:flower_pot"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "frame": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:frame"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "glow_frame": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:glow_frame"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "gray_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:gray_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "green_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:green_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14,
+    14,
+    14
+   ],
+   "tool_item": null
+  },
+  "hand+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 71,
+   "on_ground": true,
+   "ticks": [
+    71,
+    71,
+    71
+   ],
+   "tool_item": null
+  },
+  "hand+mining_fatigue2": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 340,
+   "on_ground": true,
+   "ticks": [
+    340,
+    340,
+    340
+   ],
+   "tool_item": null
+  },
+  "hopper": {
+   "commands": [],
+   "in_water": false,
+   "median": 13,
+   "on_ground": true,
+   "ticks": [
+    13
+   ],
+   "tool_item": {
+    "item": "minecraft:hopper"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "kelp": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:kelp"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "light_blue_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:light_blue_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "light_gray_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:light_gray_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "lime_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:lime_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "mace": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:mace"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "magenta_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:magenta_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_11": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_11"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_13": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_13"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_5": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_5"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_blocks": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_blocks"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_bounce": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_bounce"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_cat": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_cat"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_chirp": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_chirp"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_creator": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_creator"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_creator_music_box": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_creator_music_box"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_far": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_far"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_lava_chicken": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_lava_chicken"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_mall": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_mall"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_mellohi": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_mellohi"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_otherside": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_otherside"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_pigstep": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_pigstep"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_precipice": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_precipice"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_relic": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_relic"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_stal": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_stal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_strad": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_strad"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_tears": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_tears"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_wait": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_wait"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_ward": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_ward"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "nether_sprouts": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:nether_sprouts"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "ominous_trial_key": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:ominous_trial_key"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "orange_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:orange_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "pink_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:pink_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "purple_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:purple_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "red_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:red_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "red_shrub": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:red_shrub"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "repeater": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:repeater"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "shelf_mushroom": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:shelf_mushroom"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "shield": {
+   "commands": [],
+   "in_water": false,
+   "median": 15,
+   "on_ground": true,
+   "ticks": [
+    15
+   ],
+   "tool_item": {
+    "item": "minecraft:shield"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "snowball": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:snowball"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "soul_campfire": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:soul_campfire"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "stone_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "stone_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "string": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:string"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "sugar_cane": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:sugar_cane"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "trial_key": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:trial_key"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "trident": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:trident"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "turtle_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:turtle_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "warped_fungus_on_a_stick": {
+   "commands": [],
+   "in_water": false,
+   "median": 13,
+   "on_ground": true,
+   "ticks": [
+    13
+   ],
+   "tool_item": {
+    "item": "minecraft:warped_fungus_on_a_stick"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "white_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:white_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wind_charge": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:wind_charge"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wolf_armor": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:wolf_armor"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wooden_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wooden_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 15,
+   "on_ground": true,
+   "ticks": [
+    15
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "yellow_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:yellow_bundle"
+   },
+   "wear": [
+    0
+   ]
+  }
+ },
  "minecraft:glass[]": {
   "diamond_pickaxe+efficiency1": {
    "commands": [],
@@ -772,6 +3034,115 @@
    "tool_item": {
     "item": "minecraft:shears"
    }
+  }
+ },
+ "minecraft:glow_lichen[multi_face_direction_bits=0]": {
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
+  },
+  "mace": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:mace"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "trident": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    4,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:trident"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
   }
  },
  "minecraft:grass_block[]": {
@@ -1356,7 +3727,2601 @@
    }
   }
  },
+ "minecraft:netherrack[]": {
+  "apple": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:apple"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "arrow": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:arrow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "black_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 38,
+   "on_ground": true,
+   "ticks": [
+    38
+   ],
+   "tool_item": {
+    "item": "minecraft:black_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "blue_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:blue_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "bow": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:bow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "breeze_rod": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:breeze_rod"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brewing_stand": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:brewing_stand"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brown_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:brown_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brush": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:brush"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 40,
+   "on_ground": true,
+   "ticks": [
+    40
+   ],
+   "tool_item": {
+    "item": "minecraft:bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cake": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:cake"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "campfire": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:campfire"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "carrot_on_a_stick": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:carrot_on_a_stick"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cauldron": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:cauldron"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "charcoal": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:charcoal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "coal": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:coal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "comparator": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:comparator"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 40,
+   "on_ground": true,
+   "ticks": [
+    40
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 40,
+   "on_ground": true,
+   "ticks": [
+    40
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "copper_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "crossbow": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:crossbow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cyan_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:cyan_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "diamond_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "elytra": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:elytra"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "fishing_rod": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:fishing_rod"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "flower_pot": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:flower_pot"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "frame": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:frame"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "glow_frame": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:glow_frame"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 40,
+   "on_ground": true,
+   "ticks": [
+    40
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 40,
+   "on_ground": true,
+   "ticks": [
+    40
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "golden_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "gray_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:gray_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "green_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:green_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39,
+    39,
+    39
+   ],
+   "tool_item": null
+  },
+  "hopper": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:hopper"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "iron_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "kelp": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:kelp"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "light_blue_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:light_blue_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "light_gray_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:light_gray_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "lime_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:lime_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "mace": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:mace"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "magenta_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:magenta_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_11": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_11"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_13": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_13"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_5": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_5"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_blocks": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_blocks"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_bounce": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_bounce"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_cat": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_cat"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_chirp": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_chirp"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_creator": {
+   "commands": [],
+   "in_water": false,
+   "median": 38,
+   "on_ground": true,
+   "ticks": [
+    38
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_creator"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_creator_music_box": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_creator_music_box"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_far": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_far"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_lava_chicken": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_lava_chicken"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_mall": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_mall"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_mellohi": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_mellohi"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_otherside": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_otherside"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_pigstep": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_pigstep"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_precipice": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_precipice"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_relic": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_relic"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_stal": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_stal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_strad": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_strad"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_tears": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_tears"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_wait": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_wait"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_ward": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_ward"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "nether_sprouts": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:nether_sprouts"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 38,
+   "on_ground": true,
+   "ticks": [
+    38
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "netherite_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "ominous_trial_key": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:ominous_trial_key"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "orange_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:orange_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "pink_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:pink_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "purple_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:purple_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "red_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:red_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "red_shrub": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:red_shrub"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "repeater": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:repeater"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "shelf_mushroom": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:shelf_mushroom"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "shield": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:shield"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "snowball": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:snowball"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "soul_campfire": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:soul_campfire"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "stone_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "stone_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "stone_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "string": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:string"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "sugar_cane": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:sugar_cane"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "trial_key": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:trial_key"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "trident": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:trident"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "turtle_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:turtle_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "warped_fungus_on_a_stick": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:warped_fungus_on_a_stick"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "white_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:white_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wind_charge": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wind_charge"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wolf_armor": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wolf_armor"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wooden_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_axe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_hoe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_pickaxe"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_shovel"
+   },
+   "wear": [
+    1
+   ]
+  },
+  "wooden_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wooden_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_sword"
+   },
+   "wear": [
+    2
+   ]
+  },
+  "yellow_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 39,
+   "on_ground": true,
+   "ticks": [
+    39
+   ],
+   "tool_item": {
+    "item": "minecraft:yellow_bundle"
+   },
+   "wear": [
+    0
+   ]
+  }
+ },
  "minecraft:oak_leaves[persistent_bit=false,update_bit=false]": {
+  "apple": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:apple"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "arrow": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:arrow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "black_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:black_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "blue_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:blue_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "bow": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:bow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "breeze_rod": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:breeze_rod"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brewing_stand": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:brewing_stand"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brown_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:brown_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "brush": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:brush"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cake": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:cake"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "campfire": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:campfire"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "carrot_on_a_stick": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:carrot_on_a_stick"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cauldron": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:cauldron"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "chainmail_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:chainmail_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "charcoal": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:charcoal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "coal": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:coal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "comparator": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:comparator"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
   "copper_hoe": {
    "commands": [],
    "in_water": false,
@@ -1370,6 +6335,111 @@
    "tool_item": {
     "item": "minecraft:copper_hoe"
    }
+  },
+  "copper_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "copper_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "crossbow": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:crossbow"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "cyan_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:cyan_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_helmet"
+   },
+   "wear": [
+    0
+   ]
   },
   "diamond_hoe": {
    "commands": [],
@@ -1535,6 +6605,156 @@
     "item": "minecraft:diamond_hoe"
    }
   },
+  "diamond_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "diamond_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "elytra": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:elytra"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "fishing_rod": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:fishing_rod"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "flower_pot": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:flower_pot"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "frame": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:frame"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "glow_frame": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:glow_frame"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
   "golden_hoe": {
    "commands": [],
    "in_water": false,
@@ -1548,6 +6768,66 @@
    "tool_item": {
     "item": "minecraft:golden_hoe"
    }
+  },
+  "golden_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "golden_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "gray_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:gray_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "green_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:green_bundle"
+   },
+   "wear": [
+    0
+   ]
   },
   "hand": {
    "commands": [],
@@ -1576,6 +6856,66 @@
    ],
    "tool_item": null
   },
+  "hopper": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:hopper"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
   "iron_hoe": {
    "commands": [],
    "in_water": false,
@@ -1589,6 +6929,561 @@
    "tool_item": {
     "item": "minecraft:iron_hoe"
    }
+  },
+  "iron_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "iron_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "kelp": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:kelp"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "leather_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:leather_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "light_blue_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:light_blue_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "light_gray_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:light_gray_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "lime_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:lime_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "magenta_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:magenta_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_11": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_11"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_13": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_13"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_5": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_5"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_blocks": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_blocks"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_bounce": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_bounce"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_cat": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_cat"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_chirp": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_chirp"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_creator": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_creator"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_creator_music_box": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_creator_music_box"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_far": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_far"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_lava_chicken": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_lava_chicken"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_mall": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_mall"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_mellohi": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_mellohi"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_otherside": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_otherside"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_pigstep": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_pigstep"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_precipice": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_precipice"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_relic": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_relic"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_stal": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_stal"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_strad": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_strad"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_tears": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_tears"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_wait": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_wait"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "music_disc_ward": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:music_disc_ward"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "nether_sprouts": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:nether_sprouts"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_boots": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_boots"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_chestplate": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_chestplate"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_helmet"
+   },
+   "wear": [
+    0
+   ]
   },
   "netherite_hoe": {
    "commands": [],
@@ -1604,6 +7499,141 @@
     "item": "minecraft:netherite_hoe"
    }
   },
+  "netherite_leggings": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_leggings"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "netherite_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "ominous_trial_key": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:ominous_trial_key"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "orange_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:orange_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "pink_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:pink_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "purple_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:purple_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "red_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:red_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "red_shrub": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:red_shrub"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "repeater": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:repeater"
+   },
+   "wear": [
+    0
+   ]
+  },
   "shears": {
    "commands": [],
    "in_water": false,
@@ -1617,6 +7647,66 @@
    "tool_item": {
     "item": "minecraft:shears"
    }
+  },
+  "shelf_mushroom": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:shelf_mushroom"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "shield": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:shield"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "snowball": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:snowball"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "soul_campfire": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:soul_campfire"
+   },
+   "wear": [
+    0
+   ]
   },
   "stone_hoe": {
    "commands": [],
@@ -1632,6 +7722,141 @@
     "item": "minecraft:stone_hoe"
    }
   },
+  "stone_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "string": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:string"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "sugar_cane": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:sugar_cane"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "trial_key": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:trial_key"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "turtle_helmet": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:turtle_helmet"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "warped_fungus_on_a_stick": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:warped_fungus_on_a_stick"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "white_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:white_bundle"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wind_charge": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:wind_charge"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "wolf_armor": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:wolf_armor"
+   },
+   "wear": [
+    0
+   ]
+  },
   "wooden_hoe": {
    "commands": [],
    "in_water": false,
@@ -1645,6 +7870,36 @@
    "tool_item": {
     "item": "minecraft:wooden_hoe"
    }
+  },
+  "wooden_spear": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_spear"
+   },
+   "wear": [
+    0
+   ]
+  },
+  "yellow_bundle": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:yellow_bundle"
+   },
+   "wear": [
+    0
+   ]
   }
  },
  "minecraft:oak_log[pillar_axis=\"y\"]": {
@@ -1938,6 +8193,115 @@
    }
   }
  },
+ "minecraft:short_grass[]": {
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   },
+   "wear": [
+    0,
+    0,
+    0
+   ]
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    1,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   },
+   "wear": [
+    0,
+    0,
+    0
+   ]
+  },
+  "mace": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:mace"
+   },
+   "wear": [
+    0,
+    0,
+    0
+   ]
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "trident": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    1,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:trident"
+   },
+   "wear": [
+    0,
+    0,
+    0
+   ]
+  }
+ },
  "minecraft:stone[]": {
   "copper_pickaxe": {
    "commands": [],
@@ -2143,6 +8507,48 @@
    ],
    "tool_item": null
   },
+  "hand+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 104,
+   "on_ground": true,
+   "ticks": [
+    104,
+    103,
+    104
+   ],
+   "tool_item": null
+  },
+  "hand+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 75,
+   "on_ground": true,
+   "ticks": [
+    74,
+    75,
+    75
+   ],
+   "tool_item": null
+  },
+  "hand+haste3": {
+   "commands": [
+    "effect {player} haste 1000 2 true"
+   ],
+   "in_water": false,
+   "median": 54,
+   "on_ground": true,
+   "ticks": [
+    54,
+    54,
+    54
+   ],
+   "tool_item": null
+  },
   "hand+underwater": {
    "commands": [
     "setblock 0 -60 0 water",
@@ -2227,6 +8633,115 @@
    "tool_item": {
     "item": "minecraft:wooden_pickaxe"
    }
+  }
+ },
+ "minecraft:vine[vine_direction_bits=0]": {
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    4
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
+  },
+  "mace": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:mace"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "trident": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    4,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:trident"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
   }
  },
  "minecraft:web[]": {
@@ -2711,6 +9226,115 @@
    "tool_item": {
     "item": "minecraft:shears"
    }
+  }
+ },
+ "minecraft:white_wool[]": {
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 23,
+   "on_ground": true,
+   "ticks": [
+    23,
+    23,
+    23
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 23,
+   "on_ground": true,
+   "ticks": [
+    23,
+    24,
+    23
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 23,
+   "on_ground": true,
+   "ticks": [
+    23,
+    23,
+    23
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
+  },
+  "mace": {
+   "commands": [],
+   "in_water": false,
+   "median": 23,
+   "on_ground": true,
+   "ticks": [
+    23,
+    23,
+    23
+   ],
+   "tool_item": {
+    "item": "minecraft:mace"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    3,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   },
+   "wear": [
+    1,
+    1,
+    1
+   ]
+  },
+  "trident": {
+   "commands": [],
+   "in_water": false,
+   "median": 23,
+   "on_ground": true,
+   "ticks": [
+    22,
+    23,
+    23
+   ],
+   "tool_item": {
+    "item": "minecraft:trident"
+   },
+   "wear": [
+    2,
+    2,
+    2
+   ]
   }
  }
 }

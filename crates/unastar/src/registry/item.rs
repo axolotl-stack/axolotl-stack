@@ -419,8 +419,8 @@ impl ItemRegistry {
             .map(|item| crate::item::ItemStack::new(item, count))
     }
 
-    /// Shared world/item constructor. Block defaults retain the block registry's
-    /// documented source policy; non-block items have no block state.
+    /// Shared world/item constructor: the stack describes the block BDS
+    /// describes it with ([`item_block_state`]); other items no block.
     pub fn stack_with_block(
         &self,
         name: &str,
@@ -428,7 +428,7 @@ impl ItemRegistry {
         blocks: &super::BlockRegistry,
     ) -> Option<crate::item::ItemStack> {
         let stack = self.stack(name, count)?;
-        let runtime_id = match blocks.default_state_id_by_name(name) {
+        let runtime_id = match item_block_state(blocks, name) {
             Some(state) => i32::try_from(state).ok()?,
             None => 0,
         };
@@ -631,6 +631,45 @@ pub(crate) mod test_support {
         }
         registry
     }
+}
+
+/// The block state a stack of `item` describes, as BDS describes it
+/// (`unastar_data::item_blocks`, measured for every item `/replaceitem`
+/// gives): a chest stack names `cardinal_direction=north`, an amethyst bud
+/// `block_face=up`; doors, beds, signs, hoppers and other items that are not
+/// block items name none. Items the sweep could not give (internal block
+/// items such as double slabs) and custom items fall back to the first state
+/// of the block of the same name.
+pub fn item_block_state(blocks: &super::BlockRegistry, item: &str) -> Option<u32> {
+    let Some(measured) = unastar_data::item_blocks::item_blocks().get(item) else {
+        return blocks.default_state_id_by_name(item);
+    };
+    let measured = measured?;
+    block_state_with(blocks, &measured.block, &measured.states)
+}
+
+/// The canonical state of `block` with `states` (measured-table form: byte
+/// properties as booleans).
+pub fn block_state_with(
+    blocks: &super::BlockRegistry,
+    block: &str,
+    states: &'static std::collections::BTreeMap<String, serde_json::Value>,
+) -> Option<u32> {
+    use crate::registry::block::StateValue;
+    let block = blocks.get_by_name(block)?;
+    let mut state = block.default_state_id;
+    for (property, value) in states {
+        let value = match value {
+            serde_json::Value::Bool(bit) => StateValue::Byte(u8::from(*bit)),
+            serde_json::Value::Number(number) => {
+                StateValue::Int(i32::try_from(number.as_i64()?).ok()?)
+            }
+            serde_json::Value::String(text) => StateValue::Str(text.as_str()),
+            _ => return None,
+        };
+        state = block.with_state_value(state, property, value)?;
+    }
+    Some(state)
 }
 
 /// Network id of the vanilla item whose block is canonical palette ordinal 0,
@@ -880,6 +919,47 @@ mod tests {
         assert!(matches!(err, RegistryError::MissingId(4)));
         assert!(registry.get_by_name("minecraft:removed").is_none());
         assert!(registry.get_by_network_id(40).is_none());
+    }
+
+    /// Every block the BDS item-block sweep measured is a canonical state of
+    /// the vanilla palette, and stacks describe it.
+    #[test]
+    fn stacks_describe_the_measured_item_blocks() {
+        let mut items = ItemRegistry::new();
+        items.load_vanilla();
+        let blocks = crate::registry::BlockRegistry::vanilla();
+        let mut block_items = 0;
+        for (item, measured) in &unastar_data::item_blocks::item_blocks().items {
+            let stack = items.stack_with_block(item, 1, blocks).expect(item);
+            match measured {
+                Some(block) => {
+                    let state = item_block_state(blocks, item).expect(item);
+                    assert_eq!(stack.runtime_id, state as i32, "{item}");
+                    assert_eq!(
+                        blocks
+                            .get_by_runtime_id(state)
+                            .map(|b| b.string_id.as_str()),
+                        Some(block.block.as_str()),
+                        "{item}"
+                    );
+                    block_items += 1;
+                }
+                None => assert_eq!(stack.runtime_id, 0, "{item}"),
+            }
+        }
+        assert_eq!(block_items, 1080);
+        // A chest stack faces north and a door stack names no block, as BDS
+        // describes them.
+        let chest = items
+            .stack_with_block("minecraft:chest", 1, blocks)
+            .unwrap();
+        assert_eq!(
+            blocks
+                .get_by_name("minecraft:chest")
+                .unwrap()
+                .state_value(chest.runtime_id as u32, "minecraft:cardinal_direction"),
+            Some(crate::registry::block::StateValue::Str("north"))
+        );
     }
 
     #[test]

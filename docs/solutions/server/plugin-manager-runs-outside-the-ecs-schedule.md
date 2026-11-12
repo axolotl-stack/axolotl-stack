@@ -34,6 +34,12 @@ The plugin manager was deliberately left out of the World and out of the schedul
   Resource so bevy's access checks let those systems overlap. Block, mob-interaction,
   item-use and command systems are exclusive and ordered after the systems whose
   results they read.
+- Consequence for headless tests (items lane, 2026-11-10): a test that drives
+  `GameServer::tick()` with no plugin manager never sees a block break or place happen.
+  Both stay intents in `EventBuffer` until the manager commits them with its default
+  (`server/game/blocks.rs::commit_block_event`). A test that replays inputs tick by
+  tick must drain `EventBuffer` after each tick and call that default itself; see
+  `Harness::tick` in `server/game/blocks/breaking_tests.rs`.
 
 ## Where it lives
 - `crates/unastar/src/server/runtime.rs` (tick loop, `MAX_PACKET_EVENTS_PER_SESSION_PER_TICK`)

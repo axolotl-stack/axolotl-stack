@@ -30,3 +30,7 @@ pub const BURN_INTERVAL_TICKS: u64 = 20;
 /// Damage of one burn tick, dealt as `fire_tick` (the cause is confirmed;
 /// the amount is provisional: Java Edition `Entity.baseTick`).
 pub const BURN_DAMAGE: f32 = 1.0;
+
+/// Damage of one drowning hit (confirmed: each of the ten hits in the BDS
+/// 1.26.51 breath capture took 2 health).
+pub const DROWNING_DAMAGE: f32 = 2.0;
