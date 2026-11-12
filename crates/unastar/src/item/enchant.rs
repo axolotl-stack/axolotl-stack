@@ -19,6 +19,7 @@ use super::ItemStack;
 #[repr(i16)]
 pub enum Enchantment {
     AquaAffinity = 8,
+    Sharpness = 9,
     Looting = 14,
     Efficiency = 15,
     SilkTouch = 16,
@@ -32,6 +33,7 @@ impl Enchantment {
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name.strip_prefix("minecraft:").unwrap_or(name) {
             "aqua_affinity" => Self::AquaAffinity,
+            "sharpness" => Self::Sharpness,
             "looting" => Self::Looting,
             "efficiency" => Self::Efficiency,
             "silk_touch" => Self::SilkTouch,

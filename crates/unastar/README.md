@@ -656,7 +656,18 @@ data is stored verbatim and compared decoded, so a default buffer equals none.
 
 Block interaction requires Survival or Creative mode and server-position reach
 (five blocks in Survival, six in Creative, measured to the block's bounding box).
-Survival predicted breaks must complete the server-tracked mining duration.
+Survival breaking follows BDS input by input:
+- The break advances once per `PlayerAuthInput`, not per server tick. Inputs that arrive together
+  are applied together, as BDS does; a player's inputs after one that completed a break wait one
+  tick, for its commit.
+- The server completes the break itself when the progress does.
+- A client prediction is accepted only on the input that completes the break. An early one gets
+  the blocks back and the break goes on.
+- `StopDestroyBlock` does not end the break, and a completed break goes on at that position from
+  zero.
+- Every input is answered with BDS's crack events, and no sound is sent for a break.
+
+`server/game/blocks/breaking_tests.rs` replays a BDS capture of all of this.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not
@@ -710,7 +721,8 @@ blast furnaces, smokers and hoppers have block actors
 - Breaking drops the contents (random 10..30 item chunks, furnaces whole
   stacks), unpairs the partner and closes viewers with a server-initiated close.
 - Furnaces tick per BDS (cook 200 or 100 ticks, measured fuel times scaled by
-  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3)
+  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3);
+  every measured fuel burns a furnace for its BDS time (`containers/tests/fuel.rs`)
   and pay XP straight to the taking player. Follow-up: spawn XP orbs once the
   entity lane's XP orb entity reaches main (also for breaking a furnace).
 - Hoppers move one item per 8 ticks between containers (furnace input from
@@ -755,13 +767,15 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Eat/drink: start on air use, server finishes after the use duration, early consume finishes at once, release or slot switch cancels | done | BDS capture (timing, `CompletedUsingItem` 1 / -1, burp at eye - 0.1, using flag word to the user too) |
 | Food values, effects, removed effects, bowls/bottles, milk clears effects | done | pack data; golden apple, rotten flesh, honey, milk compared with the capture |
 | Suspicious stew effects (data 0-9) | done | BDS capture table |
-| Chorus fruit teleport | done | public reference (16 tries within `on_use_range`) |
+| Chorus fruit teleport | done | `on_use_range` from pack data; 16 tries and the landing search are public references |
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
 | Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
 | Attribute sync (health, absorption, hunger, saturation, exhaustion) | done, changed values once | BDS join ranges; BDS also repeats some attributes, not copied |
 | Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
-| Tool wear: mining, melee (sword 1, other tools 2), bow and crossbow shots, Unbreaking, break sound | done | public reference |
-| Armour wear when hurt (`max(1, damage/4)` per piece) | done | public reference |
+| Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
+| Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
+| Melee damage: measured per item, Sharpness +1.25 per level truncated to whole points | done | BDS attack sweep (`entity/mob/combat/hit/measured_tests.rs`); critical hits not done |
+| Armour wear when hurt (`max(1, floor(damage/4))` per piece with armour points; the elytra never) | done | BDS armour-wear sweep (`entity/player_life/tests/hurt.rs`) |
 | Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
 | Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |
 | Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
