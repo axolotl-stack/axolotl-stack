@@ -19,7 +19,7 @@ The codec SHALL encode the little-endian wrapper types (`U16LE`, `I16LE`, `U32LE
 Evidence: crates/valentine/bedrock_core/src/bedrock/codec.rs (`le_int_newtype!`, tests `u32le_encoding_is_little_endian`, `u32_decode_insufficient_buffer`), crates/valentine/tests/binary_buffer_roundtrip.rs (`game_rule_scalar_payloads_are_little_endian`)
 
 ### Requirement: Varint, varlong and zig-zag encoding
-The codec SHALL encode unsigned varints (`VarUInt`, `VarULong`, `protocol::wire`) as LEB128 with seven payload bits per byte, and `ZigZag32`/`ZigZag64` as zig-zag-mapped unsigned varints. Unsigned decoding MUST reject encodings longer than 5/10 bytes, payload bits beyond the type's width, and overlong encodings. The signed `VarInt`/`VarLong` wrappers MUST reject encodings longer than 5/10 bytes.
+The codec SHALL encode unsigned varints (`VarUInt`, `VarULong`, `protocol::wire`) as LEB128 with seven payload bits per byte, and `ZigZag32`/`ZigZag64` as zig-zag-mapped unsigned varints. Unsigned decoding MUST reject encodings longer than 5/10 bytes, payload bits beyond the type's width, and overlong encodings. The signed `VarInt`/`VarLong` wrappers decode their two's-complement bits through the same strict unsigned rules and MUST reject the same encodings.
 
 #### Scenario: Full unsigned range round-trips
 - **WHEN** `u32::MAX` and `u64::MAX` are encoded as unsigned varints and decoded
@@ -29,11 +29,15 @@ The codec SHALL encode unsigned varints (`VarUInt`, `VarULong`, `protocol::wire`
 - **WHEN** an unsigned varint encodes a value with a trailing zero continuation group (for example `80 00`)
 - **THEN** decoding fails instead of returning `0`
 
+#### Scenario: Strict signed encoding
+- **WHEN** a signed `VarInt` decodes `80 00` (overlong) or `ff ff ff ff 7f` (bits beyond 32), or a `VarLong` decodes the 10-byte over-width equivalent
+- **THEN** decoding fails with `VarIntTooLarge` / `VarLongTooLarge` instead of a truncated value, while `-1` (`ff ff ff ff 0f`), `i32::MIN` and `i64::MIN` still round-trip
+
 #### Scenario: Zig-zag sign mapping
 - **WHEN** `ZigZag32(-1)` is encoded
 - **THEN** the output is the single byte `01`
 
-Evidence: crates/valentine/bedrock_core/src/protocol/wire.rs, crates/valentine/bedrock_core/src/bedrock/codec.rs (tests `unsigned_varints_preserve_the_full_wire_range`, `unsigned_varints_reject_payload_bits_beyond_their_width`, `unsigned_varints_reject_noncanonical_overlong_encodings`, `zigzag32_encoding`, `varint_too_long`, `varlong_too_long`), crates/valentine/tests/bedrock_roundtrip.rs (`varint_roundtrips_typical_boundaries`)
+Evidence: crates/valentine/bedrock_core/src/protocol/wire.rs, crates/valentine/bedrock_core/src/bedrock/codec.rs (tests `unsigned_varints_preserve_the_full_wire_range`, `unsigned_varints_reject_payload_bits_beyond_their_width`, `unsigned_varints_reject_noncanonical_overlong_encodings`, `signed_varints_reject_overlong_and_over_width_encodings`, `zigzag32_encoding`, `varint_too_long`, `varlong_too_long`), crates/valentine/tests/bedrock_roundtrip.rs (`varint_roundtrips_typical_boundaries`)
 
 ### Requirement: Lossy string decoding
 The codec SHALL decode Bedrock text (`String` and `BedrockString`) as a var-u32 length-prefixed byte string and MUST NOT reject non-UTF-8 payloads; malformed UTF-8 SHALL be replaced with U+FFFD, matching gophertunnel's tolerant behaviour. Valid UTF-8 decoded into `BedrockString` from a `Bytes` input SHALL share the input allocation. A declared length larger than the remaining input MUST fail with `StringLengthExceeded`.
@@ -135,7 +139,7 @@ Once an entry's declared length has been validated, the shared-input entry point
 Evidence: crates/valentine/bedrock_versions/v1_26_51/src/mcpe.rs (`decode_inner_bytes`, `decode_inner_reader`), crates/valentine/bedrock_versions/v1_26_51/src/borrowed.rs (`BorrowedMcpePacket::decode_entry`), crates/valentine/tests/borrowed_decode.rs (`shared_frame_errors_preserve_the_next_entry`)
 
 ### Requirement: Borrowed decoding
-Borrowed decoding (`BorrowedReader`, `BorrowedStr`, generated `Borrowed*Packet` views) SHALL slice `Bytes` input without copying; retained fields share the source allocation. `BorrowedStr` SHALL keep raw wire bytes, including invalid UTF-8, until owned conversion applies lossy normalization. Borrowed MCPE decoding SHALL report, not reject, unconsumed payload bytes, and `into_owned` MUST equal owned decoding of the same input.
+Borrowed decoding (`BorrowedReader`, `BorrowedStr`, `Borrowed*Packet` views) SHALL slice `Bytes` input without copying. `BorrowedStr` SHALL keep raw wire bytes until owned conversion normalizes them. Borrowed `decode_inner`, `decode_game_frame` and `from_raw_frame` MUST reject unconsumed payload bytes with `TrailingPacketBytes`; the `*_with_remaining` and `decode_inner_reader` variants SHALL report the count instead. `into_owned` MUST equal owned decoding.
 
 #### Scenario: Bounded frame cursor
 - **WHEN** `BorrowedReader::take_frame(2)` is taken over a 4-byte source and one byte is retained via `copy_to_bytes`
@@ -145,7 +149,11 @@ Borrowed decoding (`BorrowedReader`, `BorrowedStr`, generated `Borrowed*Packet` 
 - **WHEN** a corpus batch is decoded both with `McpePacketData::decode_inner_reader` and `BorrowedMcpePacket::decode_inner_reader`
 - **THEN** every borrowed entry reports 0 remaining bytes, is fully typed (no raw payload), and materializes to the same header and data as the owned decode
 
-Evidence: crates/valentine/bedrock_core/src/bedrock/borrowed.rs (test `bounded_reader_shares_fields_without_exposing_the_next_frame`), crates/valentine/tests/borrowed_decode.rs, crates/valentine/tests/borrowed_typed_coverage.rs (`corpus_packets_decode_as_typed_views_and_match_owned`, `borrowed_union_strings_share_input_and_convert_lossily`)
+#### Scenario: Borrowed padded entry
+- **WHEN** a `SetTimePacket` entry has one extra byte inside its declared length and is decoded with borrowed `decode_inner`, `decode_game_frame` and `from_raw_frame`
+- **THEN** each returns `TrailingPacketBytes { remaining: 1 }` exactly as owned `decode_inner` does, the `*_with_remaining` variants decode it and report 1, and the following entry still decodes
+
+Evidence: crates/valentine/bedrock_core/src/bedrock/borrowed.rs (test `bounded_reader_shares_fields_without_exposing_the_next_frame`), crates/valentine/bedrock_versions/v1_26_51/src/borrowed.rs (`BorrowedMcpePacket::decode_inner`, `decode_inner_with_remaining`), crates/valentine_gen/src/generator/borrowed.rs, crates/valentine/tests/borrowed_decode.rs (`borrowed_decoding_rejects_trailing_packet_bytes_like_owned`), crates/valentine/tests/borrowed_typed_coverage.rs (`corpus_packets_decode_as_typed_views_and_match_owned`, `borrowed_union_strings_share_input_and_convert_lossily`)
 
 ### Requirement: Union and enum discriminant handling
 Generated unions SHALL encode their control value followed by the selected variant's payload and MUST reject an unknown control value with `InvalidEnumValue` and a truncated control or payload with an error, in both owned and borrowed decoding. Generated scalar enums SHALL be open: an unrecognised wire value SHALL decode into an `Unknown` variant that carries the raw value and re-encodes it unchanged.
@@ -171,11 +179,15 @@ Decoding a valid packet encoding and re-encoding it SHALL reproduce the original
 - **WHEN** a `LevelChunkPacket` payload containing every byte value 0–255 is encoded and decoded
 - **THEN** the payload is unchanged
 
+#### Scenario: Encoded size of every packet
+- **WHEN** the `Default` of every `McpePacketData` variant, every protocolgen corpus packet and every BDS capture fixture is encoded
+- **THEN** `encoded_size` equals the number of bytes written, and the test's variant list matches the generated enum
+
 #### Scenario: Frame length prefix width change
 - **WHEN** adjacent entries are encoded into one buffer where an entry's length prefix needs more than one byte
 - **THEN** each entry decodes correctly and adjacent entries are not corrupted
 
-Evidence: crates/valentine/tests/capture_conformance.rs, crates/valentine/tests/binary_buffer_roundtrip.rs, crates/valentine/tests/bedrock_roundtrip.rs, crates/valentine/tests/start_game_roundtrip.rs, crates/valentine/tests/borrowed_typed_coverage.rs
+Evidence: crates/valentine/tests/capture_conformance.rs, crates/valentine/tests/binary_buffer_roundtrip.rs, crates/valentine/tests/bedrock_roundtrip.rs, crates/valentine/tests/start_game_roundtrip.rs, crates/valentine/tests/borrowed_typed_coverage.rs, crates/valentine/tests/encoded_size.rs (`encoded_size_matches_the_encoding_of_every_default_packet`, `encoded_size_matches_the_encoding_of_every_captured_packet`, `every_packet_list_matches_the_generated_enum`)
 
 ### Requirement: Decode error taxonomy
 All decode failures SHALL be reported as a `DecodeError` variant (defined in `bedrock_core/src/bedrock/error.rs`) naming the failure class, and decoding malformed input MUST return an error rather than panic. Converting a `DecodeError` into `std::io::Error` SHALL map `UnexpectedEof` to `ErrorKind::UnexpectedEof` and every other variant to `ErrorKind::InvalidData`.

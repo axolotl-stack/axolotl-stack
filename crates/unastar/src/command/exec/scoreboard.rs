@@ -810,7 +810,8 @@ mod bds_capture {
             "/scoreboard players list",
             "/scoreboard players list @e[type=cow,r=16]",
         ];
-        let steps = Replay::new().assert_segment("scoreboard", &cow_lines);
+        let mut replay = Replay::new();
+        let steps = replay.assert_segment("scoreboard", &cow_lines);
         // Each server's name for the cow: the holder its score was set for.
         let holder = |output: &crate::command::CommandOutput| -> i64 {
             output
@@ -826,6 +827,17 @@ mod bds_capture {
             .expect("the cow line");
         let cow = holder(&set.ours);
         let bds_cow = holder(&set.captured.output().expect("an answer"));
+        // unastar's name must be the cow's own id, not one the answer made up.
+        let world = replay.h.world();
+        let actors: Vec<bevy_ecs::entity::Entity> = world
+            .query_filtered::<bevy_ecs::entity::Entity, bevy_ecs::query::Without<crate::entity::components::Player>>()
+            .iter(world)
+            .collect();
+        let cows: Vec<i64> = actors
+            .into_iter()
+            .filter_map(|entity| crate::command::exec::visuals::runtime_id(world, entity))
+            .collect();
+        assert!(cows.contains(&cow), "{cow} is no actor's id ({cows:?})");
         let ids = [(BDS_PLAYER, 1), (bds_cow, cow)];
         for step in steps
             .iter()

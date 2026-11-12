@@ -15,8 +15,26 @@ pub const MOVE_ARRIVE_DIST_SQ: f64 = 0.1;
 pub const MOVE_ARRIVE_HEIGHT: f64 = 0.25;
 /// Floor of the final-node slow-down: `max(target * d², ARRIVAL_FLOOR * target)`.
 pub const MOVE_ARRIVAL_FLOOR: f32 = 0.5;
-/// Speed cap while the wanted position is below the feet.
+/// Speed cap while the wanted position is below the feet; a faster mob drops
+/// to it at once (a tempted cow at 0.3125, also with Speed II at 0.4375,
+/// accelerates at the capped speed from its first tick above a step it jumps
+/// onto, and a panicking cow from its first tick in the air after a
+/// knockback: BDS 1.26.51 knockback captures).
 pub const MOVE_DESCEND_CAP: f32 = 0.25;
+/// The travel step's forward input is the move control's speed × this
+/// (BDS 1.26.51: a walking cow at speed `s` gains `0.98 s²` per tick on
+/// grass, through every step of its 10 %/tick speed ramp). Measured on
+/// land and in the air only; it is applied in liquids too, unmeasured.
+pub const MOVE_INPUT_DECAY: f32 = 0.98;
+/// Vertical velocity of a living mob with gravity when it spawns or is born
+/// (80 of the 112 BDS 1.26.51 summon captures: every living actor with
+/// gravity except the shulker; without gravity, or not living, 0). It is the
+/// `AddActor` velocity and the mob's first move.
+pub const MOB_SPAWN_VELOCITY_Y: f64 = -1.0e-5;
+/// Acceleration per unit of forward input of a mob in the air (BDS 1.26.51:
+/// a cow at speed `s` gains `0.02 × 0.98 s` per tick in the air, not the
+/// ground acceleration).
+pub const MOB_AIR_ACCELERATION: f64 = 0.02;
 /// Land mobs step up this high without jumping.
 pub const MOB_STEP_HEIGHT: f64 = 0.5625;
 /// Target height difference (when the mob was in water) that triggers a jump.
@@ -217,6 +235,15 @@ pub const DAYLIGHT_BURN_TICKS: u64 = 160;
 /// (the check is confirmed; the block is provisional: Java Edition, where
 /// powder snow keeps undead from burning).
 pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
+/// The damage causes an actor with the `FIRE_IMMUNE` flag
+/// (`minecraft:fire_immune`) does not take (measured: `/damage` with these
+/// fails on the fire-immune zombie pigman and wither skeleton and succeeds on
+/// the zombie and skeleton; every other cause, campfire and soul campfire
+/// included, hurts all four; `testdata/bds-1.26.51-fire-immune-causes.json`).
+pub const FIRE_IMMUNE_CAUSES: &[unastar_data::actor_components::body::ActorDamageCause] = {
+    use unastar_data::actor_components::body::ActorDamageCause as Cause;
+    &[Cause::Fire, Cause::FireTick, Cause::Lava, Cause::Magma]
+};
 
 // --- Entity pushing ---------------------------------------------------------------
 
@@ -242,6 +269,10 @@ pub const KNOCKBACK_VERTICAL: f64 = 0.4;
 pub const KNOCKBACK_VERTICAL_CAP: f64 = 0.4;
 /// Existing velocity is multiplied by this before knockback is added.
 pub const KNOCKBACK_RETAIN: f64 = 0.5;
+/// A native zombie spawns with a knockback resistance drawn uniformly from
+/// `[0, this)`, which scales the push and the lift of every knockback it
+/// takes (five BDS 1.26.51 zombies: 0.0150, 0.0306, 0.0434, 0.0472, 0.0493).
+pub const ZOMBIE_KNOCKBACK_RESISTANCE_BONUS: f64 = 0.05;
 /// The body is removed (and XP spawned) this many ticks after death.
 pub const DEATH_TICKS: u32 = 20;
 /// Experience orb sizes, largest first.
@@ -298,9 +329,20 @@ pub const PROJECTILE_ROTATION_SMOOTHING: f32 = 0.2;
 pub const PROJECTILE_HIT_INFLATE_DELAY: f64 = 2.0;
 pub const PROJECTILE_HIT_INFLATE_STEP: f64 = 0.05;
 pub const PROJECTILE_HIT_INFLATE_MAX: f64 = 0.3;
-/// A projectile is spawned invisible and becomes visible on this tick of
-/// its flight (the first being 1).
+/// A projectile is spawned invisible and becomes visible at the end of this
+/// tick of its flight (the first being 1).
 pub const PROJECTILE_VISIBLE_TICK: u64 = 2;
+/// Synchronised level sounds of an actor turning invisible and visible
+/// again, played at the centre of its box with data -1 (BDS 1.26.51 sends
+/// them for every projectile; only the wandering trader's sound set gives
+/// them a sound).
+pub const DISAPPEARED_SOUND: &str = "disappeared";
+pub const REAPPEARED_SOUND: &str = "reappeared";
+/// `grant_xp`: the potion-splash level event at the hit …
+pub const POTION_SPLASH_LEVEL_EVENT: i32 = 2002;
+/// … with the default potion colour (ARGB `0xFF385DC6`) as its data: BDS
+/// 1.26.51 sends data -13083194 where an xp bottle breaks.
+pub const DEFAULT_POTION_COLOUR_ARGB: i32 = 0xFF38_5DC6_u32 as i32;
 /// Level event of one `particle_on_hit` particle (data = the particle id).
 pub const PROJECTILE_PARTICLE_LEVEL_EVENT: i32 = 2009;
 /// Particle id of `iconcrack`; its level event data also carries the item's
@@ -563,6 +605,14 @@ pub const MATERIAL_ICE: u8 = 13;
 /// Material ordinal of leaves: a spawn column whose top spawn block is
 /// leaves keeps its next spawn block below on the surface.
 pub const MATERIAL_LEAVES: u8 = 7;
+// --- Flee sun (`behavior.flee_sun`, confirmed) --------------------------------
+
+/// Candidate cover blocks drawn per attempt to start …
+pub const FLEE_SUN_ATTEMPTS: u32 = 10;
+/// … each `random(2 × range) - range` from the feet block on x/z and y.
+pub const FLEE_SUN_RANGE_XZ: i32 = 10;
+pub const FLEE_SUN_RANGE_Y: i32 = 3;
+
 /// The overworld brightness ramp: the brightness each raw light level
 /// `0..=15` stands for, `(1 - f) / (3f + 1)` with `f = 1 - level / 15`, as
 /// the f32 values the game stores (confirmed).
@@ -595,6 +645,10 @@ pub const ANIMAL_GRASS_WALK_TARGET: f32 = 10.0;
 /// An animal's walk-target value elsewhere is the brightness ramp at the
 /// block plus this (confirmed).
 pub const ANIMAL_WALK_TARGET_OFFSET: f32 = -0.5;
+/// An animal's or monster's walk-target value above a magma block, unless
+/// it is fire immune (a grass block below an animal wins; confirmed).
+pub const MAGMA_WALK_TARGET: f32 = -0.5;
+pub const MAGMA_BLOCK: &str = "minecraft:magma";
 /// A naturally spawned monster needs raw brightness below this at its feet
 /// (confirmed).
 pub const MONSTER_SPAWN_BRIGHTNESS_LIMIT: u8 = 8;

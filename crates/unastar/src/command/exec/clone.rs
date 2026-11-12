@@ -18,7 +18,8 @@
 
 use super::setblock::{BlockSpec, volume};
 use crate::command::prelude::*;
-use crate::server::game::blocks::{block_at, set_block};
+use crate::server::game::block_update::world_changed;
+use crate::server::game::blocks::{block_at, write_block};
 use crate::world::chunk::blocks::AIR;
 
 /// The most blocks one `/clone` may cover.
@@ -143,20 +144,30 @@ pub fn run(ctx: &mut CommandContext<'_>, args: CloneArgs) -> CommandResult {
     if cloned.is_empty() {
         return failure!("commands.clone.failed");
     }
+    // Every cell is written before any block update runs: updating while
+    // the source is half moved would pop attached blocks (a torch whose wall
+    // moved first) that are also copied, duplicating their drops.
+    let mut written = Vec::with_capacity(cloned.len() * 2);
     if clone_mode == CloneMode::Move {
         for &(offset, _) in &cloned {
-            write(ctx.world, min + offset, *AIR);
+            write(ctx.world, min + offset, *AIR, &mut written);
         }
     }
     for &(offset, state) in &cloned {
-        write(ctx.world, dest_min + offset, state);
+        write(ctx.world, dest_min + offset, state, &mut written);
+    }
+    for pos in written {
+        world_changed(ctx.world, pos, true);
     }
     success!("commands.clone.success", cloned.len())
 }
 
-fn write(world: &mut World, pos: IVec3, state: u32) {
+/// Store `state` at `pos` without block updates, noting the position when
+/// the block changed.
+fn write(world: &mut World, pos: IVec3, state: u32, written: &mut Vec<IVec3>) {
     if block_at(world, (pos.x, pos.y, pos.z)) != Some(state) {
-        set_block(world, pos, state, false);
+        write_block(world, pos, state, false);
+        written.push(pos);
     }
 }
 
@@ -229,6 +240,39 @@ mod tests {
         assert_eq!(block(&mut h, 3, 60, 3), state("minecraft:stone"));
         assert_eq!(block(&mut h, 3, 63, 3), *AIR);
         assert_eq!(block(&mut h, 3, 63, 4), *AIR);
+    }
+
+    /// A standing torch moved with its stone: no cell is updated until every
+    /// cell is written, so the torch never loses its support on the way and
+    /// nothing drops (it used to pop once the stone left, and be copied too).
+    #[test]
+    fn move_keeps_attached_blocks_without_drops() {
+        use crate::command::exec::setblock::tests::drops;
+        use crate::registry::BlockRegistry;
+        use unastar_data::blocks::StateValue;
+        let torch_block = BlockRegistry::vanilla()
+            .get_by_name("minecraft:torch")
+            .unwrap();
+        let torch = (torch_block.min_state_id..=torch_block.max_state_id)
+            .find(|&id| {
+                torch_block.state_value(id, "torch_facing_direction")
+                    == Some(StateValue::Str("top"))
+            })
+            .unwrap();
+        let mut h = Harness::new();
+        let op = h.player("Op", true);
+        place(&mut h, 10, 63, 10, "minecraft:stone");
+        crate::server::game::blocks::set_block(h.world(), IVec3::new(10, 64, 10), torch, false);
+        assert_eq!(block(&mut h, 10, 64, 10), torch);
+        assert_eq!(
+            h.run(op, "/clone 10 63 10 10 64 10 12 63 12 replace move"),
+            CommandOutput::success("commands.clone.success", vec!["2".into()])
+        );
+        assert_eq!(block(&mut h, 12, 63, 12), state("minecraft:stone"));
+        assert_eq!(block(&mut h, 12, 64, 12), torch);
+        assert_eq!(block(&mut h, 10, 63, 10), *AIR);
+        assert_eq!(block(&mut h, 10, 64, 10), *AIR);
+        assert_eq!(drops(&mut h), []);
     }
 
     #[test]

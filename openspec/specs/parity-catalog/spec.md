@@ -38,10 +38,10 @@ A status entry SHALL have a `status` of `missing`, `partial`, `done`, `verified`
 - **WHEN** an entry contains a field outside the schema
 - **THEN** loading the status file fails with a parse error naming the file
 
-Evidence: crates/parity/src/status.rs (`Status`, `Entry`, `load`)
+Evidence: crates/parity/src/status.rs (`Status`, `Entry`, `load`, `unknown_fields_are_rejected`)
 
 ### Requirement: Status-specific required fields
-`check` SHALL require `gaps` for `partial`, `owner` and at least one `tests` reference for `done` and `verified`, `notes` for `not_applicable`, and for `verified` an `evidence` value other than empty or `none` that is an existing path under the repository root. `missing` MUST require nothing.
+`check` SHALL require `gaps` for `partial`, `owner` and at least one `tests` reference for `done` and `verified`, `notes` for `not_applicable`, and for `verified` an `evidence` value other than empty or `none` that exists under the repository root and is tracked by git. `missing` MUST require nothing.
 
 #### Scenario: Verified without evidence
 - **WHEN** a `verified` entry has `evidence = "none"`
@@ -51,17 +51,42 @@ Evidence: crates/parity/src/status.rs (`Status`, `Entry`, `load`)
 - **WHEN** a `verified` entry's `evidence` is not a path in the repository
 - **THEN** `check` reports "evidence `<path>` is not a path in the repository"
 
-Evidence: crates/parity/src/check.rs (`validate_entry`)
+Evidence: crates/parity/src/check.rs (`validate_entry`, `validate_entry_requires_each_status_fields`)
 Verified by: `cargo run -p parity -- check` (.github/workflows/test.yml, "Vanilla parity catalog")
 
+### Requirement: Verified evidence must be tracked by git
+`check` SHALL treat `verified` evidence as tracked when `git ls-files` lists it, lists a file under it, or it lies inside a submodule. Paths MUST be normalised first (`/` or `\` separators; `./x` and `a/../x` mean `x`); a path climbing above the root is never tracked. `git ls-files` MUST run at most once per run, and when it cannot run the problem MUST be reported once, saying to run `parity` inside a git checkout.
+
+#### Scenario: Untracked or ignored evidence
+- **WHEN** a `verified` entry's `evidence` exists on disk but is untracked or gitignored
+- **THEN** `check` reports "evidence `<path>` is not tracked by git"
+
+#### Scenario: Equivalent spellings and submodules
+- **WHEN** evidence is written `./captures/x.bin`, `captures/../captures/x.bin` or `captures\x.bin` for a tracked file, or names a file inside a submodule
+- **THEN** it counts as tracked
+
+#### Scenario: No git checkout
+- **WHEN** `check` runs outside a git checkout with several `verified` rows
+- **THEN** exactly one problem is reported, saying to run `parity` inside a git checkout
+
+Evidence: crates/parity/src/check.rs (`TestFiles::is_tracked`, `Tracked`, `normalise`, `verified_evidence_must_be_tracked_by_git`, `a_missing_git_checkout_is_reported_once`, `submodule_contents_count_as_tracked`)
+
 ### Requirement: Test references must resolve
-Every `tests` reference SHALL be `path` or `path::fn_name` relative to the repository root. `check` MUST fail when the file does not exist or, for `path::...`, when the file defines no `fn` with the last `::` segment as its name (followed by `(`, `<` or whitespace).
+Every `tests` reference SHALL be `path` or `path::fn_name` relative to the repository root. `check` MUST fail when the file does not exist or, for `path::...`, when the file has no test function named by the last `::` segment: an `fn` item starting its line (after `pub`, `async` or `unsafe`) whose attributes directly above include `#[test]`, `#[tokio::test]` or `#[tokio::test(...)]`. Comments, strings and helper functions MUST NOT count.
 
 #### Scenario: Renamed test
 - **WHEN** a `done` row references `crates/unastar/tests/worldgen_parity.rs::old_name` and that function was renamed
-- **THEN** `check` reports "`fn old_name` not found in `crates/unastar/tests/worldgen_parity.rs`"
+- **THEN** `check` reports "test `<reference>`: no `#[test]` function `old_name` in `crates/unastar/tests/worldgen_parity.rs`"
 
-Evidence: crates/parity/src/check.rs (`TestFiles::resolve`, `defines_fn`)
+#### Scenario: Name only in a comment or a helper
+- **WHEN** the referenced name appears only in a comment, a string, or an `fn` without a test attribute
+- **THEN** the reference does not resolve
+
+#### Scenario: Attributes and comments in between
+- **WHEN** other attributes (including multi-line ones), line comments or doc comments sit between the test attribute and the `fn`
+- **THEN** the reference resolves
+
+Evidence: crates/parity/src/check.rs (`TestFiles::resolve`, `defines_fn`, `attributes_above`, `is_test_attribute`, `test_references_must_name_test_functions`, `resolve_checks_the_file_and_the_function`)
 
 ### Requirement: Engine internals are rejected in free text
 `check` SHALL reject an entry whose `gaps`, `notes` or `evidence`, or a claim whose `area` or `owner`, contains (case-insensitively) `fun_`, `0x14`, `decompil`, `disassembl` or `rva `, so catalog text describes behaviour, not engine internals (decision 0016).
@@ -70,7 +95,7 @@ Evidence: crates/parity/src/check.rs (`TestFiles::resolve`, `defines_fn`)
 - **WHEN** a row's `gaps` mentions `FUN_1400abcd`
 - **THEN** `check` reports that `gaps` contains `fun_` and asks to describe behaviour instead
 
-Evidence: crates/parity/src/check.rs (`forbidden_provenance`, `validate_entry`), crates/parity/src/claims.rs (`validate`), docs/decisions/0016-describe-behaviour-never-engine-internals.md
+Evidence: crates/parity/src/check.rs (`forbidden_provenance`, `validate_entry`, `forbidden_provenance_flags_engine_internals_case_insensitively`), crates/parity/src/claims.rs (`validate`), docs/decisions/0016-describe-behaviour-never-engine-internals.md
 
 ### Requirement: Status files are kept in canonical form
 `generate` SHALL rewrite each status file in canonical form: a generated header, a `# <family> (<count>)` comment before each family, and one inline table per row in catalog order with fields in the order `status`, `owner`, `tests`, `evidence`, `gaps`, `notes`, empty fields omitted and the row label as a trailing comment. `check` MUST fail when a complete status file differs from that form, ignoring only CRLF/LF differences.
@@ -79,7 +104,7 @@ Evidence: crates/parity/src/check.rs (`forbidden_provenance`, `validate_entry`),
 - **WHEN** a contributor moves an entry out of catalog order or writes fields in another order
 - **THEN** `check` reports "docs/parity/<domain>.toml is not in canonical form; run `parity generate`"
 
-Evidence: crates/parity/src/status.rs (`render`, `render_line`), crates/parity/src/main.rs (`check`, `same_text`)
+Evidence: crates/parity/src/status.rs (`render`, `render_line`, `render_writes_families_in_catalog_order_with_one_inline_table_per_row`, `rendered_files_load_back_to_the_same_entries`), crates/parity/src/main.rs (`check`, `same_text`)
 
 ### Requirement: PARITY.md is generated and checked for staleness
 `PARITY.md` SHALL be rendered only by `generate`, from the rows, status files and claims. When no other problem exists, `check` MUST fail if the committed file differs from a fresh render (CRLF/LF ignored). Done+verified MUST be (done + verified) / (rows - not_applicable), shown as `n/a` when no row applies; the items headline MUST be its behaviour sub-rows, every other domain's its top-level rows.
@@ -157,5 +182,5 @@ Bedrock worldgen rows SHALL be read from the BDS install named by `UNASTAR_BDS_D
 - **WHEN** a non-comment snapshot line has fewer than two tab-separated fields
 - **THEN** generation fails with "malformed line"
 
-Evidence: crates/parity/src/sources/worldgen.rs (`bedrock_rows`, `bedrock_rows_from_install`, `render_snapshot`, `read_snapshot`, `BEDROCK_SNAPSHOT`, `BDS_DIR_VAR`), crates/parity/src/main.rs (`generate`, `check`), docs/parity/source/bedrock-worldgen.tsv
+Evidence: crates/parity/src/sources/worldgen.rs (`bedrock_rows`, `bedrock_rows_from_install`, `render_snapshot`, `read_snapshot`, `BEDROCK_SNAPSHOT`, `BDS_DIR_VAR`, `snapshot_round_trips_sorted_by_family_then_id`, `snapshot_reading_fails_on_a_missing_file_or_a_malformed_line`), crates/parity/src/main.rs (`generate`, `check`), docs/parity/source/bedrock-worldgen.tsv
 Verified by: `cargo run -p parity -- check` (.github/workflows/test.yml)

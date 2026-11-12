@@ -48,7 +48,7 @@ fn stored_server(dir: &Path) -> GameServer {
     });
     let world = server.ecs.world_mut();
     world.insert_resource(EntityRandom::seeded(7));
-    let provider = LevelDBWorldProvider::open(dir, 0).expect("open leveldb");
+    let provider = LevelDBWorldProvider::open(dir).expect("open leveldb");
     world
         .resource_mut::<ChunkManager>()
         .set_provider(Arc::new(provider));
@@ -134,6 +134,7 @@ fn save_all_chunks(server: &mut GameServer) -> usize {
         .build()
         .unwrap()
         .block_on(server.save_all_chunks())
+        .saved
 }
 
 #[test]
@@ -142,7 +143,7 @@ fn cows_round_trip_through_leveldb_across_a_restart() {
     let (adult, baby) = {
         let mut server = stored_server(&dir.0);
         let world = server.ecs.world_mut();
-        world.get_or_create_chunk(0, 0);
+        world.get_or_create_chunk(0, 0).unwrap();
         let adult = spawn_cow(world, false);
         let baby = spawn_cow(world, true);
         world.get_mut::<Health>(adult).unwrap().current = 7.0;
@@ -191,7 +192,7 @@ fn cows_round_trip_through_leveldb_across_a_restart() {
     // A new server over the same storage.
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     let mut restored: Vec<Saved> = cows(world)
         .into_iter()
         .map(|cow| saved(world, cow))
@@ -210,7 +211,7 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
         .resource_mut::<ChunkLoadConfig>()
         .unload_grace_ticks = 1;
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     let cow = spawn_cow(world, false);
     let unique_id = unique_id(world, cow);
 
@@ -237,7 +238,7 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
     assert!(world.get_entity(cow).is_err());
     assert!(cows(world).is_empty());
 
-    let chunk = world.get_or_create_chunk(0, 0);
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
     let [restored] = cows(world)[..] else {
         panic!("exactly one cow restored");
     };
@@ -260,12 +261,144 @@ fn unloading_saves_and_removes_the_cow_and_reloading_restores_it() {
     );
 }
 
+/// Storage that reads as empty and refuses every write, counting the attempts.
+#[derive(Default)]
+struct UnwritableWorld(std::sync::atomic::AtomicUsize);
+
+#[async_trait::async_trait]
+impl crate::storage::WorldProvider for UnwritableWorld {
+    async fn load_column(
+        &self,
+        _: crate::world::ChunkPos,
+        _: i32,
+    ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+        Ok(None)
+    }
+    async fn save_column(
+        &self,
+        _: crate::world::ChunkPos,
+        _: i32,
+        _: &crate::storage::ChunkColumn,
+    ) -> crate::storage::StorageResult<()> {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Err(crate::storage::StorageError::Database("disk full".into()))
+    }
+    async fn flush(&self) -> crate::storage::StorageResult<()> {
+        Ok(())
+    }
+    async fn close(&self) -> crate::storage::StorageResult<()> {
+        Ok(())
+    }
+}
+
+/// A chunk whose save before unload fails stays loaded with its edits and its
+/// mobs, and unloads (saved) once storage accepts the write.
+#[test]
+fn a_chunk_whose_unload_save_fails_stays_loaded_with_its_edits() {
+    let dir = TempDir::new();
+    let mut server = stored_server(&dir.0);
+    let world = server.ecs.world_mut();
+    world.resource_mut::<ChunkLoadConfig>().unload_grace_ticks = 1;
+    let working = world.resource::<ChunkManager>().provider().unwrap();
+    world
+        .resource_mut::<ChunkManager>()
+        .set_provider(Arc::new(UnwritableWorld::default()));
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+    let diamond = *crate::world::chunk::blocks::DIAMOND_ORE;
+    world
+        .get_mut::<crate::world::ecs::ChunkData>(chunk)
+        .unwrap()
+        .inner
+        .set_block(3, 40, 3, diamond);
+    world
+        .get_mut::<crate::world::ecs::ChunkStateFlags>(chunk)
+        .unwrap()
+        .mark_dirty();
+    let cow = spawn_cow(world, false);
+
+    for _ in 0..5 {
+        server.tick();
+    }
+    let world = server.ecs.world_mut();
+    assert_eq!(
+        world.resource::<ChunkManager>().get_by_coords(0, 0),
+        Some(chunk),
+        "a chunk that could not be saved is not unloaded"
+    );
+    let data = world
+        .get::<crate::world::ecs::ChunkData>(chunk)
+        .expect("terrain put back after the failed save");
+    assert_eq!(data.inner.get_block(3, 40, 3), diamond);
+    assert!(
+        world
+            .get::<crate::world::ecs::ChunkStateFlags>(chunk)
+            .unwrap()
+            .is_dirty()
+    );
+    assert!(world.get_entity(cow).is_ok(), "its mobs stay too");
+
+    // Once storage works again the retried unload saves and removes it.
+    world.resource_mut::<ChunkManager>().set_provider(working);
+    for _ in 0..5 {
+        server.tick();
+    }
+    let world = server.ecs.world_mut();
+    assert!(!world.resource::<ChunkManager>().contains_coords(0, 0));
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+    assert_eq!(
+        world
+            .get::<crate::world::ecs::ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .get_block(3, 40, 3),
+        diamond
+    );
+    assert_eq!(cows(world).len(), 1);
+}
+
+/// While storage keeps refusing writes, a held chunk retries with an
+/// exponential backoff instead of a blocking write every grace period.
+#[test]
+fn a_held_chunk_backs_off_between_save_attempts() {
+    let dir = TempDir::new();
+    let mut server = stored_server(&dir.0);
+    let world = server.ecs.world_mut();
+    world.resource_mut::<ChunkLoadConfig>().unload_grace_ticks = 1;
+    let storage = Arc::new(UnwritableWorld::default());
+    world
+        .resource_mut::<ChunkManager>()
+        .set_provider(storage.clone());
+    // A generated chunk is dirty, so every unload attempt tries to save it.
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
+
+    for _ in 0..64 {
+        server.tick();
+    }
+    // Waits of 2, 4, 8, 16 and 32 ticks: attempts on ticks 1, 3, 7, 15, 31
+    // and 63. Without the backoff it would be one attempt every tick.
+    let attempts = storage.0.load(std::sync::atomic::Ordering::Relaxed);
+    assert!(
+        (5..=7).contains(&attempts),
+        "{attempts} save attempts in 64 ticks"
+    );
+    let world = server.ecs.world_mut();
+    assert_eq!(
+        world.resource::<ChunkManager>().get_by_coords(0, 0),
+        Some(chunk)
+    );
+    let pending = world
+        .get::<crate::world::ecs::ChunkPendingUnload>(chunk)
+        .unwrap();
+    assert!(pending.is_held());
+    assert_eq!(pending.failed_saves as usize, attempts);
+}
+
 #[test]
 fn a_dead_cow_is_deleted_from_storage_on_the_next_save() {
     let dir = TempDir::new();
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     let cow = spawn_cow(world, false);
     save_all_chunks(&mut server);
     server.ecs.world_mut().despawn(cow);
@@ -274,7 +407,7 @@ fn a_dead_cow_is_deleted_from_storage_on_the_next_save() {
 
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    world.get_or_create_chunk(0, 0);
+    world.get_or_create_chunk(0, 0).unwrap();
     assert!(cows(world).is_empty());
 }
 
@@ -283,7 +416,7 @@ fn unknown_stored_actors_are_kept_and_written_back() {
     let dir = TempDir::new();
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    let chunk = world.get_or_create_chunk(0, 0);
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
     let mut nbt = Vec::new();
     NBTTag::Compound(
         tag::Compound::builder()
@@ -307,7 +440,7 @@ fn unknown_stored_actors_are_kept_and_written_back() {
 
     let mut server = stored_server(&dir.0);
     let world = server.ecs.world_mut();
-    let chunk = world.get_or_create_chunk(0, 0);
+    let chunk = world.get_or_create_chunk(0, 0).unwrap();
     assert_eq!(
         world.get::<ChunkActorStore>(chunk).unwrap().foreign,
         [StoredActor { unique_id: 42, nbt }]

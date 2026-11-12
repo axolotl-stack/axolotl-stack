@@ -112,11 +112,12 @@ fn nested_molang_offsets_place_beside_the_parent_not_the_world_origin() {
     let outer = parse(&json!({"iterations":1,"x":8,"y":287,"z":8}));
     let inner =
         parse(&json!({"iterations":1,"x":"math.random(1, 2)","y":0,"z":"math.random(3, 4)"}));
-    let inner = emit(&em, "nested control", &inner, place).unwrap();
+    let inner = emit(&em, "nested control", &inner, quote!(), place).unwrap();
     let body = emit(
         &em,
         "parent control",
         &outer,
+        quote!(),
         |p| quote!({ let origin = #p; #inner }),
     )
     .unwrap();
@@ -146,7 +147,7 @@ fn uniform_upper_extent_is_exclusive_in_emitted_placements() {
     let scatter = parse(
         &json!({"iterations":128,"x":{"distribution":"uniform","extent":[0,16]},"y":285,"z":0}),
     );
-    let body = emit(&em, "uniform control", &scatter, place).unwrap();
+    let body = emit(&em, "uniform control", &scatter, quote!(), place).unwrap();
     execute(
         body,
         quote! {
@@ -182,7 +183,7 @@ fn molang_offsets_round_to_nearest_with_ties_away_from_zero_before_translation()
                 format!("{value} + variable.originz")
             };
             let scatter = parse(&json!({"iterations":1,"x":x,"y":290+i,"z":z}));
-            calls.push(emit(&em, "rounding control", &scatter, place).unwrap());
+            calls.push(emit(&em, "rounding control", &scatter, quote!(), place).unwrap());
         }
     }
     execute(

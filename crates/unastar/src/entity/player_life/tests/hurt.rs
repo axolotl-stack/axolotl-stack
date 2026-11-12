@@ -49,6 +49,17 @@ fn a_mob_hit_is_scaled_by_difficulty_reduced_by_armour_and_knocks_the_player_bac
         let health = health_updates(&packets);
         assert_eq!(health.len(), 1, "{packets:?}");
         assert!((health[0] - (20.0 - dealt)).abs() < 1.0e-4);
+        // BDS pushes the player before it shows the hurt (slime hits in
+        // the player-data capture): `SetActorMotion`, then the event.
+        let motion_at = packets.iter().position(|packet| {
+            matches!(packet, McpePacketData::SetActorMotionPacket(motion)
+                if motion.target_runtime_id.actor_runtime_id == SESSION)
+        });
+        let hurt_at = packets.iter().position(|packet| {
+            matches!(packet, McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == SESSION)
+        });
+        assert!(motion_at.unwrap() < hurt_at.unwrap());
         // Pushed away from the cow standing to the west, and up.
         let motion = motions(&packets);
         assert_eq!(motion.len(), 1, "one knockback to the player's own client");
@@ -132,4 +143,78 @@ fn creative_and_spectator_players_are_immune_to_all_but_the_void() {
             .unwrap();
         assert_eq!(hurt.cause, ActorDamageCause::Void);
     }
+}
+
+/// Armour wear per hit against the BDS 1.26.51 armour-wear sweep
+/// (`unastar-data/data/measured/armor_wear.json`): a player wearing one
+/// piece takes one `entity_attack` hit of each measured amount without an
+/// attacker, as `/damage` deals it, and the piece loses what BDS's lost.
+#[test]
+fn measured_armour_wear_matches_bds() {
+    use std::collections::BTreeMap;
+
+    use crate::entity::components::armor_slots;
+    use crate::item::enchant::durability_damage;
+
+    #[derive(serde::Deserialize)]
+    struct Piece {
+        slot: String,
+        wear: BTreeMap<String, Option<i32>>,
+    }
+    let table: BTreeMap<String, Piece> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../unastar-data/data/measured/armor_wear.json"
+    )))
+    .expect("measured armour wear decodes");
+    let mut h = harness(Difficulty::Normal);
+    let player = h.player;
+    let mut wrong = Vec::new();
+    let mut compared = 0;
+    for (item, piece) in &table {
+        let slot = match piece.slot.as_str() {
+            "head" => armor_slots::HELMET,
+            "chest" => armor_slots::CHESTPLATE,
+            "legs" => armor_slots::LEGGINGS,
+            "feet" => armor_slots::BOOTS,
+            other => panic!("{item}: unknown slot {other}"),
+        };
+        for (amount, measured) in &piece.wear {
+            let world = h.world();
+            world
+                .get_mut::<ArmourInventory>(player)
+                .unwrap()
+                .set_slot(slot, stack(item, 1))
+                .unwrap();
+            // The sweep player's raised health; past the hurt timer.
+            *world.get_mut::<Health>(player).unwrap() = Health {
+                current: 2000.0,
+                max: 2000.0,
+            };
+            world
+                .resource_mut::<crate::ecs::resources::TickCounter>()
+                .current += 20;
+            crate::entity::player_life::hurt_player(
+                world,
+                player,
+                &Hit {
+                    damage: amount.parse().unwrap(),
+                    cause: ActorDamageCause::EntityAttack,
+                    attacker: None,
+                    by_player: false,
+                    knockback_from: None,
+                    knockback_power: KnockbackPower::DEFAULT,
+                },
+            );
+            let worn =
+                durability_damage(&world.get::<ArmourInventory>(player).unwrap().slots()[slot]);
+            compared += 1;
+            if *measured != Some(worn) {
+                wrong.push(format!(
+                    "{item} hit for {amount}: wears {worn}, BDS {measured:?}"
+                ));
+            }
+        }
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    assert!(compared > 200, "only {compared} hits compared");
 }

@@ -53,6 +53,8 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     if holding {
         send_actor_event(world, attacker, EnumsActorEvent::StartAttacking, 0);
     }
+    // An angry mob stays angry for its full span after every swing.
+    crate::entity::mob::life::anger::restart_on_attack(world, attacker);
 
     let damage = attack_damage(world, attacker, &attack);
     let hit = Hit {
@@ -70,11 +72,16 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
         hurt_mob(world, target, hit)
     };
     if dealt > 0.0 {
+        let tick = world.resource::<TickCounter>().current;
+        world
+            .entity_mut(attacker)
+            .insert(crate::entity::mob::state::LastAttack { tick, target });
         after_hurt(world, attacker, target, &goal, holding, is_player);
     }
     if let Some(effect) = attack.effect
         && alive(world, target)
         && !immune(world, target)
+        && !crate::entity::mob::components::stats::immune_to_effect(world, target, effect.effect)
     {
         world
             .entity_mut(target)

@@ -264,3 +264,20 @@ Closing or dropping a stream SHALL notify the peer with a disconnect notificatio
 - **THEN** the stream yields a typed `RaknetError`
 
 Evidence: crates/tokio-raknet/src/transport/stream.rs (`vanilla_client_drop_sends_disconnect_and_closes_when_acked`, `malformed_server_datagram_reports_error_and_stops_muxer`, `vanilla_client_survives_malformed_datagram`, `connection_failure_packet_is_reported`), crates/tokio-raknet/src/session/manager/tick.rs (`vanilla_close_sends_bare_disconnect_and_closes_when_acked`, `vanilla_remote_disconnect_is_acked_not_echoed`), crates/tokio-raknet/src/transport/listener/online.rs (`vanilla_listener_ignores_invalid_datagrams_and_unknown_offline_ids`)
+
+### Requirement: Optimized close drains on the caller's clock
+An `Optimized` session closed with `close` or `disconnect_now` SHALL send one Reliable disconnect notification and stay `Closing` while reliable sends are unacknowledged, for at most 5 s, or 1 s when nothing is outstanding. The drain MUST be measured from the `now` the caller passes (`close`, `disconnect_now`, `send_disconnect` and the queue-limit path all take it), never from the wall clock.
+
+#### Scenario: Unacknowledged sends drain for at most 5 s
+- **WHEN** an Optimized session with unacknowledged reliable data is closed at `now`
+- **THEN** it sends one Reliable disconnect notification, is still `Closing` at `now + 4.9 s`, and is `Closed` at `now + 5 s`
+
+#### Scenario: Nothing outstanding
+- **WHEN** an Optimized session with everything acknowledged is closed
+- **THEN** it is still `Closing` at 900 ms and `Closed` at 1 s
+
+#### Scenario: Caller's clock ahead of the wall clock
+- **WHEN** a session driven with instants one minute ahead of the wall clock calls `close` or `disconnect_now` with unacknowledged data
+- **THEN** it is still draining 1.5 s later instead of closing on the first tick
+
+Evidence: crates/tokio-raknet/src/session/manager/tick.rs (`close`, `disconnect_now`, `enforce_queue_limit`, tests `optimized_close_drains_unacknowledged_sends_for_at_most_five_seconds`, `optimized_close_with_nothing_unacknowledged_closes_after_one_second`, `optimized_close_measures_the_drain_from_the_callers_now`, `optimized_disconnect_now_measures_the_drain_from_the_callers_now`), crates/tokio-raknet/src/session/manager/control.rs (`send_disconnect`)

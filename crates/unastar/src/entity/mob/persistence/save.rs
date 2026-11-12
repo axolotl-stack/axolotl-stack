@@ -15,7 +15,10 @@ use crate::entity::mob::components::spawn_entity::SpawnEntityTimers;
 use crate::entity::mob::life::ageing::BabyAge;
 use crate::entity::mob::state::{BreedCooldown, InLove, Persistent};
 
-use super::HEALTH_ATTRIBUTE;
+use super::{
+    HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, SPAWN_BONUS_MODIFIER, SPAWN_BONUS_UUID,
+};
+use crate::entity::mob::combat::knockback::KnockbackResistance;
 
 pub(super) fn list<T: Into<NBTTag>>(values: impl IntoIterator<Item = T>) -> NBTTag {
     NBTTag::List(tag::List(values.into_iter().map(Into::into).collect()))
@@ -73,17 +76,25 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
                 .map(tag::String),
         ),
     );
+    let mut attributes = Vec::new();
     if let Some(health) = world.get::<Health>(mob) {
-        let attribute = tag::Compound::builder()
-            .with_string("Name", HEALTH_ATTRIBUTE)
-            .with_float("Base", health.max)
-            .with_float("Current", health.current)
-            .with_float("Max", health.max)
-            .with_float("Min", 0.0)
-            .with_float("DefaultMax", health.max)
-            .with_float("DefaultMin", 0.0)
-            .build();
-        put("Attributes", list([attribute]));
+        attributes.push(
+            tag::Compound::builder()
+                .with_string("Name", HEALTH_ATTRIBUTE)
+                .with_float("Base", health.max)
+                .with_float("Current", health.current)
+                .with_float("Max", health.max)
+                .with_float("Min", 0.0)
+                .with_float("DefaultMax", health.max)
+                .with_float("DefaultMin", 0.0)
+                .build(),
+        );
+    }
+    if let Some(resistance) = world.get::<KnockbackResistance>(mob) {
+        attributes.push(spawn_bonus_resistance(resistance.0 as f32));
+    }
+    if !attributes.is_empty() {
+        put("Attributes", list(attributes));
     }
     if let Some(properties) = world.get::<ActorProperties>(mob) {
         let mut saved = HashMap::new();
@@ -147,6 +158,29 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
         .write(&mut out, LittleEndian)
         .expect("actor NBT lists are homogeneous and write into a Vec");
     out
+}
+
+/// A spawn knockback resistance as BDS saves it: the attribute at base 0
+/// with one `RandomSpawnBonus` addition.
+pub(super) fn spawn_bonus_resistance(amount: f32) -> tag::Compound {
+    let modifier = tag::Compound::builder()
+        .with_string("Name", SPAWN_BONUS_MODIFIER)
+        .with_float("Amount", amount)
+        .with_int("Operation", 0)
+        .with_int("Operand", 2)
+        .with_long("UUIDMost", SPAWN_BONUS_UUID.0)
+        .with_long("UUIDLeast", SPAWN_BONUS_UUID.1)
+        .build();
+    tag::Compound::builder()
+        .with_string("Name", KNOCKBACK_RESISTANCE_ATTRIBUTE)
+        .with_float("Base", 0.0)
+        .with_float("Current", amount)
+        .with_float("Max", 1.0)
+        .with_float("Min", -2.0)
+        .with_float("DefaultMax", 1.0)
+        .with_float("DefaultMin", -2.0)
+        .with_list("Modifiers", tag::List(vec![NBTTag::Compound(modifier)]))
+        .build()
 }
 
 pub(super) fn current_tick(world: &World) -> u64 {

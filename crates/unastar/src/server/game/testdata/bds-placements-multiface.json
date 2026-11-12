@@ -1,0 +1,9069 @@
+{
+ "source": "BDS 1.26.51, tools/bds-sweep placements job at 343b0c5d60e0b4892db053447ab74c4e1998fba7, sweep placements-r2-1, group multiface: the scripted player (survival) clicks with the stack in hotbar slot 0; packets are the client capture between the case marker and its end marker; watcher_packets are the capture of a second scripted player standing outside the arena",
+ "cases": [
+  {
+   "key": "vine_on_north_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -2.5,
+    0,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    2,
+    500,
+    500,
+    0
+   ],
+   "read": [
+    [
+     0,
+     1,
+     -1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       -1
+      ],
+      "minecraft:vine",
+      {
+       "vine_direction_bits": 1
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010875080200006a0010000001860d94a1eed9050a00000000000000000000000090401c8569c20000c03f0000003f0000003f00000000a19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f000001880d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875068d91c6bc050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087306a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087706a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f000001880d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875068d91c6bc050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200006040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875068d91c6bc050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200006040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "vine_on_south_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    3.5,
+    180,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    3,
+    500,
+    500,
+    1000
+   ],
+   "read": [
+    [
+     0,
+     1,
+     1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       1
+      ],
+      "minecraft:vine",
+      {
+       "vine_direction_bits": 4
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010875080300006a00100000018a0d94a1eed9050a00000000000000000000000090401c8569c20000f0400000003f0000003f0000803fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f0000018c0d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750ab0e18ecf060300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508730aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508770aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f0000018c0d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750ab0e18ecf060300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750ab0e18ecf060300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "vine_on_west_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    -2.5,
+    0,
+    0.5,
+    -90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    4,
+    0,
+    500,
+    500
+   ],
+   "read": [
+    [
+     -1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       -1,
+       1,
+       0
+      ],
+      "minecraft:vine",
+      {
+       "vine_direction_bits": 8
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010875080400006a00100000018e0d94a1eed9050a000000000000000000000000c03f1c8569c200009040000000000000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f000001900d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508dca0adef030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f000001900d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508dca0adef030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac200009040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508dca0adef030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac200009040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "vine_on_east_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:vine",
+      {
+       "vine_direction_bits": 2
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010875080500006a0010000001920d94a1eed9050a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f000001940d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f000001940d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "vine_on_top_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    35
+   ],
+   "click": [
+    0,
+    0,
+    0,
+    1,
+    500,
+    1000,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:air",
+      {}
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     16
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010877080100006a0010000001960d94a1eed9050a00000000000000000000000090401c8569c2000020400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "vine_under_block",
+   "setup": [
+    [
+     0,
+     2,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    -20
+   ],
+   "click": [
+    0,
+    2,
+    0,
+    0,
+    500,
+    0,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:air",
+      {}
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     16
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010873080000006a0010000001980d94a1eed9050a00000000000000000000000090401c8569c2000020400000003f000000000000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087108a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "vine_second_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     1,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:vine",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "after": [
+    [
+     "use",
+     "player",
+     [
+      1,
+      0,
+      0,
+      1,
+      500,
+      1000,
+      500
+     ]
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:vine",
+      {
+       "vine_direction_bits": 2
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:vine",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ],
+     [
+      10,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 20
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010875080500006a00100000019a0d94a1eed9050a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f0000019c0d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "3100246a000f0000019c0d94a1eed9050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010a77080100006a000f0000019c0d94a1eed9050a000000000000000000000000f0401c8569c2000090400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a750886819e9f050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8c2dcb30b000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_on_north_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -2.5,
+    0,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    2,
+    500,
+    500,
+    0
+   ],
+   "read": [
+    [
+     0,
+     1,
+     -1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       -1
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 4
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750802000065fe100000019e0dbd8ddbfe010a00000000000000000000000090401c8569c20000c03f0000003f0000003f00000000a19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001a00dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506d9cdfbf3020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087306a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087706a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001a00dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506d9cdfbf3020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000604094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506d9cdfbf3020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000604094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_on_south_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    3.5,
+    180,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    3,
+    500,
+    500,
+    1000
+   ],
+   "read": [
+    [
+     0,
+     1,
+     1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       1
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 16
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750803000065fe10000001a20dbd8ddbfe010a00000000000000000000000090401c8569c20000f0400000003f0000003f0000803fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001a40dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750acd8cd9a90e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508730aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508770aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001a40dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750acd8cd9a90e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b04094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750acd8cd9a90e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b04094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_on_west_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    -2.5,
+    0,
+    0.5,
+    -90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    4,
+    0,
+    500,
+    500
+   ],
+   "read": [
+    [
+     -1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       -1,
+       1,
+       0
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 32
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750804000065fe10000001a60dbd8ddbfe010a000000000000000000000000c03f1c8569c200009040000000000000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001a80dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150675089d8fdfa8090300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001a80dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150675089d8fdfa8090300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150675089d8fdfa8090300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_on_east_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 8
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750805000065fe10000001aa0dbd8ddbfe010a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001ac0dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508858d9a140300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001ac0dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508858d9a140300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508858d9a140300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_on_top_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    35
+   ],
+   "click": [
+    0,
+    0,
+    0,
+    1,
+    500,
+    1000,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 1
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108770801000065fe10000001ae0dbd8ddbfe010a00000000000000000000000090401c8569c2000020400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001b00dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508c49d839c020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508c49d839c020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001b00dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508c49d839c020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508c49d839c020300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_under_block",
+   "setup": [
+    [
+     0,
+     2,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    -20
+   ],
+   "click": [
+    0,
+    2,
+    0,
+    0,
+    500,
+    0,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 2
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108730800000065fe10000001b20dbd8ddbfe010a00000000000000000000000090401c8569c2000020400000003f000000000000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001b40dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087108a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508afed8ac4010300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508afed8ac4010300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001b40dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508afed8ac4010300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508afed8ac4010300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "glow_lichen_second_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     1,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:glow_lichen",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "after": [
+    [
+     "use",
+     "player",
+     [
+      1,
+      0,
+      0,
+      1,
+      500,
+      1000,
+      500
+     ]
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:glow_lichen",
+      {
+       "multi_face_direction_bits": 9
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:glow_lichen",
+     14
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ],
+     [
+      10,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 20
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750805000065fe10000001b60dbd8ddbfe010a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001b80dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508858d9a140300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0f000001b80dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508858d9a140300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010a770801000065fe0f000001b80dbd8ddbfe010a000000000000000000000000f0401c8569c2000090400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0e000001ba0dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a75088c9dc2310300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a75088c9dc2310300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002465fe0e000001ba0dbd8ddbfe010a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a75088c9dc2310300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508858d9a140300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a75088c9dc2310300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac20000904094fca88209000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_on_north_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -2.5,
+    0,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    2,
+    500,
+    500,
+    0
+   ],
+   "read": [
+    [
+     0,
+     1,
+     -1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       -1
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 4
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750802000035fe10000001bc0d94fdf5bb050a00000000000000000000000090401c8569c20000c03f0000003f0000003f00000000a19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001be0d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506b0bd96b1060300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087306a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087706a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001be0d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506b0bd96b1060300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200006040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506b0bd96b1060300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200006040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_on_south_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    3.5,
+    180,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    3,
+    500,
+    500,
+    1000
+   ],
+   "read": [
+    [
+     0,
+     1,
+     1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       1
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 16
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750803000035fe10000001c00d94fdf5bb050a00000000000000000000000090401c8569c20000f0400000003f0000003f0000803fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001c20d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750a84fef790090300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508730aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508770aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001c20d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750a84fef790090300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750a84fef790090300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_on_west_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    -2.5,
+    0,
+    0.5,
+    -90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    4,
+    0,
+    500,
+    500
+   ],
+   "read": [
+    [
+     -1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       -1,
+       1,
+       0
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 32
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750804000035fe10000001c40d94fdf5bb050a000000000000000000000000c03f1c8569c200009040000000000000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001c60d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508f4fef9e50c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001c60d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508f4fef9e50c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508f4fef9e50c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_on_east_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 8
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750805000035fe10000001c80d94fdf5bb050a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001ca0d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508dcfcb4d1030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001ca0d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508dcfcb4d1030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508dcfcb4d1030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_on_top_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    35
+   ],
+   "click": [
+    0,
+    0,
+    0,
+    1,
+    500,
+    1000,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 1
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108770801000035fe10000001cc0d94fdf5bb050a00000000000000000000000090401c8569c2000020400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001ce0d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875088dedcd9e050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875088dedcd9e050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001ce0d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875088dedcd9e050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875088dedcd9e050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_under_block",
+   "setup": [
+    [
+     0,
+     2,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    -20
+   ],
+   "click": [
+    0,
+    2,
+    0,
+    0,
+    500,
+    0,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 2
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108730800000035fe10000001d00d94fdf5bb050a00000000000000000000000090401c8569c2000020400000003f000000000000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001d20d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087108a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750886dda581050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750886dda581050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001d20d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750886dda581050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750886dda581050300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "sculk_vein_second_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     1,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:sculk_vein",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "after": [
+    [
+     "use",
+     "player",
+     [
+      1,
+      0,
+      0,
+      1,
+      500,
+      1000,
+      500
+     ]
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:sculk_vein",
+      {
+       "multi_face_direction_bits": 9
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:sculk_vein",
+     14
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ],
+     [
+      10,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 20
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750805000035fe10000001d40d94fdf5bb050a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001d60d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508dcfcb4d1030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0f000001d60d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508dcfcb4d1030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010a770801000035fe0f000001d60d94fdf5bb050a000000000000000000000000f0401c8569c2000090400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0e000001d80d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d5ec8cb4030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d5ec8cb4030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002435fe0e000001d80d94fdf5bb050a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d5ec8cb4030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508dcfcb4d1030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d5ec8cb4030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040a8faebf70a000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_on_north_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -2.5,
+    0,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    2,
+    500,
+    500,
+    0
+   ],
+   "read": [
+    [
+     0,
+     1,
+     -1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       -1
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 4
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750802000002fc10000001da0d95e2ae9f0c0a00000000000000000000000090401c8569c20000c03f0000003f0000003f00000000a19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001dc0d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506b1a2cf940d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087306a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087706a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001dc0d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506b1a2cf940d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200006040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087506b1a2cf940d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200006040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_on_south_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    3.5,
+    180,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    3,
+    500,
+    500,
+    1000
+   ],
+   "read": [
+    [
+     0,
+     1,
+     1
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       1
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 16
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750803000002fc10000001de0d95e2ae9f0c0a00000000000000000000000090401c8569c20000f0400000003f0000003f0000803fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001e00d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750a85e3b0f40f0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508730aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508770aa082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001e00d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750a85e3b0f40f0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750a85e3b0f40f0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac20000b040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_on_west_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    -2.5,
+    0,
+    0.5,
+    -90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    4,
+    0,
+    500,
+    500
+   ],
+   "read": [
+    [
+     -1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       -1,
+       1,
+       0
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 32
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750804000002fc10000001e20d95e2ae9f0c0a000000000000000000000000c03f1c8569c200009040000000000000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001e40d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508f5e3b2c9030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001e40d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508f5e3b2c9030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15067508f5e3b2c9030300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000604000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_on_east_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 8
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750805000002fc10000001e60d95e2ae9f0c0a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001e80d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508cde2ef890e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001e80d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508cde2ef890e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508cde2ef890e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_on_top_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    35
+   ],
+   "click": [
+    0,
+    0,
+    0,
+    1,
+    500,
+    1000,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 1
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108770801000002fc10000001ea0d95e2ae9f0c0a00000000000000000000000090401c8569c2000020400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001ec0d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875089cf2d6bc0c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875089cf2d6bc0c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001ec0d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875089cf2d6bc0c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150875089cf2d6bc0c0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_under_block",
+   "setup": [
+    [
+     0,
+     2,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    0.5,
+    0,
+    -1.5,
+    0,
+    -20
+   ],
+   "click": [
+    0,
+    2,
+    0,
+    0,
+    500,
+    0,
+    500
+   ],
+   "read": [
+    [
+     0,
+     1,
+     0
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       0,
+       1,
+       0
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 2
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     15
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 10
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108730800000002fc10000001ee0d95e2ae9f0c0a00000000000000000000000090401c8569c2000020400000003f000000000000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001f00d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087108a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750887c2dee40b0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750887c2dee40b0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001f00d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750887c2dee40b0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "1508750887c2dee40b0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000904000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  },
+  {
+   "key": "resin_clump_second_face",
+   "setup": [
+    [
+     0,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     0,
+     1,
+     0,
+     "minecraft:stone",
+     {}
+    ],
+    [
+     1,
+     0,
+     0,
+     "minecraft:stone",
+     {}
+    ]
+   ],
+   "hand": {
+    "item": "minecraft:resin_clump",
+    "count": 16
+   },
+   "player": [
+    3.5,
+    0,
+    0.5,
+    90,
+    0
+   ],
+   "click": [
+    0,
+    1,
+    0,
+    5,
+    1000,
+    500,
+    500
+   ],
+   "read": [
+    [
+     1,
+     1,
+     0
+    ]
+   ],
+   "after": [
+    [
+     "use",
+     "player",
+     [
+      1,
+      0,
+      0,
+      1,
+      500,
+      1000,
+      500
+     ]
+    ]
+   ],
+   "origin": [
+    4,
+    -60,
+    4
+   ],
+   "bds": {
+    "reads": [
+     [
+      [
+       1,
+       1,
+       0
+      ],
+      "minecraft:resin_clump",
+      {
+       "multi_face_direction_bits": 9
+      }
+     ]
+    ],
+    "held": [
+     "minecraft:resin_clump",
+     14
+    ],
+    "items": [],
+    "timeline": [
+     [
+      0,
+      "player",
+      "use"
+     ],
+     [
+      10,
+      "player",
+      "use"
+     ]
+    ],
+    "read_tick": 20
+   },
+   "packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e00000200000108750805000002fc10000001f20d95e2ae9f0c0a000000000000000000000000f0401c8569c2000090400000803f0000003f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001f40d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087508a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "15087708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508cde2ef890e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0f000001f40d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508cde2ef890e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "c2s",
+     "name": "InventoryTransactionPacket",
+     "hex": "1e0000020000010a770801000002fc0f000001f40d95e2ae9f0c0a000000000000000000000000f0401c8569c2000090400000003f0000803f0000003fa19cc481080100"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0e000001f60d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d4f297a70e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7908b4d1c4f10d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d4f297a70e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7308a082d1df0d0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7708a19cc481080300"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket",
+     "hex": "31002402fc0e000001f60d95e2ae9f0c0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "InventoryContentPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "PlayerHotbarPacket",
+     "hex": "30000001"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d4f297a70e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ],
+   "watcher": [
+    -6.5,
+    0,
+    2.5,
+    -90,
+    10
+   ],
+   "watcher_packets": [
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508cde2ef890e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateAttributesPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "SetActorDataPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "UpdateBlockPacket",
+     "hex": "150a7508d4f297a70e0300"
+    },
+    {
+     "dir": "s2c",
+     "name": "LevelSoundEventPacket",
+     "hex": "7b05706c6163650000b04000006ac200009040d5bba2c107000000ffffffffffffffff00"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    },
+    {
+     "dir": "s2c",
+     "name": "MovePlayerPacket"
+    }
+   ]
+  }
+ ]
+}

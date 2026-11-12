@@ -15,9 +15,12 @@ use crate::plugin::manifest::{PluginId, PluginLimits, PluginManifest};
 // ============================================================================
 
 mod wit_bindings {
+    // Imports are trappable so a host call can fail the guest invocation (for
+    // example an unknown player handle) instead of panicking the server.
     wasmtime::component::bindgen!({
         path: "../unastar-api/wit",
         world: "unastar-plugin",
+        imports: { default: trappable },
     });
 }
 
@@ -41,6 +44,8 @@ pub struct HostContext {
     entity_map: HashMap<u32, Entity>,
     next_rep: u32,
     limits: wasmtime::StoreLimits,
+    /// Measured server ticks per second, refreshed by `PluginManager::tick`.
+    tps: f32,
 }
 
 // Safety: We only access world_ptr from the thread that owns the World (during system execution).
@@ -69,6 +74,7 @@ impl HostContext {
             pending_actions: Vec::new(),
             entity_map: HashMap::new(),
             next_rep: 1,
+            tps: TARGET_TPS,
             limits: wasmtime::StoreLimitsBuilder::new()
                 .memory_size(limits.max_memory)
                 .trap_on_grow_failure(true)
@@ -98,9 +104,15 @@ impl HostContext {
         Resource::new_own(rep)
     }
 
-    /// Look up a player entity from a Resource handle.
-    fn player_entity(&self, player: &Resource<wit_types::Player>) -> Entity {
-        self.entity_map[&player.rep()]
+    /// Look up a player entity from a Resource handle. Player parameters are
+    /// `borrow<player>`, so Wasmtime already rejects handles a guest kept from
+    /// an earlier call; a missing mapping here is defence in depth and returns
+    /// an error (trapping the call) instead of panicking.
+    fn player_entity(&self, player: &Resource<wit_types::Player>) -> wasmtime::Result<Entity> {
+        self.entity_map
+            .get(&player.rep())
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("unknown player handle {}", player.rep()))
     }
 
     /// Look up a player's UUID string from the ECS.
@@ -118,93 +130,125 @@ impl HostContext {
 // ============================================================================
 
 impl wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
-    fn get_name(&mut self, self_: Resource<wit_types::Player>) -> String {
-        let entity = self.player_entity(&self_);
+    fn get_name(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<String> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::PlayerName>(entity)
             .map(|n| n.0.clone())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    fn get_uuid(&mut self, self_: Resource<wit_types::Player>) -> String {
-        let entity = self.player_entity(&self_);
-        self.player_uuid(entity)
+    fn get_uuid(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<String> {
+        let entity = self.player_entity(&self_)?;
+        Ok(self.player_uuid(entity))
     }
 
-    fn get_position(&mut self, self_: Resource<wit_types::Player>) -> wit_types::Vec3 {
-        let entity = self.player_entity(&self_);
+    fn get_position(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+    ) -> wasmtime::Result<wit_types::Vec3> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
         let pos = world
             .get::<crate::entity::components::transform::Position>(entity)
             .map(|p| p.0)
             .unwrap_or(glam::DVec3::ZERO);
-        wit_types::Vec3 {
+        Ok(wit_types::Vec3 {
             x: pos.x,
             y: pos.y,
             z: pos.z,
-        }
+        })
     }
 
-    fn get_rotation(&mut self, self_: Resource<wit_types::Player>) -> (f32, f32) {
-        let entity = self.player_entity(&self_);
+    fn get_rotation(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<(f32, f32)> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::transform::Rotation>(entity)
             .map(|r| (r.yaw, r.pitch))
-            .unwrap_or((0.0, 0.0))
+            .unwrap_or((0.0, 0.0)))
     }
 
-    fn get_health(&mut self, self_: Resource<wit_types::Player>) -> f32 {
-        let entity = self.player_entity(&self_);
+    fn get_health(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<f32> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::living::Health>(entity)
             .map(|h| h.current)
-            .unwrap_or(20.0)
+            .unwrap_or(20.0))
     }
 
-    fn get_max_health(&mut self, self_: Resource<wit_types::Player>) -> f32 {
-        let entity = self.player_entity(&self_);
+    fn get_max_health(&mut self, self_: Resource<wit_types::Player>) -> wasmtime::Result<f32> {
+        let entity = self.player_entity(&self_)?;
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get::<crate::entity::components::living::Health>(entity)
             .map(|h| h.max)
-            .unwrap_or(20.0)
+            .unwrap_or(20.0))
     }
 
-    fn get_game_mode(&mut self, _self_: Resource<wit_types::Player>) -> wit_types::GameMode {
-        // TODO: read actual GameMode component
-        wit_types::GameMode::Survival
+    fn get_game_mode(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+    ) -> wasmtime::Result<wit_types::GameMode> {
+        use crate::entity::components::GameMode;
+        let entity = self.player_entity(&self_)?;
+        let world = unsafe { self.world() };
+        Ok(
+            match world.get::<GameMode>(entity).copied().unwrap_or_default() {
+                GameMode::Survival => wit_types::GameMode::Survival,
+                GameMode::Creative => wit_types::GameMode::Creative,
+                GameMode::Adventure => wit_types::GameMode::Adventure,
+                GameMode::Spectator => wit_types::GameMode::Spectator,
+            },
+        )
     }
 
-    fn send_message(&mut self, self_: Resource<wit_types::Player>, message: String) {
-        let entity = self.player_entity(&self_);
+    fn send_message(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+        message: String,
+    ) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions
             .push(PluginAction::SendMessage { entity, message });
+        Ok(())
     }
 
-    fn teleport(&mut self, self_: Resource<wit_types::Player>, position: wit_types::Vec3) {
-        let entity = self.player_entity(&self_);
+    fn teleport(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+        position: wit_types::Vec3,
+    ) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions.push(PluginAction::Teleport {
             entity,
             position: (position.x, position.y, position.z),
         });
+        Ok(())
     }
 
-    fn give_item(&mut self, self_: Resource<wit_types::Player>, item_id: String, count: u8) {
-        let entity = self.player_entity(&self_);
+    fn give_item(
+        &mut self,
+        self_: Resource<wit_types::Player>,
+        item_id: String,
+        count: u8,
+    ) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions.push(PluginAction::GiveItem {
             entity,
             item_id,
             count,
         });
+        Ok(())
     }
 
-    fn kick(&mut self, self_: Resource<wit_types::Player>, reason: String) {
-        let entity = self.player_entity(&self_);
+    fn kick(&mut self, self_: Resource<wit_types::Player>, reason: String) -> wasmtime::Result<()> {
+        let entity = self.player_entity(&self_)?;
         self.pending_actions
             .push(PluginAction::Kick { entity, reason });
+        Ok(())
     }
 
     fn drop(&mut self, rep: Resource<wit_types::Player>) -> wasmtime::Result<()> {
@@ -221,47 +265,47 @@ impl wit_bindings::unastar::plugin::types::Host for HostContext {}
 // ============================================================================
 
 impl wit_bindings::unastar::plugin::host::Host for HostContext {
-    fn get_tick_id(&mut self) -> u64 {
+    fn get_tick_id(&mut self) -> wasmtime::Result<u64> {
         let world = unsafe { self.world() };
-        world
+        Ok(world
             .get_resource::<crate::ecs::resources::TickCounter>()
             .map(|t| t.current)
-            .unwrap_or(0)
+            .unwrap_or(0))
     }
 
-    fn get_tps(&mut self) -> f32 {
-        20.0 // TODO: real TPS tracking
+    fn get_tps(&mut self) -> wasmtime::Result<f32> {
+        Ok(self.tps)
     }
 
-    fn get_player_count(&mut self) -> u32 {
+    fn get_player_count(&mut self) -> wasmtime::Result<u32> {
         let world = self.world_mut();
-        world
+        Ok(world
             .query_filtered::<(), bevy_ecs::prelude::With<crate::entity::components::Player>>()
             .iter(world)
-            .count() as u32
+            .count() as u32)
     }
 
-    fn get_spawn(&mut self) -> wit_types::Vec3 {
+    fn get_spawn(&mut self) -> wasmtime::Result<wit_types::Vec3> {
         let world = unsafe { self.world() };
         if let Some(wrapper) =
             world.get_resource::<crate::server::game::types::ServerWorldTemplate>()
         {
             let coords = &wrapper.0.start_game_template.position;
-            wit_types::Vec3 {
+            Ok(wit_types::Vec3 {
                 x: coords.x as f64,
                 y: coords.y as f64,
                 z: coords.z as f64,
-            }
+            })
         } else {
-            wit_types::Vec3 {
+            Ok(wit_types::Vec3 {
                 x: 0.0,
                 y: 100.0,
                 z: 0.0,
-            }
+            })
         }
     }
 
-    fn get_block(&mut self, pos: wit_types::BlockPos) -> u32 {
+    fn get_block(&mut self, pos: wit_types::BlockPos) -> wasmtime::Result<u32> {
         let world = unsafe { self.world() };
         if let Some(chunk_manager) = world.get_resource::<crate::world::ecs::ChunkManager>() {
             use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
@@ -270,29 +314,31 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
             if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz)
                 && let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity)
             {
-                return chunk_data.inner.get_block(lx, ly, lz);
+                return Ok(chunk_data.inner.get_block(lx, ly, lz));
             }
         }
-        0
+        Ok(0)
     }
 
-    fn set_block(&mut self, pos: wit_types::BlockPos, block_id: u32) {
+    fn set_block(&mut self, pos: wit_types::BlockPos, block_id: u32) -> wasmtime::Result<()> {
         self.pending_actions.push(PluginAction::SetBlock {
             position: (pos.x, pos.y, pos.z),
             block_id,
         });
+        Ok(())
     }
 
-    fn log(&mut self, level: wit_types::LogLevel, message: String) {
+    fn log(&mut self, level: wit_types::LogLevel, message: String) -> wasmtime::Result<()> {
         let id = &self.plugin_id;
         match level {
             wit_types::LogLevel::Info => info!(plugin = %id, "{}", message),
             wit_types::LogLevel::Warn => warn!(plugin = %id, "{}", message),
             wit_types::LogLevel::Error => error!(plugin = %id, "{}", message),
         }
+        Ok(())
     }
 
-    fn list_players(&mut self) -> Vec<String> {
+    fn list_players(&mut self) -> wasmtime::Result<Vec<String>> {
         let world = self.world_mut();
         let mut names = Vec::new();
         for name in world
@@ -301,7 +347,7 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
         {
             names.push(name.0.clone());
         }
-        names
+        Ok(names)
     }
 }
 
@@ -313,12 +359,53 @@ pub struct PluginManager {
     engine: Engine,
     plugins: HashMap<PluginId, LoadedPlugin>,
     pending: Vec<PendingPlugin>,
+    tps: TpsMeter,
+}
+
+/// The server's nominal tick rate.
+const TARGET_TPS: f32 = 20.0;
+
+/// Rolling ticks-per-second measured from the wall-clock times of the last
+/// [`TpsMeter::WINDOW`] plugin ticks (one per server tick).
+#[derive(Default)]
+struct TpsMeter {
+    ticks: std::collections::VecDeque<std::time::Instant>,
+}
+
+impl TpsMeter {
+    /// Five seconds at the nominal rate.
+    const WINDOW: usize = 100;
+
+    fn record(&mut self, now: std::time::Instant) {
+        if self.ticks.len() == Self::WINDOW + 1 {
+            self.ticks.pop_front();
+        }
+        self.ticks.push_back(now);
+    }
+
+    /// Ticks per second over the window, capped at [`TARGET_TPS`] so scheduler
+    /// jitter does not report a server running faster than it can. Before two
+    /// ticks have been seen there is no interval yet, so this is the target.
+    fn tps(&self) -> f32 {
+        let (Some(first), Some(last)) = (self.ticks.front(), self.ticks.back()) else {
+            return TARGET_TPS;
+        };
+        let elapsed = last.duration_since(*first).as_secs_f32();
+        if self.ticks.len() < 2 || elapsed <= 0.0 {
+            return TARGET_TPS;
+        }
+        ((self.ticks.len() - 1) as f32 / elapsed).min(TARGET_TPS)
+    }
 }
 
 struct LoadedPlugin {
     manifest: PluginManifest,
     store: Store<HostContext>,
     bindings: UnastarPlugin,
+    /// Set when a call into the plugin fails. A Wasmtime component instance that
+    /// trapped cannot be entered again, so the plugin is skipped by every later
+    /// dispatch, `on-unload` included, until the server restarts.
+    disabled: bool,
 }
 
 struct PendingPlugin {
@@ -359,6 +446,19 @@ fn begin_fuel_budget(store: &mut Store<HostContext>, limits: &PluginLimits) -> a
     store.set_fuel(limits.fuel_per_tick)
 }
 
+/// How often the engine epoch advances. Epoch deadlines count these ticks.
+const EPOCH_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
+
+/// Wall-clock budget for one `on-unload` call at shutdown. Much longer than an
+/// event callback's (two epochs, 5-10 ms) so a plugin can flush its state, for
+/// example write a file through WASI, without being trapped mid-write.
+pub const PLUGIN_UNLOAD_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// Number of epoch ticks in `deadline`, rounded up.
+fn deadline_epochs(deadline: std::time::Duration) -> u64 {
+    deadline.as_nanos().div_ceil(EPOCH_INTERVAL.as_nanos()) as u64
+}
+
 /// Wall-clock interruption is independent of the shared per-tick fuel budget.
 fn prepare_invocation(store: &mut Store<HostContext>) {
     store.set_epoch_deadline(2);
@@ -375,6 +475,18 @@ fn create_store(
     begin_fuel_budget(&mut store, limits)?;
     prepare_invocation(&mut store);
     Ok(store)
+}
+
+/// Whether `event` goes to the plugin with `manifest`: it must subscribe to the
+/// event's kind, and a fired timer goes only to the plugin that set it.
+fn is_delivered_to(event: &ServerEvent, manifest: &PluginManifest) -> bool {
+    if !manifest.subscriptions.contains(&event.kind()) {
+        return false;
+    }
+    match event {
+        ServerEvent::Timer { plugin_id, .. } => *plugin_id == manifest.id,
+        _ => true,
+    }
 }
 
 /// BlockClick emits interaction and placement consecutively. Cancelling the
@@ -422,7 +534,7 @@ impl PluginManager {
         // Uses the tokio runtime already running for network I/O.
         let epoch_engine = engine.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_millis(5));
+            let mut interval = tokio::time::interval(EPOCH_INTERVAL);
             loop {
                 interval.tick().await;
                 epoch_engine.increment_epoch();
@@ -433,6 +545,7 @@ impl PluginManager {
             engine,
             plugins: HashMap::new(),
             pending: Vec::new(),
+            tps: TpsMeter::default(),
         })
     }
 
@@ -477,6 +590,7 @@ impl PluginManager {
         }
         let manifest_content = std::fs::read_to_string(&manifest_path)?;
         let manifest: PluginManifest = toml_edit::de::from_str(&manifest_content)?;
+        manifest.check_api_version()?;
         let plugin_id = manifest.id.clone();
 
         if self.plugins.contains_key(&plugin_id)
@@ -550,6 +664,7 @@ impl PluginManager {
                             manifest: pending.manifest,
                             store: pending.store,
                             bindings,
+                            disabled: false,
                         },
                     );
                 }
@@ -562,21 +677,49 @@ impl PluginManager {
 
     /// Run the tick loop for all plugins.
     pub fn tick(&mut self, ecs_world: &mut bevy_ecs::world::World) {
+        self.tps.record(std::time::Instant::now());
+        let tps = self.tps.tps();
+        for store in self
+            .pending
+            .iter_mut()
+            .map(|plugin| &mut plugin.store)
+            .chain(self.plugins.values_mut().map(|plugin| &mut plugin.store))
+        {
+            store.data_mut().tps = tps;
+        }
         self.initialize_pending(ecs_world);
         // Drain events from ECS
-        let all_events = {
-            let mut event_buffer = ecs_world
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-                .unwrap();
-            let mut events = event_buffer.drain();
-            let tick_id = ecs_world
-                .get_resource::<crate::ecs::resources::TickCounter>()
-                .unwrap()
-                .current;
-            events.push(ServerEvent::Tick { tick_id });
-            events
-        };
+        let mut events = ecs_world
+            .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            .unwrap()
+            .drain();
+        let tick_id = ecs_world
+            .get_resource::<crate::ecs::resources::TickCounter>()
+            .unwrap()
+            .current;
+        events.push(ServerEvent::Tick { tick_id });
+        self.dispatch_events(events, ecs_world);
+    }
 
+    /// Plugin side of server shutdown: dispatch the events still buffered
+    /// (the server queues a `PlayerQuit` for every online player first), with no
+    /// `Tick`, then call `on-unload` on every plugin ([`Self::unload_all`]).
+    pub fn shutdown(&mut self, ecs_world: &mut bevy_ecs::world::World) {
+        let events = ecs_world
+            .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            .map(|mut buffer| buffer.drain())
+            .unwrap_or_default();
+        self.dispatch_events(events, ecs_world);
+        self.unload_all(ecs_world);
+    }
+
+    /// Dispatch `all_events` in order to subscribed plugins, then run the
+    /// default behaviour of every event no plugin cancelled.
+    fn dispatch_events(
+        &mut self,
+        all_events: Vec<ServerEvent>,
+        ecs_world: &mut bevy_ecs::world::World,
+    ) {
         if all_events.is_empty() {
             return;
         }
@@ -585,6 +728,9 @@ impl PluginManager {
         let mut cancelled_indices = std::collections::HashSet::new();
 
         for plugin in self.plugins.values_mut() {
+            if plugin.disabled {
+                continue;
+            }
             plugin.store.data_mut().pending_actions.clear();
             if let Err(error) = begin_fuel_budget(&mut plugin.store, &plugin.manifest.limits) {
                 error!(plugin = %plugin.manifest.id, %error, "Failed to set tick fuel budget");
@@ -599,7 +745,9 @@ impl PluginManager {
                     cancelled_indices.insert(index);
                     continue;
                 }
-                if !plugin.manifest.subscriptions.contains(&event.kind()) {
+                // A plugin disabled by a trap earlier in this tick receives
+                // nothing more; its subscriptions no longer cancel anything.
+                if plugin.disabled || !is_delivered_to(event, &plugin.manifest) {
                     continue;
                 }
                 if cancelled_indices.contains(&index) {
@@ -636,8 +784,47 @@ impl PluginManager {
         }
     }
 
+    /// Call `on-unload` on every loaded plugin and drop them all.
+    ///
+    /// The World is attached for the call like any other invocation, with a fresh
+    /// fuel budget and [`PLUGIN_UNLOAD_DEADLINE`] of wall-clock time. Actions a plugin requests in `on-unload` are queued in the
+    /// `ActionQueue`; at server shutdown no further tick runs, so they are not
+    /// applied. A trap is logged and does not stop the other plugins unloading.
+    /// Pending plugins never ran `on-load`, and a plugin disabled by a trap
+    /// cannot be entered again, so both are dropped without a call.
+    pub fn unload_all(&mut self, world: &mut bevy_ecs::world::World) {
+        self.pending.clear();
+        for (id, mut plugin) in self.plugins.drain() {
+            if plugin.disabled {
+                info!(%id, "Disabled plugin dropped without on-unload");
+                continue;
+            }
+            let result = with_world(&mut plugin.store, world, |store| -> anyhow::Result<()> {
+                begin_fuel_budget(store, &plugin.manifest.limits)?;
+                store.set_epoch_deadline(deadline_epochs(PLUGIN_UNLOAD_DEADLINE));
+                plugin.bindings.call_on_unload(&mut *store)
+            });
+            let actions = std::mem::take(&mut plugin.store.data_mut().pending_actions);
+            // A failed on-unload is rolled back like any other failed call.
+            let actions = if result.is_ok() { actions } else { Vec::new() };
+            if let Some(mut queue) = world.get_resource_mut::<crate::ecs::events::ActionQueue>() {
+                for action in actions {
+                    queue.push(action);
+                }
+            }
+            match result {
+                Ok(()) => info!(%id, "Plugin unloaded"),
+                Err(error) => error!(%id, %error, "Plugin on-unload failed"),
+            }
+        }
+    }
+
     /// Dispatch a single ServerEvent to a plugin's typed export.
     /// Returns `true` if the event was cancelled by the plugin.
+    ///
+    /// If the call fails (a trap, fuel or the epoch deadline), the plugin is
+    /// disabled with one `error!`. That event itself fails closed when it is
+    /// cancellable; later events skip the plugin as if it were not subscribed.
     fn dispatch_event(
         plugin: &mut LoadedPlugin,
         event: &ServerEvent,
@@ -823,7 +1010,7 @@ impl PluginManager {
                         .call_on_player_swing(&mut plugin.store, handle)
                         .map(|_| false)
                 }
-                ServerEvent::Timer { id } => plugin
+                ServerEvent::Timer { id, .. } => plugin
                     .bindings
                     .call_on_timer(&mut plugin.store, *id)
                     .map(|_| false),
@@ -833,7 +1020,14 @@ impl PluginManager {
         match result {
             Ok(cancelled) => cancelled,
             Err(e) => {
-                error!(plugin = %plugin.manifest.id, error = %e, "Event dispatch failed");
+                // A failed call is rolled back: nothing it requested is applied.
+                plugin.store.data_mut().pending_actions.clear();
+                plugin.disabled = true;
+                error!(
+                    plugin = %plugin.manifest.id,
+                    error = %e,
+                    "Plugin trapped; it is disabled until the server restarts"
+                );
                 matches!(
                     event,
                     ServerEvent::PlayerChat { .. }
@@ -932,6 +1126,36 @@ mod tests {
     /// Real component exports, with canonical ABI lifting and host imports.
     /// Keeping the fixture as WAT avoids needing a wasm32 target in host tests.
     fn component(engine: &Engine, allow: bool) -> Component {
+        component_with_marker(engine, allow, 0)
+    }
+
+    /// Like [`component`], but `on-timer` and `on-unload` call
+    /// `set-block((0, 0, 0), marker)` (and `on-player-quit` uses `marker + 100`)
+    /// so tests can see which plugin and export was called in the `ActionQueue`.
+    /// (Plain [`component`] uses marker 0, which tests ignore.)
+    fn component_with_marker(engine: &Engine, allow: bool, marker: u32) -> Component {
+        build_component(engine, allow, marker, false, false)
+    }
+
+    /// Like [`component_with_marker`], but `on-unload` first spins through a
+    /// long countdown loop, so it outlives an event callback's epoch deadline.
+    fn slow_unload_component(engine: &Engine, marker: u32) -> Component {
+        build_component(engine, true, marker, false, true)
+    }
+
+    /// Like [`component_with_marker`], but every cancellable export calls
+    /// `set-block((0, 0, 0), marker)` and then traps.
+    fn trapping_component(engine: &Engine, marker: u32) -> Component {
+        build_component(engine, true, marker, true, false)
+    }
+
+    fn build_component(
+        engine: &Engine,
+        allow: bool,
+        marker: u32,
+        trap: bool,
+        slow_unload: bool,
+    ) -> Component {
         let exports = [
             ("on-load", "", "", false),
             ("on-unload", "", "", false),
@@ -1023,7 +1247,7 @@ mod tests {
             ("on-timer", "(param \"timer-id\" u64)", "i64", false),
         ];
         let mut wat = String::from(
-            r#"(component
+            r#"(component $root
             (import "unastar:plugin/types@0.2.0" (instance $types
                 (export "player" (type (sub resource)))
                 (type $pos (record (field "x" s32) (field "y" s32) (field "z" s32)))
@@ -1035,11 +1259,16 @@ mod tests {
             (alias export $types "vec3" (type $vec))
             (core func $player-drop (canon resource.drop $player))
             (import "unastar:plugin/host@0.2.0" (instance $host
-                (export "get-tick-id" (func (result u64)))))
+                (alias outer $root $pos (type $host-pos))
+                (export "get-tick-id" (func (result u64)))
+                (export "set-block" (func (param "pos" $host-pos) (param "block-id" u32)))))
             (alias export $host "get-tick-id" (func $tick))
+            (alias export $host "set-block" (func $set-block))
             (core func $tick-lowered (canon lower (func $tick)))
+            (core func $set-block-lowered (canon lower (func $set-block)))
             (core module $module
                 (import "host" "tick" (func $tick (result i64)))
+                (import "host" "set-block" (func $set-block (param i32 i32 i32 i32)))
                 (import "host" "drop-player" (func $drop-player (param i32)))
                 (memory (export "memory") 1)
                 (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const 0)
@@ -1053,6 +1282,26 @@ mod tests {
             };
             let body = if name == "on-load" {
                 "call $tick i64.const 42 i64.ne if unreachable end".to_string()
+            } else if name == "on-unload" && slow_unload {
+                format!(
+                    "(local $i i32) i32.const 50000000 local.set $i
+                    (block $done (loop $spin
+                        local.get $i i32.eqz br_if $done
+                        local.get $i i32.const 1 i32.sub local.set $i
+                        br $spin))
+                    i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block"
+                )
+            } else if name == "on-player-quit" {
+                format!(
+                    "i32.const 0 i32.const 0 i32.const 0 i32.const {} call $set-block",
+                    marker + 100
+                )
+            } else if name == "on-timer" || name == "on-unload" {
+                format!("i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block")
+            } else if returns_bool && trap {
+                format!(
+                    "i32.const 0 i32.const 0 i32.const 0 i32.const {marker} call $set-block unreachable"
+                )
             } else if returns_bool {
                 format!("i32.const {}", u8::from(allow))
             } else {
@@ -1072,6 +1321,7 @@ mod tests {
             r#")
             (core instance $host-core
                 (export "tick" (func $tick-lowered))
+                (export "set-block" (func $set-block-lowered))
                 (export "drop-player" (func $player-drop)))
             (core instance $instance (instantiate $module (with "host" (instance $host-core))))
         "#,
@@ -1110,6 +1360,7 @@ mod tests {
                 engine,
                 plugins: HashMap::new(),
                 pending: vec![pending],
+                tps: TpsMeter::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1164,6 +1415,8 @@ mod tests {
                     player_id: "test".into(),
                     position: (0, 1, 0),
                     block_id: 1,
+                    clicked: (0, 0, 0),
+                    face: 1,
                 },
                 ServerEvent::BlockBreak {
                     entity,
@@ -1179,6 +1432,257 @@ mod tests {
                 assert!(plugin.store.data().world_ptr.is_null());
             }
         }
+    }
+
+    fn manifest(id: &str, subscriptions: &[crate::ecs::events::EventKind]) -> PluginManifest {
+        PluginManifest {
+            id: PluginId(id.into()),
+            name: id.into(),
+            version: "1".into(),
+            api_version: "0.2.0".into(),
+            capabilities: Default::default(),
+            subscriptions: subscriptions.iter().copied().collect(),
+            limits: PluginLimits::default(),
+        }
+    }
+
+    fn pending(engine: &Engine, manifest: PluginManifest, marker: u32) -> PendingPlugin {
+        PendingPlugin {
+            component: component_with_marker(engine, true, marker),
+            store: store(engine, &manifest.limits),
+            manifest,
+        }
+    }
+
+    /// Drain the `SetBlock` markers plugins queued, in queue order.
+    fn queued_markers(world: &mut bevy_ecs::world::World) -> Vec<u32> {
+        world
+            .resource_mut::<crate::ecs::events::ActionQueue>()
+            .drain()
+            .into_iter()
+            .filter_map(|action| match action {
+                PluginAction::SetBlock { block_id, .. } => Some(block_id),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn fired_timer_reaches_only_the_plugin_that_set_it() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![
+                pending(&engine, manifest("owner", &[EventKind::Timer]), 1),
+                pending(&engine, manifest("other", &[EventKind::Timer]), 2),
+            ],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        let mut events = crate::ecs::events::EventBuffer::default();
+        events.push(ServerEvent::Timer {
+            id: 9,
+            plugin_id: PluginId("owner".into()),
+        });
+        world.insert_resource(events);
+        manager.tick(&mut world);
+        assert_eq!(manager.plugins.len(), 2);
+        assert_eq!(queued_markers(&mut world), [1]);
+    }
+
+    /// One chat event from `Alice`, with a session that records broadcasts.
+    fn chat_world() -> (
+        bevy_ecs::world::World,
+        tokio::sync::mpsc::Receiver<jolyne::valentine::McpePacket>,
+        Entity,
+    ) {
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        let entity = world
+            .spawn((
+                crate::entity::components::PlayerName("Alice".into()),
+                crate::entity::components::PlayerSession::new(1, "Alice".into(), None, None, tx),
+            ))
+            .id();
+        let mut sessions = crate::server::game::SessionEntityMap::default();
+        sessions.insert(1, entity);
+        world.insert_resource(sessions);
+        (world, rx, entity)
+    }
+
+    fn push_chat(world: &mut bevy_ecs::world::World, entity: Entity) {
+        world
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .push(ServerEvent::PlayerChat {
+                entity,
+                player_id: "test".into(),
+                message: "hello".into(),
+            });
+    }
+
+    #[test]
+    fn trapped_plugin_is_disabled_and_stops_cancelling_events() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let manifest = manifest("trapper", &[EventKind::PlayerChat]);
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![PendingPlugin {
+                component: trapping_component(&engine, 5),
+                store: store(&engine, &manifest.limits),
+                manifest,
+            }],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let (mut world, mut rx, entity) = chat_world();
+
+        push_chat(&mut world, entity);
+        manager.tick(&mut world);
+        assert!(rx.try_recv().is_err(), "the trapping call fails closed");
+        assert!(manager.plugins.values().all(|plugin| plugin.disabled));
+
+        push_chat(&mut world, entity);
+        manager.tick(&mut world);
+        assert!(
+            rx.try_recv().is_ok(),
+            "a disabled plugin no longer cancels its subscribed events"
+        );
+        assert!(rx.try_recv().is_err());
+
+        queued_markers(&mut world);
+        manager.unload_all(&mut world);
+        assert!(
+            queued_markers(&mut world).is_empty(),
+            "on-unload is not called on a disabled plugin"
+        );
+    }
+
+    #[test]
+    fn trapped_call_actions_are_discarded() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let manifest = manifest("trapper", &[EventKind::PlayerChat]);
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![PendingPlugin {
+                component: trapping_component(&engine, 6),
+                store: store(&engine, &manifest.limits),
+                manifest,
+            }],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let (mut world, _rx, entity) = chat_world();
+        push_chat(&mut world, entity);
+        manager.tick(&mut world);
+        assert!(
+            queued_markers(&mut world).is_empty(),
+            "set-block requested before the trap must not apply"
+        );
+    }
+
+    #[test]
+    fn on_unload_runs_under_its_own_longer_deadline() {
+        assert_eq!(deadline_epochs(PLUGIN_UNLOAD_DEADLINE), 200);
+        let engine = engine();
+        let mut slow = manifest("slow", &[]);
+        slow.limits.fuel_per_tick = u64::MAX / 4;
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![PendingPlugin {
+                component: slow_unload_component(&engine, 8),
+                store: store(&engine, &slow.limits),
+                manifest: slow,
+            }],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        manager.tick(&mut world);
+        assert_eq!(manager.plugins.len(), 1);
+        // Advance the epoch 50 times while on-unload spins: past an event
+        // callback's two-epoch deadline, well inside the unload deadline.
+        let epochs = manager.engine.clone();
+        let ticker = std::thread::spawn(move || {
+            for _ in 0..50 {
+                let step = std::time::Instant::now();
+                while step.elapsed() < std::time::Duration::from_micros(500) {
+                    std::hint::spin_loop();
+                }
+                epochs.increment_epoch();
+            }
+        });
+        manager.unload_all(&mut world);
+        ticker.join().unwrap();
+        assert_eq!(queued_markers(&mut world), [8], "on-unload completed");
+    }
+
+    #[test]
+    fn shutdown_delivers_buffered_quits_before_unloading() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![pending(
+                &engine,
+                manifest("tracker", &[EventKind::PlayerQuit, EventKind::Tick]),
+                1,
+            )],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        manager.tick(&mut world);
+        let player = world.spawn_empty().id();
+        world
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .push(ServerEvent::PlayerQuit { entity: player });
+        manager.shutdown(&mut world);
+        assert!(manager.plugins.is_empty());
+        assert_eq!(
+            queued_markers(&mut world),
+            [101, 1],
+            "on-player-quit, then on-unload"
+        );
+    }
+
+    #[test]
+    fn unload_all_calls_on_unload_and_drops_every_plugin() {
+        use crate::ecs::events::EventKind;
+        let engine = engine();
+        let mut manager = PluginManager {
+            plugins: HashMap::new(),
+            pending: vec![pending(&engine, manifest("first", &[EventKind::Tick]), 3)],
+            engine,
+            tps: TpsMeter::default(),
+        };
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
+        world.insert_resource(crate::ecs::events::ActionQueue::default());
+        world.insert_resource(crate::ecs::events::EventBuffer::default());
+        manager.tick(&mut world);
+        assert_eq!(manager.plugins.len(), 1);
+        assert!(queued_markers(&mut world).is_empty());
+        manager
+            .pending
+            .push(pending(&manager.engine, manifest("never-loaded", &[]), 4));
+        manager.unload_all(&mut world);
+        assert!(manager.plugins.is_empty() && manager.pending.is_empty());
+        assert_eq!(queued_markers(&mut world), [3]);
     }
 
     #[test]
@@ -1213,6 +1717,7 @@ mod tests {
                 engine,
                 plugins: HashMap::new(),
                 pending: vec![pending],
+                tps: TpsMeter::default(),
             };
             let mut world = bevy_ecs::world::World::new();
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
@@ -1255,6 +1760,8 @@ mod tests {
                 player_id: "test".into(),
                 position: (1, 65, 1),
                 block_id: *blocks::STONE,
+                clicked: (1, 64, 1),
+                face: 1,
             });
             world.insert_resource(events);
             manager.tick(&mut world);
@@ -1286,6 +1793,7 @@ mod tests {
             engine: engine(),
             plugins: HashMap::new(),
             pending: Vec::new(),
+            tps: TpsMeter::default(),
         };
         let mut world = bevy_ecs::world::World::new();
         world.insert_resource(crate::ecs::resources::TickCounter::default());
@@ -1328,7 +1836,7 @@ mod tests {
                 "host",
                 "tick",
                 |mut caller: wasmtime::Caller<'_, HostContext>| {
-                    caller.data_mut().get_tick_id() as i64
+                    caller.data_mut().get_tick_id().unwrap() as i64
                 },
             )
             .unwrap();
@@ -1350,6 +1858,101 @@ mod tests {
             linker.instantiate(store, &module).unwrap();
         });
         assert!(store.data().world_ptr.is_null());
+    }
+
+    #[test]
+    fn unknown_player_handle_is_an_error_not_a_panic() {
+        use wit_bindings::unastar::plugin::types::HostPlayer;
+        let engine = engine();
+        let mut store = store(&engine, &PluginLimits::default());
+        let mut world = bevy_ecs::world::World::new();
+        let known = world.spawn_empty().id();
+        with_world(&mut store, &mut world, |store| {
+            let ctx = store.data_mut();
+            let handle = ctx.new_player_resource(known);
+            assert!(ctx.get_health(handle).is_ok());
+            let stale = Resource::<wit_types::Player>::new_own(999);
+            assert!(ctx.get_name(stale).is_err());
+            let stale = Resource::<wit_types::Player>::new_own(999);
+            assert!(ctx.send_message(stale, "hi".into()).is_err());
+            assert!(ctx.pending_actions.is_empty());
+        });
+    }
+
+    #[test]
+    fn get_game_mode_reads_the_player_game_mode() {
+        use crate::entity::components::GameMode;
+        use wit_bindings::unastar::plugin::types::HostPlayer;
+        let engine = engine();
+        let mut store = store(&engine, &PluginLimits::default());
+        let mut world = bevy_ecs::world::World::new();
+        let modes = [
+            (GameMode::Survival, wit_types::GameMode::Survival),
+            (GameMode::Creative, wit_types::GameMode::Creative),
+            (GameMode::Adventure, wit_types::GameMode::Adventure),
+            (GameMode::Spectator, wit_types::GameMode::Spectator),
+        ];
+        let entities: Vec<_> = modes
+            .iter()
+            .map(|(mode, _)| world.spawn(*mode).id())
+            .collect();
+        with_world(&mut store, &mut world, |store| {
+            let ctx = store.data_mut();
+            for (entity, (_, expected)) in entities.into_iter().zip(modes) {
+                let handle = ctx.new_player_resource(entity);
+                assert_eq!(ctx.get_game_mode(handle).unwrap(), expected);
+            }
+        });
+    }
+
+    #[test]
+    fn tps_meter_reports_the_measured_rate_capped_at_target() {
+        let start = std::time::Instant::now();
+        let mut meter = TpsMeter::default();
+        assert_eq!(meter.tps(), TARGET_TPS);
+        meter.record(start);
+        assert_eq!(meter.tps(), TARGET_TPS);
+        for tick in 1..=10 {
+            meter.record(start + std::time::Duration::from_millis(100 * tick));
+        }
+        assert!((meter.tps() - 10.0).abs() < 1e-3, "{}", meter.tps());
+        // Older ticks fall out of the window: 200 fast ticks read as the cap.
+        for tick in 1..=200 {
+            meter.record(start + std::time::Duration::from_millis(1000 + 10 * tick));
+        }
+        assert_eq!(meter.ticks.len(), TpsMeter::WINDOW + 1);
+        assert_eq!(meter.tps(), TARGET_TPS);
+    }
+
+    #[test]
+    fn get_tps_returns_the_measured_rate() {
+        let engine = engine();
+        let mut store = store(&engine, &PluginLimits::default());
+        store.data_mut().tps = 12.5;
+        assert_eq!(store.data_mut().get_tps().unwrap(), 12.5);
+    }
+
+    #[test]
+    fn plugin_with_incompatible_api_version_is_not_loaded() {
+        let dir = tempfile::tempdir().unwrap();
+        // No plugin.wasm: the version check must reject the plugin before the
+        // component is read, so the error names the version, not the file.
+        let plugin = dir.path().join("old");
+        std::fs::create_dir(&plugin).unwrap();
+        std::fs::write(
+            plugin.join("plugin.toml"),
+            "id = 'old'\nname = 'old'\nversion = '1.0.0'\napi_version = '0.1.0'\n",
+        )
+        .unwrap();
+        let mut manager = PluginManager {
+            engine: engine(),
+            plugins: HashMap::new(),
+            pending: Vec::new(),
+            tps: TpsMeter::default(),
+        };
+        let old = manager.load_plugin(&dir.path().join("old")).unwrap_err();
+        assert!(old.to_string().contains("0.1.0"), "{old}");
+        assert!(manager.pending.is_empty());
     }
 
     #[test]

@@ -2,7 +2,7 @@
 //! suspicious sand blocks underneath.
 
 use crate::features::blocks::{BlockPos, Direction};
-use crate::features::eval::FeatureWorld;
+use crate::features::eval::{BlockEntityData, FeatureWorld};
 use crate::features::java_blocks::{blocks as b, states};
 use crate::features::random::FeatureRandom;
 
@@ -17,8 +17,8 @@ use crate::features::random::FeatureRandom;
 /// and its four neighbours (centre, east, south, west, north) and places
 /// `suspicious_sand` one and two blocks below them.
 ///
-/// The brushable block entity's loot table (`archaeology/desert_well`, seeded
-/// with the position) is set by the runtime; this only writes the block state.
+/// Each suspicious sand's brushable block entity gets loot table
+/// `archaeology/desert_well` seeded with its position (`BlockPos.asLong`).
 pub fn place<W: FeatureWorld + ?Sized>(
     world: &mut W,
     rng: &mut FeatureRandom,
@@ -91,11 +91,19 @@ pub fn place<W: FeatureWorld + ?Sized>(
         pos.rel(Direction::North),
     ];
     let first = candidates[rng.next_int_bounded(candidates.len() as i32) as usize];
-    world.set_state(first.offset(0, -1, 0), states::SUSPICIOUS_SAND);
+    place_suspicious_sand(world, first.offset(0, -1, 0));
     let second = candidates[rng.next_int_bounded(candidates.len() as i32) as usize];
-    world.set_state(second.offset(0, -2, 0), states::SUSPICIOUS_SAND);
+    place_suspicious_sand(world, second.offset(0, -2, 0));
     true
 }
+
+/// `DesertWellFeature.placeSusSand`.
+fn place_suspicious_sand<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos) {
+    world.set_state(pos, states::SUSPICIOUS_SAND);
+    world.set_block_entity(pos, BlockEntityData::loot(LOOT, pos.as_long()));
+}
+
+const LOOT: &str = "minecraft:archaeology/desert_well";
 
 #[cfg(test)]
 mod tests {

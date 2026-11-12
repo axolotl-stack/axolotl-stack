@@ -234,13 +234,14 @@ fn spawned_baby_zombie_add_actor_matches_native_summon() {
         "minecraft:zombie",
         world.get::<RuntimeId>(zombie).unwrap().0,
         world.get::<Position>(zombie).unwrap().0,
-        DVec3::new(0.0, f64::from(native.velocity.y), 0.0),
+        world.get::<Velocity>(zombie).unwrap().0,
         world.get::<Rotation>(zombie).unwrap(),
         world.get::<EntityMetadata>(zombie).unwrap(),
         world.get::<ActorProperties>(zombie).unwrap(),
         world.get::<ActorAttributes>(zombie).unwrap(),
     );
     assert_eq!(ours.actor_type, native.actor_type);
+    assert_eq!(ours.velocity, native.velocity);
     assert_eq!(ours.attributes_list, native.attributes_list);
     let missing: Vec<_> = native
         .actor_data

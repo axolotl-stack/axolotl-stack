@@ -369,12 +369,14 @@ mod tests {
         out
     }
 
+    /// Where the mobs are, to the millimetre: a mob summoned in the air has
+    /// already made its first move (BDS's 1e-5 spawn fall) in the summon tick.
     fn mob_positions(server: &mut super::super::GameServer) -> Vec<DVec3> {
         let world = server.ecs.world_mut();
         world
             .query_filtered::<&Position, With<crate::entity::mob::MobKind>>()
             .iter(world)
-            .map(|position| position.0)
+            .map(|position| (position.0 * 1000.0).round() / 1000.0)
             .collect()
     }
 

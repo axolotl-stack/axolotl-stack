@@ -548,14 +548,10 @@ pub fn mirror_state(state: JavaState, mirror: Mirror) -> JavaState {
             };
             s = s.with("hinge", h);
         }
-        if s.value("type").is_some_and(|t| t == "left" || t == "right") && kind.contains("chest") {
-            let t = if s.value("type") == Some("left") {
-                "right"
-            } else {
-                "left"
-            };
-            s = s.with("type", t);
-        }
+        // Chests mirror by rotating their facing only; the type keeps its side,
+        // so a mirrored double chest no longer pairs. Native mansion room
+        // `1x2_a9` mirrored FRONT_BACK (seed 7245333257873427137, start chunk
+        // -390,538) leaves both halves single after shape updates.
         return s;
     }
     if let Some(r) = s.int_value("rotation") {
@@ -580,4 +576,21 @@ pub fn mirror_state(state: JavaState, mirror: Mirror) -> JavaState {
         s = s.try_with(a.name(), vb).try_with(b.name(), va);
     }
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::java_blocks::states;
+
+    /// Mirroring turns a chest's facing but keeps which half it is, so a
+    /// mirrored double chest stops pairing (native mansion room `1x2_a9`
+    /// mirrored FRONT_BACK leaves both halves single).
+    #[test]
+    fn mirrored_chests_keep_their_half() {
+        let left = states::CHEST.with("facing", "west").with("type", "left");
+        let mirrored = mirror_state(left, Mirror::FrontBack);
+        assert_eq!(mirrored.value("facing"), Some("east"));
+        assert_eq!(mirrored.value("type"), Some("left"));
+    }
 }

@@ -1,0 +1,64 @@
+{
+ "always": [
+  "minecraft:honey_block",
+  "minecraft:mud",
+  "minecraft:soul_sand",
+  "minecraft:structure_void"
+ ],
+ "always_states": [
+  [
+   "minecraft:snow_layer",
+   {
+    "covered_bit": false,
+    "height": 7
+   }
+  ]
+ ],
+ "method": "derived from block_updates/connections.json and connections_blocks.json: blocks whose observed connection differs from the collision-face rule (a fence, pane, bars or wall connects to a neighbour whose collision boxes cover the face toward it), for every centre and measured state; the *_states lists name single states of blocks whose other states follow the rule",
+ "never": [
+  "minecraft:acacia_leaves",
+  "minecraft:azalea",
+  "minecraft:azalea_leaves",
+  "minecraft:azalea_leaves_flowered",
+  "minecraft:barrier",
+  "minecraft:birch_leaves",
+  "minecraft:black_shulker_box",
+  "minecraft:blue_shulker_box",
+  "minecraft:brown_shulker_box",
+  "minecraft:camera",
+  "minecraft:carved_pumpkin",
+  "minecraft:cauldron",
+  "minecraft:cherry_leaves",
+  "minecraft:cyan_shulker_box",
+  "minecraft:dark_oak_leaves",
+  "minecraft:dragon_egg",
+  "minecraft:flowering_azalea",
+  "minecraft:gray_shulker_box",
+  "minecraft:green_shulker_box",
+  "minecraft:jigsaw",
+  "minecraft:jungle_leaves",
+  "minecraft:light_blue_shulker_box",
+  "minecraft:light_gray_shulker_box",
+  "minecraft:lime_shulker_box",
+  "minecraft:lit_pumpkin",
+  "minecraft:magenta_shulker_box",
+  "minecraft:mangrove_leaves",
+  "minecraft:melon_block",
+  "minecraft:oak_leaves",
+  "minecraft:orange_poplar_leaves",
+  "minecraft:orange_shulker_box",
+  "minecraft:pale_oak_leaves",
+  "minecraft:pink_shulker_box",
+  "minecraft:pumpkin",
+  "minecraft:purple_shulker_box",
+  "minecraft:red_poplar_leaves",
+  "minecraft:red_shulker_box",
+  "minecraft:spruce_leaves",
+  "minecraft:structure_block",
+  "minecraft:undyed_shulker_box",
+  "minecraft:white_shulker_box",
+  "minecraft:yellow_poplar_leaves",
+  "minecraft:yellow_shulker_box"
+ ],
+ "never_states": []
+}

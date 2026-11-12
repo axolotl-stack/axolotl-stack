@@ -71,6 +71,16 @@ pub enum ArchetypeError {
     Events(#[from] EventCompileError<BindingError>),
     #[error("{0}: no native AddActor attribute observation")]
     NoAttributeObservation(String),
+    /// The native summon carries no attributes: the class is not a living
+    /// mob (boats, minecarts, the cushion, lightning, fireworks, TNT, ...),
+    /// and only living mobs and projectiles are implemented.
+    #[error("{0} is not a living mob, and non-living actors are not implemented")]
+    NotLiving(String),
+    /// A living class whose native behaviour makes it something else than
+    /// a mob (the armor stand breaks on two quick hits, holds poses and
+    /// equipment): spawned as a mob it would behave wrongly.
+    #[error("{0}: the native {1} behaviour is not implemented")]
+    NativeClass(String, &'static str),
     #[error(transparent)]
     Attributes(#[from] AttributeError),
     /// What the projectile spawns on hit is not spawnable.
@@ -107,20 +117,26 @@ pub fn component_kinds(
 fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
     match test {
         BuiltinTest::HasBiomeTag
-        | BuiltinTest::HasComponent
         | BuiltinTest::InLava
         | BuiltinTest::IsBaby
         | BuiltinTest::IsDifficulty
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
-        | BuiltinTest::RiderCount => subject == Subject::Self_,
+        | BuiltinTest::RiderCount
+        | BuiltinTest::IsPersistent
+        | BuiltinTest::DistanceToNearestPlayer
+        | BuiltinTest::InactivityTimer => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
+        | BuiltinTest::HasComponent
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty
         | BuiltinTest::InWater
         | BuiltinTest::IsUnderwater
-        | BuiltinTest::IsVehicleFamily => {
+        | BuiltinTest::IsVehicleFamily
+        | BuiltinTest::IsVariant
+        | BuiltinTest::IsMarkVariant
+        | BuiltinTest::IsSkinId => {
             matches!(subject, Subject::Self_ | Subject::Other)
         }
         _ => false,
@@ -160,6 +176,15 @@ impl EventBindings for MobBindings {
 
 /// Reject a filter containing any test the runtime cannot answer.
 pub(super) fn check_filter(filter: &Filter) -> Result<(), UnsupportedFilterTest> {
+    check_filter_with(filter, &[])
+}
+
+/// [`check_filter`], also accepting `extra` tests on `self`: tests only a
+/// particular evaluator answers (the despawn filters' `random_chance`).
+pub(super) fn check_filter_with(
+    filter: &Filter,
+    extra: &[BuiltinTest],
+) -> Result<(), UnsupportedFilterTest> {
     let mut failure = None;
     filter.for_each_test(&mut |test| {
         if failure.is_some() {
@@ -167,6 +192,7 @@ pub(super) fn check_filter(filter: &Filter) -> Result<(), UnsupportedFilterTest>
         }
         match test.builtin() {
             Some(builtin) if supported_test(builtin, test.subject) => {}
+            Some(builtin) if test.subject == Subject::Self_ && extra.contains(&builtin) => {}
             _ => {
                 failure = Some(UnsupportedFilterTest {
                     test: test.name.clone(),
@@ -252,6 +278,15 @@ impl MobArchetype {
             &mut bindings,
         )?;
         let (attributes, attribute_seed) = attribute_seed(identifier)?;
+        if !projectile && attribute_seed.is_empty() {
+            return Err(ArchetypeError::NotLiving(identifier.to_owned()));
+        }
+        if actor_type == ActorType::ArmorStand {
+            return Err(ArchetypeError::NativeClass(
+                identifier.to_owned(),
+                "armor stand (breaking on two quick hits, poses, worn equipment)",
+            ));
+        }
         let attributes = Arc::new(attributes);
         Ok(Self {
             identifier: Arc::from(identifier),
@@ -285,6 +320,7 @@ fn attribute_seed(
     identifier: &str,
 ) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
     let observed = unastar_data::actor_wire::get(identifier)
+        .or_else(|| unastar_data::actor_wire::get_emitted(identifier))
         .ok_or_else(|| ArchetypeError::NoAttributeObservation(identifier.to_owned()))?;
     let layout = AttributeLayout::new(
         observed
@@ -364,6 +400,25 @@ impl MobRegistry {
         for (id, reason) in broken {
             archetypes.remove(&id);
             unsupported.insert(id, Arc::new(reason));
+        }
+        // A summon alias spawns the actor BDS emits for it (`/summon
+        // minecraft:zombie_villager` creates a `zombie_villager_v2`), or
+        // fails for that actor's reason.
+        for (alias, emitted) in unastar_data::actor_wire::summon_aliases() {
+            if !definitions
+                .iter()
+                .any(|source| source.identifier() == alias)
+            {
+                continue;
+            }
+            let alias: Arc<str> = Arc::from(alias);
+            if let Some(archetype) = archetypes.get(emitted).map(Arc::clone) {
+                unsupported.remove(&alias);
+                archetypes.insert(alias, archetype);
+            } else if let Some(reason) = unsupported.get(emitted).map(Arc::clone) {
+                archetypes.remove(&alias);
+                unsupported.insert(alias, reason);
+            }
         }
         Ok(Self {
             archetypes: Arc::new(archetypes),

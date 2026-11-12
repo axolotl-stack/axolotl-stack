@@ -176,21 +176,47 @@ impl ChunkState {
 #[derive(Component, Debug)]
 pub struct ChunkPendingUnload {
     pub ticks_remaining: u32,
+    /// Saves before unload that failed in a row. While non-zero the chunk is
+    /// held in memory because storage refused its write.
+    pub failed_saves: u32,
 }
 
 impl Default for ChunkPendingUnload {
     fn default() -> Self {
-        Self {
-            ticks_remaining: 100, // 5 seconds grace period at 20 TPS
-        }
+        Self::new(100) // 5 seconds grace period at 20 TPS
     }
 }
 
 impl ChunkPendingUnload {
+    /// Longest wait between save attempts for a held chunk, as a multiple of
+    /// the unload grace period.
+    pub const MAX_BACKOFF_FACTOR: u32 = 64;
+
     pub fn new(ticks: u32) -> Self {
         Self {
             ticks_remaining: ticks,
+            failed_saves: 0,
         }
+    }
+
+    /// The pending unload after another failed save: the wait is the grace
+    /// period doubled once per failure in a row, capped at
+    /// [`Self::MAX_BACKOFF_FACTOR`] times the grace period.
+    pub fn after_failed_save(&self, grace_ticks: u32) -> Self {
+        let failed_saves = self.failed_saves.saturating_add(1);
+        let factor = 1u32
+            .checked_shl(failed_saves)
+            .unwrap_or(u32::MAX)
+            .min(Self::MAX_BACKOFF_FACTOR);
+        Self {
+            ticks_remaining: grace_ticks.max(1).saturating_mul(factor),
+            failed_saves,
+        }
+    }
+
+    /// Whether storage refused this chunk's last save.
+    pub fn is_held(&self) -> bool {
+        self.failed_saves > 0
     }
 
     /// Tick down the grace period. Returns true if expired.
@@ -380,6 +406,33 @@ mod tests {
         assert!(!pending.tick()); // 1 remaining
         assert!(pending.tick()); // 0 remaining, expired
         assert!(pending.tick()); // stays at 0 (saturating)
+    }
+
+    #[test]
+    fn failed_unload_saves_back_off_exponentially_up_to_the_cap() {
+        let mut pending = ChunkPendingUnload::new(100);
+        assert!(!pending.is_held());
+        let mut waits = Vec::new();
+        for _ in 0..9 {
+            pending = pending.after_failed_save(100);
+            waits.push(pending.ticks_remaining);
+        }
+        assert_eq!(waits, [200, 400, 800, 1600, 3200, 6400, 6400, 6400, 6400]);
+        assert_eq!(pending.failed_saves, 9);
+        assert!(pending.is_held());
+        // A zero grace period still waits between attempts.
+        assert_eq!(
+            ChunkPendingUnload::new(0)
+                .after_failed_save(0)
+                .ticks_remaining,
+            2
+        );
+        // Far past the cap nothing overflows.
+        let many = ChunkPendingUnload {
+            ticks_remaining: 0,
+            failed_saves: u32::MAX,
+        };
+        assert_eq!(many.after_failed_save(100).ticks_remaining, 6400);
     }
 
     #[test]

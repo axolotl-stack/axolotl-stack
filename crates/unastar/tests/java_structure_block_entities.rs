@@ -235,14 +235,14 @@ async fn java_structure_chest_and_spawner_survive_region_replay_and_provider_reo
     assert_eq!(generated, expected);
     let directory = tempfile::tempdir().unwrap();
     {
-        let provider = LevelDBWorldProvider::open(directory.path(), 0).unwrap();
+        let provider = LevelDBWorldProvider::open(directory.path()).unwrap();
         provider
             .save_column(origin, 0, &ChunkColumn::new(chunk))
             .await
             .unwrap();
         provider.close().await.unwrap();
     }
-    let provider = LevelDBWorldProvider::open(directory.path(), 0).unwrap();
+    let provider = LevelDBWorldProvider::open(directory.path()).unwrap();
     let restored = provider.load_column(origin, 0).await.unwrap().unwrap();
     let actual: BTreeMap<_, _> = restored
         .chunk
@@ -382,6 +382,7 @@ fn all_template_actor_exports_match_native_saved_payloads() {
                     template_nbt: Some(*actor),
                     loot: *loot,
                     spawner_entity: *spawner_entity,
+                    ..BlockEntityData::NONE
                 },
             );
             let expected_proto = proto_observations
@@ -467,8 +468,7 @@ fn save_mode_structure_block_retains_native_saved_defaults() {
         "minecraft:structure_block",
         BlockEntityData {
             template_nbt: Some(actor),
-            loot: None,
-            spawner_entity: None,
+            ..BlockEntityData::NONE
         },
     );
     let saved = Tag::read_root(&actual.java_nbt().unwrap()).unwrap();
