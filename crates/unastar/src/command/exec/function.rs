@@ -131,11 +131,15 @@ struct OnArea {
 }
 
 /// Runs a function's entries for `source`; returns how many commands ran.
+///
+/// `depth` is this call's `/function` nesting; nested calls take from the
+/// same budget.
 fn run_function(
     ctx: &mut CommandContext<'_>,
     source: &CommandSource,
     name: &str,
     budget: &mut i64,
+    depth: u32,
 ) -> usize {
     let Some(entries) = ctx
         .world
@@ -152,7 +156,14 @@ fn run_function(
         }
         *budget -= 1;
         ran += 1;
+        ctx.world.insert_resource(RunningFunction {
+            budget: *budget,
+            depth,
+        });
         ctx.run(source.clone(), &line);
+        if let Some(running) = ctx.world.remove_resource::<RunningFunction>() {
+            *budget = running.budget;
+        }
     }
     ran
 }
@@ -188,14 +199,41 @@ overloads! {
     }
 }
 
+/// Deepest `/function` nesting run. A safety cap until BDS's own limit is
+/// measured: a function that calls itself would otherwise recurse until the
+/// stack overflows. Deeper calls run nothing.
+const MAX_FUNCTION_DEPTH: u32 = 64;
+
+/// The running outermost `/function`: the `functionCommandLimit` budget its
+/// nested calls share, and how deep they are.
+#[derive(Resource)]
+struct RunningFunction {
+    budget: i64,
+    depth: u32,
+}
+
 pub fn run_function_command(ctx: &mut CommandContext<'_>, args: FunctionArgs) -> CommandResult {
     let FunctionArgs::Run { name } = args;
     if !exists(ctx.world, &name) {
         return Err(not_found(&name));
     }
     let source = ctx.source.clone();
-    let mut budget = command_limit(ctx.world);
-    let ran = run_function(ctx, &source, &name, &mut budget);
+    let outer = ctx.world.remove_resource::<RunningFunction>();
+    let (mut budget, depth) = match &outer {
+        Some(outer) => (outer.budget, outer.depth + 1),
+        None => (command_limit(ctx.world), 1),
+    };
+    let ran = if depth > MAX_FUNCTION_DEPTH {
+        0
+    } else {
+        run_function(ctx, &source, &name, &mut budget, depth)
+    };
+    if let Some(outer) = outer {
+        ctx.world.insert_resource(RunningFunction {
+            budget,
+            depth: outer.depth,
+        });
+    }
     success!("commands.function.success", ran)
 }
 
@@ -326,8 +364,8 @@ pub fn run_schedule(ctx: &mut CommandContext<'_>, args: ScheduleArgs) -> Command
             return queue_on_area(
                 ctx,
                 &function,
-                (cx - radius, cz - radius),
-                (cx + radius, cz + radius),
+                (cx.saturating_sub(radius), cz.saturating_sub(radius)),
+                (cx.saturating_add(radius), cz.saturating_add(radius)),
                 None,
             );
         }

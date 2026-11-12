@@ -127,10 +127,10 @@ impl UnastarServer {
             let world = server.ecs.world_mut();
             world
                 .resource_mut::<crate::command::exec::OperatorList>()
-                .load_permissions(&files);
+                .load_permissions(&files)?;
             world.insert_resource(crate::command::exec::Allowlist {
                 enabled: config.server.allow_list,
-                entries: crate::command::exec::Allowlist::load(&files),
+                entries: crate::command::exec::Allowlist::load(&files)?,
             });
             world.insert_resource(crate::command::exec::WorldFiles {
                 root: std::path::PathBuf::from("worlds"),

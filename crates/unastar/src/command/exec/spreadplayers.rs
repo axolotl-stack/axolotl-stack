@@ -71,7 +71,9 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SpreadPlayersArgs) -> CommandResu
         .map(|h| h.resolve(ctx.source.position.y as f32).floor() as i32)
         .unwrap_or(top)
         .min(top);
-    let range = max_range.floor() as i32;
+    // Saturating, and never below 0: coordinates and ranges come from the
+    // command line.
+    let range = (max_range.floor() as i32).max(0);
     let mut placed: Vec<(i32, i32)> = Vec::new();
     for &target in &targets {
         let mut spot = None;
@@ -79,12 +81,16 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SpreadPlayersArgs) -> CommandResu
             let (bx, bz) = {
                 let mut random = ctx.world.get_resource_or_insert_with(EntityRandom::default);
                 (
-                    random.0.gen_range(center_x - range..=center_x + range),
-                    random.0.gen_range(center_z - range..=center_z + range),
+                    random
+                        .0
+                        .gen_range(center_x.saturating_sub(range)..=center_x.saturating_add(range)),
+                    random
+                        .0
+                        .gen_range(center_z.saturating_sub(range)..=center_z.saturating_add(range)),
                 )
             };
             let far_enough = placed.iter().all(|&(px, pz)| {
-                let (dx, dz) = (f64::from(px - bx), f64::from(pz - bz));
+                let (dx, dz) = (f64::from(px) - f64::from(bx), f64::from(pz) - f64::from(bz));
                 (dx * dx + dz * dz).sqrt() >= f64::from(spread_distance)
             });
             if far_enough {

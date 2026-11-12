@@ -251,8 +251,9 @@ fn save(
 ) -> CommandResult {
     let (from, to) = (ctx.block_position(Some(from)), ctx.block_position(Some(to)));
     let min = from.min(to);
-    let size = (from.max(to) - min) + IVec3::ONE;
-    if size.cmpgt(MAX_SIZE).any() {
+    // In i64: corners from the command line can be far apart.
+    let size = (from.as_i64vec3().max(to.as_i64vec3()) - min.as_i64vec3()) + glam::I64Vec3::ONE;
+    if size.cmpgt(MAX_SIZE.as_i64vec3()).any() {
         return failure!(
             "commands.structure.size.tooBig",
             MAX_SIZE.x,
@@ -263,6 +264,7 @@ fn save(
             size.z
         );
     }
+    let size = size.as_ivec3();
     let mut blocks = Vec::with_capacity((size.x * size.y * size.z) as usize);
     for x in 0..size.x {
         for y in 0..size.y {

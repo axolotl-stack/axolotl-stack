@@ -49,14 +49,14 @@ impl OperatorList {
         }
     }
 
-    /// Reads `permissions.json` from the server files (empty when missing
-    /// or unreadable).
-    pub fn load_permissions(&mut self, files: &super::admin::ServerFiles) {
-        self.permissions = files
-            .path("permissions.json")
-            .and_then(|path| std::fs::read_to_string(path).ok())
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default();
+    /// Reads `permissions.json` from the server files (empty when missing);
+    /// a damaged file leaves the permissions as they were.
+    pub fn load_permissions(
+        &mut self,
+        files: &super::admin::ServerFiles,
+    ) -> Result<(), super::admin::ServerFileError> {
+        self.permissions = files.read_json("permissions.json")?;
+        Ok(())
     }
 
     fn save_permissions(&self, files: &super::admin::ServerFiles) {
@@ -249,7 +249,10 @@ pub fn run_permission(ctx: &mut CommandContext<'_>, args: PermissionArgs) -> Com
             let files = super::admin::server_files(ctx.world);
             ctx.world
                 .get_resource_or_insert_with(OperatorList::default)
-                .load_permissions(&files);
+                .load_permissions(&files)
+                .unwrap_or_else(|error| {
+                    tracing::warn!(%error, "permissions reload kept the current permissions");
+                });
             // Every online player's level again: the file decides for the
             // players it lists, the others keep theirs.
             let players: Vec<(Entity, Option<String>)> = {
@@ -478,7 +481,8 @@ mod tests {
         restarted
             .world()
             .resource_mut::<OperatorList>()
-            .load_permissions(&server_files);
+            .load_permissions(&server_files)
+            .unwrap();
         let erin = join(&mut restarted, 61, "Erin", Some("2535400000000001"));
         assert!(restarted.world().get::<Operator>(erin).is_some());
         assert!(console(&mut restarted, "/deop Erin").is_success());

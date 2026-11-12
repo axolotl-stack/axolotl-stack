@@ -47,6 +47,40 @@ impl ServerFiles {
     pub fn path(&self, name: &str) -> Option<PathBuf> {
         self.0.as_ref().map(|dir| dir.join(name))
     }
+
+    /// Reads the JSON server file `name`: the default when there is no
+    /// files directory or no such file, an error when it exists but cannot
+    /// be read or parsed (so a damaged file is never replaced by an empty
+    /// one on the next save).
+    pub fn read_json<T: serde::de::DeserializeOwned + Default>(
+        &self,
+        name: &str,
+    ) -> Result<T, ServerFileError> {
+        let Some(path) = self.path(name) else {
+            return Ok(T::default());
+        };
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(T::default()),
+            Err(error) => return Err(ServerFileError::Read { path, error }),
+        };
+        serde_json::from_str(&text).map_err(|error| ServerFileError::Parse { path, error })
+    }
+}
+
+/// A server file that exists but cannot be used.
+#[derive(Debug, thiserror::Error)]
+pub enum ServerFileError {
+    #[error("cannot read {}: {error}", path.display())]
+    Read {
+        path: PathBuf,
+        error: std::io::Error,
+    },
+    #[error("cannot parse {}: {error}", path.display())]
+    Parse {
+        path: PathBuf,
+        error: serde_json::Error,
+    },
 }
 
 /// The files directory of the world (empty when unset).
@@ -76,13 +110,9 @@ pub struct Allowlist {
 }
 
 impl Allowlist {
-    /// Reads `allowlist.json` (empty when missing or unreadable).
-    pub fn load(files: &ServerFiles) -> Vec<AllowlistEntry> {
-        files
-            .path("allowlist.json")
-            .and_then(|path| std::fs::read_to_string(path).ok())
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default()
+    /// Reads `allowlist.json` (empty when missing).
+    pub fn load(files: &ServerFiles) -> Result<Vec<AllowlistEntry>, ServerFileError> {
+        files.read_json("allowlist.json")
     }
 
     fn save(&self, files: &ServerFiles) {
@@ -191,7 +221,11 @@ pub fn run_allowlist(ctx: &mut CommandContext<'_>, args: AllowlistArgs) -> Comma
             success!("commands.allowlist.disabled")
         }
         AllowListAction::Reload => {
-            list.entries = Allowlist::load(&files);
+            // A damaged file keeps the list in force (and on disk) as it is.
+            match Allowlist::load(&files) {
+                Ok(entries) => list.entries = entries,
+                Err(error) => tracing::warn!(%error, "allowlist reload kept the current list"),
+            }
             success!("commands.allowlist.reloaded")
         }
     }
