@@ -1,0 +1,4162 @@
+# Every item of the native registry given to hotbar slot 0 of an empty
+# inventory, then cleared (printed by tools/bds-sweep/give_script.py).
+# Play with `python tools/bds-sweep/script.py tools/bds-sweep/scripts/give.txt
+# --out DIR`; cut with `give_table.py`. Ticks are the client's inputs.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamemode survival @s
+24 /clear @s
+40 /give @s acacia_boat
+43 /clear @s
+46 /give @s acacia_button
+49 /clear @s
+52 /give @s acacia_chest_boat
+55 /clear @s
+58 /give @s acacia_door
+61 /clear @s
+64 /give @s acacia_double_slab
+67 /clear @s
+70 /give @s acacia_fence
+73 /clear @s
+76 /give @s acacia_fence_gate
+79 /clear @s
+82 /give @s acacia_hanging_sign
+85 /clear @s
+88 /give @s acacia_leaves
+91 /clear @s
+94 /give @s acacia_log
+97 /clear @s
+100 /give @s acacia_planks
+103 /clear @s
+106 /give @s acacia_pressure_plate
+109 /clear @s
+112 /give @s acacia_sapling
+115 /clear @s
+118 /give @s acacia_shelf
+121 /clear @s
+124 /give @s acacia_sign
+127 /clear @s
+130 /give @s acacia_slab
+133 /clear @s
+136 /give @s acacia_stairs
+139 /clear @s
+142 /give @s acacia_standing_sign
+145 /clear @s
+148 /give @s acacia_trapdoor
+151 /clear @s
+154 /give @s acacia_wall_sign
+157 /clear @s
+160 /give @s acacia_wood
+163 /clear @s
+166 /give @s activator_rail
+169 /clear @s
+172 /give @s agent_spawn_egg
+175 /clear @s
+178 /give @s air
+181 /clear @s
+184 /give @s allay_spawn_egg
+187 /clear @s
+190 /give @s allium
+193 /clear @s
+196 /give @s allow
+199 /clear @s
+202 /give @s amethyst_block
+205 /clear @s
+208 /give @s amethyst_cluster
+211 /clear @s
+214 /give @s amethyst_shard
+217 /clear @s
+220 /give @s ancient_debris
+223 /clear @s
+226 /give @s andesite
+229 /clear @s
+232 /give @s andesite_double_slab
+235 /clear @s
+238 /give @s andesite_slab
+241 /clear @s
+244 /give @s andesite_stairs
+247 /clear @s
+250 /give @s andesite_wall
+253 /clear @s
+256 /give @s angler_pottery_sherd
+259 /clear @s
+262 /give @s anvil
+265 /clear @s
+268 /give @s apple
+271 /clear @s
+274 /give @s archer_pottery_sherd
+277 /clear @s
+280 /give @s armadillo_scute
+283 /clear @s
+286 /give @s armadillo_spawn_egg
+289 /clear @s
+292 /give @s armor_stand
+295 /clear @s
+298 /give @s arms_up_pottery_sherd
+301 /clear @s
+304 /give @s arrow
+307 /clear @s
+310 /give @s axolotl_bucket
+313 /clear @s
+316 /give @s axolotl_spawn_egg
+319 /clear @s
+322 /give @s azalea
+325 /clear @s
+328 /give @s azalea_leaves
+331 /clear @s
+334 /give @s azalea_leaves_flowered
+337 /clear @s
+340 /give @s azure_bluet
+343 /clear @s
+346 /give @s baked_potato
+349 /clear @s
+352 /give @s balloon
+355 /clear @s
+358 /give @s bamboo
+361 /clear @s
+364 /give @s bamboo_block
+367 /clear @s
+370 /give @s bamboo_button
+373 /clear @s
+376 /give @s bamboo_chest_raft
+379 /clear @s
+382 /give @s bamboo_door
+385 /clear @s
+388 /give @s bamboo_double_slab
+391 /clear @s
+394 /give @s bamboo_fence
+397 /clear @s
+400 /give @s bamboo_fence_gate
+403 /clear @s
+406 /give @s bamboo_hanging_sign
+409 /clear @s
+412 /give @s bamboo_mosaic
+415 /clear @s
+418 /give @s bamboo_mosaic_double_slab
+421 /clear @s
+424 /give @s bamboo_mosaic_slab
+427 /clear @s
+430 /give @s bamboo_mosaic_stairs
+433 /clear @s
+436 /give @s bamboo_planks
+439 /clear @s
+442 /give @s bamboo_pressure_plate
+445 /clear @s
+448 /give @s bamboo_raft
+451 /clear @s
+454 /give @s bamboo_sapling
+457 /clear @s
+460 /give @s bamboo_shelf
+463 /clear @s
+466 /give @s bamboo_sign
+469 /clear @s
+472 /give @s bamboo_slab
+475 /clear @s
+478 /give @s bamboo_stairs
+481 /clear @s
+484 /give @s bamboo_standing_sign
+487 /clear @s
+490 /give @s bamboo_trapdoor
+493 /clear @s
+496 /give @s bamboo_wall_sign
+499 /clear @s
+502 /give @s banner
+505 /clear @s
+508 /give @s banner_pattern
+511 /clear @s
+514 /give @s barrel
+517 /clear @s
+520 /give @s barrier
+523 /clear @s
+526 /give @s basalt
+529 /clear @s
+532 /give @s bat_spawn_egg
+535 /clear @s
+538 /give @s beacon
+541 /clear @s
+544 /give @s bed
+547 /clear @s
+550 /give @s bedrock
+553 /clear @s
+556 /give @s bee_nest
+559 /clear @s
+562 /give @s bee_spawn_egg
+565 /clear @s
+568 /give @s beef
+571 /clear @s
+574 /give @s beehive
+577 /clear @s
+580 /give @s beetroot
+583 /clear @s
+586 /give @s beetroot_seeds
+589 /clear @s
+592 /give @s beetroot_soup
+595 /clear @s
+598 /give @s bell
+601 /clear @s
+604 /give @s big_dripleaf
+607 /clear @s
+610 /give @s birch_boat
+613 /clear @s
+616 /give @s birch_button
+619 /clear @s
+622 /give @s birch_chest_boat
+625 /clear @s
+628 /give @s birch_door
+631 /clear @s
+634 /give @s birch_double_slab
+637 /clear @s
+640 /give @s birch_fence
+643 /clear @s
+646 /give @s birch_fence_gate
+649 /clear @s
+652 /give @s birch_hanging_sign
+655 /clear @s
+658 /give @s birch_leaves
+661 /clear @s
+664 /give @s birch_log
+667 /clear @s
+670 /give @s birch_planks
+673 /clear @s
+676 /give @s birch_pressure_plate
+679 /clear @s
+682 /give @s birch_sapling
+685 /clear @s
+688 /give @s birch_shelf
+691 /clear @s
+694 /give @s birch_sign
+697 /clear @s
+700 /give @s birch_slab
+703 /clear @s
+706 /give @s birch_stairs
+709 /clear @s
+712 /give @s birch_standing_sign
+715 /clear @s
+718 /give @s birch_trapdoor
+721 /clear @s
+724 /give @s birch_wall_sign
+727 /clear @s
+730 /give @s birch_wood
+733 /clear @s
+736 /give @s black_bundle
+739 /clear @s
+742 /give @s black_candle
+745 /clear @s
+748 /give @s black_candle_cake
+751 /clear @s
+754 /give @s black_carpet
+757 /clear @s
+760 /give @s black_concrete
+763 /clear @s
+766 /give @s black_concrete_double_slab
+769 /clear @s
+772 /give @s black_concrete_powder
+775 /clear @s
+778 /give @s black_concrete_slab
+781 /clear @s
+784 /give @s black_concrete_stairs
+787 /clear @s
+790 /give @s black_cushion
+793 /clear @s
+796 /give @s black_dye
+799 /clear @s
+802 /give @s black_glazed_terracotta
+805 /clear @s
+808 /give @s black_harness
+811 /clear @s
+814 /give @s black_shulker_box
+817 /clear @s
+820 /give @s black_stained_glass
+823 /clear @s
+826 /give @s black_stained_glass_pane
+829 /clear @s
+832 /give @s black_terracotta
+835 /clear @s
+838 /give @s black_wool
+841 /clear @s
+844 /give @s black_wool_double_slab
+847 /clear @s
+850 /give @s black_wool_slab
+853 /clear @s
+856 /give @s black_wool_stairs
+859 /clear @s
+862 /give @s blackstone
+865 /clear @s
+868 /give @s blackstone_double_slab
+871 /clear @s
+874 /give @s blackstone_slab
+877 /clear @s
+880 /give @s blackstone_stairs
+883 /clear @s
+886 /give @s blackstone_wall
+889 /clear @s
+892 /give @s blade_pottery_sherd
+895 /clear @s
+898 /give @s blast_furnace
+901 /clear @s
+904 /give @s blaze_powder
+907 /clear @s
+910 /give @s blaze_rod
+913 /clear @s
+916 /give @s blaze_spawn_egg
+919 /clear @s
+922 /give @s bleach
+925 /clear @s
+928 /give @s blue_bundle
+931 /clear @s
+934 /give @s blue_candle
+937 /clear @s
+940 /give @s blue_candle_cake
+943 /clear @s
+946 /give @s blue_carpet
+949 /clear @s
+952 /give @s blue_concrete
+955 /clear @s
+958 /give @s blue_concrete_double_slab
+961 /clear @s
+964 /give @s blue_concrete_powder
+967 /clear @s
+970 /give @s blue_concrete_slab
+973 /clear @s
+976 /give @s blue_concrete_stairs
+979 /clear @s
+982 /give @s blue_cushion
+985 /clear @s
+988 /give @s blue_dye
+991 /clear @s
+994 /give @s blue_egg
+997 /clear @s
+1000 /give @s blue_glazed_terracotta
+1003 /clear @s
+1006 /give @s blue_harness
+1009 /clear @s
+1012 /give @s blue_ice
+1015 /clear @s
+1018 /give @s blue_orchid
+1021 /clear @s
+1024 /give @s blue_shulker_box
+1027 /clear @s
+1030 /give @s blue_stained_glass
+1033 /clear @s
+1036 /give @s blue_stained_glass_pane
+1039 /clear @s
+1042 /give @s blue_terracotta
+1045 /clear @s
+1048 /give @s blue_wool
+1051 /clear @s
+1054 /give @s blue_wool_double_slab
+1057 /clear @s
+1060 /give @s blue_wool_slab
+1063 /clear @s
+1066 /give @s blue_wool_stairs
+1069 /clear @s
+1072 /give @s board
+1075 /clear @s
+1078 /give @s boat
+1081 /clear @s
+1084 /give @s bogged_spawn_egg
+1087 /clear @s
+1090 /give @s bolt_armor_trim_smithing_template
+1093 /clear @s
+1096 /give @s bone
+1099 /clear @s
+1102 /give @s bone_block
+1105 /clear @s
+1108 /give @s bone_meal
+1111 /clear @s
+1114 /give @s book
+1117 /clear @s
+1120 /give @s bookshelf
+1123 /clear @s
+1126 /give @s border_block
+1129 /clear @s
+1132 /give @s bordure_indented_banner_pattern
+1135 /clear @s
+1138 /give @s bow
+1141 /clear @s
+1144 /give @s bowl
+1147 /clear @s
+1150 /give @s brain_coral
+1153 /clear @s
+1156 /give @s brain_coral_block
+1159 /clear @s
+1162 /give @s brain_coral_fan
+1165 /clear @s
+1168 /give @s brain_coral_wall_fan
+1171 /clear @s
+1174 /give @s bread
+1177 /clear @s
+1180 /give @s breeze_rod
+1183 /clear @s
+1186 /give @s breeze_spawn_egg
+1189 /clear @s
+1192 /give @s brewer_pottery_sherd
+1195 /clear @s
+1198 /give @s brewing_stand
+1201 /clear @s
+1204 /give @s brick
+1207 /clear @s
+1210 /give @s brick_block
+1213 /clear @s
+1216 /give @s brick_double_slab
+1219 /clear @s
+1222 /give @s brick_slab
+1225 /clear @s
+1228 /give @s brick_stairs
+1231 /clear @s
+1234 /give @s brick_wall
+1237 /clear @s
+1240 /give @s brown_bundle
+1243 /clear @s
+1246 /give @s brown_candle
+1249 /clear @s
+1252 /give @s brown_candle_cake
+1255 /clear @s
+1258 /give @s brown_carpet
+1261 /clear @s
+1264 /give @s brown_concrete
+1267 /clear @s
+1270 /give @s brown_concrete_double_slab
+1273 /clear @s
+1276 /give @s brown_concrete_powder
+1279 /clear @s
+1282 /give @s brown_concrete_slab
+1285 /clear @s
+1288 /give @s brown_concrete_stairs
+1291 /clear @s
+1294 /give @s brown_cushion
+1297 /clear @s
+1300 /give @s brown_dye
+1303 /clear @s
+1306 /give @s brown_egg
+1309 /clear @s
+1312 /give @s brown_glazed_terracotta
+1315 /clear @s
+1318 /give @s brown_harness
+1321 /clear @s
+1324 /give @s brown_mushroom
+1327 /clear @s
+1330 /give @s brown_mushroom_block
+1333 /clear @s
+1336 /give @s brown_shulker_box
+1339 /clear @s
+1342 /give @s brown_stained_glass
+1345 /clear @s
+1348 /give @s brown_stained_glass_pane
+1351 /clear @s
+1354 /give @s brown_terracotta
+1357 /clear @s
+1360 /give @s brown_wool
+1363 /clear @s
+1366 /give @s brown_wool_double_slab
+1369 /clear @s
+1372 /give @s brown_wool_slab
+1375 /clear @s
+1378 /give @s brown_wool_stairs
+1381 /clear @s
+1384 /give @s brush
+1387 /clear @s
+1390 /give @s bubble_column
+1393 /clear @s
+1396 /give @s bubble_coral
+1399 /clear @s
+1402 /give @s bubble_coral_block
+1405 /clear @s
+1408 /give @s bubble_coral_fan
+1411 /clear @s
+1414 /give @s bubble_coral_wall_fan
+1417 /clear @s
+1420 /give @s bucket
+1423 /clear @s
+1426 /give @s budding_amethyst
+1429 /clear @s
+1432 /give @s bundle
+1435 /clear @s
+1438 /give @s burn_pottery_sherd
+1441 /clear @s
+1444 /give @s bush
+1447 /clear @s
+1450 /give @s cactus
+1453 /clear @s
+1456 /give @s cactus_flower
+1459 /clear @s
+1462 /give @s cake
+1465 /clear @s
+1468 /give @s calcite
+1471 /clear @s
+1474 /give @s calibrated_sculk_sensor
+1477 /clear @s
+1480 /give @s camel_husk_spawn_egg
+1483 /clear @s
+1486 /give @s camel_spawn_egg
+1489 /clear @s
+1492 /give @s camera
+1495 /clear @s
+1498 /give @s campfire
+1501 /clear @s
+1504 /give @s candle
+1507 /clear @s
+1510 /give @s candle_cake
+1513 /clear @s
+1516 /give @s carpet
+1519 /clear @s
+1522 /give @s carrot
+1525 /clear @s
+1528 /give @s carrot_on_a_stick
+1531 /clear @s
+1534 /give @s carrots
+1537 /clear @s
+1540 /give @s cartography_table
+1543 /clear @s
+1546 /give @s carved_pumpkin
+1549 /clear @s
+1552 /give @s cat_spawn_egg
+1555 /clear @s
+1558 /give @s cauldron
+1561 /clear @s
+1564 /give @s cave_spider_spawn_egg
+1567 /clear @s
+1570 /give @s cave_vines
+1573 /clear @s
+1576 /give @s cave_vines_body_with_berries
+1579 /clear @s
+1582 /give @s cave_vines_head_with_berries
+1585 /clear @s
+1588 /give @s chain_command_block
+1591 /clear @s
+1594 /give @s chainmail_boots
+1597 /clear @s
+1600 /give @s chainmail_chestplate
+1603 /clear @s
+1606 /give @s chainmail_helmet
+1609 /clear @s
+1612 /give @s chainmail_leggings
+1615 /clear @s
+1618 /give @s chalkboard
+1621 /clear @s
+1624 /give @s charcoal
+1627 /clear @s
+1630 /give @s chemical_heat
+1633 /clear @s
+1636 /give @s chemistry_table
+1639 /clear @s
+1642 /give @s cherry_boat
+1645 /clear @s
+1648 /give @s cherry_button
+1651 /clear @s
+1654 /give @s cherry_chest_boat
+1657 /clear @s
+1660 /give @s cherry_door
+1663 /clear @s
+1666 /give @s cherry_double_slab
+1669 /clear @s
+1672 /give @s cherry_fence
+1675 /clear @s
+1678 /give @s cherry_fence_gate
+1681 /clear @s
+1684 /give @s cherry_hanging_sign
+1687 /clear @s
+1690 /give @s cherry_leaves
+1693 /clear @s
+1696 /give @s cherry_log
+1699 /clear @s
+1702 /give @s cherry_planks
+1705 /clear @s
+1708 /give @s cherry_pressure_plate
+1711 /clear @s
+1714 /give @s cherry_sapling
+1717 /clear @s
+1720 /give @s cherry_shelf
+1723 /clear @s
+1726 /give @s cherry_sign
+1729 /clear @s
+1732 /give @s cherry_slab
+1735 /clear @s
+1738 /give @s cherry_stairs
+1741 /clear @s
+1744 /give @s cherry_standing_sign
+1747 /clear @s
+1750 /give @s cherry_trapdoor
+1753 /clear @s
+1756 /give @s cherry_wall_sign
+1759 /clear @s
+1762 /give @s cherry_wood
+1765 /clear @s
+1768 /give @s chest
+1771 /clear @s
+1774 /give @s chest_boat
+1777 /clear @s
+1780 /give @s chest_minecart
+1783 /clear @s
+1786 /give @s chicken
+1789 /clear @s
+1792 /give @s chicken_spawn_egg
+1795 /clear @s
+1798 /give @s chipped_anvil
+1801 /clear @s
+1804 /give @s chiseled_bookshelf
+1807 /clear @s
+1810 /give @s chiseled_cinnabar
+1813 /clear @s
+1816 /give @s chiseled_copper
+1819 /clear @s
+1822 /give @s chiseled_deepslate
+1825 /clear @s
+1828 /give @s chiseled_nether_bricks
+1831 /clear @s
+1834 /give @s chiseled_polished_blackstone
+1837 /clear @s
+1840 /give @s chiseled_quartz_block
+1843 /clear @s
+1846 /give @s chiseled_red_sandstone
+1849 /clear @s
+1852 /give @s chiseled_resin_bricks
+1855 /clear @s
+1858 /give @s chiseled_sandstone
+1861 /clear @s
+1864 /give @s chiseled_stone_bricks
+1867 /clear @s
+1870 /give @s chiseled_sulfur
+1873 /clear @s
+1876 /give @s chiseled_tuff
+1879 /clear @s
+1882 /give @s chiseled_tuff_bricks
+1885 /clear @s
+1888 /give @s chorus_flower
+1891 /clear @s
+1894 /give @s chorus_fruit
+1897 /clear @s
+1900 /give @s chorus_plant
+1903 /clear @s
+1906 /give @s cinnabar
+1909 /clear @s
+1912 /give @s cinnabar_brick_double_slab
+1915 /clear @s
+1918 /give @s cinnabar_brick_slab
+1921 /clear @s
+1924 /give @s cinnabar_brick_stairs
+1927 /clear @s
+1930 /give @s cinnabar_brick_wall
+1933 /clear @s
+1936 /give @s cinnabar_bricks
+1939 /clear @s
+1942 /give @s cinnabar_double_slab
+1945 /clear @s
+1948 /give @s cinnabar_slab
+1951 /clear @s
+1954 /give @s cinnabar_stairs
+1957 /clear @s
+1960 /give @s cinnabar_wall
+1963 /clear @s
+1966 /give @s clay
+1969 /clear @s
+1972 /give @s clay_ball
+1975 /clear @s
+1978 /give @s client_request_placeholder_block
+1981 /clear @s
+1984 /give @s clock
+1987 /clear @s
+1990 /give @s closed_eyeblossom
+1993 /clear @s
+1996 /give @s coal
+1999 /clear @s
+2002 /give @s coal_block
+2005 /clear @s
+2008 /give @s coal_ore
+2011 /clear @s
+2014 /give @s coarse_dirt
+2017 /clear @s
+2020 /give @s coast_armor_trim_smithing_template
+2023 /clear @s
+2026 /give @s cobbled_deepslate
+2029 /clear @s
+2032 /give @s cobbled_deepslate_double_slab
+2035 /clear @s
+2038 /give @s cobbled_deepslate_slab
+2041 /clear @s
+2044 /give @s cobbled_deepslate_stairs
+2047 /clear @s
+2050 /give @s cobbled_deepslate_wall
+2053 /clear @s
+2056 /give @s cobblestone
+2059 /clear @s
+2062 /give @s cobblestone_double_slab
+2065 /clear @s
+2068 /give @s cobblestone_slab
+2071 /clear @s
+2074 /give @s cobblestone_wall
+2077 /clear @s
+2080 /give @s cocoa
+2083 /clear @s
+2086 /give @s cocoa_beans
+2089 /clear @s
+2092 /give @s cod
+2095 /clear @s
+2098 /give @s cod_bucket
+2101 /clear @s
+2104 /give @s cod_spawn_egg
+2107 /clear @s
+2110 /give @s colored_torch_blue
+2113 /clear @s
+2116 /give @s colored_torch_bp
+2119 /clear @s
+2122 /give @s colored_torch_green
+2125 /clear @s
+2128 /give @s colored_torch_purple
+2131 /clear @s
+2134 /give @s colored_torch_red
+2137 /clear @s
+2140 /give @s colored_torch_rg
+2143 /clear @s
+2146 /give @s command_block
+2149 /clear @s
+2152 /give @s command_block_minecart
+2155 /clear @s
+2158 /give @s comparator
+2161 /clear @s
+2164 /give @s compass
+2167 /clear @s
+2170 /give @s composter
+2173 /clear @s
+2176 /give @s compound
+2179 /clear @s
+2182 /give @s compound_creator
+2185 /clear @s
+2188 /give @s concrete
+2191 /clear @s
+2194 /give @s concrete_powder
+2197 /clear @s
+2200 /give @s conduit
+2203 /clear @s
+2206 /give @s cooked_beef
+2209 /clear @s
+2212 /give @s cooked_chicken
+2215 /clear @s
+2218 /give @s cooked_cod
+2221 /clear @s
+2224 /give @s cooked_mutton
+2227 /clear @s
+2230 /give @s cooked_porkchop
+2233 /clear @s
+2236 /give @s cooked_rabbit
+2239 /clear @s
+2242 /give @s cooked_salmon
+2245 /clear @s
+2248 /give @s cookie
+2251 /clear @s
+2254 /give @s copper_axe
+2257 /clear @s
+2260 /give @s copper_bars
+2263 /clear @s
+2266 /give @s copper_block
+2269 /clear @s
+2272 /give @s copper_boots
+2275 /clear @s
+2278 /give @s copper_bulb
+2281 /clear @s
+2284 /give @s copper_chain
+2287 /clear @s
+2290 /give @s copper_chest
+2293 /clear @s
+2296 /give @s copper_chestplate
+2299 /clear @s
+2302 /give @s copper_door
+2305 /clear @s
+2308 /give @s copper_golem_spawn_egg
+2311 /clear @s
+2314 /give @s copper_golem_statue
+2317 /clear @s
+2320 /give @s copper_grate
+2323 /clear @s
+2326 /give @s copper_helmet
+2329 /clear @s
+2332 /give @s copper_hoe
+2335 /clear @s
+2338 /give @s copper_horse_armor
+2341 /clear @s
+2344 /give @s copper_ingot
+2347 /clear @s
+2350 /give @s copper_lantern
+2353 /clear @s
+2356 /give @s copper_leggings
+2359 /clear @s
+2362 /give @s copper_nautilus_armor
+2365 /clear @s
+2368 /give @s copper_nugget
+2371 /clear @s
+2374 /give @s copper_ore
+2377 /clear @s
+2380 /give @s copper_pickaxe
+2383 /clear @s
+2386 /give @s copper_shovel
+2389 /clear @s
+2392 /give @s copper_spear
+2395 /clear @s
+2398 /give @s copper_sword
+2401 /clear @s
+2404 /give @s copper_torch
+2407 /clear @s
+2410 /give @s copper_trapdoor
+2413 /clear @s
+2416 /give @s coral
+2419 /clear @s
+2422 /give @s coral_block
+2425 /clear @s
+2428 /give @s coral_fan
+2431 /clear @s
+2434 /give @s coral_fan_dead
+2437 /clear @s
+2440 /give @s cornflower
+2443 /clear @s
+2446 /give @s cow_spawn_egg
+2449 /clear @s
+2452 /give @s cracked_deepslate_bricks
+2455 /clear @s
+2458 /give @s cracked_deepslate_tiles
+2461 /clear @s
+2464 /give @s cracked_nether_bricks
+2467 /clear @s
+2470 /give @s cracked_polished_blackstone_bricks
+2473 /clear @s
+2476 /give @s cracked_stone_bricks
+2479 /clear @s
+2482 /give @s crafter
+2485 /clear @s
+2488 /give @s crafting_table
+2491 /clear @s
+2494 /give @s creaking_heart
+2497 /clear @s
+2500 /give @s creaking_spawn_egg
+2503 /clear @s
+2506 /give @s creeper_banner_pattern
+2509 /clear @s
+2512 /give @s creeper_head
+2515 /clear @s
+2518 /give @s creeper_spawn_egg
+2521 /clear @s
+2524 /give @s crimson_button
+2527 /clear @s
+2530 /give @s crimson_door
+2533 /clear @s
+2536 /give @s crimson_double_slab
+2539 /clear @s
+2542 /give @s crimson_fence
+2545 /clear @s
+2548 /give @s crimson_fence_gate
+2551 /clear @s
+2554 /give @s crimson_fungus
+2557 /clear @s
+2560 /give @s crimson_hanging_sign
+2563 /clear @s
+2566 /give @s crimson_hyphae
+2569 /clear @s
+2572 /give @s crimson_nylium
+2575 /clear @s
+2578 /give @s crimson_planks
+2581 /clear @s
+2584 /give @s crimson_pressure_plate
+2587 /clear @s
+2590 /give @s crimson_roots
+2593 /clear @s
+2596 /give @s crimson_shelf
+2599 /clear @s
+2602 /give @s crimson_sign
+2605 /clear @s
+2608 /give @s crimson_slab
+2611 /clear @s
+2614 /give @s crimson_stairs
+2617 /clear @s
+2620 /give @s crimson_standing_sign
+2623 /clear @s
+2626 /give @s crimson_stem
+2629 /clear @s
+2632 /give @s crimson_trapdoor
+2635 /clear @s
+2638 /give @s crimson_wall_sign
+2641 /clear @s
+2644 /give @s crossbow
+2647 /clear @s
+2650 /give @s crying_obsidian
+2653 /clear @s
+2656 /give @s cut_copper
+2659 /clear @s
+2662 /give @s cut_copper_slab
+2665 /clear @s
+2668 /give @s cut_copper_stairs
+2671 /clear @s
+2674 /give @s cut_red_sandstone
+2677 /clear @s
+2680 /give @s cut_red_sandstone_double_slab
+2683 /clear @s
+2686 /give @s cut_red_sandstone_slab
+2689 /clear @s
+2692 /give @s cut_sandstone
+2695 /clear @s
+2698 /give @s cut_sandstone_double_slab
+2701 /clear @s
+2704 /give @s cut_sandstone_slab
+2707 /clear @s
+2710 /give @s cyan_bundle
+2713 /clear @s
+2716 /give @s cyan_candle
+2719 /clear @s
+2722 /give @s cyan_candle_cake
+2725 /clear @s
+2728 /give @s cyan_carpet
+2731 /clear @s
+2734 /give @s cyan_concrete
+2737 /clear @s
+2740 /give @s cyan_concrete_double_slab
+2743 /clear @s
+2746 /give @s cyan_concrete_powder
+2749 /clear @s
+2752 /give @s cyan_concrete_slab
+2755 /clear @s
+2758 /give @s cyan_concrete_stairs
+2761 /clear @s
+2764 /give @s cyan_cushion
+2767 /clear @s
+2770 /give @s cyan_dye
+2773 /clear @s
+2776 /give @s cyan_glazed_terracotta
+2779 /clear @s
+2782 /give @s cyan_harness
+2785 /clear @s
+2788 /give @s cyan_shulker_box
+2791 /clear @s
+2794 /give @s cyan_stained_glass
+2797 /clear @s
+2800 /give @s cyan_stained_glass_pane
+2803 /clear @s
+2806 /give @s cyan_terracotta
+2809 /clear @s
+2812 /give @s cyan_wool
+2815 /clear @s
+2818 /give @s cyan_wool_double_slab
+2821 /clear @s
+2824 /give @s cyan_wool_slab
+2827 /clear @s
+2830 /give @s cyan_wool_stairs
+2833 /clear @s
+2836 /give @s damaged_anvil
+2839 /clear @s
+2842 /give @s dandelion
+2845 /clear @s
+2848 /give @s danger_pottery_sherd
+2851 /clear @s
+2854 /give @s dark_oak_boat
+2857 /clear @s
+2860 /give @s dark_oak_button
+2863 /clear @s
+2866 /give @s dark_oak_chest_boat
+2869 /clear @s
+2872 /give @s dark_oak_door
+2875 /clear @s
+2878 /give @s dark_oak_double_slab
+2881 /clear @s
+2884 /give @s dark_oak_fence
+2887 /clear @s
+2890 /give @s dark_oak_fence_gate
+2893 /clear @s
+2896 /give @s dark_oak_hanging_sign
+2899 /clear @s
+2902 /give @s dark_oak_leaves
+2905 /clear @s
+2908 /give @s dark_oak_log
+2911 /clear @s
+2914 /give @s dark_oak_planks
+2917 /clear @s
+2920 /give @s dark_oak_pressure_plate
+2923 /clear @s
+2926 /give @s dark_oak_sapling
+2929 /clear @s
+2932 /give @s dark_oak_shelf
+2935 /clear @s
+2938 /give @s dark_oak_sign
+2941 /clear @s
+2944 /give @s dark_oak_slab
+2947 /clear @s
+2950 /give @s dark_oak_stairs
+2953 /clear @s
+2956 /give @s dark_oak_trapdoor
+2959 /clear @s
+2962 /give @s dark_oak_wood
+2965 /clear @s
+2968 /give @s dark_prismarine
+2971 /clear @s
+2974 /give @s dark_prismarine_double_slab
+2977 /clear @s
+2980 /give @s dark_prismarine_slab
+2983 /clear @s
+2986 /give @s dark_prismarine_stairs
+2989 /clear @s
+2992 /give @s darkoak_standing_sign
+2995 /clear @s
+2998 /give @s darkoak_wall_sign
+3001 /clear @s
+3004 /give @s daylight_detector
+3007 /clear @s
+3010 /give @s daylight_detector_inverted
+3013 /clear @s
+3016 /give @s dead_brain_coral
+3019 /clear @s
+3022 /give @s dead_brain_coral_block
+3025 /clear @s
+3028 /give @s dead_brain_coral_fan
+3031 /clear @s
+3034 /give @s dead_brain_coral_wall_fan
+3037 /clear @s
+3040 /give @s dead_bubble_coral
+3043 /clear @s
+3046 /give @s dead_bubble_coral_block
+3049 /clear @s
+3052 /give @s dead_bubble_coral_fan
+3055 /clear @s
+3058 /give @s dead_bubble_coral_wall_fan
+3061 /clear @s
+3064 /give @s dead_fire_coral
+3067 /clear @s
+3070 /give @s dead_fire_coral_block
+3073 /clear @s
+3076 /give @s dead_fire_coral_fan
+3079 /clear @s
+3082 /give @s dead_fire_coral_wall_fan
+3085 /clear @s
+3088 /give @s dead_horn_coral
+3091 /clear @s
+3094 /give @s dead_horn_coral_block
+3097 /clear @s
+3100 /give @s dead_horn_coral_fan
+3103 /clear @s
+3106 /give @s dead_horn_coral_wall_fan
+3109 /clear @s
+3112 /give @s dead_tube_coral
+3115 /clear @s
+3118 /give @s dead_tube_coral_block
+3121 /clear @s
+3124 /give @s dead_tube_coral_fan
+3127 /clear @s
+3130 /give @s dead_tube_coral_wall_fan
+3133 /clear @s
+3136 /give @s deadbush
+3139 /clear @s
+3142 /give @s decorated_pot
+3145 /clear @s
+3148 /give @s deepslate
+3151 /clear @s
+3154 /give @s deepslate_brick_double_slab
+3157 /clear @s
+3160 /give @s deepslate_brick_slab
+3163 /clear @s
+3166 /give @s deepslate_brick_stairs
+3169 /clear @s
+3172 /give @s deepslate_brick_wall
+3175 /clear @s
+3178 /give @s deepslate_bricks
+3181 /clear @s
+3184 /give @s deepslate_coal_ore
+3187 /clear @s
+3190 /give @s deepslate_copper_ore
+3193 /clear @s
+3196 /give @s deepslate_diamond_ore
+3199 /clear @s
+3202 /give @s deepslate_emerald_ore
+3205 /clear @s
+3208 /give @s deepslate_gold_ore
+3211 /clear @s
+3214 /give @s deepslate_iron_ore
+3217 /clear @s
+3220 /give @s deepslate_lapis_ore
+3223 /clear @s
+3226 /give @s deepslate_redstone_ore
+3229 /clear @s
+3232 /give @s deepslate_tile_double_slab
+3235 /clear @s
+3238 /give @s deepslate_tile_slab
+3241 /clear @s
+3244 /give @s deepslate_tile_stairs
+3247 /clear @s
+3250 /give @s deepslate_tile_wall
+3253 /clear @s
+3256 /give @s deepslate_tiles
+3259 /clear @s
+3262 /give @s deny
+3265 /clear @s
+3268 /give @s deprecated_anvil
+3271 /clear @s
+3274 /give @s deprecated_purpur_block_1
+3277 /clear @s
+3280 /give @s deprecated_purpur_block_2
+3283 /clear @s
+3286 /give @s detector_rail
+3289 /clear @s
+3292 /give @s diamond
+3295 /clear @s
+3298 /give @s diamond_axe
+3301 /clear @s
+3304 /give @s diamond_block
+3307 /clear @s
+3310 /give @s diamond_boots
+3313 /clear @s
+3316 /give @s diamond_chestplate
+3319 /clear @s
+3322 /give @s diamond_helmet
+3325 /clear @s
+3328 /give @s diamond_hoe
+3331 /clear @s
+3334 /give @s diamond_horse_armor
+3337 /clear @s
+3340 /give @s diamond_leggings
+3343 /clear @s
+3346 /give @s diamond_nautilus_armor
+3349 /clear @s
+3352 /give @s diamond_ore
+3355 /clear @s
+3358 /give @s diamond_pickaxe
+3361 /clear @s
+3364 /give @s diamond_shovel
+3367 /clear @s
+3370 /give @s diamond_spear
+3373 /clear @s
+3376 /give @s diamond_sword
+3379 /clear @s
+3382 /give @s diorite
+3385 /clear @s
+3388 /give @s diorite_double_slab
+3391 /clear @s
+3394 /give @s diorite_slab
+3397 /clear @s
+3400 /give @s diorite_stairs
+3403 /clear @s
+3406 /give @s diorite_wall
+3409 /clear @s
+3412 /give @s dirt
+3415 /clear @s
+3418 /give @s dirt_with_roots
+3421 /clear @s
+3424 /give @s disc_fragment_5
+3427 /clear @s
+3430 /give @s dispenser
+3433 /clear @s
+3436 /give @s dolphin_spawn_egg
+3439 /clear @s
+3442 /give @s donkey_spawn_egg
+3445 /clear @s
+3448 /give @s double_cut_copper_slab
+3451 /clear @s
+3454 /give @s double_plant
+3457 /clear @s
+3460 /give @s double_stone_block_slab
+3463 /clear @s
+3466 /give @s double_stone_block_slab2
+3469 /clear @s
+3472 /give @s double_stone_block_slab3
+3475 /clear @s
+3478 /give @s double_stone_block_slab4
+3481 /clear @s
+3484 /give @s dragon_breath
+3487 /clear @s
+3490 /give @s dragon_egg
+3493 /clear @s
+3496 /give @s dragon_head
+3499 /clear @s
+3502 /give @s dried_ghast
+3505 /clear @s
+3508 /give @s dried_kelp
+3511 /clear @s
+3514 /give @s dried_kelp_block
+3517 /clear @s
+3520 /give @s dripstone_block
+3523 /clear @s
+3526 /give @s dropper
+3529 /clear @s
+3532 /give @s drowned_spawn_egg
+3535 /clear @s
+3538 /give @s dune_armor_trim_smithing_template
+3541 /clear @s
+3544 /give @s dye
+3547 /clear @s
+3550 /give @s echo_shard
+3553 /clear @s
+3556 /give @s egg
+3559 /clear @s
+3562 /give @s elder_guardian_spawn_egg
+3565 /clear @s
+3568 /give @s element_0
+3571 /clear @s
+3574 /give @s element_1
+3577 /clear @s
+3580 /give @s element_10
+3583 /clear @s
+3586 /give @s element_100
+3589 /clear @s
+3592 /give @s element_101
+3595 /clear @s
+3598 /give @s element_102
+3601 /clear @s
+3604 /give @s element_103
+3607 /clear @s
+3610 /give @s element_104
+3613 /clear @s
+3616 /give @s element_105
+3619 /clear @s
+3622 /give @s element_106
+3625 /clear @s
+3628 /give @s element_107
+3631 /clear @s
+3634 /give @s element_108
+3637 /clear @s
+3640 /give @s element_109
+3643 /clear @s
+3646 /give @s element_11
+3649 /clear @s
+3652 /give @s element_110
+3655 /clear @s
+3658 /give @s element_111
+3661 /clear @s
+3664 /give @s element_112
+3667 /clear @s
+3670 /give @s element_113
+3673 /clear @s
+3676 /give @s element_114
+3679 /clear @s
+3682 /give @s element_115
+3685 /clear @s
+3688 /give @s element_116
+3691 /clear @s
+3694 /give @s element_117
+3697 /clear @s
+3700 /give @s element_118
+3703 /clear @s
+3706 /give @s element_12
+3709 /clear @s
+3712 /give @s element_13
+3715 /clear @s
+3718 /give @s element_14
+3721 /clear @s
+3724 /give @s element_15
+3727 /clear @s
+3730 /give @s element_16
+3733 /clear @s
+3736 /give @s element_17
+3739 /clear @s
+3742 /give @s element_18
+3745 /clear @s
+3748 /give @s element_19
+3751 /clear @s
+3754 /give @s element_2
+3757 /clear @s
+3760 /give @s element_20
+3763 /clear @s
+3766 /give @s element_21
+3769 /clear @s
+3772 /give @s element_22
+3775 /clear @s
+3778 /give @s element_23
+3781 /clear @s
+3784 /give @s element_24
+3787 /clear @s
+3790 /give @s element_25
+3793 /clear @s
+3796 /give @s element_26
+3799 /clear @s
+3802 /give @s element_27
+3805 /clear @s
+3808 /give @s element_28
+3811 /clear @s
+3814 /give @s element_29
+3817 /clear @s
+3820 /give @s element_3
+3823 /clear @s
+3826 /give @s element_30
+3829 /clear @s
+3832 /give @s element_31
+3835 /clear @s
+3838 /give @s element_32
+3841 /clear @s
+3844 /give @s element_33
+3847 /clear @s
+3850 /give @s element_34
+3853 /clear @s
+3856 /give @s element_35
+3859 /clear @s
+3862 /give @s element_36
+3865 /clear @s
+3868 /give @s element_37
+3871 /clear @s
+3874 /give @s element_38
+3877 /clear @s
+3880 /give @s element_39
+3883 /clear @s
+3886 /give @s element_4
+3889 /clear @s
+3892 /give @s element_40
+3895 /clear @s
+3898 /give @s element_41
+3901 /clear @s
+3904 /give @s element_42
+3907 /clear @s
+3910 /give @s element_43
+3913 /clear @s
+3916 /give @s element_44
+3919 /clear @s
+3922 /give @s element_45
+3925 /clear @s
+3928 /give @s element_46
+3931 /clear @s
+3934 /give @s element_47
+3937 /clear @s
+3940 /give @s element_48
+3943 /clear @s
+3946 /give @s element_49
+3949 /clear @s
+3952 /give @s element_5
+3955 /clear @s
+3958 /give @s element_50
+3961 /clear @s
+3964 /give @s element_51
+3967 /clear @s
+3970 /give @s element_52
+3973 /clear @s
+3976 /give @s element_53
+3979 /clear @s
+3982 /give @s element_54
+3985 /clear @s
+3988 /give @s element_55
+3991 /clear @s
+3994 /give @s element_56
+3997 /clear @s
+4000 /give @s element_57
+4003 /clear @s
+4006 /give @s element_58
+4009 /clear @s
+4012 /give @s element_59
+4015 /clear @s
+4018 /give @s element_6
+4021 /clear @s
+4024 /give @s element_60
+4027 /clear @s
+4030 /give @s element_61
+4033 /clear @s
+4036 /give @s element_62
+4039 /clear @s
+4042 /give @s element_63
+4045 /clear @s
+4048 /give @s element_64
+4051 /clear @s
+4054 /give @s element_65
+4057 /clear @s
+4060 /give @s element_66
+4063 /clear @s
+4066 /give @s element_67
+4069 /clear @s
+4072 /give @s element_68
+4075 /clear @s
+4078 /give @s element_69
+4081 /clear @s
+4084 /give @s element_7
+4087 /clear @s
+4090 /give @s element_70
+4093 /clear @s
+4096 /give @s element_71
+4099 /clear @s
+4102 /give @s element_72
+4105 /clear @s
+4108 /give @s element_73
+4111 /clear @s
+4114 /give @s element_74
+4117 /clear @s
+4120 /give @s element_75
+4123 /clear @s
+4126 /give @s element_76
+4129 /clear @s
+4132 /give @s element_77
+4135 /clear @s
+4138 /give @s element_78
+4141 /clear @s
+4144 /give @s element_79
+4147 /clear @s
+4150 /give @s element_8
+4153 /clear @s
+4156 /give @s element_80
+4159 /clear @s
+4162 /give @s element_81
+4165 /clear @s
+4168 /give @s element_82
+4171 /clear @s
+4174 /give @s element_83
+4177 /clear @s
+4180 /give @s element_84
+4183 /clear @s
+4186 /give @s element_85
+4189 /clear @s
+4192 /give @s element_86
+4195 /clear @s
+4198 /give @s element_87
+4201 /clear @s
+4204 /give @s element_88
+4207 /clear @s
+4210 /give @s element_89
+4213 /clear @s
+4216 /give @s element_9
+4219 /clear @s
+4222 /give @s element_90
+4225 /clear @s
+4228 /give @s element_91
+4231 /clear @s
+4234 /give @s element_92
+4237 /clear @s
+4240 /give @s element_93
+4243 /clear @s
+4246 /give @s element_94
+4249 /clear @s
+4252 /give @s element_95
+4255 /clear @s
+4258 /give @s element_96
+4261 /clear @s
+4264 /give @s element_97
+4267 /clear @s
+4270 /give @s element_98
+4273 /clear @s
+4276 /give @s element_99
+4279 /clear @s
+4282 /give @s element_constructor
+4285 /clear @s
+4288 /give @s elytra
+4291 /clear @s
+4294 /give @s emerald
+4297 /clear @s
+4300 /give @s emerald_block
+4303 /clear @s
+4306 /give @s emerald_ore
+4309 /clear @s
+4312 /give @s empty_map
+4315 /clear @s
+4318 /give @s enchanted_book
+4321 /clear @s
+4324 /give @s enchanted_golden_apple
+4327 /clear @s
+4330 /give @s enchanting_table
+4333 /clear @s
+4336 /give @s end_brick_stairs
+4339 /clear @s
+4342 /give @s end_bricks
+4345 /clear @s
+4348 /give @s end_crystal
+4351 /clear @s
+4354 /give @s end_gateway
+4357 /clear @s
+4360 /give @s end_portal
+4363 /clear @s
+4366 /give @s end_portal_frame
+4369 /clear @s
+4372 /give @s end_rod
+4375 /clear @s
+4378 /give @s end_stone
+4381 /clear @s
+4384 /give @s end_stone_brick_double_slab
+4387 /clear @s
+4390 /give @s end_stone_brick_slab
+4393 /clear @s
+4396 /give @s end_stone_brick_wall
+4399 /clear @s
+4402 /give @s ender_chest
+4405 /clear @s
+4408 /give @s ender_dragon_spawn_egg
+4411 /clear @s
+4414 /give @s ender_eye
+4417 /clear @s
+4420 /give @s ender_pearl
+4423 /clear @s
+4426 /give @s enderman_spawn_egg
+4429 /clear @s
+4432 /give @s endermite_spawn_egg
+4435 /clear @s
+4438 /give @s evoker_spawn_egg
+4441 /clear @s
+4444 /give @s experience_bottle
+4447 /clear @s
+4450 /give @s explorer_pottery_sherd
+4453 /clear @s
+4456 /give @s exposed_chiseled_copper
+4459 /clear @s
+4462 /give @s exposed_copper
+4465 /clear @s
+4468 /give @s exposed_copper_bars
+4471 /clear @s
+4474 /give @s exposed_copper_bulb
+4477 /clear @s
+4480 /give @s exposed_copper_chain
+4483 /clear @s
+4486 /give @s exposed_copper_chest
+4489 /clear @s
+4492 /give @s exposed_copper_door
+4495 /clear @s
+4498 /give @s exposed_copper_golem_statue
+4501 /clear @s
+4504 /give @s exposed_copper_grate
+4507 /clear @s
+4510 /give @s exposed_copper_lantern
+4513 /clear @s
+4516 /give @s exposed_copper_trapdoor
+4519 /clear @s
+4522 /give @s exposed_cut_copper
+4525 /clear @s
+4528 /give @s exposed_cut_copper_slab
+4531 /clear @s
+4534 /give @s exposed_cut_copper_stairs
+4537 /clear @s
+4540 /give @s exposed_double_cut_copper_slab
+4543 /clear @s
+4546 /give @s exposed_lightning_rod
+4549 /clear @s
+4552 /give @s eye_armor_trim_smithing_template
+4555 /clear @s
+4558 /give @s farmland
+4561 /clear @s
+4564 /give @s feather
+4567 /clear @s
+4570 /give @s fence
+4573 /clear @s
+4576 /give @s fence_gate
+4579 /clear @s
+4582 /give @s fermented_spider_eye
+4585 /clear @s
+4588 /give @s fern
+4591 /clear @s
+4594 /give @s field_masoned_banner_pattern
+4597 /clear @s
+4600 /give @s filled_map
+4603 /clear @s
+4606 /give @s fire
+4609 /clear @s
+4612 /give @s fire_charge
+4615 /clear @s
+4618 /give @s fire_coral
+4621 /clear @s
+4624 /give @s fire_coral_block
+4627 /clear @s
+4630 /give @s fire_coral_fan
+4633 /clear @s
+4636 /give @s fire_coral_wall_fan
+4639 /clear @s
+4642 /give @s firefly_bush
+4645 /clear @s
+4648 /give @s firework_rocket
+4651 /clear @s
+4654 /give @s firework_star
+4657 /clear @s
+4660 /give @s fishing_rod
+4663 /clear @s
+4666 /give @s fletching_table
+4669 /clear @s
+4672 /give @s flint
+4675 /clear @s
+4678 /give @s flint_and_steel
+4681 /clear @s
+4684 /give @s flow_armor_trim_smithing_template
+4687 /clear @s
+4690 /give @s flow_banner_pattern
+4693 /clear @s
+4696 /give @s flow_pottery_sherd
+4699 /clear @s
+4702 /give @s flower_banner_pattern
+4705 /clear @s
+4708 /give @s flower_pot
+4711 /clear @s
+4714 /give @s flowering_azalea
+4717 /clear @s
+4720 /give @s flowing_lava
+4723 /clear @s
+4726 /give @s flowing_water
+4729 /clear @s
+4732 /give @s fox_spawn_egg
+4735 /clear @s
+4738 /give @s frame
+4741 /clear @s
+4744 /give @s friend_pottery_sherd
+4747 /clear @s
+4750 /give @s frog_spawn
+4753 /clear @s
+4756 /give @s frog_spawn_egg
+4759 /clear @s
+4762 /give @s frosted_ice
+4765 /clear @s
+4768 /give @s furnace
+4771 /clear @s
+4774 /give @s ghast_spawn_egg
+4777 /clear @s
+4780 /give @s ghast_tear
+4783 /clear @s
+4786 /give @s gilded_blackstone
+4789 /clear @s
+4792 /give @s glass
+4795 /clear @s
+4798 /give @s glass_bottle
+4801 /clear @s
+4804 /give @s glass_pane
+4807 /clear @s
+4810 /give @s glistering_melon_slice
+4813 /clear @s
+4816 /give @s globe_banner_pattern
+4819 /clear @s
+4822 /give @s glow_berries
+4825 /clear @s
+4828 /give @s glow_frame
+4831 /clear @s
+4834 /give @s glow_ink_sac
+4837 /clear @s
+4840 /give @s glow_lichen
+4843 /clear @s
+4846 /give @s glow_squid_spawn_egg
+4849 /clear @s
+4852 /give @s glow_stick
+4855 /clear @s
+4858 /give @s glowingobsidian
+4861 /clear @s
+4864 /give @s glowstone
+4867 /clear @s
+4870 /give @s glowstone_dust
+4873 /clear @s
+4876 /give @s goat_horn
+4879 /clear @s
+4882 /give @s goat_spawn_egg
+4885 /clear @s
+4888 /give @s gold_block
+4891 /clear @s
+4894 /give @s gold_ingot
+4897 /clear @s
+4900 /give @s gold_nugget
+4903 /clear @s
+4906 /give @s gold_ore
+4909 /clear @s
+4912 /give @s golden_apple
+4915 /clear @s
+4918 /give @s golden_axe
+4921 /clear @s
+4924 /give @s golden_boots
+4927 /clear @s
+4930 /give @s golden_carrot
+4933 /clear @s
+4936 /give @s golden_chestplate
+4939 /clear @s
+4942 /give @s golden_dandelion
+4945 /clear @s
+4948 /give @s golden_helmet
+4951 /clear @s
+4954 /give @s golden_hoe
+4957 /clear @s
+4960 /give @s golden_horse_armor
+4963 /clear @s
+4966 /give @s golden_leggings
+4969 /clear @s
+4972 /give @s golden_nautilus_armor
+4975 /clear @s
+4978 /give @s golden_pickaxe
+4981 /clear @s
+4984 /give @s golden_rail
+4987 /clear @s
+4990 /give @s golden_shovel
+4993 /clear @s
+4996 /give @s golden_spear
+4999 /clear @s
+5002 /give @s golden_sword
+5005 /clear @s
+5008 /give @s granite
+5011 /clear @s
+5014 /give @s granite_double_slab
+5017 /clear @s
+5020 /give @s granite_slab
+5023 /clear @s
+5026 /give @s granite_stairs
+5029 /clear @s
+5032 /give @s granite_wall
+5035 /clear @s
+5038 /give @s grass_block
+5041 /clear @s
+5044 /give @s grass_path
+5047 /clear @s
+5050 /give @s gravel
+5053 /clear @s
+5056 /give @s gray_bundle
+5059 /clear @s
+5062 /give @s gray_candle
+5065 /clear @s
+5068 /give @s gray_candle_cake
+5071 /clear @s
+5074 /give @s gray_carpet
+5077 /clear @s
+5080 /give @s gray_concrete
+5083 /clear @s
+5086 /give @s gray_concrete_double_slab
+5089 /clear @s
+5092 /give @s gray_concrete_powder
+5095 /clear @s
+5098 /give @s gray_concrete_slab
+5101 /clear @s
+5104 /give @s gray_concrete_stairs
+5107 /clear @s
+5110 /give @s gray_cushion
+5113 /clear @s
+5116 /give @s gray_dye
+5119 /clear @s
+5122 /give @s gray_glazed_terracotta
+5125 /clear @s
+5128 /give @s gray_harness
+5131 /clear @s
+5134 /give @s gray_shulker_box
+5137 /clear @s
+5140 /give @s gray_stained_glass
+5143 /clear @s
+5146 /give @s gray_stained_glass_pane
+5149 /clear @s
+5152 /give @s gray_terracotta
+5155 /clear @s
+5158 /give @s gray_wool
+5161 /clear @s
+5164 /give @s gray_wool_double_slab
+5167 /clear @s
+5170 /give @s gray_wool_slab
+5173 /clear @s
+5176 /give @s gray_wool_stairs
+5179 /clear @s
+5182 /give @s green_bundle
+5185 /clear @s
+5188 /give @s green_candle
+5191 /clear @s
+5194 /give @s green_candle_cake
+5197 /clear @s
+5200 /give @s green_carpet
+5203 /clear @s
+5206 /give @s green_concrete
+5209 /clear @s
+5212 /give @s green_concrete_double_slab
+5215 /clear @s
+5218 /give @s green_concrete_powder
+5221 /clear @s
+5224 /give @s green_concrete_slab
+5227 /clear @s
+5230 /give @s green_concrete_stairs
+5233 /clear @s
+5236 /give @s green_cushion
+5239 /clear @s
+5242 /give @s green_dye
+5245 /clear @s
+5248 /give @s green_glazed_terracotta
+5251 /clear @s
+5254 /give @s green_harness
+5257 /clear @s
+5260 /give @s green_shulker_box
+5263 /clear @s
+5266 /give @s green_stained_glass
+5269 /clear @s
+5272 /give @s green_stained_glass_pane
+5275 /clear @s
+5278 /give @s green_terracotta
+5281 /clear @s
+5284 /give @s green_wool
+5287 /clear @s
+5290 /give @s green_wool_double_slab
+5293 /clear @s
+5296 /give @s green_wool_slab
+5299 /clear @s
+5302 /give @s green_wool_stairs
+5305 /clear @s
+5308 /give @s grindstone
+5311 /clear @s
+5314 /give @s guardian_spawn_egg
+5317 /clear @s
+5320 /give @s gunpowder
+5323 /clear @s
+5326 /give @s guster_banner_pattern
+5329 /clear @s
+5332 /give @s guster_pottery_sherd
+5335 /clear @s
+5338 /give @s hanging_roots
+5341 /clear @s
+5344 /give @s happy_ghast_spawn_egg
+5347 /clear @s
+5350 /give @s hard_black_stained_glass
+5353 /clear @s
+5356 /give @s hard_black_stained_glass_pane
+5359 /clear @s
+5362 /give @s hard_blue_stained_glass
+5365 /clear @s
+5368 /give @s hard_blue_stained_glass_pane
+5371 /clear @s
+5374 /give @s hard_brown_stained_glass
+5377 /clear @s
+5380 /give @s hard_brown_stained_glass_pane
+5383 /clear @s
+5386 /give @s hard_cyan_stained_glass
+5389 /clear @s
+5392 /give @s hard_cyan_stained_glass_pane
+5395 /clear @s
+5398 /give @s hard_glass
+5401 /clear @s
+5404 /give @s hard_glass_pane
+5407 /clear @s
+5410 /give @s hard_gray_stained_glass
+5413 /clear @s
+5416 /give @s hard_gray_stained_glass_pane
+5419 /clear @s
+5422 /give @s hard_green_stained_glass
+5425 /clear @s
+5428 /give @s hard_green_stained_glass_pane
+5431 /clear @s
+5434 /give @s hard_light_blue_stained_glass
+5437 /clear @s
+5440 /give @s hard_light_blue_stained_glass_pane
+5443 /clear @s
+5446 /give @s hard_light_gray_stained_glass
+5449 /clear @s
+5452 /give @s hard_light_gray_stained_glass_pane
+5455 /clear @s
+5458 /give @s hard_lime_stained_glass
+5461 /clear @s
+5464 /give @s hard_lime_stained_glass_pane
+5467 /clear @s
+5470 /give @s hard_magenta_stained_glass
+5473 /clear @s
+5476 /give @s hard_magenta_stained_glass_pane
+5479 /clear @s
+5482 /give @s hard_orange_stained_glass
+5485 /clear @s
+5488 /give @s hard_orange_stained_glass_pane
+5491 /clear @s
+5494 /give @s hard_pink_stained_glass
+5497 /clear @s
+5500 /give @s hard_pink_stained_glass_pane
+5503 /clear @s
+5506 /give @s hard_purple_stained_glass
+5509 /clear @s
+5512 /give @s hard_purple_stained_glass_pane
+5515 /clear @s
+5518 /give @s hard_red_stained_glass
+5521 /clear @s
+5524 /give @s hard_red_stained_glass_pane
+5527 /clear @s
+5530 /give @s hard_stained_glass
+5533 /clear @s
+5536 /give @s hard_stained_glass_pane
+5539 /clear @s
+5542 /give @s hard_white_stained_glass
+5545 /clear @s
+5548 /give @s hard_white_stained_glass_pane
+5551 /clear @s
+5554 /give @s hard_yellow_stained_glass
+5557 /clear @s
+5560 /give @s hard_yellow_stained_glass_pane
+5563 /clear @s
+5566 /give @s hardened_clay
+5569 /clear @s
+5572 /give @s hay_block
+5575 /clear @s
+5578 /give @s heart_of_the_sea
+5581 /clear @s
+5584 /give @s heart_pottery_sherd
+5587 /clear @s
+5590 /give @s heartbreak_pottery_sherd
+5593 /clear @s
+5596 /give @s heavy_core
+5599 /clear @s
+5602 /give @s heavy_weighted_pressure_plate
+5605 /clear @s
+5608 /give @s hoglin_spawn_egg
+5611 /clear @s
+5614 /give @s honey_block
+5617 /clear @s
+5620 /give @s honey_bottle
+5623 /clear @s
+5626 /give @s honeycomb
+5629 /clear @s
+5632 /give @s honeycomb_block
+5635 /clear @s
+5638 /give @s hopper
+5641 /clear @s
+5644 /give @s hopper_minecart
+5647 /clear @s
+5650 /give @s horn_coral
+5653 /clear @s
+5656 /give @s horn_coral_block
+5659 /clear @s
+5662 /give @s horn_coral_fan
+5665 /clear @s
+5668 /give @s horn_coral_wall_fan
+5671 /clear @s
+5674 /give @s horse_spawn_egg
+5677 /clear @s
+5680 /give @s host_armor_trim_smithing_template
+5683 /clear @s
+5686 /give @s howl_pottery_sherd
+5689 /clear @s
+5692 /give @s husk_spawn_egg
+5695 /clear @s
+5698 /give @s ice
+5701 /clear @s
+5704 /give @s ice_bomb
+5707 /clear @s
+5710 /give @s infested_chiseled_stone_bricks
+5713 /clear @s
+5716 /give @s infested_cobblestone
+5719 /clear @s
+5722 /give @s infested_cracked_stone_bricks
+5725 /clear @s
+5728 /give @s infested_deepslate
+5731 /clear @s
+5734 /give @s infested_mossy_stone_bricks
+5737 /clear @s
+5740 /give @s infested_stone
+5743 /clear @s
+5746 /give @s infested_stone_bricks
+5749 /clear @s
+5752 /give @s info_update
+5755 /clear @s
+5758 /give @s info_update2
+5761 /clear @s
+5764 /give @s ink_sac
+5767 /clear @s
+5770 /give @s invisible_bedrock
+5773 /clear @s
+5776 /give @s iron_axe
+5779 /clear @s
+5782 /give @s iron_bars
+5785 /clear @s
+5788 /give @s iron_block
+5791 /clear @s
+5794 /give @s iron_boots
+5797 /clear @s
+5800 /give @s iron_chain
+5803 /clear @s
+5806 /give @s iron_chestplate
+5809 /clear @s
+5812 /give @s iron_door
+5815 /clear @s
+5818 /give @s iron_golem_spawn_egg
+5821 /clear @s
+5824 /give @s iron_helmet
+5827 /clear @s
+5830 /give @s iron_hoe
+5833 /clear @s
+5836 /give @s iron_horse_armor
+5839 /clear @s
+5842 /give @s iron_ingot
+5845 /clear @s
+5848 /give @s iron_leggings
+5851 /clear @s
+5854 /give @s iron_nautilus_armor
+5857 /clear @s
+5860 /give @s iron_nugget
+5863 /clear @s
+5866 /give @s iron_ore
+5869 /clear @s
+5872 /give @s iron_pickaxe
+5875 /clear @s
+5878 /give @s iron_shovel
+5881 /clear @s
+5884 /give @s iron_spear
+5887 /clear @s
+5890 /give @s iron_sword
+5893 /clear @s
+5896 /give @s iron_trapdoor
+5899 /clear @s
+5902 /give @s item.bed
+5905 /clear @s
+5908 /give @s item.beetroot
+5911 /clear @s
+5914 /give @s item.brewing_stand
+5917 /clear @s
+5920 /give @s item.cake
+5923 /clear @s
+5926 /give @s item.camera
+5929 /clear @s
+5932 /give @s item.campfire
+5935 /clear @s
+5938 /give @s item.cauldron
+5941 /clear @s
+5944 /give @s item.flower_pot
+5947 /clear @s
+5950 /give @s item.frame
+5953 /clear @s
+5956 /give @s item.glow_frame
+5959 /clear @s
+5962 /give @s item.hopper
+5965 /clear @s
+5968 /give @s item.kelp
+5971 /clear @s
+5974 /give @s item.nether_sprouts
+5977 /clear @s
+5980 /give @s item.nether_wart
+5983 /clear @s
+5986 /give @s item.reeds
+5989 /clear @s
+5992 /give @s item.soul_campfire
+5995 /clear @s
+5998 /give @s item.straw_bed
+6001 /clear @s
+6004 /give @s item.wheat
+6007 /clear @s
+6010 /give @s jigsaw
+6013 /clear @s
+6016 /give @s jukebox
+6019 /clear @s
+6022 /give @s jungle_boat
+6025 /clear @s
+6028 /give @s jungle_button
+6031 /clear @s
+6034 /give @s jungle_chest_boat
+6037 /clear @s
+6040 /give @s jungle_door
+6043 /clear @s
+6046 /give @s jungle_double_slab
+6049 /clear @s
+6052 /give @s jungle_fence
+6055 /clear @s
+6058 /give @s jungle_fence_gate
+6061 /clear @s
+6064 /give @s jungle_hanging_sign
+6067 /clear @s
+6070 /give @s jungle_leaves
+6073 /clear @s
+6076 /give @s jungle_log
+6079 /clear @s
+6082 /give @s jungle_planks
+6085 /clear @s
+6088 /give @s jungle_pressure_plate
+6091 /clear @s
+6094 /give @s jungle_sapling
+6097 /clear @s
+6100 /give @s jungle_shelf
+6103 /clear @s
+6106 /give @s jungle_sign
+6109 /clear @s
+6112 /give @s jungle_slab
+6115 /clear @s
+6118 /give @s jungle_stairs
+6121 /clear @s
+6124 /give @s jungle_standing_sign
+6127 /clear @s
+6130 /give @s jungle_trapdoor
+6133 /clear @s
+6136 /give @s jungle_wall_sign
+6139 /clear @s
+6142 /give @s jungle_wood
+6145 /clear @s
+6148 /give @s kelp
+6151 /clear @s
+6154 /give @s lab_table
+6157 /clear @s
+6160 /give @s ladder
+6163 /clear @s
+6166 /give @s lantern
+6169 /clear @s
+6172 /give @s lapis_block
+6175 /clear @s
+6178 /give @s lapis_lazuli
+6181 /clear @s
+6184 /give @s lapis_ore
+6187 /clear @s
+6190 /give @s large_amethyst_bud
+6193 /clear @s
+6196 /give @s large_fern
+6199 /clear @s
+6202 /give @s lava
+6205 /clear @s
+6208 /give @s lava_bucket
+6211 /clear @s
+6214 /give @s lead
+6217 /clear @s
+6220 /give @s leaf_litter
+6223 /clear @s
+6226 /give @s leather
+6229 /clear @s
+6232 /give @s leather_boots
+6235 /clear @s
+6238 /give @s leather_chestplate
+6241 /clear @s
+6244 /give @s leather_helmet
+6247 /clear @s
+6250 /give @s leather_horse_armor
+6253 /clear @s
+6256 /give @s leather_leggings
+6259 /clear @s
+6262 /give @s leaves
+6265 /clear @s
+6268 /give @s leaves2
+6271 /clear @s
+6274 /give @s lectern
+6277 /clear @s
+6280 /give @s lever
+6283 /clear @s
+6286 /give @s light_block
+6289 /clear @s
+6292 /give @s light_block_0
+6295 /clear @s
+6298 /give @s light_block_1
+6301 /clear @s
+6304 /give @s light_block_10
+6307 /clear @s
+6310 /give @s light_block_11
+6313 /clear @s
+6316 /give @s light_block_12
+6319 /clear @s
+6322 /give @s light_block_13
+6325 /clear @s
+6328 /give @s light_block_14
+6331 /clear @s
+6334 /give @s light_block_15
+6337 /clear @s
+6340 /give @s light_block_2
+6343 /clear @s
+6346 /give @s light_block_3
+6349 /clear @s
+6352 /give @s light_block_4
+6355 /clear @s
+6358 /give @s light_block_5
+6361 /clear @s
+6364 /give @s light_block_6
+6367 /clear @s
+6370 /give @s light_block_7
+6373 /clear @s
+6376 /give @s light_block_8
+6379 /clear @s
+6382 /give @s light_block_9
+6385 /clear @s
+6388 /give @s light_blue_bundle
+6391 /clear @s
+6394 /give @s light_blue_candle
+6397 /clear @s
+6400 /give @s light_blue_candle_cake
+6403 /clear @s
+6406 /give @s light_blue_carpet
+6409 /clear @s
+6412 /give @s light_blue_concrete
+6415 /clear @s
+6418 /give @s light_blue_concrete_double_slab
+6421 /clear @s
+6424 /give @s light_blue_concrete_powder
+6427 /clear @s
+6430 /give @s light_blue_concrete_slab
+6433 /clear @s
+6436 /give @s light_blue_concrete_stairs
+6439 /clear @s
+6442 /give @s light_blue_cushion
+6445 /clear @s
+6448 /give @s light_blue_dye
+6451 /clear @s
+6454 /give @s light_blue_glazed_terracotta
+6457 /clear @s
+6460 /give @s light_blue_harness
+6463 /clear @s
+6466 /give @s light_blue_shulker_box
+6469 /clear @s
+6472 /give @s light_blue_stained_glass
+6475 /clear @s
+6478 /give @s light_blue_stained_glass_pane
+6481 /clear @s
+6484 /give @s light_blue_terracotta
+6487 /clear @s
+6490 /give @s light_blue_wool
+6493 /clear @s
+6496 /give @s light_blue_wool_double_slab
+6499 /clear @s
+6502 /give @s light_blue_wool_slab
+6505 /clear @s
+6508 /give @s light_blue_wool_stairs
+6511 /clear @s
+6514 /give @s light_gray_bundle
+6517 /clear @s
+6520 /give @s light_gray_candle
+6523 /clear @s
+6526 /give @s light_gray_candle_cake
+6529 /clear @s
+6532 /give @s light_gray_carpet
+6535 /clear @s
+6538 /give @s light_gray_concrete
+6541 /clear @s
+6544 /give @s light_gray_concrete_double_slab
+6547 /clear @s
+6550 /give @s light_gray_concrete_powder
+6553 /clear @s
+6556 /give @s light_gray_concrete_slab
+6559 /clear @s
+6562 /give @s light_gray_concrete_stairs
+6565 /clear @s
+6568 /give @s light_gray_cushion
+6571 /clear @s
+6574 /give @s light_gray_dye
+6577 /clear @s
+6580 /give @s light_gray_harness
+6583 /clear @s
+6586 /give @s light_gray_shulker_box
+6589 /clear @s
+6592 /give @s light_gray_stained_glass
+6595 /clear @s
+6598 /give @s light_gray_stained_glass_pane
+6601 /clear @s
+6604 /give @s light_gray_terracotta
+6607 /clear @s
+6610 /give @s light_gray_wool
+6613 /clear @s
+6616 /give @s light_gray_wool_double_slab
+6619 /clear @s
+6622 /give @s light_gray_wool_slab
+6625 /clear @s
+6628 /give @s light_gray_wool_stairs
+6631 /clear @s
+6634 /give @s light_weighted_pressure_plate
+6637 /clear @s
+6640 /give @s lightning_rod
+6643 /clear @s
+6646 /give @s lilac
+6649 /clear @s
+6652 /give @s lily_of_the_valley
+6655 /clear @s
+6658 /give @s lime_bundle
+6661 /clear @s
+6664 /give @s lime_candle
+6667 /clear @s
+6670 /give @s lime_candle_cake
+6673 /clear @s
+6676 /give @s lime_carpet
+6679 /clear @s
+6682 /give @s lime_concrete
+6685 /clear @s
+6688 /give @s lime_concrete_double_slab
+6691 /clear @s
+6694 /give @s lime_concrete_powder
+6697 /clear @s
+6700 /give @s lime_concrete_slab
+6703 /clear @s
+6706 /give @s lime_concrete_stairs
+6709 /clear @s
+6712 /give @s lime_cushion
+6715 /clear @s
+6718 /give @s lime_dye
+6721 /clear @s
+6724 /give @s lime_glazed_terracotta
+6727 /clear @s
+6730 /give @s lime_harness
+6733 /clear @s
+6736 /give @s lime_shulker_box
+6739 /clear @s
+6742 /give @s lime_stained_glass
+6745 /clear @s
+6748 /give @s lime_stained_glass_pane
+6751 /clear @s
+6754 /give @s lime_terracotta
+6757 /clear @s
+6760 /give @s lime_wool
+6763 /clear @s
+6766 /give @s lime_wool_double_slab
+6769 /clear @s
+6772 /give @s lime_wool_slab
+6775 /clear @s
+6778 /give @s lime_wool_stairs
+6781 /clear @s
+6784 /give @s lingering_potion
+6787 /clear @s
+6790 /give @s lit_blast_furnace
+6793 /clear @s
+6796 /give @s lit_deepslate_redstone_ore
+6799 /clear @s
+6802 /give @s lit_furnace
+6805 /clear @s
+6808 /give @s lit_pumpkin
+6811 /clear @s
+6814 /give @s lit_redstone_lamp
+6817 /clear @s
+6820 /give @s lit_redstone_ore
+6823 /clear @s
+6826 /give @s lit_smoker
+6829 /clear @s
+6832 /give @s llama_spawn_egg
+6835 /clear @s
+6838 /give @s lodestone
+6841 /clear @s
+6844 /give @s lodestone_compass
+6847 /clear @s
+6850 /give @s log
+6853 /clear @s
+6856 /give @s log2
+6859 /clear @s
+6862 /give @s loom
+6865 /clear @s
+6868 /give @s mace
+6871 /clear @s
+6874 /give @s magenta_bundle
+6877 /clear @s
+6880 /give @s magenta_candle
+6883 /clear @s
+6886 /give @s magenta_candle_cake
+6889 /clear @s
+6892 /give @s magenta_carpet
+6895 /clear @s
+6898 /give @s magenta_concrete
+6901 /clear @s
+6904 /give @s magenta_concrete_double_slab
+6907 /clear @s
+6910 /give @s magenta_concrete_powder
+6913 /clear @s
+6916 /give @s magenta_concrete_slab
+6919 /clear @s
+6922 /give @s magenta_concrete_stairs
+6925 /clear @s
+6928 /give @s magenta_cushion
+6931 /clear @s
+6934 /give @s magenta_dye
+6937 /clear @s
+6940 /give @s magenta_glazed_terracotta
+6943 /clear @s
+6946 /give @s magenta_harness
+6949 /clear @s
+6952 /give @s magenta_shulker_box
+6955 /clear @s
+6958 /give @s magenta_stained_glass
+6961 /clear @s
+6964 /give @s magenta_stained_glass_pane
+6967 /clear @s
+6970 /give @s magenta_terracotta
+6973 /clear @s
+6976 /give @s magenta_wool
+6979 /clear @s
+6982 /give @s magenta_wool_double_slab
+6985 /clear @s
+6988 /give @s magenta_wool_slab
+6991 /clear @s
+6994 /give @s magenta_wool_stairs
+6997 /clear @s
+7000 /give @s magma
+7003 /clear @s
+7006 /give @s magma_cream
+7009 /clear @s
+7012 /give @s magma_cube_spawn_egg
+7015 /clear @s
+7018 /give @s mangrove_boat
+7021 /clear @s
+7024 /give @s mangrove_button
+7027 /clear @s
+7030 /give @s mangrove_chest_boat
+7033 /clear @s
+7036 /give @s mangrove_door
+7039 /clear @s
+7042 /give @s mangrove_double_slab
+7045 /clear @s
+7048 /give @s mangrove_fence
+7051 /clear @s
+7054 /give @s mangrove_fence_gate
+7057 /clear @s
+7060 /give @s mangrove_hanging_sign
+7063 /clear @s
+7066 /give @s mangrove_leaves
+7069 /clear @s
+7072 /give @s mangrove_log
+7075 /clear @s
+7078 /give @s mangrove_planks
+7081 /clear @s
+7084 /give @s mangrove_pressure_plate
+7087 /clear @s
+7090 /give @s mangrove_propagule
+7093 /clear @s
+7096 /give @s mangrove_roots
+7099 /clear @s
+7102 /give @s mangrove_shelf
+7105 /clear @s
+7108 /give @s mangrove_sign
+7111 /clear @s
+7114 /give @s mangrove_slab
+7117 /clear @s
+7120 /give @s mangrove_stairs
+7123 /clear @s
+7126 /give @s mangrove_standing_sign
+7129 /clear @s
+7132 /give @s mangrove_trapdoor
+7135 /clear @s
+7138 /give @s mangrove_wall_sign
+7141 /clear @s
+7144 /give @s mangrove_wood
+7147 /clear @s
+7150 /give @s material_reducer
+7153 /clear @s
+7156 /give @s medicine
+7159 /clear @s
+7162 /give @s medium_amethyst_bud
+7165 /clear @s
+7168 /give @s melon_block
+7171 /clear @s
+7174 /give @s melon_seeds
+7177 /clear @s
+7180 /give @s melon_slice
+7183 /clear @s
+7186 /give @s melon_stem
+7189 /clear @s
+7192 /give @s milk_bucket
+7195 /clear @s
+7198 /give @s minecart
+7201 /clear @s
+7204 /give @s miner_pottery_sherd
+7207 /clear @s
+7210 /give @s mob_spawner
+7213 /clear @s
+7216 /give @s mojang_banner_pattern
+7219 /clear @s
+7222 /give @s monster_egg
+7225 /clear @s
+7228 /give @s mooshroom_spawn_egg
+7231 /clear @s
+7234 /give @s moss_block
+7237 /clear @s
+7240 /give @s moss_carpet
+7243 /clear @s
+7246 /give @s mossy_cobblestone
+7249 /clear @s
+7252 /give @s mossy_cobblestone_double_slab
+7255 /clear @s
+7258 /give @s mossy_cobblestone_slab
+7261 /clear @s
+7264 /give @s mossy_cobblestone_stairs
+7267 /clear @s
+7270 /give @s mossy_cobblestone_wall
+7273 /clear @s
+7276 /give @s mossy_stone_brick_double_slab
+7279 /clear @s
+7282 /give @s mossy_stone_brick_slab
+7285 /clear @s
+7288 /give @s mossy_stone_brick_stairs
+7291 /clear @s
+7294 /give @s mossy_stone_brick_wall
+7297 /clear @s
+7300 /give @s mossy_stone_bricks
+7303 /clear @s
+7306 /give @s mourner_pottery_sherd
+7309 /clear @s
+7312 /give @s moving_block
+7315 /clear @s
+7318 /give @s mud
+7321 /clear @s
+7324 /give @s mud_brick_double_slab
+7327 /clear @s
+7330 /give @s mud_brick_slab
+7333 /clear @s
+7336 /give @s mud_brick_stairs
+7339 /clear @s
+7342 /give @s mud_brick_wall
+7345 /clear @s
+7348 /give @s mud_bricks
+7351 /clear @s
+7354 /give @s muddy_mangrove_roots
+7357 /clear @s
+7360 /give @s mule_spawn_egg
+7363 /clear @s
+7366 /give @s mushroom_stem
+7369 /clear @s
+7372 /give @s mushroom_stew
+7375 /clear @s
+7378 /give @s music_disc_11
+7381 /clear @s
+7384 /give @s music_disc_13
+7387 /clear @s
+7390 /give @s music_disc_5
+7393 /clear @s
+7396 /give @s music_disc_blocks
+7399 /clear @s
+7402 /give @s music_disc_bounce
+7405 /clear @s
+7408 /give @s music_disc_cat
+7411 /clear @s
+7414 /give @s music_disc_chirp
+7417 /clear @s
+7420 /give @s music_disc_creator
+7423 /clear @s
+7426 /give @s music_disc_creator_music_box
+7429 /clear @s
+7432 /give @s music_disc_far
+7435 /clear @s
+7438 /give @s music_disc_lava_chicken
+7441 /clear @s
+7444 /give @s music_disc_mall
+7447 /clear @s
+7450 /give @s music_disc_mellohi
+7453 /clear @s
+7456 /give @s music_disc_otherside
+7459 /clear @s
+7462 /give @s music_disc_pigstep
+7465 /clear @s
+7468 /give @s music_disc_precipice
+7471 /clear @s
+7474 /give @s music_disc_relic
+7477 /clear @s
+7480 /give @s music_disc_stal
+7483 /clear @s
+7486 /give @s music_disc_strad
+7489 /clear @s
+7492 /give @s music_disc_tears
+7495 /clear @s
+7498 /give @s music_disc_wait
+7501 /clear @s
+7504 /give @s music_disc_ward
+7507 /clear @s
+7510 /give @s mutton
+7513 /clear @s
+7516 /give @s mycelium
+7519 /clear @s
+7522 /give @s name_tag
+7525 /clear @s
+7528 /give @s nautilus_shell
+7531 /clear @s
+7534 /give @s nautilus_spawn_egg
+7537 /clear @s
+7540 /give @s nether_brick
+7543 /clear @s
+7546 /give @s nether_brick_double_slab
+7549 /clear @s
+7552 /give @s nether_brick_fence
+7555 /clear @s
+7558 /give @s nether_brick_slab
+7561 /clear @s
+7564 /give @s nether_brick_stairs
+7567 /clear @s
+7570 /give @s nether_brick_wall
+7573 /clear @s
+7576 /give @s nether_gold_ore
+7579 /clear @s
+7582 /give @s nether_sprouts
+7585 /clear @s
+7588 /give @s nether_star
+7591 /clear @s
+7594 /give @s nether_wart
+7597 /clear @s
+7600 /give @s nether_wart_block
+7603 /clear @s
+7606 /give @s netherbrick
+7609 /clear @s
+7612 /give @s netherite_axe
+7615 /clear @s
+7618 /give @s netherite_block
+7621 /clear @s
+7624 /give @s netherite_boots
+7627 /clear @s
+7630 /give @s netherite_chestplate
+7633 /clear @s
+7636 /give @s netherite_helmet
+7639 /clear @s
+7642 /give @s netherite_hoe
+7645 /clear @s
+7648 /give @s netherite_horse_armor
+7651 /clear @s
+7654 /give @s netherite_ingot
+7657 /clear @s
+7660 /give @s netherite_leggings
+7663 /clear @s
+7666 /give @s netherite_nautilus_armor
+7669 /clear @s
+7672 /give @s netherite_pickaxe
+7675 /clear @s
+7678 /give @s netherite_scrap
+7681 /clear @s
+7684 /give @s netherite_shovel
+7687 /clear @s
+7690 /give @s netherite_spear
+7693 /clear @s
+7696 /give @s netherite_sword
+7699 /clear @s
+7702 /give @s netherite_upgrade_smithing_template
+7705 /clear @s
+7708 /give @s netherrack
+7711 /clear @s
+7714 /give @s netherreactor
+7717 /clear @s
+7720 /give @s normal_stone_double_slab
+7723 /clear @s
+7726 /give @s normal_stone_slab
+7729 /clear @s
+7732 /give @s normal_stone_stairs
+7735 /clear @s
+7738 /give @s noteblock
+7741 /clear @s
+7744 /give @s npc_spawn_egg
+7747 /clear @s
+7750 /give @s oak_boat
+7753 /clear @s
+7756 /give @s oak_chest_boat
+7759 /clear @s
+7762 /give @s oak_double_slab
+7765 /clear @s
+7768 /give @s oak_fence
+7771 /clear @s
+7774 /give @s oak_hanging_sign
+7777 /clear @s
+7780 /give @s oak_leaves
+7783 /clear @s
+7786 /give @s oak_log
+7789 /clear @s
+7792 /give @s oak_planks
+7795 /clear @s
+7798 /give @s oak_sapling
+7801 /clear @s
+7804 /give @s oak_shelf
+7807 /clear @s
+7810 /give @s oak_sign
+7813 /clear @s
+7816 /give @s oak_slab
+7819 /clear @s
+7822 /give @s oak_stairs
+7825 /clear @s
+7828 /give @s oak_wood
+7831 /clear @s
+7834 /give @s observer
+7837 /clear @s
+7840 /give @s obsidian
+7843 /clear @s
+7846 /give @s ocelot_spawn_egg
+7849 /clear @s
+7852 /give @s ochre_froglight
+7855 /clear @s
+7858 /give @s ominous_bottle
+7861 /clear @s
+7864 /give @s ominous_trial_key
+7867 /clear @s
+7870 /give @s open_eyeblossom
+7873 /clear @s
+7876 /give @s orange_bundle
+7879 /clear @s
+7882 /give @s orange_candle
+7885 /clear @s
+7888 /give @s orange_candle_cake
+7891 /clear @s
+7894 /give @s orange_carpet
+7897 /clear @s
+7900 /give @s orange_concrete
+7903 /clear @s
+7906 /give @s orange_concrete_double_slab
+7909 /clear @s
+7912 /give @s orange_concrete_powder
+7915 /clear @s
+7918 /give @s orange_concrete_slab
+7921 /clear @s
+7924 /give @s orange_concrete_stairs
+7927 /clear @s
+7930 /give @s orange_cushion
+7933 /clear @s
+7936 /give @s orange_dye
+7939 /clear @s
+7942 /give @s orange_glazed_terracotta
+7945 /clear @s
+7948 /give @s orange_harness
+7951 /clear @s
+7954 /give @s orange_poplar_leaves
+7957 /clear @s
+7960 /give @s orange_shulker_box
+7963 /clear @s
+7966 /give @s orange_stained_glass
+7969 /clear @s
+7972 /give @s orange_stained_glass_pane
+7975 /clear @s
+7978 /give @s orange_terracotta
+7981 /clear @s
+7984 /give @s orange_tulip
+7987 /clear @s
+7990 /give @s orange_wool
+7993 /clear @s
+7996 /give @s orange_wool_double_slab
+7999 /clear @s
+8002 /give @s orange_wool_slab
+8005 /clear @s
+8008 /give @s orange_wool_stairs
+8011 /clear @s
+8014 /give @s oxeye_daisy
+8017 /clear @s
+8020 /give @s oxidized_chiseled_copper
+8023 /clear @s
+8026 /give @s oxidized_copper
+8029 /clear @s
+8032 /give @s oxidized_copper_bars
+8035 /clear @s
+8038 /give @s oxidized_copper_bulb
+8041 /clear @s
+8044 /give @s oxidized_copper_chain
+8047 /clear @s
+8050 /give @s oxidized_copper_chest
+8053 /clear @s
+8056 /give @s oxidized_copper_door
+8059 /clear @s
+8062 /give @s oxidized_copper_golem_statue
+8065 /clear @s
+8068 /give @s oxidized_copper_grate
+8071 /clear @s
+8074 /give @s oxidized_copper_lantern
+8077 /clear @s
+8080 /give @s oxidized_copper_trapdoor
+8083 /clear @s
+8086 /give @s oxidized_cut_copper
+8089 /clear @s
+8092 /give @s oxidized_cut_copper_slab
+8095 /clear @s
+8098 /give @s oxidized_cut_copper_stairs
+8101 /clear @s
+8104 /give @s oxidized_double_cut_copper_slab
+8107 /clear @s
+8110 /give @s oxidized_lightning_rod
+8113 /clear @s
+8116 /give @s packed_ice
+8119 /clear @s
+8122 /give @s packed_mud
+8125 /clear @s
+8128 /give @s painting
+8131 /clear @s
+8134 /give @s pale_hanging_moss
+8137 /clear @s
+8140 /give @s pale_moss_block
+8143 /clear @s
+8146 /give @s pale_moss_carpet
+8149 /clear @s
+8152 /give @s pale_oak_boat
+8155 /clear @s
+8158 /give @s pale_oak_button
+8161 /clear @s
+8164 /give @s pale_oak_chest_boat
+8167 /clear @s
+8170 /give @s pale_oak_door
+8173 /clear @s
+8176 /give @s pale_oak_double_slab
+8179 /clear @s
+8182 /give @s pale_oak_fence
+8185 /clear @s
+8188 /give @s pale_oak_fence_gate
+8191 /clear @s
+8194 /give @s pale_oak_hanging_sign
+8197 /clear @s
+8200 /give @s pale_oak_leaves
+8203 /clear @s
+8206 /give @s pale_oak_log
+8209 /clear @s
+8212 /give @s pale_oak_planks
+8215 /clear @s
+8218 /give @s pale_oak_pressure_plate
+8221 /clear @s
+8224 /give @s pale_oak_sapling
+8227 /clear @s
+8230 /give @s pale_oak_shelf
+8233 /clear @s
+8236 /give @s pale_oak_sign
+8239 /clear @s
+8242 /give @s pale_oak_slab
+8245 /clear @s
+8248 /give @s pale_oak_stairs
+8251 /clear @s
+8254 /give @s pale_oak_standing_sign
+8257 /clear @s
+8260 /give @s pale_oak_trapdoor
+8263 /clear @s
+8266 /give @s pale_oak_wall_sign
+8269 /clear @s
+8272 /give @s pale_oak_wood
+8275 /clear @s
+8278 /give @s panda_spawn_egg
+8281 /clear @s
+8284 /give @s paper
+8287 /clear @s
+8290 /give @s parched_spawn_egg
+8293 /clear @s
+8296 /give @s parrot_spawn_egg
+8299 /clear @s
+8302 /give @s pearlescent_froglight
+8305 /clear @s
+8308 /give @s peony
+8311 /clear @s
+8314 /give @s petrified_oak_double_slab
+8317 /clear @s
+8320 /give @s petrified_oak_slab
+8323 /clear @s
+8326 /give @s phantom_membrane
+8329 /clear @s
+8332 /give @s phantom_spawn_egg
+8335 /clear @s
+8338 /give @s photo_item
+8341 /clear @s
+8344 /give @s pig_spawn_egg
+8347 /clear @s
+8350 /give @s piglin_banner_pattern
+8353 /clear @s
+8356 /give @s piglin_brute_spawn_egg
+8359 /clear @s
+8362 /give @s piglin_head
+8365 /clear @s
+8368 /give @s piglin_spawn_egg
+8371 /clear @s
+8374 /give @s pillager_spawn_egg
+8377 /clear @s
+8380 /give @s pink_bundle
+8383 /clear @s
+8386 /give @s pink_candle
+8389 /clear @s
+8392 /give @s pink_candle_cake
+8395 /clear @s
+8398 /give @s pink_carpet
+8401 /clear @s
+8404 /give @s pink_concrete
+8407 /clear @s
+8410 /give @s pink_concrete_double_slab
+8413 /clear @s
+8416 /give @s pink_concrete_powder
+8419 /clear @s
+8422 /give @s pink_concrete_slab
+8425 /clear @s
+8428 /give @s pink_concrete_stairs
+8431 /clear @s
+8434 /give @s pink_cushion
+8437 /clear @s
+8440 /give @s pink_dye
+8443 /clear @s
+8446 /give @s pink_glazed_terracotta
+8449 /clear @s
+8452 /give @s pink_harness
+8455 /clear @s
+8458 /give @s pink_petals
+8461 /clear @s
+8464 /give @s pink_shulker_box
+8467 /clear @s
+8470 /give @s pink_stained_glass
+8473 /clear @s
+8476 /give @s pink_stained_glass_pane
+8479 /clear @s
+8482 /give @s pink_terracotta
+8485 /clear @s
+8488 /give @s pink_tulip
+8491 /clear @s
+8494 /give @s pink_wool
+8497 /clear @s
+8500 /give @s pink_wool_double_slab
+8503 /clear @s
+8506 /give @s pink_wool_slab
+8509 /clear @s
+8512 /give @s pink_wool_stairs
+8515 /clear @s
+8518 /give @s piston
+8521 /clear @s
+8524 /give @s piston_arm_collision
+8527 /clear @s
+8530 /give @s pitcher_crop
+8533 /clear @s
+8536 /give @s pitcher_plant
+8539 /clear @s
+8542 /give @s pitcher_pod
+8545 /clear @s
+8548 /give @s planks
+8551 /clear @s
+8554 /give @s player_head
+8557 /clear @s
+8560 /give @s plenty_pottery_sherd
+8563 /clear @s
+8566 /give @s podzol
+8569 /clear @s
+8572 /give @s pointed_dripstone
+8575 /clear @s
+8578 /give @s poisonous_potato
+8581 /clear @s
+8584 /give @s polar_bear_spawn_egg
+8587 /clear @s
+8590 /give @s polished_andesite
+8593 /clear @s
+8596 /give @s polished_andesite_double_slab
+8599 /clear @s
+8602 /give @s polished_andesite_slab
+8605 /clear @s
+8608 /give @s polished_andesite_stairs
+8611 /clear @s
+8614 /give @s polished_basalt
+8617 /clear @s
+8620 /give @s polished_blackstone
+8623 /clear @s
+8626 /give @s polished_blackstone_brick_double_slab
+8629 /clear @s
+8632 /give @s polished_blackstone_brick_slab
+8635 /clear @s
+8638 /give @s polished_blackstone_brick_stairs
+8641 /clear @s
+8644 /give @s polished_blackstone_brick_wall
+8647 /clear @s
+8650 /give @s polished_blackstone_bricks
+8653 /clear @s
+8656 /give @s polished_blackstone_button
+8659 /clear @s
+8662 /give @s polished_blackstone_double_slab
+8665 /clear @s
+8668 /give @s polished_blackstone_pressure_plate
+8671 /clear @s
+8674 /give @s polished_blackstone_slab
+8677 /clear @s
+8680 /give @s polished_blackstone_stairs
+8683 /clear @s
+8686 /give @s polished_blackstone_wall
+8689 /clear @s
+8692 /give @s polished_cinnabar
+8695 /clear @s
+8698 /give @s polished_cinnabar_double_slab
+8701 /clear @s
+8704 /give @s polished_cinnabar_slab
+8707 /clear @s
+8710 /give @s polished_cinnabar_stairs
+8713 /clear @s
+8716 /give @s polished_cinnabar_wall
+8719 /clear @s
+8722 /give @s polished_deepslate
+8725 /clear @s
+8728 /give @s polished_deepslate_double_slab
+8731 /clear @s
+8734 /give @s polished_deepslate_slab
+8737 /clear @s
+8740 /give @s polished_deepslate_stairs
+8743 /clear @s
+8746 /give @s polished_deepslate_wall
+8749 /clear @s
+8752 /give @s polished_diorite
+8755 /clear @s
+8758 /give @s polished_diorite_double_slab
+8761 /clear @s
+8764 /give @s polished_diorite_slab
+8767 /clear @s
+8770 /give @s polished_diorite_stairs
+8773 /clear @s
+8776 /give @s polished_granite
+8779 /clear @s
+8782 /give @s polished_granite_double_slab
+8785 /clear @s
+8788 /give @s polished_granite_slab
+8791 /clear @s
+8794 /give @s polished_granite_stairs
+8797 /clear @s
+8800 /give @s polished_sulfur
+8803 /clear @s
+8806 /give @s polished_sulfur_double_slab
+8809 /clear @s
+8812 /give @s polished_sulfur_slab
+8815 /clear @s
+8818 /give @s polished_sulfur_stairs
+8821 /clear @s
+8824 /give @s polished_sulfur_wall
+8827 /clear @s
+8830 /give @s polished_tuff
+8833 /clear @s
+8836 /give @s polished_tuff_double_slab
+8839 /clear @s
+8842 /give @s polished_tuff_slab
+8845 /clear @s
+8848 /give @s polished_tuff_stairs
+8851 /clear @s
+8854 /give @s polished_tuff_wall
+8857 /clear @s
+8860 /give @s poplar_boat
+8863 /clear @s
+8866 /give @s poplar_button
+8869 /clear @s
+8872 /give @s poplar_chest_boat
+8875 /clear @s
+8878 /give @s poplar_door
+8881 /clear @s
+8884 /give @s poplar_double_slab
+8887 /clear @s
+8890 /give @s poplar_fence
+8893 /clear @s
+8896 /give @s poplar_fence_gate
+8899 /clear @s
+8902 /give @s poplar_hanging_sign
+8905 /clear @s
+8908 /give @s poplar_log
+8911 /clear @s
+8914 /give @s poplar_planks
+8917 /clear @s
+8920 /give @s poplar_pressure_plate
+8923 /clear @s
+8926 /give @s poplar_sapling
+8929 /clear @s
+8932 /give @s poplar_shelf
+8935 /clear @s
+8938 /give @s poplar_sign
+8941 /clear @s
+8944 /give @s poplar_slab
+8947 /clear @s
+8950 /give @s poplar_stairs
+8953 /clear @s
+8956 /give @s poplar_standing_sign
+8959 /clear @s
+8962 /give @s poplar_trapdoor
+8965 /clear @s
+8968 /give @s poplar_wall_sign
+8971 /clear @s
+8974 /give @s poplar_wood
+8977 /clear @s
+8980 /give @s popped_chorus_fruit
+8983 /clear @s
+8986 /give @s poppy
+8989 /clear @s
+8992 /give @s porkchop
+8995 /clear @s
+8998 /give @s portal
+9001 /clear @s
+9004 /give @s portfolio
+9007 /clear @s
+9010 /give @s potato
+9013 /clear @s
+9016 /give @s potatoes
+9019 /clear @s
+9022 /give @s potent_sulfur
+9025 /clear @s
+9028 /give @s potion
+9031 /clear @s
+9034 /give @s powder_snow
+9037 /clear @s
+9040 /give @s powder_snow_bucket
+9043 /clear @s
+9046 /give @s powered_comparator
+9049 /clear @s
+9052 /give @s powered_repeater
+9055 /clear @s
+9058 /give @s prismarine
+9061 /clear @s
+9064 /give @s prismarine_brick_double_slab
+9067 /clear @s
+9070 /give @s prismarine_brick_slab
+9073 /clear @s
+9076 /give @s prismarine_bricks
+9079 /clear @s
+9082 /give @s prismarine_bricks_stairs
+9085 /clear @s
+9088 /give @s prismarine_crystals
+9091 /clear @s
+9094 /give @s prismarine_double_slab
+9097 /clear @s
+9100 /give @s prismarine_shard
+9103 /clear @s
+9106 /give @s prismarine_slab
+9109 /clear @s
+9112 /give @s prismarine_stairs
+9115 /clear @s
+9118 /give @s prismarine_wall
+9121 /clear @s
+9124 /give @s prize_pottery_sherd
+9127 /clear @s
+9130 /give @s pufferfish
+9133 /clear @s
+9136 /give @s pufferfish_bucket
+9139 /clear @s
+9142 /give @s pufferfish_spawn_egg
+9145 /clear @s
+9148 /give @s pumpkin
+9151 /clear @s
+9154 /give @s pumpkin_pie
+9157 /clear @s
+9160 /give @s pumpkin_seeds
+9163 /clear @s
+9166 /give @s pumpkin_stem
+9169 /clear @s
+9172 /give @s purple_bundle
+9175 /clear @s
+9178 /give @s purple_candle
+9181 /clear @s
+9184 /give @s purple_candle_cake
+9187 /clear @s
+9190 /give @s purple_carpet
+9193 /clear @s
+9196 /give @s purple_concrete
+9199 /clear @s
+9202 /give @s purple_concrete_double_slab
+9205 /clear @s
+9208 /give @s purple_concrete_powder
+9211 /clear @s
+9214 /give @s purple_concrete_slab
+9217 /clear @s
+9220 /give @s purple_concrete_stairs
+9223 /clear @s
+9226 /give @s purple_cushion
+9229 /clear @s
+9232 /give @s purple_dye
+9235 /clear @s
+9238 /give @s purple_glazed_terracotta
+9241 /clear @s
+9244 /give @s purple_harness
+9247 /clear @s
+9250 /give @s purple_shulker_box
+9253 /clear @s
+9256 /give @s purple_stained_glass
+9259 /clear @s
+9262 /give @s purple_stained_glass_pane
+9265 /clear @s
+9268 /give @s purple_terracotta
+9271 /clear @s
+9274 /give @s purple_wool
+9277 /clear @s
+9280 /give @s purple_wool_double_slab
+9283 /clear @s
+9286 /give @s purple_wool_slab
+9289 /clear @s
+9292 /give @s purple_wool_stairs
+9295 /clear @s
+9298 /give @s purpur_block
+9301 /clear @s
+9304 /give @s purpur_double_slab
+9307 /clear @s
+9310 /give @s purpur_pillar
+9313 /clear @s
+9316 /give @s purpur_slab
+9319 /clear @s
+9322 /give @s purpur_stairs
+9325 /clear @s
+9328 /give @s quartz
+9331 /clear @s
+9334 /give @s quartz_block
+9337 /clear @s
+9340 /give @s quartz_bricks
+9343 /clear @s
+9346 /give @s quartz_double_slab
+9349 /clear @s
+9352 /give @s quartz_ore
+9355 /clear @s
+9358 /give @s quartz_pillar
+9361 /clear @s
+9364 /give @s quartz_slab
+9367 /clear @s
+9370 /give @s quartz_stairs
+9373 /clear @s
+9376 /give @s rabbit
+9379 /clear @s
+9382 /give @s rabbit_foot
+9385 /clear @s
+9388 /give @s rabbit_hide
+9391 /clear @s
+9394 /give @s rabbit_spawn_egg
+9397 /clear @s
+9400 /give @s rabbit_stew
+9403 /clear @s
+9406 /give @s rail
+9409 /clear @s
+9412 /give @s raiser_armor_trim_smithing_template
+9415 /clear @s
+9418 /give @s rapid_fertilizer
+9421 /clear @s
+9424 /give @s ravager_spawn_egg
+9427 /clear @s
+9430 /give @s raw_copper
+9433 /clear @s
+9436 /give @s raw_copper_block
+9439 /clear @s
+9442 /give @s raw_gold
+9445 /clear @s
+9448 /give @s raw_gold_block
+9451 /clear @s
+9454 /give @s raw_iron
+9457 /clear @s
+9460 /give @s raw_iron_block
+9463 /clear @s
+9466 /give @s recovery_compass
+9469 /clear @s
+9472 /give @s red_bundle
+9475 /clear @s
+9478 /give @s red_candle
+9481 /clear @s
+9484 /give @s red_candle_cake
+9487 /clear @s
+9490 /give @s red_carpet
+9493 /clear @s
+9496 /give @s red_concrete
+9499 /clear @s
+9502 /give @s red_concrete_double_slab
+9505 /clear @s
+9508 /give @s red_concrete_powder
+9511 /clear @s
+9514 /give @s red_concrete_slab
+9517 /clear @s
+9520 /give @s red_concrete_stairs
+9523 /clear @s
+9526 /give @s red_cushion
+9529 /clear @s
+9532 /give @s red_dye
+9535 /clear @s
+9538 /give @s red_flower
+9541 /clear @s
+9544 /give @s red_glazed_terracotta
+9547 /clear @s
+9550 /give @s red_harness
+9553 /clear @s
+9556 /give @s red_mushroom
+9559 /clear @s
+9562 /give @s red_mushroom_block
+9565 /clear @s
+9568 /give @s red_nether_brick
+9571 /clear @s
+9574 /give @s red_nether_brick_double_slab
+9577 /clear @s
+9580 /give @s red_nether_brick_slab
+9583 /clear @s
+9586 /give @s red_nether_brick_stairs
+9589 /clear @s
+9592 /give @s red_nether_brick_wall
+9595 /clear @s
+9598 /give @s red_poplar_leaves
+9601 /clear @s
+9604 /give @s red_sand
+9607 /clear @s
+9610 /give @s red_sandstone
+9613 /clear @s
+9616 /give @s red_sandstone_double_slab
+9619 /clear @s
+9622 /give @s red_sandstone_slab
+9625 /clear @s
+9628 /give @s red_sandstone_stairs
+9631 /clear @s
+9634 /give @s red_sandstone_wall
+9637 /clear @s
+9640 /give @s red_shrub
+9643 /clear @s
+9646 /give @s red_shulker_box
+9649 /clear @s
+9652 /give @s red_stained_glass
+9655 /clear @s
+9658 /give @s red_stained_glass_pane
+9661 /clear @s
+9664 /give @s red_terracotta
+9667 /clear @s
+9670 /give @s red_tulip
+9673 /clear @s
+9676 /give @s red_wool
+9679 /clear @s
+9682 /give @s red_wool_double_slab
+9685 /clear @s
+9688 /give @s red_wool_slab
+9691 /clear @s
+9694 /give @s red_wool_stairs
+9697 /clear @s
+9700 /give @s redstone
+9703 /clear @s
+9706 /give @s redstone_block
+9709 /clear @s
+9712 /give @s redstone_lamp
+9715 /clear @s
+9718 /give @s redstone_ore
+9721 /clear @s
+9724 /give @s redstone_torch
+9727 /clear @s
+9730 /give @s redstone_wire
+9733 /clear @s
+9736 /give @s reinforced_deepslate
+9739 /clear @s
+9742 /give @s repeater
+9745 /clear @s
+9748 /give @s repeating_command_block
+9751 /clear @s
+9754 /give @s reserved6
+9757 /clear @s
+9760 /give @s resin_block
+9763 /clear @s
+9766 /give @s resin_brick
+9769 /clear @s
+9772 /give @s resin_brick_double_slab
+9775 /clear @s
+9778 /give @s resin_brick_slab
+9781 /clear @s
+9784 /give @s resin_brick_stairs
+9787 /clear @s
+9790 /give @s resin_brick_wall
+9793 /clear @s
+9796 /give @s resin_bricks
+9799 /clear @s
+9802 /give @s resin_clump
+9805 /clear @s
+9808 /give @s respawn_anchor
+9811 /clear @s
+9814 /give @s rib_armor_trim_smithing_template
+9817 /clear @s
+9820 /give @s rose_bush
+9823 /clear @s
+9826 /give @s rotten_flesh
+9829 /clear @s
+9832 /give @s saddle
+9835 /clear @s
+9838 /give @s salmon
+9841 /clear @s
+9844 /give @s salmon_bucket
+9847 /clear @s
+9850 /give @s salmon_spawn_egg
+9853 /clear @s
+9856 /give @s sand
+9859 /clear @s
+9862 /give @s sandstone
+9865 /clear @s
+9868 /give @s sandstone_double_slab
+9871 /clear @s
+9874 /give @s sandstone_slab
+9877 /clear @s
+9880 /give @s sandstone_stairs
+9883 /clear @s
+9886 /give @s sandstone_wall
+9889 /clear @s
+9892 /give @s sapling
+9895 /clear @s
+9898 /give @s scaffolding
+9901 /clear @s
+9904 /give @s scrape_pottery_sherd
+9907 /clear @s
+9910 /give @s sculk
+9913 /clear @s
+9916 /give @s sculk_catalyst
+9919 /clear @s
+9922 /give @s sculk_sensor
+9925 /clear @s
+9928 /give @s sculk_shrieker
+9931 /clear @s
+9934 /give @s sculk_vein
+9937 /clear @s
+9940 /give @s sea_lantern
+9943 /clear @s
+9946 /give @s sea_pickle
+9949 /clear @s
+9952 /give @s seagrass
+9955 /clear @s
+9958 /give @s sentry_armor_trim_smithing_template
+9961 /clear @s
+9964 /give @s shaper_armor_trim_smithing_template
+9967 /clear @s
+9970 /give @s sheaf_pottery_sherd
+9973 /clear @s
+9976 /give @s shears
+9979 /clear @s
+9982 /give @s sheep_spawn_egg
+9985 /clear @s
+9988 /give @s shelf_mushroom
+9991 /clear @s
+9994 /give @s shelter_pottery_sherd
+9997 /clear @s
+10000 /give @s shield
+10003 /clear @s
+10006 /give @s short_dry_grass
+10009 /clear @s
+10012 /give @s short_grass
+10015 /clear @s
+10018 /give @s shroomlight
+10021 /clear @s
+10024 /give @s shulker_box
+10027 /clear @s
+10030 /give @s shulker_shell
+10033 /clear @s
+10036 /give @s shulker_spawn_egg
+10039 /clear @s
+10042 /give @s silence_armor_trim_smithing_template
+10045 /clear @s
+10048 /give @s silver_glazed_terracotta
+10051 /clear @s
+10054 /give @s silverfish_spawn_egg
+10057 /clear @s
+10060 /give @s skeleton_horse_spawn_egg
+10063 /clear @s
+10066 /give @s skeleton_skull
+10069 /clear @s
+10072 /give @s skeleton_spawn_egg
+10075 /clear @s
+10078 /give @s skull
+10081 /clear @s
+10084 /give @s skull_banner_pattern
+10087 /clear @s
+10090 /give @s skull_pottery_sherd
+10093 /clear @s
+10096 /give @s slime
+10099 /clear @s
+10102 /give @s slime_ball
+10105 /clear @s
+10108 /give @s slime_spawn_egg
+10111 /clear @s
+10114 /give @s small_amethyst_bud
+10117 /clear @s
+10120 /give @s small_dripleaf_block
+10123 /clear @s
+10126 /give @s smithing_table
+10129 /clear @s
+10132 /give @s smoker
+10135 /clear @s
+10138 /give @s smooth_basalt
+10141 /clear @s
+10144 /give @s smooth_quartz
+10147 /clear @s
+10150 /give @s smooth_quartz_double_slab
+10153 /clear @s
+10156 /give @s smooth_quartz_slab
+10159 /clear @s
+10162 /give @s smooth_quartz_stairs
+10165 /clear @s
+10168 /give @s smooth_red_sandstone
+10171 /clear @s
+10174 /give @s smooth_red_sandstone_double_slab
+10177 /clear @s
+10180 /give @s smooth_red_sandstone_slab
+10183 /clear @s
+10186 /give @s smooth_red_sandstone_stairs
+10189 /clear @s
+10192 /give @s smooth_sandstone
+10195 /clear @s
+10198 /give @s smooth_sandstone_double_slab
+10201 /clear @s
+10204 /give @s smooth_sandstone_slab
+10207 /clear @s
+10210 /give @s smooth_sandstone_stairs
+10213 /clear @s
+10216 /give @s smooth_stone
+10219 /clear @s
+10222 /give @s smooth_stone_double_slab
+10225 /clear @s
+10228 /give @s smooth_stone_slab
+10231 /clear @s
+10234 /give @s sniffer_egg
+10237 /clear @s
+10240 /give @s sniffer_spawn_egg
+10243 /clear @s
+10246 /give @s snort_pottery_sherd
+10249 /clear @s
+10252 /give @s snout_armor_trim_smithing_template
+10255 /clear @s
+10258 /give @s snow
+10261 /clear @s
+10264 /give @s snow_golem_spawn_egg
+10267 /clear @s
+10270 /give @s snow_layer
+10273 /clear @s
+10276 /give @s snowball
+10279 /clear @s
+10282 /give @s soul_campfire
+10285 /clear @s
+10288 /give @s soul_fire
+10291 /clear @s
+10294 /give @s soul_lantern
+10297 /clear @s
+10300 /give @s soul_sand
+10303 /clear @s
+10306 /give @s soul_soil
+10309 /clear @s
+10312 /give @s soul_torch
+10315 /clear @s
+10318 /give @s sparkler
+10321 /clear @s
+10324 /give @s spawn_egg
+10327 /clear @s
+10330 /give @s spider_eye
+10333 /clear @s
+10336 /give @s spider_spawn_egg
+10339 /clear @s
+10342 /give @s spire_armor_trim_smithing_template
+10345 /clear @s
+10348 /give @s splash_potion
+10351 /clear @s
+10354 /give @s sponge
+10357 /clear @s
+10360 /give @s spore_blossom
+10363 /clear @s
+10366 /give @s spruce_boat
+10369 /clear @s
+10372 /give @s spruce_button
+10375 /clear @s
+10378 /give @s spruce_chest_boat
+10381 /clear @s
+10384 /give @s spruce_door
+10387 /clear @s
+10390 /give @s spruce_double_slab
+10393 /clear @s
+10396 /give @s spruce_fence
+10399 /clear @s
+10402 /give @s spruce_fence_gate
+10405 /clear @s
+10408 /give @s spruce_hanging_sign
+10411 /clear @s
+10414 /give @s spruce_leaves
+10417 /clear @s
+10420 /give @s spruce_log
+10423 /clear @s
+10426 /give @s spruce_planks
+10429 /clear @s
+10432 /give @s spruce_pressure_plate
+10435 /clear @s
+10438 /give @s spruce_sapling
+10441 /clear @s
+10444 /give @s spruce_shelf
+10447 /clear @s
+10450 /give @s spruce_sign
+10453 /clear @s
+10456 /give @s spruce_slab
+10459 /clear @s
+10462 /give @s spruce_stairs
+10465 /clear @s
+10468 /give @s spruce_standing_sign
+10471 /clear @s
+10474 /give @s spruce_trapdoor
+10477 /clear @s
+10480 /give @s spruce_wall_sign
+10483 /clear @s
+10486 /give @s spruce_wood
+10489 /clear @s
+10492 /give @s spyglass
+10495 /clear @s
+10498 /give @s squid_spawn_egg
+10501 /clear @s
+10504 /give @s stained_glass
+10507 /clear @s
+10510 /give @s stained_glass_pane
+10513 /clear @s
+10516 /give @s stained_hardened_clay
+10519 /clear @s
+10522 /give @s standing_banner
+10525 /clear @s
+10528 /give @s standing_sign
+10531 /clear @s
+10534 /give @s stick
+10537 /clear @s
+10540 /give @s sticky_piston
+10543 /clear @s
+10546 /give @s sticky_piston_arm_collision
+10549 /clear @s
+10552 /give @s stone
+10555 /clear @s
+10558 /give @s stone_axe
+10561 /clear @s
+10564 /give @s stone_block_slab
+10567 /clear @s
+10570 /give @s stone_block_slab2
+10573 /clear @s
+10576 /give @s stone_block_slab3
+10579 /clear @s
+10582 /give @s stone_block_slab4
+10585 /clear @s
+10588 /give @s stone_brick_double_slab
+10591 /clear @s
+10594 /give @s stone_brick_slab
+10597 /clear @s
+10600 /give @s stone_brick_stairs
+10603 /clear @s
+10606 /give @s stone_brick_wall
+10609 /clear @s
+10612 /give @s stone_bricks
+10615 /clear @s
+10618 /give @s stone_button
+10621 /clear @s
+10624 /give @s stone_hoe
+10627 /clear @s
+10630 /give @s stone_pickaxe
+10633 /clear @s
+10636 /give @s stone_pressure_plate
+10639 /clear @s
+10642 /give @s stone_shovel
+10645 /clear @s
+10648 /give @s stone_spear
+10651 /clear @s
+10654 /give @s stone_stairs
+10657 /clear @s
+10660 /give @s stone_sword
+10663 /clear @s
+10666 /give @s stonebrick
+10669 /clear @s
+10672 /give @s stonecutter
+10675 /clear @s
+10678 /give @s stonecutter_block
+10681 /clear @s
+10684 /give @s straw_bed
+10687 /clear @s
+10690 /give @s stray_spawn_egg
+10693 /clear @s
+10696 /give @s strider_spawn_egg
+10699 /clear @s
+10702 /give @s string
+10705 /clear @s
+10708 /give @s stripped_acacia_log
+10711 /clear @s
+10714 /give @s stripped_acacia_wood
+10717 /clear @s
+10720 /give @s stripped_bamboo_block
+10723 /clear @s
+10726 /give @s stripped_birch_log
+10729 /clear @s
+10732 /give @s stripped_birch_wood
+10735 /clear @s
+10738 /give @s stripped_cherry_log
+10741 /clear @s
+10744 /give @s stripped_cherry_wood
+10747 /clear @s
+10750 /give @s stripped_crimson_hyphae
+10753 /clear @s
+10756 /give @s stripped_crimson_stem
+10759 /clear @s
+10762 /give @s stripped_dark_oak_log
+10765 /clear @s
+10768 /give @s stripped_dark_oak_wood
+10771 /clear @s
+10774 /give @s stripped_jungle_log
+10777 /clear @s
+10780 /give @s stripped_jungle_wood
+10783 /clear @s
+10786 /give @s stripped_mangrove_log
+10789 /clear @s
+10792 /give @s stripped_mangrove_wood
+10795 /clear @s
+10798 /give @s stripped_oak_log
+10801 /clear @s
+10804 /give @s stripped_oak_wood
+10807 /clear @s
+10810 /give @s stripped_pale_oak_log
+10813 /clear @s
+10816 /give @s stripped_pale_oak_wood
+10819 /clear @s
+10822 /give @s stripped_poplar_log
+10825 /clear @s
+10828 /give @s stripped_poplar_wood
+10831 /clear @s
+10834 /give @s stripped_spruce_log
+10837 /clear @s
+10840 /give @s stripped_spruce_wood
+10843 /clear @s
+10846 /give @s stripped_warped_hyphae
+10849 /clear @s
+10852 /give @s stripped_warped_stem
+10855 /clear @s
+10858 /give @s structure_block
+10861 /clear @s
+10864 /give @s structure_void
+10867 /clear @s
+10870 /give @s sugar
+10873 /clear @s
+10876 /give @s sugar_cane
+10879 /clear @s
+10882 /give @s sulfur
+10885 /clear @s
+10888 /give @s sulfur_brick_double_slab
+10891 /clear @s
+10894 /give @s sulfur_brick_slab
+10897 /clear @s
+10900 /give @s sulfur_brick_stairs
+10903 /clear @s
+10906 /give @s sulfur_brick_wall
+10909 /clear @s
+10912 /give @s sulfur_bricks
+10915 /clear @s
+10918 /give @s sulfur_cube_bucket
+10921 /clear @s
+10924 /give @s sulfur_cube_spawn_egg
+10927 /clear @s
+10930 /give @s sulfur_double_slab
+10933 /clear @s
+10936 /give @s sulfur_slab
+10939 /clear @s
+10942 /give @s sulfur_spike
+10945 /clear @s
+10948 /give @s sulfur_stairs
+10951 /clear @s
+10954 /give @s sulfur_wall
+10957 /clear @s
+10960 /give @s sunflower
+10963 /clear @s
+10966 /give @s suspicious_gravel
+10969 /clear @s
+10972 /give @s suspicious_sand
+10975 /clear @s
+10978 /give @s suspicious_stew
+10981 /clear @s
+10984 /give @s sweet_berries
+10987 /clear @s
+10990 /give @s sweet_berry_bush
+10993 /clear @s
+10996 /give @s tadpole_bucket
+10999 /clear @s
+11002 /give @s tadpole_spawn_egg
+11005 /clear @s
+11008 /give @s tall_dry_grass
+11011 /clear @s
+11014 /give @s tall_grass
+11017 /clear @s
+11020 /give @s tallgrass
+11023 /clear @s
+11026 /give @s target
+11029 /clear @s
+11032 /give @s tide_armor_trim_smithing_template
+11035 /clear @s
+11038 /give @s tinted_glass
+11041 /clear @s
+11044 /give @s tnt
+11047 /clear @s
+11050 /give @s tnt_minecart
+11053 /clear @s
+11056 /give @s torch
+11059 /clear @s
+11062 /give @s torchflower
+11065 /clear @s
+11068 /give @s torchflower_crop
+11071 /clear @s
+11074 /give @s torchflower_seeds
+11077 /clear @s
+11080 /give @s totem_of_undying
+11083 /clear @s
+11086 /give @s trader_llama_spawn_egg
+11089 /clear @s
+11092 /give @s trapdoor
+11095 /clear @s
+11098 /give @s trapped_chest
+11101 /clear @s
+11104 /give @s trial_key
+11107 /clear @s
+11110 /give @s trial_spawner
+11113 /clear @s
+11116 /give @s trident
+11119 /clear @s
+11122 /give @s trip_wire
+11125 /clear @s
+11128 /give @s tripwire_hook
+11131 /clear @s
+11134 /give @s tropical_fish
+11137 /clear @s
+11140 /give @s tropical_fish_bucket
+11143 /clear @s
+11146 /give @s tropical_fish_spawn_egg
+11149 /clear @s
+11152 /give @s tube_coral
+11155 /clear @s
+11158 /give @s tube_coral_block
+11161 /clear @s
+11164 /give @s tube_coral_fan
+11167 /clear @s
+11170 /give @s tube_coral_wall_fan
+11173 /clear @s
+11176 /give @s tuff
+11179 /clear @s
+11182 /give @s tuff_brick_double_slab
+11185 /clear @s
+11188 /give @s tuff_brick_slab
+11191 /clear @s
+11194 /give @s tuff_brick_stairs
+11197 /clear @s
+11200 /give @s tuff_brick_wall
+11203 /clear @s
+11206 /give @s tuff_bricks
+11209 /clear @s
+11212 /give @s tuff_double_slab
+11215 /clear @s
+11218 /give @s tuff_slab
+11221 /clear @s
+11224 /give @s tuff_stairs
+11227 /clear @s
+11230 /give @s tuff_wall
+11233 /clear @s
+11236 /give @s turtle_egg
+11239 /clear @s
+11242 /give @s turtle_helmet
+11245 /clear @s
+11248 /give @s turtle_scute
+11251 /clear @s
+11254 /give @s turtle_spawn_egg
+11257 /clear @s
+11260 /give @s twisting_vines
+11263 /clear @s
+11266 /give @s underwater_tnt
+11269 /clear @s
+11272 /give @s underwater_torch
+11275 /clear @s
+11278 /give @s undyed_shulker_box
+11281 /clear @s
+11284 /give @s unknown
+11287 /clear @s
+11290 /give @s unlit_redstone_torch
+11293 /clear @s
+11296 /give @s unpowered_comparator
+11299 /clear @s
+11302 /give @s unpowered_repeater
+11305 /clear @s
+11308 /give @s vault
+11311 /clear @s
+11314 /give @s verdant_froglight
+11317 /clear @s
+11320 /give @s vex_armor_trim_smithing_template
+11323 /clear @s
+11326 /give @s vex_spawn_egg
+11329 /clear @s
+11332 /give @s villager_spawn_egg
+11335 /clear @s
+11338 /give @s vindicator_spawn_egg
+11341 /clear @s
+11344 /give @s vine
+11347 /clear @s
+11350 /give @s wall_banner
+11353 /clear @s
+11356 /give @s wall_sign
+11359 /clear @s
+11362 /give @s wandering_trader_spawn_egg
+11365 /clear @s
+11368 /give @s ward_armor_trim_smithing_template
+11371 /clear @s
+11374 /give @s warden_spawn_egg
+11377 /clear @s
+11380 /give @s warped_button
+11383 /clear @s
+11386 /give @s warped_door
+11389 /clear @s
+11392 /give @s warped_double_slab
+11395 /clear @s
+11398 /give @s warped_fence
+11401 /clear @s
+11404 /give @s warped_fence_gate
+11407 /clear @s
+11410 /give @s warped_fungus
+11413 /clear @s
+11416 /give @s warped_fungus_on_a_stick
+11419 /clear @s
+11422 /give @s warped_hanging_sign
+11425 /clear @s
+11428 /give @s warped_hyphae
+11431 /clear @s
+11434 /give @s warped_nylium
+11437 /clear @s
+11440 /give @s warped_planks
+11443 /clear @s
+11446 /give @s warped_pressure_plate
+11449 /clear @s
+11452 /give @s warped_roots
+11455 /clear @s
+11458 /give @s warped_shelf
+11461 /clear @s
+11464 /give @s warped_sign
+11467 /clear @s
+11470 /give @s warped_slab
+11473 /clear @s
+11476 /give @s warped_stairs
+11479 /clear @s
+11482 /give @s warped_standing_sign
+11485 /clear @s
+11488 /give @s warped_stem
+11491 /clear @s
+11494 /give @s warped_trapdoor
+11497 /clear @s
+11500 /give @s warped_wall_sign
+11503 /clear @s
+11506 /give @s warped_wart_block
+11509 /clear @s
+11512 /give @s water
+11515 /clear @s
+11518 /give @s water_bucket
+11521 /clear @s
+11524 /give @s waterlily
+11527 /clear @s
+11530 /give @s waxed_chiseled_copper
+11533 /clear @s
+11536 /give @s waxed_copper
+11539 /clear @s
+11542 /give @s waxed_copper_bars
+11545 /clear @s
+11548 /give @s waxed_copper_bulb
+11551 /clear @s
+11554 /give @s waxed_copper_chain
+11557 /clear @s
+11560 /give @s waxed_copper_chest
+11563 /clear @s
+11566 /give @s waxed_copper_door
+11569 /clear @s
+11572 /give @s waxed_copper_golem_statue
+11575 /clear @s
+11578 /give @s waxed_copper_grate
+11581 /clear @s
+11584 /give @s waxed_copper_lantern
+11587 /clear @s
+11590 /give @s waxed_copper_trapdoor
+11593 /clear @s
+11596 /give @s waxed_cut_copper
+11599 /clear @s
+11602 /give @s waxed_cut_copper_slab
+11605 /clear @s
+11608 /give @s waxed_cut_copper_stairs
+11611 /clear @s
+11614 /give @s waxed_double_cut_copper_slab
+11617 /clear @s
+11620 /give @s waxed_exposed_chiseled_copper
+11623 /clear @s
+11626 /give @s waxed_exposed_copper
+11629 /clear @s
+11632 /give @s waxed_exposed_copper_bars
+11635 /clear @s
+11638 /give @s waxed_exposed_copper_bulb
+11641 /clear @s
+11644 /give @s waxed_exposed_copper_chain
+11647 /clear @s
+11650 /give @s waxed_exposed_copper_chest
+11653 /clear @s
+11656 /give @s waxed_exposed_copper_door
+11659 /clear @s
+11662 /give @s waxed_exposed_copper_golem_statue
+11665 /clear @s
+11668 /give @s waxed_exposed_copper_grate
+11671 /clear @s
+11674 /give @s waxed_exposed_copper_lantern
+11677 /clear @s
+11680 /give @s waxed_exposed_copper_trapdoor
+11683 /clear @s
+11686 /give @s waxed_exposed_cut_copper
+11689 /clear @s
+11692 /give @s waxed_exposed_cut_copper_slab
+11695 /clear @s
+11698 /give @s waxed_exposed_cut_copper_stairs
+11701 /clear @s
+11704 /give @s waxed_exposed_double_cut_copper_slab
+11707 /clear @s
+11710 /give @s waxed_exposed_lightning_rod
+11713 /clear @s
+11716 /give @s waxed_lightning_rod
+11719 /clear @s
+11722 /give @s waxed_oxidized_chiseled_copper
+11725 /clear @s
+11728 /give @s waxed_oxidized_copper
+11731 /clear @s
+11734 /give @s waxed_oxidized_copper_bars
+11737 /clear @s
+11740 /give @s waxed_oxidized_copper_bulb
+11743 /clear @s
+11746 /give @s waxed_oxidized_copper_chain
+11749 /clear @s
+11752 /give @s waxed_oxidized_copper_chest
+11755 /clear @s
+11758 /give @s waxed_oxidized_copper_door
+11761 /clear @s
+11764 /give @s waxed_oxidized_copper_golem_statue
+11767 /clear @s
+11770 /give @s waxed_oxidized_copper_grate
+11773 /clear @s
+11776 /give @s waxed_oxidized_copper_lantern
+11779 /clear @s
+11782 /give @s waxed_oxidized_copper_trapdoor
+11785 /clear @s
+11788 /give @s waxed_oxidized_cut_copper
+11791 /clear @s
+11794 /give @s waxed_oxidized_cut_copper_slab
+11797 /clear @s
+11800 /give @s waxed_oxidized_cut_copper_stairs
+11803 /clear @s
+11806 /give @s waxed_oxidized_double_cut_copper_slab
+11809 /clear @s
+11812 /give @s waxed_oxidized_lightning_rod
+11815 /clear @s
+11818 /give @s waxed_weathered_chiseled_copper
+11821 /clear @s
+11824 /give @s waxed_weathered_copper
+11827 /clear @s
+11830 /give @s waxed_weathered_copper_bars
+11833 /clear @s
+11836 /give @s waxed_weathered_copper_bulb
+11839 /clear @s
+11842 /give @s waxed_weathered_copper_chain
+11845 /clear @s
+11848 /give @s waxed_weathered_copper_chest
+11851 /clear @s
+11854 /give @s waxed_weathered_copper_door
+11857 /clear @s
+11860 /give @s waxed_weathered_copper_golem_statue
+11863 /clear @s
+11866 /give @s waxed_weathered_copper_grate
+11869 /clear @s
+11872 /give @s waxed_weathered_copper_lantern
+11875 /clear @s
+11878 /give @s waxed_weathered_copper_trapdoor
+11881 /clear @s
+11884 /give @s waxed_weathered_cut_copper
+11887 /clear @s
+11890 /give @s waxed_weathered_cut_copper_slab
+11893 /clear @s
+11896 /give @s waxed_weathered_cut_copper_stairs
+11899 /clear @s
+11902 /give @s waxed_weathered_double_cut_copper_slab
+11905 /clear @s
+11908 /give @s waxed_weathered_lightning_rod
+11911 /clear @s
+11914 /give @s wayfinder_armor_trim_smithing_template
+11917 /clear @s
+11920 /give @s weathered_chiseled_copper
+11923 /clear @s
+11926 /give @s weathered_copper
+11929 /clear @s
+11932 /give @s weathered_copper_bars
+11935 /clear @s
+11938 /give @s weathered_copper_bulb
+11941 /clear @s
+11944 /give @s weathered_copper_chain
+11947 /clear @s
+11950 /give @s weathered_copper_chest
+11953 /clear @s
+11956 /give @s weathered_copper_door
+11959 /clear @s
+11962 /give @s weathered_copper_golem_statue
+11965 /clear @s
+11968 /give @s weathered_copper_grate
+11971 /clear @s
+11974 /give @s weathered_copper_lantern
+11977 /clear @s
+11980 /give @s weathered_copper_trapdoor
+11983 /clear @s
+11986 /give @s weathered_cut_copper
+11989 /clear @s
+11992 /give @s weathered_cut_copper_slab
+11995 /clear @s
+11998 /give @s weathered_cut_copper_stairs
+12001 /clear @s
+12004 /give @s weathered_double_cut_copper_slab
+12007 /clear @s
+12010 /give @s weathered_lightning_rod
+12013 /clear @s
+12016 /give @s web
+12019 /clear @s
+12022 /give @s weeping_vines
+12025 /clear @s
+12028 /give @s wet_sponge
+12031 /clear @s
+12034 /give @s wheat
+12037 /clear @s
+12040 /give @s wheat_seeds
+12043 /clear @s
+12046 /give @s white_bundle
+12049 /clear @s
+12052 /give @s white_candle
+12055 /clear @s
+12058 /give @s white_candle_cake
+12061 /clear @s
+12064 /give @s white_carpet
+12067 /clear @s
+12070 /give @s white_concrete
+12073 /clear @s
+12076 /give @s white_concrete_double_slab
+12079 /clear @s
+12082 /give @s white_concrete_powder
+12085 /clear @s
+12088 /give @s white_concrete_slab
+12091 /clear @s
+12094 /give @s white_concrete_stairs
+12097 /clear @s
+12100 /give @s white_cushion
+12103 /clear @s
+12106 /give @s white_dye
+12109 /clear @s
+12112 /give @s white_glazed_terracotta
+12115 /clear @s
+12118 /give @s white_harness
+12121 /clear @s
+12124 /give @s white_shulker_box
+12127 /clear @s
+12130 /give @s white_stained_glass
+12133 /clear @s
+12136 /give @s white_stained_glass_pane
+12139 /clear @s
+12142 /give @s white_terracotta
+12145 /clear @s
+12148 /give @s white_tulip
+12151 /clear @s
+12154 /give @s white_wool
+12157 /clear @s
+12160 /give @s white_wool_double_slab
+12163 /clear @s
+12166 /give @s white_wool_slab
+12169 /clear @s
+12172 /give @s white_wool_stairs
+12175 /clear @s
+12178 /give @s wild_armor_trim_smithing_template
+12181 /clear @s
+12184 /give @s wildflowers
+12187 /clear @s
+12190 /give @s wind_charge
+12193 /clear @s
+12196 /give @s witch_spawn_egg
+12199 /clear @s
+12202 /give @s wither_rose
+12205 /clear @s
+12208 /give @s wither_skeleton_skull
+12211 /clear @s
+12214 /give @s wither_skeleton_spawn_egg
+12217 /clear @s
+12220 /give @s wither_spawn_egg
+12223 /clear @s
+12226 /give @s wolf_armor
+12229 /clear @s
+12232 /give @s wolf_spawn_egg
+12235 /clear @s
+12238 /give @s wood
+12241 /clear @s
+12244 /give @s wooden_axe
+12247 /clear @s
+12250 /give @s wooden_button
+12253 /clear @s
+12256 /give @s wooden_door
+12259 /clear @s
+12262 /give @s wooden_hoe
+12265 /clear @s
+12268 /give @s wooden_pickaxe
+12271 /clear @s
+12274 /give @s wooden_pressure_plate
+12277 /clear @s
+12280 /give @s wooden_shovel
+12283 /clear @s
+12286 /give @s wooden_slab
+12289 /clear @s
+12292 /give @s wooden_spear
+12295 /clear @s
+12298 /give @s wooden_sword
+12301 /clear @s
+12304 /give @s wool
+12307 /clear @s
+12310 /give @s writable_book
+12313 /clear @s
+12316 /give @s written_book
+12319 /clear @s
+12322 /give @s yellow_bundle
+12325 /clear @s
+12328 /give @s yellow_candle
+12331 /clear @s
+12334 /give @s yellow_candle_cake
+12337 /clear @s
+12340 /give @s yellow_carpet
+12343 /clear @s
+12346 /give @s yellow_concrete
+12349 /clear @s
+12352 /give @s yellow_concrete_double_slab
+12355 /clear @s
+12358 /give @s yellow_concrete_powder
+12361 /clear @s
+12364 /give @s yellow_concrete_slab
+12367 /clear @s
+12370 /give @s yellow_concrete_stairs
+12373 /clear @s
+12376 /give @s yellow_cushion
+12379 /clear @s
+12382 /give @s yellow_dye
+12385 /clear @s
+12388 /give @s yellow_glazed_terracotta
+12391 /clear @s
+12394 /give @s yellow_harness
+12397 /clear @s
+12400 /give @s yellow_poplar_leaves
+12403 /clear @s
+12406 /give @s yellow_shulker_box
+12409 /clear @s
+12412 /give @s yellow_stained_glass
+12415 /clear @s
+12418 /give @s yellow_stained_glass_pane
+12421 /clear @s
+12424 /give @s yellow_terracotta
+12427 /clear @s
+12430 /give @s yellow_wool
+12433 /clear @s
+12436 /give @s yellow_wool_double_slab
+12439 /clear @s
+12442 /give @s yellow_wool_slab
+12445 /clear @s
+12448 /give @s yellow_wool_stairs
+12451 /clear @s
+12454 /give @s zoglin_spawn_egg
+12457 /clear @s
+12460 /give @s zombie_head
+12463 /clear @s
+12466 /give @s zombie_horse_spawn_egg
+12469 /clear @s
+12472 /give @s zombie_nautilus_spawn_egg
+12475 /clear @s
+12478 /give @s zombie_pigman_spawn_egg
+12481 /clear @s
+12484 /give @s zombie_spawn_egg
+12487 /clear @s
+12490 /give @s zombie_villager_spawn_egg
+12493 /clear @s
+12506 exit

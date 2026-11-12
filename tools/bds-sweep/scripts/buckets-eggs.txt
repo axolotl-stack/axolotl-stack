@@ -1,0 +1,164 @@
+# Buckets and spawn eggs against BDS: `python tools/bds-sweep/script.py
+# tools/bds-sweep/scripts/buckets-eggs.txt --out DIR`. Every use is a click
+# (`use-on X Y Z FACE`) with the item in hotbar slot 0, survival unless a
+# step says otherwise. Ticks are the client's inputs.
+#
+# Arena as in breaking.txt: a stone floor at y=-61 over dirt, the player at
+# (0.5,-60,0.5) facing east, put back before every step. Liquids go in a
+# one-block pit in the floor at (2,-61,0), so they cannot flow; the client
+# learns the blocks it clicks from the corrections BDS sends for a first,
+# empty-handed click.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule dofiretick false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+31 /effect @s clear
+32 /setblock 2 -61 0 air
+36 use-on 2 -62 0 1
+
+# 1. A water bucket on the pit's floor (dirt, top face); an empty bucket on
+#    the water; an empty bucket on the dirt under water put back by command.
+40 /replaceitem entity @s slot.weapon.mainhand 0 water_bucket
+45 use-on 2 -62 0 1
+65 /replaceitem entity @s slot.weapon.mainhand 0 bucket
+70 use-on 2 -61 0 1
+90 /setblock 2 -61 0 water
+95 /replaceitem entity @s slot.weapon.mainhand 0 bucket
+100 use-on 2 -62 0 1
+120 /setblock 2 -61 0 air
+121 /clear @s
+
+# 2. Lava the same way; three empty buckets on the lava (one becomes a lava
+#    bucket, the others stay).
+130 /replaceitem entity @s slot.weapon.mainhand 0 lava_bucket
+135 use-on 2 -62 0 1
+155 /replaceitem entity @s slot.weapon.mainhand 0 bucket 3
+160 use-on 2 -61 0 1
+180 /setblock 2 -61 0 air
+181 /clear @s
+
+# 3. Powder snow on the floor's top face at (3,-61,0) (it lands at
+#    (3,-60,0)), taken back by clicking it.
+185 use-on 3 -61 0 1
+195 /replaceitem entity @s slot.weapon.mainhand 0 powder_snow_bucket
+200 use-on 3 -61 0 1
+220 /replaceitem entity @s slot.weapon.mainhand 0 bucket
+225 use-on 3 -60 0 1
+245 /setblock 3 -60 0 air
+246 /clear @s
+
+# 4. Water into a bottom stone slab in the pit (waterlogs it), then taken
+#    back.
+250 /setblock 2 -61 0 stone_block_slab
+252 use-on 2 -61 0 1
+255 /replaceitem entity @s slot.weapon.mainhand 0 water_bucket
+260 use-on 2 -61 0 1
+280 /replaceitem entity @s slot.weapon.mainhand 0 bucket
+285 use-on 2 -61 0 1
+305 /setblock 2 -61 0 air
+306 /clear @s
+
+# 5. Milk drunk to the end.
+310 /effect @s speed 30 0
+315 /replaceitem entity @s slot.weapon.mainhand 0 milk_bucket
+320 use
+360 /clear @s
+362 /tp @s 0.5 -60 0.5 -90 0
+
+# 6. Fish buckets on the pit's floor: cod, salmon, tropical fish,
+#    pufferfish, axolotl and tadpole, each in turn in the pit.
+370 /replaceitem entity @s slot.weapon.mainhand 0 cod_bucket
+375 use-on 2 -62 0 1
+395 /kill @e[type=!player]
+396 /setblock 2 -61 0 air
+397 /tp @s 0.5 -60 0.5 -90 0
+400 /replaceitem entity @s slot.weapon.mainhand 0 salmon_bucket
+405 use-on 2 -62 0 1
+425 /kill @e[type=!player]
+426 /setblock 2 -61 0 air
+427 /tp @s 0.5 -60 0.5 -90 0
+430 /replaceitem entity @s slot.weapon.mainhand 0 tropical_fish_bucket
+435 use-on 2 -62 0 1
+455 /kill @e[type=!player]
+456 /setblock 2 -61 0 air
+457 /tp @s 0.5 -60 0.5 -90 0
+460 /replaceitem entity @s slot.weapon.mainhand 0 pufferfish_bucket
+465 use-on 2 -62 0 1
+485 /kill @e[type=!player]
+486 /setblock 2 -61 0 air
+487 /tp @s 0.5 -60 0.5 -90 0
+490 /replaceitem entity @s slot.weapon.mainhand 0 axolotl_bucket
+495 use-on 2 -62 0 1
+515 /kill @e[type=!player]
+516 /setblock 2 -61 0 air
+517 /tp @s 0.5 -60 0.5 -90 0
+520 /replaceitem entity @s slot.weapon.mainhand 0 tadpole_bucket
+525 use-on 2 -62 0 1
+545 /kill @e[type=!player]
+546 /setblock 2 -61 0 air
+547 /tp @s 0.5 -60 0.5 -90 0
+548 /clear @s
+
+# 7. Creative: a water bucket and an empty bucket keep their item.
+550 /gamemode creative @s
+555 /replaceitem entity @s slot.weapon.mainhand 0 water_bucket
+560 use-on 2 -62 0 1
+580 /replaceitem entity @s slot.weapon.mainhand 0 bucket
+585 use-on 2 -61 0 1
+605 /setblock 2 -61 0 air
+606 /clear @s
+607 /gamemode survival @s
+608 /setblock 2 -61 0 stone
+
+# 8. Spawn eggs on the floor's top face at (2,-61,0): cow, pig, chicken,
+#    zombie (peaceful), two cow eggs in the slot (one is used, side face),
+#    then a pig egg in creative.
+612 use-on 2 -61 0 1
+615 /replaceitem entity @s slot.weapon.mainhand 0 cow_spawn_egg
+620 use-on 2 -61 0 1
+640 /kill @e[type=!player]
+641 /tp @s 0.5 -60 0.5 -90 0
+645 /replaceitem entity @s slot.weapon.mainhand 0 pig_spawn_egg
+650 use-on 2 -61 0 1
+670 /kill @e[type=!player]
+671 /tp @s 0.5 -60 0.5 -90 0
+675 /replaceitem entity @s slot.weapon.mainhand 0 chicken_spawn_egg
+680 use-on 2 -61 0 1
+700 /kill @e[type=!player]
+701 /tp @s 0.5 -60 0.5 -90 0
+705 /replaceitem entity @s slot.weapon.mainhand 0 zombie_spawn_egg
+710 use-on 2 -61 0 1
+730 /kill @e[type=!player]
+731 /tp @s 0.5 -60 0.5 -90 0
+735 /replaceitem entity @s slot.weapon.mainhand 0 cow_spawn_egg 2
+740 use-on 2 -61 0 4
+760 /kill @e[type=!player]
+761 /tp @s 0.5 -60 0.5 -90 0
+762 /clear @s
+765 /gamemode creative @s
+770 /replaceitem entity @s slot.weapon.mainhand 0 pig_spawn_egg
+775 use-on 2 -61 0 1
+795 /kill @e[type=!player]
+796 /tp @s 0.5 -60 0.5 -90 0
+797 /clear @s
+798 /gamemode survival @s
+
+# 9. A spawn egg used in the air does nothing; a cow egg on a monster
+#    spawner at (2,-60,0), in survival then in creative.
+800 /replaceitem entity @s slot.weapon.mainhand 0 cow_spawn_egg
+805 use
+820 /setblock 2 -60 0 mob_spawner
+830 use-on 2 -60 0 1
+850 /gamemode creative @s
+855 use-on 2 -60 0 1
+875 /setblock 2 -60 0 air
+876 /clear @s
+877 /gamemode survival @s
+880 exit

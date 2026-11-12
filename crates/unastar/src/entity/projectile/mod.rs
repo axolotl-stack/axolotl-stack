@@ -4,8 +4,10 @@
 //! moved by the definition's `offset` (x/z turned by the thrower's yaw,
 //! stopped by blocks) and sent along the thrower's view direction (pitch
 //! plus `angle_offset × cos(pitch)`) at `power` blocks per tick; the
-//! thrower's own velocity is not added. Every projectile actor starts
-//! invisible and shows from its second tick of flight.
+//! thrower's own velocity is not added. It first moves in the tick after
+//! the throw. Every projectile actor starts invisible and shows from its
+//! second tick of flight (a thrown one plays `disappeared` and
+//! `reappeared`).
 //!
 //! Flight ([`tick_projectiles`]): each tick the segment from the position to
 //! position + velocity is tested against block collision boxes and against
@@ -17,7 +19,9 @@
 //! scaled by `inertia` (`liquid_inertia` in water) and loses `gravity`, and
 //! its rotation turns 20 % of the way to its heading.
 //!
-//! On a hit the `on_hit` effects run in alphabetical order:
+//! On a hit, at the point where the segment meets what it hit, the
+//! `on_hit` effects run in alphabetical order:
+//! - `douse_fire`, `grant_xp` ([`potion`]).
 //! - `impact_damage`: a hit mob takes the rolled damage (cause projectile,
 //!   even 0), pushed away from the projectile by the projectile's knockback
 //!   rules; players have no hurt path on this server and only stop the
@@ -28,8 +32,9 @@
 //!   succeeded, one for the second; the spawns appear at the projectile
 //!   (raised out of a block it is inside, turned to its yaw) and get the
 //!   `on_spawn` events whose filters pass, with the projectile as `other`.
+//! - `thrown_potion_effect` ([`potion`]).
 //!
-//! Then the hit sound plays and a removed projectile despawns.
+//! Then the hit sound plays (`undefined` for a block hit without one) and a removed projectile despawns.
 //!
 //! Layout: [`config`] compiles the component, [`launch`] throws,
 //! [`flight`] moves and collides, [`hit`] runs the `on_hit` effects.
@@ -39,6 +44,7 @@ pub mod flight;
 pub mod hit;
 pub mod launch;
 pub mod pickup;
+pub mod potion;
 
 use bevy_ecs::prelude::*;
 
@@ -78,6 +84,16 @@ pub struct Stuck {
 /// (arrows shot and tridents thrown in survival).
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct ProjectileItem(pub crate::item::ItemStack);
+
+/// A thrown projectile that has not shown yet: it plays `reappeared` when
+/// it does (see `flight::reappear`).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct ThrownUnseen;
+
+/// The data value of the potion a thrown potion carries.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProjectilePotion(pub i16);
 
 /// Players that used a throwable item this tick (queued by the inventory
 /// system, thrown by [`apply_throws`]).

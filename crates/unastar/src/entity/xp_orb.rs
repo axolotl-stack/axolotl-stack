@@ -237,7 +237,7 @@ fn collects(mode: &GameMode, health: Option<&Health>) -> bool {
 #[allow(clippy::type_complexity)]
 pub fn tick_xp_orbs(
     mut commands: Commands,
-    mut orbs: Query<(Entity, &XpOrb, &Position, &mut Velocity, &Age)>,
+    mut orbs: Query<(Entity, Ref<XpOrb>, &Position, &mut Velocity, &Age)>,
     mut players: Query<
         (
             Entity,
@@ -271,7 +271,10 @@ pub fn tick_xp_orbs(
             continue;
         };
         let orb_box = Aabb::from_feet(position.0, XP_ORB_BODY.width, XP_ORB_BODY.height);
-        if player_box(eye).inflate(PICKUP_REACH).intersects(&orb_box) {
+        // Not in the tick it appeared: BDS 1.26.51 announces an orb before
+        // anyone collects it (experience bottles thrown at the feet,
+        // throwables capture).
+        if !xp.is_added() && player_box(eye).inflate(PICKUP_REACH).intersects(&orb_box) {
             let Ok((_, _, _, _, mut experience, runtime_id, session, input)) =
                 players.get_mut(player)
             else {

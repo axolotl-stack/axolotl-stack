@@ -264,6 +264,8 @@ pub(crate) fn drop_block_items(
 
 #[cfg(test)]
 mod experience_tests;
+#[cfg(test)]
+mod grass_tests;
 
 #[cfg(test)]
 mod tests {

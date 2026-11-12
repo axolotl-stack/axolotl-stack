@@ -33,6 +33,12 @@ pub(super) fn on_hit(
     target: Target,
 ) -> bool {
     let mut removed = false;
+    if rules.douse_fire {
+        super::potion::douse_fire(world, projectile, at);
+    }
+    if let Some((min, max)) = rules.grant_xp {
+        super::potion::grant_xp(world, at, min, max);
+    }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
         let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
         removed |= destroyed;
@@ -50,6 +56,9 @@ pub(super) fn on_hit(
     if let Some(spawn) = &rules.spawn_chance {
         spawn_on_hit(world, projectile, spawn, at);
     }
+    if rules.thrown_potion_effect {
+        super::potion::splash(world, projectile, owner, at, target);
+    }
     let sound = match target {
         Target::Actor(actor) => rules
             .hit_sound
@@ -57,8 +66,13 @@ pub(super) fn on_hit(
             .filter(|_| world.get::<GameMode>(actor) != Some(&GameMode::Creative)),
         Target::Block => rules.hit_ground_sound.as_ref().or(rules.hit_sound.as_ref()),
     };
-    if let Some(sound) = sound {
-        play_level_sound(world, Some(projectile), at, sound, -1);
+    match (sound, target) {
+        (Some(sound), _) => play_level_sound(world, Some(projectile), at, sound, -1),
+        // BDS 1.26.51 sends a projectile without a hit sound hitting a
+        // block as the sound `undefined` (throwables capture: snowballs and
+        // eggs on the floor).
+        (None, Target::Block) => play_level_sound(world, None, at, "undefined", -1),
+        (None, Target::Actor(_)) => {}
     }
     removed
 }

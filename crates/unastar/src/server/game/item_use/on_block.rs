@@ -146,6 +146,16 @@ fn convert(world: &mut World, ctx: &Use, new_state: u32) {
     );
 }
 
+/// Where a bucket's sound plays: at the player's feet, not at the block
+/// (BDS 1.26.51 capture of `tools/bds-sweep/scripts/buckets-eggs.txt`).
+fn feet(world: &World, player: Entity) -> DVec3 {
+    world
+        .get::<crate::entity::components::Position>(player)
+        .map_or(DVec3::ZERO, |eye| {
+            eye.0 - DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT
+        })
+}
+
 fn sound(world: &World, player: Entity, at: DVec3, name: &str, data: i32) {
     crate::entity::mob::net::sound::play_level_sound(world, Some(player), at, name, data);
 }
@@ -595,7 +605,7 @@ fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
         return false;
     };
     set_block(world, ctx.clicked, air, false);
-    sound(world, ctx.player, centre(ctx.clicked), filled.1, -1);
+    sound(world, ctx.player, feet(world, ctx.player), filled.1, -1);
     if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
         let rest = ctx.stack.grow(-1);
         if rest.is_empty() {
@@ -638,7 +648,7 @@ fn empty_bucket(world: &mut World, ctx: &Use) -> bool {
         return false;
     };
     set_block(world, pos, state, false);
-    sound(world, ctx.player, centre(pos), sound_name, -1);
+    sound(world, ctx.player, feet(world, ctx.player), sound_name, -1);
     if world.get::<GameMode>(ctx.player) != Some(&GameMode::Creative) {
         set_slot(world, ctx.player, ctx.slot, empty);
     }
