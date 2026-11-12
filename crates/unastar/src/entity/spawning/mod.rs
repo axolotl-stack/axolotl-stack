@@ -17,6 +17,7 @@
 mod cycle;
 mod position;
 pub mod rules;
+pub mod slime_chunk;
 pub mod spawn_check;
 
 #[cfg(test)]

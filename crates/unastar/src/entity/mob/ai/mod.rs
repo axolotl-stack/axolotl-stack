@@ -15,6 +15,7 @@ mod control;
 mod eat_block;
 mod flee_sun;
 mod goals;
+pub mod hop;
 mod melee;
 mod nearby;
 mod path;
@@ -41,7 +42,9 @@ use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
 use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
-use super::components::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
+use super::components::{
+    BasicMovementConfig, HopMovementConfig, JumpConfig, Pushable, WalkNavigationConfig,
+};
 use super::constants::{
     DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
     ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
@@ -351,6 +354,43 @@ fn think(
     ctx.check_unheld_target();
     selector.tick(&mut ctx);
     let goal_jump = ctx.jump;
+
+    if let Some(hop) = mob.get::<HopMovementConfig>() {
+        // A hopping mob never paths: its control turns, waits and jumps.
+        // A slime class jumps higher the bigger it is.
+        let jump_power = kind.0.native.slime.map_or(jump_power, |slime| {
+            let size = mob
+                .get::<EntityMetadata>()
+                .and_then(|metadata| {
+                    super::components::variant::appearance_id(
+                        metadata,
+                        jolyne::valentine::actor_data_i_ds::VARIANT,
+                    )
+                })
+                .unwrap_or(0);
+            (f64::from(jump_power) + slime.jump_per_size * f64::from(size)) as f32
+        });
+        let hop = states
+            .hop
+            .control(hop, rotation.yaw, on_ground, body.movement, &mut rng.0);
+        movement.wanted = None;
+        movement.speed = hop.speed;
+        let velocity = travel(
+            &body,
+            movement,
+            goal_jump || hop.jump,
+            jump_power,
+            hop.yaw,
+            living_block_friction(world, feet),
+            velocity,
+        );
+        return Some(Output {
+            yaw: hop.yaw,
+            head_yaw: hop.yaw,
+            velocity,
+            effects,
+        });
+    }
 
     let door_hold = nav.current().is_some_and(|(index, path)| {
         break_door::held_by_breakable_door(

@@ -1513,6 +1513,52 @@ defaults! {
     target_nearby_outside_range -> f32 = p::TARGET_NEARBY_OUTSIDE_RANGE;
 }
 
+/// `minecraft:movement.jump`: the hopping move control (slimes, magma
+/// cubes): the mob moves only while it hops and waits `jump_delay` seconds
+/// on the ground before each hop.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MovementJump {
+    /// Seconds to wait on the ground before the next hop, drawn per hop.
+    pub jump_delay: FloatRange,
+    /// Degrees the body turns per tick at most.
+    #[serde(default = "movement_jump_max_turn")]
+    pub max_turn: f32,
+}
+
+/// `minecraft:area_attack`: damage dealt to every matching actor near the
+/// mob's box.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AreaAttack {
+    pub cause: Option<ActorDamageCause>,
+    /// Seconds before the mob can hurt again.
+    #[serde(default = "area_attack_damage_cooldown")]
+    pub damage_cooldown: f32,
+    #[serde(default = "area_attack_damage_per_tick")]
+    pub damage_per_tick: f32,
+    /// How close (blocks) an actor must be.
+    #[serde(default = "area_attack_damage_range")]
+    pub damage_range: f32,
+    pub entity_filter: Option<FilterJson>,
+    /// The death message a kill shows instead of the cause's (the sulfur
+    /// cube).
+    pub death_message_override: Option<String>,
+    /// Whether the mob is the damage source (the sulfur cube authors
+    /// `false`); absent means the published default.
+    pub use_self_as_damage_source: Option<bool>,
+    #[serde(default = "area_attack_play_attack_sound")]
+    pub play_attack_sound: bool,
+}
+
+defaults! {
+    movement_jump_max_turn -> f32 = p::MOVEMENT_JUMP_MAX_TURN;
+    area_attack_damage_per_tick -> f32 = p::AREA_ATTACK_DAMAGE_PER_TICK;
+    area_attack_damage_range -> f32 = p::AREA_ATTACK_DAMAGE_RANGE;
+    area_attack_damage_cooldown -> f32 = p::AREA_ATTACK_DAMAGE_COOLDOWN;
+    area_attack_play_attack_sound -> bool = p::AREA_ATTACK_PLAY_ATTACK_SOUND;
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1540,6 +1586,7 @@ dynamic_bodies!(
     Angry,
     AnnotationBreakDoor,
     AmbientSoundInterval,
+    AreaAttack,
     Attack,
     Balloonable,
     BehaviorPanic,
@@ -1569,6 +1616,7 @@ dynamic_bodies!(
     MobEffectImmunity,
     Movement,
     MovementBasic,
+    MovementJump,
     Nameable,
     NavigationWalk,
     Offspring,

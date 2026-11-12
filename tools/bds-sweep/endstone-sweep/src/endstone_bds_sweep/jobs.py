@@ -771,7 +771,8 @@ def effects(ctx: Context, job: dict):
     stands at `player` (x, y, z, yaw); unless `mob` is null a fresh `mob` is
     spawned at `at` (x, y, z, yaw), with `frozen` given hidden Slowness 255;
     then for `ticks` ticks the mob and the player are sampled every tick
-    (position, rotation, velocity, ground contact, health) and each
+    (position, rotation, velocity, ground contact, health), with every
+    live actor of a `track` type (runtime id, type and the same state), and each
     `actions` entry `{t, commands, order?}` runs its commands on tick `t`
     (0 = the spawn tick) and then, with `order` (`interact`, `attack`),
     sends the client that order on the mob; the player holds `hold` (an
@@ -801,6 +802,7 @@ def effects(ctx: Context, job: dict):
                 ctx.must(f'effect @e[type={item["mob"]}] slowness 100000 255 true')
         ctx.plugin.damage.clear()
         actions = {int(action['t']): action for action in item.get('actions', [])}
+        track = set(item.get('track', ()))
         first_tick = ctx.plugin.ticks
         samples, failed = [], []
         for t in range(int(item['ticks']) + 1):
@@ -811,6 +813,10 @@ def effects(ctx: Context, job: dict):
             if runtime_id is not None:
                 actor = find_actor(ctx, runtime_id)
                 sample['mob'] = living_state(actor) if actor is not None else None
+            if track:
+                sample['tracked'] = [{'id': actor.runtime_id, 'type': actor.type, **living_state(actor)}
+                                     for actor in ctx.dimension.actors
+                                     if actor.type in track and actor.is_valid]
             samples.append(sample)
             action = actions.get(t)
             if action is not None:
@@ -824,6 +830,11 @@ def effects(ctx: Context, job: dict):
             actor = find_actor(ctx, runtime_id)
             if actor is not None:
                 actor.remove()
+        # Tracked actors go without dying (a killed slime would split into
+        # the next item).
+        for actor in list(ctx.dimension.actors):
+            if actor.type in track and actor.is_valid:
+                actor.remove()
         for line in item.get('cleanup', []):
             ctx.cmd(line)
         ctx.player.inventory.item_in_main_hand = None
@@ -833,7 +844,7 @@ def effects(ctx: Context, job: dict):
             'runtime_id': runtime_id,
             'player_runtime_id': ctx.player.runtime_id,
             'spec': {k: item[k] for k in ('at', 'player', 'frozen', 'setup', 'actions', 'ticks', 'cleanup',
-                                          'hold') if k in item},
+                                          'hold', 'track') if k in item},
             'first_tick': first_tick,
             'failed_commands': failed,
             'damage': [list(d) for d in ctx.plugin.damage],
@@ -876,7 +887,46 @@ def entity_loot(ctx: Context, job: dict):
         yield 2
 
 
+def spawn_watch(ctx: Context, job: dict):
+    """Natural spawning around the still sweep player: per item the `setup`
+    commands run (difficulty, time, mob spawning on), the player stands at
+    `player`, and for `ticks` ticks, every `every` ticks, each live actor of
+    a `watch` type is recorded (tick, runtime id, type, feet, health) and
+    removed, so the population caps never fill; actors of the `clear` types
+    are removed and only counted. The `cleanup` commands run last."""
+    name = job['player']
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        for line in item.get('setup', []):
+            ctx.must(line)
+        spot = item['player']
+        ctx.must(f'tp "{name}" {spot[0]} {spot[1]} {spot[2]} {spot[3]} 0')
+        watch, clear = set(item['watch']), set(item.get('clear', ()))
+        every = int(item.get('every', 1))
+        first_tick = ctx.plugin.ticks
+        spawns, cleared = [], Counter()
+        for t in range(0, int(item['ticks']) + 1, every):
+            for actor in list(ctx.dimension.actors):
+                if not actor.is_valid:
+                    continue
+                if actor.type in watch:
+                    spawns.append({'t': t, 'id': actor.runtime_id, 'type': actor.type, **living_state(actor)})
+                    actor.remove()
+                elif actor.type in clear:
+                    cleared[actor.type] += 1
+                    actor.remove()
+            yield every
+        for line in item.get('cleanup', []):
+            ctx.cmd(line)
+        ctx.record({'key': item['key'], 'spec': {k: item[k] for k in ('player', 'setup', 'ticks', 'every',
+                                                                        'watch', 'clear') if k in item},
+                    'first_tick': first_tick, 'spawns': spawns, 'cleared': dict(sorted(cleared.items()))})
+        yield 10
+
+
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
         'fuel': fuel, 'mining': mining, 'knockback': knockback, 'knockback_reload': knockback_reload,
         'send_range': send_range, 'spawn_bonus': spawn_bonus, 'walk': walk, 'effects': effects,
-        'entity_loot': entity_loot}
+        'entity_loot': entity_loot, 'spawn_watch': spawn_watch}

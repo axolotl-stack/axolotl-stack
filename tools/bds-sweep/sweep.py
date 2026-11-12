@@ -872,6 +872,87 @@ def creeper_items(args) -> list[dict]:
     return chosen
 
 
+SLIMES = ('slime', 'magma_cube')
+SLIME_SIZES = ('small', 'medium', 'large')
+
+
+def slime_items(args) -> list[dict]:
+    """`slime`: the slime and the magma cube, summoned at a size with
+    `summon <mob> x y z 0 0 spawn_<size>`; every slime and magma cube is
+    sampled every tick (`track`), and `--client-capture` holds their
+    AddActors, motion and the damage they deal. `--items` picks a set:
+    `hop` (a calm mob of each size, no target: the creative player stands
+    24 blocks away, 600 ticks, three times), `attack` (the survival
+    player, kept alive by Health Boost X and Regeneration V in a barrier
+    wall behind it, and the mob 5 blocks east, 400 ticks), `split`
+    (a medium or large mob killed by `/damage` from the player on tick 10,
+    twelve times, and by `/kill` three times; 80 ticks), `float` (a slime
+    in water, a magma cube in lava, 200 ticks) or `all`."""
+    target = f'"{PLAYER}"'
+    track = [f'minecraft:{mob}' for mob in SLIMES]
+    # The job removes the tracked mobs without killing them (a killed slime
+    # splits into the next item).
+    clean = ['kill @e[type=minecraft:item]', 'kill @e[type=minecraft:xp_orb]']
+
+    def summon(mob, size, at):
+        return f'summon minecraft:{mob} {at[0]} {at[1]} {at[2]} {at[3]} 0 spawn_{size}'
+
+    def row(key, mob, size, at, player, ticks, setup=(), cleanup=(), actions=()):
+        return {'key': f'{mob}|{key}', 'mob': None, 'at': None, 'player': player, 'frozen': False,
+                'ticks': ticks, 'setup': list(setup) + [summon(mob, size, at)],
+                'cleanup': list(cleanup) + clean, 'actions': list(actions), 'track': track}
+
+    far = [0.5, -60, -24.5, 0]
+    sets = {}
+    sets['hop'] = [row(f'hop-{size}-{n}', mob, size, [6.5, -60, 6.5, 0], far, 600)
+                   for mob in SLIMES for size in SLIME_SIZES for n in range(3)]
+    # A barrier wall behind the player (west) keeps the slime's knockback
+    # from pushing it away; nothing at the sides, so a big slime can touch.
+    pen = ['fill -1 -60 -3 -1 -57 3 barrier']
+    unpen = [line.replace(' barrier', ' air') for line in pen]
+    alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+             f'effect {target} regeneration 100000 4 true']
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    sets['attack'] = [row(f'attack-{size}', mob, size, [5.5, -60, 0.5, 90], [0.5, -60, 0.5, -90], 400,
+                          setup=pen + alive, cleanup=[f'effect {target} clear', f'gamemode creative {target}'] + unpen,
+                          actions=[heal])
+                      for mob in SLIMES for size in SLIME_SIZES]
+    split = []
+    for mob in SLIMES:
+        for size in ('medium', 'large'):
+            hit = f'damage @e[type=minecraft:{mob}] 100 entity_attack entity {target}'
+            split += [row(f'split-{size}-{n}', mob, size, [4.5, -60, 0.5, 30], far, 80,
+                          actions=[{'t': 10, 'commands': [hit]}]) for n in range(12)]
+            split += [row(f'kill-{size}-{n}', mob, size, [4.5, -60, 0.5, 30], far, 80,
+                          actions=[{'t': 10, 'commands': [f'kill @e[type=minecraft:{mob}]']}]) for n in range(3)]
+    sets['split'] = split
+    pool = {'slime': 'water', 'magma_cube': 'lava'}
+    sets['float'] = [row(f'float-{size}', mob, size, [6.5, -62, 0.5, 0], far, 200,
+                         setup=[f'fill 3 -63 -3 9 -61 3 {pool[mob]}'],
+                         cleanup=['fill 3 -63 -3 9 -62 3 dirt', 'fill 3 -61 -3 9 -61 3 grass_block'])
+                     for mob in SLIMES for size in ('small', 'large')]
+    if args.items == 'all':
+        return [item for name in ('hop', 'attack', 'split', 'float') for item in sets[name]]
+    if args.items not in sets:
+        raise SystemExit(f'slime --items must be all or one of {sorted(sets)}')
+    return sets[args.items]
+
+
+def slime_spawn_items(args) -> list[dict]:
+    """`slime-spawn`: natural spawning on the superflat floor (y -61, below
+    the slime-chunk height) on normal difficulty at midnight: the creative
+    player stands still at the origin and every slime that appears is
+    recorded and removed (`spawn_watch`), every other monster removed; two
+    items of `--samples` × 100 ticks."""
+    monsters = ['zombie', 'zombie_villager', 'husk', 'skeleton', 'stray', 'bogged', 'creeper', 'spider',
+                'cave_spider', 'enderman', 'witch', 'phantom', 'drowned', 'parched']
+    setup = ['difficulty normal', 'time set 18000', 'gamerule domobspawning true']
+    cleanup = ['gamerule domobspawning false', 'kill @e[type=minecraft:slime]']
+    return [{'key': f'slime|spawn-{n}', 'player': [0.5, -60, 0.5, 0], 'setup': setup, 'cleanup': cleanup,
+             'ticks': args.samples * 100, 'every': 5, 'watch': ['minecraft:slime'],
+             'clear': [f'minecraft:{mob}' for mob in monsters]} for n in range(2)]
+
+
 def melee_effect_items(args) -> list[dict]:
     """`melee-effects`: a husk spawned two blocks east of the sweep player
     (survival) walks up and hits it for 200 ticks; the player lives through
@@ -979,14 +1060,17 @@ def build_job(args, out: Path) -> dict:
         # Zombies need a difficulty above peaceful and burn in daylight.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
-    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper'):
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'slime'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
                         'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
-                        'creeper': creeper_items}[args.kind](args)
+                        'creeper': creeper_items, 'slime': slime_items}[args.kind](args)
+    elif args.kind == 'slime-spawn':
+        job['kind'] = 'spawn_watch'
+        job['items'] = slime_spawn_items(args)
     elif args.kind == 'entity-loot':
         # Hostile mobs need a difficulty above peaceful.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
@@ -1012,7 +1096,7 @@ def main() -> int:
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
-                                         'silverfish', 'creeper'])
+                                         'silverfish', 'creeper', 'slime', 'slime-spawn'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

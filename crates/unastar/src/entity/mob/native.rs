@@ -5,7 +5,8 @@ use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
     ANIMAL_AMBIENT_SOUND_INTERVAL, CHICKEN_FALL_DAMAGE_MULTIPLIER, DEFAULT_AMBIENT_SOUND_INTERVAL,
-    WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
+    MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER, MAGMA_CUBE_JUMP_PER_SIZE, WING_FLAP_VERTICAL_DRAG,
+    ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
 };
 
 /// The native traits of one actor class.
@@ -42,6 +43,21 @@ pub struct NativeTraits {
     /// The class rolls a follow-range bonus at spawn and saves its
     /// `minecraft:follow_range` (`mob::attributes::FollowRange`).
     pub follow_range_bonus: bool,
+    /// The slime classes (the slime and the magma cube): see
+    /// [`SlimeClass`].
+    pub slime: Option<SlimeClass>,
+}
+
+/// What the slime classes do natively: they split into smaller copies when
+/// they die (`mob::life::split`), report leaving the ground and landing in
+/// their `CLIENT_EVENT` actor data (`mob::ai::hop`), and the magma cube
+/// jumps higher the bigger it is.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SlimeClass {
+    /// Added to the jump impulse per size step (`VARIANT`): BDS 1.26.51's
+    /// magma cubes of size 1, 2 and 4 rose 0.52, 0.62 and 0.82 on the
+    /// first tick of a hop, its slimes 0.42 at every size.
+    pub jump_per_size: f64,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -53,6 +69,9 @@ pub enum SpawnClass {
     Animal,
     /// The monster walk-target value plus the darkness test.
     Monster,
+    /// The plain mob check, and only in a slime chunk below
+    /// `SLIME_CHUNK_MAX_FEET_Y` (`entity::spawning::slime_chunk`).
+    Slime,
 }
 
 impl NativeTraits {
@@ -75,6 +94,13 @@ impl NativeTraits {
             None
         };
         let follow_range_bonus = zombie_bonuses;
+        let slime = match actor_type {
+            ActorType::Slime => Some(SlimeClass { jump_per_size: 0.0 }),
+            ActorType::MagmaCube => Some(SlimeClass {
+                jump_per_size: MAGMA_CUBE_JUMP_PER_SIZE,
+            }),
+            _ => None,
+        };
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -86,10 +112,14 @@ impl NativeTraits {
                 variant,
                 knockback_resistance_bonus,
                 follow_range_bonus,
+                slime,
             },
             _ => Self {
                 wing_flap_drag: None,
-                fall_damage_multiplier: 1.0,
+                fall_damage_multiplier: match actor_type {
+                    ActorType::MagmaCube => MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER,
+                    _ => 1.0,
+                },
                 spawn_class,
                 immune_to_wither,
                 ambient_sound_interval,
@@ -97,6 +127,7 @@ impl NativeTraits {
                 variant,
                 knockback_resistance_bonus,
                 follow_range_bonus,
+                slime,
             },
         }
     }
@@ -218,6 +249,7 @@ impl SpawnClass {
             | A::Zombie
             | A::ZombieVillager
             | A::ZombieVillagerV2 => Self::Monster,
+            A::Slime => Self::Slime,
             _ => return None,
         })
     }

@@ -53,3 +53,14 @@ A sensor trigger authored without an event (vanilla's `{}` in the creeper's forc
 - **THEN** the replaced sensor has no inside, outside or vision-lost event
 
 Evidence: crates/unastar/src/entity/mob/components/sensors.rs (`compile_target_nearby`), crates/unastar/src/entity/mob/tests/creeper.rs (test `the_forced_groups_switch_the_sensor_off`)
+
+### Requirement: A hopping mob moves only through its hop control
+A mob with `minecraft:movement.jump` SHALL never follow a path: its goals only set the yaw it
+wants and whether it moves, and the hop control turns it, counts its hop delay down on the
+ground and jumps. Goals that path (strolling, panicking) MUST NOT move such a mob.
+
+#### Scenario: A calm slime
+- **WHEN** a slime with no target stands on the ground
+- **THEN** it waits a delay drawn from its `jump_delay`, cut to whole ticks, then hops along its body yaw
+
+Evidence: crates/unastar/src/entity/mob/ai/hop.rs, crates/unastar/src/entity/mob/tests/slime.rs (test `hop_delays_and_random_turns_match_bds_by_distribution`)

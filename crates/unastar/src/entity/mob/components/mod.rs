@@ -34,6 +34,7 @@ pub mod ranged;
 pub mod sensors;
 pub mod shearing;
 pub mod silverfish;
+pub mod slime;
 pub mod spawn_entity;
 pub mod stats;
 pub mod target_triggers;
@@ -73,6 +74,10 @@ pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use ranged::{AvoidEntry, AvoidMobTypeGoal, RangedAttackGoal, ShooterConfig};
 pub use sensors::{EnvironmentSensorConfig, TargetNearbySensorConfig, TargetZone, Timer};
 pub use silverfish::{InfestedBlocks, MergeWithStoneGoal, WakeUpFriendsGoal};
+pub use slime::{
+    AreaAttackConfig, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal, HopMovementConfig,
+    HopRandomDirectionGoal,
+};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
 pub use transformation::TransformationConfig;
@@ -160,7 +165,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     ),
     (
         ActorComponent::FreezingImmune,
-        "keeps powder snow from freezing the mob, and powder snow has no          freezing behaviour on the server: no actor freezes",
+        "keeps powder snow from freezing the mob, and powder snow has no \n         freezing behaviour on the server: no actor freezes",
+    ),
+    (
+        ActorComponent::FreezingVulnerable,
+        "makes freezing hurt the mob more, and powder snow has no freezing \n         behaviour on the server: no actor freezes",
     ),
     (
         ActorComponent::GameEventMovementTracking,
@@ -203,12 +212,14 @@ pub fn register_component_kinds(
     inert::<bodies::BlockClimber>(builder)?;
     inert::<bodies::CanStandOnPowderSnow>(builder)?;
     inert::<bodies::FreezingImmune>(builder)?;
+    inert::<bodies::FreezingVulnerable>(builder)?;
     ranged::register_component_kinds(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;
     shearing::register_component_kinds(builder)?;
     silverfish::register_component_kinds(builder)?;
+    slime::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;

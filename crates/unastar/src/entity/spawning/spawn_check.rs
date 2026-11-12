@@ -11,7 +11,9 @@
 //! below, elsewhere the brightness ramp at the feet minus 0.5 (raw
 //! brightness 12 or more passes); for a monster 0.5 minus the ramp (raw
 //! brightness 11 or less passes). A monster must also be dark enough: raw
-//! brightness below 8 at its feet and no block light there.
+//! brightness below 8 at its feet and no block light there. A slime spawns
+//! only in a slime chunk (`super::slime_chunk`), below
+//! `SLIME_CHUNK_MAX_FEET_Y`; its swamp-surface spawning is not modelled.
 //!
 //! Raw brightness is [`crate::world::clock::sky_brightness`]. Block light
 //! is not modelled, so the monster's block-light test always passes. The
@@ -27,10 +29,12 @@ use bevy_ecs::prelude::World;
 use glam::IVec3;
 
 use super::rules::BlockSet;
+use super::slime_chunk::is_slime_chunk;
 use crate::entity::mob::constants::{
     ANIMAL_GRASS_WALK_TARGET, ANIMAL_WALK_TARGET_OFFSET, MAGMA_BLOCK, MAGMA_WALK_TARGET,
     MOB_WALK_TARGET, MONSTER_SPAWN_BRIGHTNESS_LIMIT, MONSTER_WALK_TARGET_BASE,
-    OVERWORLD_BRIGHTNESS_RAMP, SPAWN_REFUSING_BLOCKS, SPAWN_UNSAFE_GROUND, SPAWN_WITHER_ROSE,
+    OVERWORLD_BRIGHTNESS_RAMP, SLIME_CHUNK_MAX_FEET_Y, SPAWN_REFUSING_BLOCKS, SPAWN_UNSAFE_GROUND,
+    SPAWN_WITHER_ROSE,
 };
 use crate::entity::mob::native::SpawnClass;
 use crate::entity::systems::physics::BlockSource;
@@ -77,6 +81,12 @@ impl NativeSpawnBlocks {
         if self.wither_rose.contains(inside) && !immune_to_wither {
             return false;
         }
+        if class == SpawnClass::Slime
+            && !(feet.y < SLIME_CHUNK_MAX_FEET_Y
+                && is_slime_chunk(feet.x.div_euclid(16), feet.z.div_euclid(16)))
+        {
+            return false;
+        }
         let raw = sky_brightness(world, feet);
         if class == SpawnClass::Monster && raw >= MONSTER_SPAWN_BRIGHTNESS_LIMIT {
             return false;
@@ -97,7 +107,7 @@ impl NativeSpawnBlocks {
 fn class_walk_target(class: SpawnClass, grass: bool, magma: bool, raw: u8) -> f32 {
     let ramp = OVERWORLD_BRIGHTNESS_RAMP[usize::from(raw.min(15))];
     match class {
-        SpawnClass::Mob => MOB_WALK_TARGET,
+        SpawnClass::Mob | SpawnClass::Slime => MOB_WALK_TARGET,
         SpawnClass::Animal if grass => ANIMAL_GRASS_WALK_TARGET,
         SpawnClass::Animal | SpawnClass::Monster if magma => MAGMA_WALK_TARGET,
         SpawnClass::Animal => ramp + ANIMAL_WALK_TARGET_OFFSET,

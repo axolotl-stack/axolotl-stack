@@ -2,7 +2,8 @@
 //! ([`breeding`]), egg laying ([`spawn_entity`]), environment sensors and
 //! timers ([`sensors`]), anger ([`anger`]), natural despawning
 //! ([`despawn`]), transformations ([`transformation`]) and silverfish
-//! hiding in and leaving infested blocks ([`infested`]).
+//! hiding in and leaving infested blocks ([`infested`]), and slimes
+//! splitting when they die ([`split`]).
 
 pub mod ageing;
 pub mod anger;
@@ -11,4 +12,5 @@ pub mod despawn;
 pub mod infested;
 pub mod sensors;
 pub mod spawn_entity;
+pub mod split;
 pub mod transformation;

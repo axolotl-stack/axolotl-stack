@@ -6,7 +6,8 @@
 //! ([`hostile`]), door breaking ([`doors`]), environment sensors and
 //! timers ([`sensors`]), anger replayed against BDS captures ([`anger`]),
 //! projectile actors replayed against BDS captures ([`projectiles`]), the
-//! silverfish replayed against BDS sweeps ([`silverfish`]), and
+//! silverfish replayed against BDS sweeps ([`silverfish`]), the slime and
+//! magma cube replayed against BDS sweeps ([`slime`]), and
 //! shared behaviour checked mob by mob for every spawnable mob that uses it
 //! ([`facets`]).
 
@@ -21,5 +22,6 @@ mod passive;
 mod projectiles;
 mod sensors;
 mod silverfish;
+mod slime;
 mod spawn;
 mod zombie;

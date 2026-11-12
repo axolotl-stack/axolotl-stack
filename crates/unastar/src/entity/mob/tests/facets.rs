@@ -52,6 +52,8 @@ const PARCHED: &str = "minecraft:parched";
 /// `hostile::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon`).
 const ZOMBIE_VILLAGER: &str = "minecraft:zombie_villager_v2";
 const SILVERFISH: &str = "minecraft:silverfish";
+const SLIME: &str = "minecraft:slime";
+const MAGMA_CUBE: &str = "minecraft:magma_cube";
 
 pub(super) fn block(name: &str) -> u32 {
     BlockRegistry::vanilla()
@@ -194,7 +196,7 @@ impl Arena {
             .set_block(x, y, z, state);
     }
 
-    fn move_player(&mut self, feet: DVec3) {
+    pub(super) fn move_player(&mut self, feet: DVec3) {
         let player = self.player;
         self.world().get_mut::<Position>(player).unwrap().0 =
             feet + DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
@@ -545,6 +547,8 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SLIME,
+        MAGMA_CUBE,
     ] {
         let mut a = floor(15, Difficulty::Normal, GameMode::Creative);
         let near = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -562,7 +566,7 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 11] = [
+    let cases: [(&str, &[&str], &str); 13] = [
         (SKELETON, &["skeleton", "undead", "monster", "mob"], "stray"),
         (
             STRAY,
@@ -614,6 +618,8 @@ fn listed_mobs_belong_to_their_authored_families() {
             &["silverfish", "monster", "mob", "arthropod"],
             "undead",
         ),
+        (SLIME, &["slime", "monster", "mob"], "magmacube"),
+        (MAGMA_CUBE, &["magmacube", "monster", "mob"], "slime"),
     ];
     let mut a = floor(17, Difficulty::Normal, GameMode::Creative);
     for (identifier, families, absent) in cases {
@@ -848,6 +854,8 @@ fn listed_hostile_mobs_ignore_creative_players() {
         ZOGLIN,
         ZOMBIE_VILLAGER,
         SILVERFISH,
+        SLIME,
+        MAGMA_CUBE,
     ] {
         let mut a = floor(25, Difficulty::Hard, GameMode::Creative);
         a.move_player(DVec3::new(4.5, SURFACE, 0.5));
