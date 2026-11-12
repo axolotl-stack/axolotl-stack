@@ -889,10 +889,13 @@ kept on disk untouched; players see a gap there until it is repaired. A
 stored subchunk, biome or block-entity record that doesn't decode fails the load
 of its column the same way, in both providers, rather than loading as air.
 
-Sub-chunks saved by BDS 1.26.51 load block for block. Each sub-chunk storage says
-in the low bit of its header how its palette is written: BDS writes block names
-and states as NBT (resolved through `BlockRegistry::state_by_properties`),
-unastar writes runtime ids. Reading follows what BDS reads: the key places a
+Sub-chunks are saved as BDS 1.26.51 saves them, and those BDS saved load block for block.
+Each sub-chunk storage says in the low bit of its header how its palette is
+written: as block names and states in NBT (`{name, states, version}`, resolved
+through `BlockRegistry::state_by_properties`), the form BDS writes and unastar
+writes, or as runtime ids, the form unastar wrote before (still read; a column
+saved that way is rewritten in BDS's form the next time it is saved). Reading
+follows what BDS reads: the key places a
 record whatever its Y byte, bytes after the last storage are skipped, and a
 palette may list more entries than its bit width indexes. Damage that BDS would
 paper over fails the column instead: an index past its palette, or an unknown
@@ -902,10 +905,21 @@ written by `tools/bds-sweep/subchunk_fixture.py`). Block names and states are
 not upgraded, so a sub-chunk an older Bedrock version wrote with a block or
 state renamed since fails its column too.
 
-Saving still writes runtime ids, which BDS reads as air (OpenSpec change
-`persist-block-states-by-name`). A column is saved again after any edit and
-whenever it holds or held actors, so running unastar on a BDS world makes those
-columns unreadable to BDS: use a copy of the world.
+Sub-chunk records are saved as BDS writes them when a chunk unloads, byte for
+byte: palette entries in the order edits added them, the smallest width that holds them, a
+changed section's unused entries dropped only when that narrows the width, a
+second storage once a section has held a waterlogged block, no record for a
+section of air, and unchanged sections exactly as they were read
+(`tests/bds_subchunks.rs` against BDS's records after the same edits,
+`tests/fixtures/bds_1_26_51_subchunk_edits.json`; BDS reopened worlds unastar
+edited and generated, `tools/bds-sweep/subchunk_roundtrip.py`), so BDS worlds can
+be served in place. Biomes go to Data3D with
+the "same as below" marker only above the last stored section: BDS stops loading a
+chunk with the marker under a stored section. Its heights are relative to y -64 and
+it has 24 sections in every dimension, where BDS uses the dimension's bottom and
+height. The column's other records differ from BDS's too: version 41 where BDS
+writes 42, and none of the per-chunk records BDS adds (`0x3f`, `0x40`, `0x41`) or
+deletes (`0x77`) on save. BDS loads unastar's columns either way.
 Loaded columns start clean, while generated or edited columns are saved on
 unload and shutdown. A chunk whose save before unload fails stays loaded, with
 its edits and mobs. Its unload is retried with a per-chunk exponential backoff

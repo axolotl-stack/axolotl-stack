@@ -103,14 +103,16 @@ impl RegistryEntry for BlockEntry {
 
 /// A block-state property value as saved worlds store it: one field of a
 /// palette entry's `states` compound, borrowed from the bytes it was read from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Fixtures spell it `{"byte": 1}`, `{"int": 0}` or `{"str": "bottom"}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SavedStateValue<'a> {
     /// `TAG_Byte` (booleans such as `open_bit`).
     Byte(u8),
     /// `TAG_Int`.
     Int(i32),
     /// `TAG_String`.
-    Str(&'a str),
+    Str(#[serde(borrow)] &'a str),
 }
 
 impl SavedStateValue<'_> {

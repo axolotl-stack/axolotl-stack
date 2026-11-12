@@ -6,9 +6,8 @@
 //!
 //! Implementations:
 //! - LevelDB (default) - Bedrock's key layout and table format; loads worlds BDS
-//!   saved, but saves sub-chunk palettes as runtime ids, which BDS reads as air,
-//!   so a BDS world should be served from a copy (OpenSpec change
-//!   `persist-block-states-by-name`)
+//!   saved and saves sub-chunks as BDS does, block names and states in every
+//!   palette (`world::chunk`), so BDS worlds can be served in place
 //! - BlazeDB - high-performance with spatial indexing
 
 mod keys;
