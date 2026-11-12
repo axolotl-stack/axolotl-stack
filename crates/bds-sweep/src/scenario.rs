@@ -226,6 +226,8 @@ pub enum Effect {
     JumpBoost,
     SlowFalling,
     Levitation,
+    /// No movement effect: keeps a player in lava alive.
+    FireResistance,
 }
 
 impl Effect {
@@ -237,6 +239,7 @@ impl Effect {
             Effect::JumpBoost => "jump_boost",
             Effect::SlowFalling => "slow_falling",
             Effect::Levitation => "levitation",
+            Effect::FireResistance => "fire_resistance",
         }
     }
 }
@@ -473,9 +476,12 @@ impl Scenario {
             .unwrap_or(0)
     }
 
-    /// The body at the start, at rest.
+    /// The body at the start, at rest and on the ground: BDS's `/tp` leaves
+    /// its copy on the ground (the teleport's `MovePlayer` says so too), even
+    /// in the air, until the first move.
     pub fn start_body(&self) -> Body {
         let mut body = Body::at(self.start.feet);
+        body.on_ground = true;
         body.jump_boost = self.effect_level(Effect::JumpBoost);
         body.slow_falling = self.effect_level(Effect::SlowFalling) > 0;
         body

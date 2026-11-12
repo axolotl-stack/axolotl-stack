@@ -10,8 +10,9 @@
 //! movements checked that way.
 //!
 //! One tick on land: friction and acceleration from the block under the feet
-//! (`0.91 × friction` on the ground, where the input accelerates by
-//! `speed × 0.16277136 / friction³`; 0.02 in the air, 0.026 sprinting), the
+//! (`0.91 × friction` on the ground, where the input accelerates by the
+//! speed times `(0.546 / f)³`, rounded after each factor; 0.02 in the air,
+//! 0.026 sprinting), the
 //! move vector × 0.98 turned by the yaw, the jump (0.42 up, 0.2 forward when
 //! sprinting, then a 10-tick delay while the key stays down), the sneak's
 //! edge avoidance, collisions on y, then x, then z with a 0.5625 step, the
@@ -36,9 +37,9 @@ pub const SLOW_FALLING_GRAVITY: f32 = 0.01;
 const VERTICAL_DRAG: f32 = 0.98;
 /// Horizontal friction in the air (times the block's friction on ground).
 const AIR_FRICTION: f32 = 0.91;
-/// Input acceleration on the ground is `speed × GROUND_FACTOR / f³`, `f`
-/// the ground friction (0.546 on ordinary blocks, where it is the speed).
-const GROUND_FACTOR: f32 = 0.162_771_36;
+/// Friction of ordinary ground (0.6) in the air's 0.91: the reference of the
+/// ground acceleration.
+const BASE_GROUND_FRICTION: f32 = AIR_FRICTION * 0.6;
 /// Input acceleration in the air, and while sprinting.
 const AIR_SPEED: f32 = 0.02;
 const AIR_SPEED_SPRINTING: f32 = 0.026;
@@ -53,7 +54,7 @@ pub const JUMP_DELAY: u8 = 10;
 pub const STEP_HEIGHT: f32 = 0.5625;
 /// The move vector is scaled by this before it accelerates the player.
 const IMPULSE_SCALE: f32 = 0.98;
-/// Largest move-vector component while sneaking.
+/// The move vector's factor while sneaking.
 const SNEAK_IMPULSE: f32 = 0.3;
 /// Default `minecraft:movement`, and its sprinting value (×1.3).
 pub const WALK_SPEED: f32 = 0.1;
@@ -340,6 +341,10 @@ pub struct Body {
     /// The last tick's move collided horizontally / vertically.
     pub horizontal_collision: bool,
     pub vertical_collision: bool,
+    /// The box the last move left, with the feet and pose it was left at.
+    /// Moves translate the box and the feet are its centre, so a box rebuilt
+    /// from the rounded feet differs by an ULP; BDS keeps the box.
+    swept: Option<(Aabb, [f32; 3], Pose)>,
 }
 
 impl Body {
@@ -360,6 +365,7 @@ impl Body {
             slow_falling: false,
             horizontal_collision: false,
             vertical_collision: false,
+            swept: None,
         }
     }
 
@@ -373,8 +379,13 @@ impl Body {
         }
     }
 
+    /// The collision box: the one the last move left while the feet and
+    /// pose are unchanged since, else rebuilt at the feet.
     pub fn aabb(&self) -> Aabb {
-        Aabb::from_feet(self.feet, WIDTH, self.pose().height())
+        match self.swept {
+            Some((aabb, feet, pose)) if feet == self.feet && pose == self.pose() => aabb,
+            _ => Aabb::from_feet(self.feet, WIDTH, self.pose().height()),
+        }
     }
 
     /// The wire position.
@@ -508,19 +519,45 @@ fn finish_sprint(body: &mut Body, stop: bool, changes: &Changes) {
 
 /// The move vector's acceleration at `speed`, turned by the yaw.
 fn move_relative(body: &mut Body, controls: &Controls, speed: f32) {
-    let limit = if body.sneaking { SNEAK_IMPULSE } else { 1.0 };
-    let forward = controls.forward.clamp(-limit, limit) * IMPULSE_SCALE;
-    let strafe = controls.strafe.clamp(-limit, limit) * IMPULSE_SCALE;
+    let [strafe, forward] = impulse(body, controls);
     let force = forward * forward + strafe * strafe;
     if force < 1.0e-4 {
         return;
     }
     let scale = speed / force.sqrt().max(1.0);
-    let (forward, strafe) = (forward * scale, strafe * scale);
-    let yaw = controls.yaw * std::f32::consts::PI / 180.0;
-    let (sin, cos) = (table_sin(yaw), table_cos(yaw));
+    // The input turns by the exact sine and cosine (the sine table is only
+    // the sprint jump's): yaw 37.5 matches BDS only this way.
+    let (sin, cos) = controls.yaw.to_radians().sin_cos();
+    let (strafe, forward) = (strafe * scale, forward * scale);
     body.velocity[0] += strafe * cos - forward * sin;
-    body.velocity[2] += forward * cos + strafe * sin;
+    body.velocity[2] += strafe * sin + forward * cos;
+}
+
+/// The move vector as the move uses it, `[strafe, forward]`: the keys as
+/// sent, brought onto the unit circle when longer, slowed by the sneak
+/// (a factor, so a diagonal stays diagonal), then scaled by 0.98.
+fn impulse(body: &Body, controls: &Controls) -> [f32; 2] {
+    let (mut strafe, mut forward) = (controls.strafe, controls.forward);
+    let length_sq = forward * forward + strafe * strafe;
+    if length_sq > 1.0 {
+        let length = length_sq.sqrt();
+        strafe /= length;
+        forward /= length;
+    }
+    if body.sneaking {
+        strafe *= SNEAK_IMPULSE;
+        forward *= SNEAK_IMPULSE;
+    }
+    [strafe * IMPULSE_SCALE, forward * IMPULSE_SCALE]
+}
+
+/// The input acceleration on ground of friction `friction` (with the air's
+/// 0.91): the speed scaled by `0.546 / friction` three times, each product
+/// rounded to `f32` (BDS 1.26.51 accelerates exactly `speed` on stone; a
+/// precomputed cube is off by an ULP).
+fn ground_acceleration(speed: f32, friction: f32) -> f32 {
+    let ratio = BASE_GROUND_FRICTION / friction;
+    speed * ratio * ratio * ratio
 }
 
 /// The block under the feet that sets friction (half a block down).
@@ -553,7 +590,7 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
     };
     if body.on_ground {
         friction *= friction_block(body, terrain).friction;
-        speed = body.movement_speed * (GROUND_FACTOR / (friction * friction * friction));
+        speed = ground_acceleration(body.movement_speed, friction);
     }
     move_relative(body, controls, speed);
     if controls.jump && body.on_ground && body.jump_delay == 0 {
@@ -789,6 +826,7 @@ fn move_and_collide(body: &mut Body, terrain: &impl Terrain) {
         }
     }
     body.feet = bb.feet();
+    body.swept = Some((bb, body.feet, body.pose()));
     let x_hit = hit(0, &moved);
     let y_hit = hit(1, &moved);
     let z_hit = hit(2, &moved);

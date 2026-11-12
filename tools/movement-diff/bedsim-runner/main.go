@@ -189,6 +189,15 @@ var effectIDs = map[string]int32{
 	"levitation":   packet.EffectLevitation,
 }
 
+// newerStates are BDS 1.26.51 block states Dragonfly does not have; a block
+// is looked up without them (Dragonfly computes stair corners and fence
+// connections from the neighbours).
+var newerStates = []string{
+	"minecraft:corner",
+	"minecraft:connection_east", "minecraft:connection_north",
+	"minecraft:connection_south", "minecraft:connection_west",
+}
+
 // states converts the corpus's JSON states to Dragonfly's property types.
 func states(in map[string]any) map[string]any {
 	out := make(map[string]any, len(in))
@@ -206,7 +215,15 @@ func states(in map[string]any) map[string]any {
 func buildWorld(s scenario) (blockWorld, error) {
 	w := blockWorld{}
 	for _, f := range s.World {
-		b, ok := world.BlockByName(f.Block.Name, states(f.Block.States))
+		props := states(f.Block.States)
+		b, ok := world.BlockByName(f.Block.Name, props)
+		if !ok {
+			// States newer than Dragonfly's block palette.
+			for _, newer := range newerStates {
+				delete(props, newer)
+			}
+			b, ok = world.BlockByName(f.Block.Name, props)
+		}
 		if !ok {
 			return nil, fmt.Errorf("dragonfly has no block %s %v", f.Block.Name, f.Block.States)
 		}
@@ -245,7 +262,10 @@ func run(s scenario) (scenarioTrace, error) {
 	}
 	fx := effects{}
 	for _, e := range s.Start.Effects {
-		fx[effectIDs[e.Effect]] = e.Amplifier
+		// Effects without a movement effect (fire resistance) are skipped.
+		if id, ok := effectIDs[e.Effect]; ok {
+			fx[id] = e.Amplifier
+		}
 	}
 	sim := bedsim.Simulator{
 		World:     w,
@@ -266,13 +286,15 @@ func run(s scenario) (scenarioTrace, error) {
 		AirSpeed:             bedsim.WalkAirSpeed,
 		Gravity:              bedsim.NormalGravity,
 		HasGravity:           true,
-		Ready:                true,
-		Alive:                true,
-		HasFirstInput:        true,
-		GameMode:             packet.GameTypeSurvival,
-		TicksSinceKnockback:  1,
-		TicksSinceTeleport:   1,
-		Rotation:             mgl32.Vec3{s.Start.Pitch, s.Start.Yaw, s.Start.Yaw},
+		// BDS's teleport leaves the player on the ground until the first move.
+		OnGround:            true,
+		Ready:               true,
+		Alive:               true,
+		HasFirstInput:       true,
+		GameMode:            packet.GameTypeSurvival,
+		TicksSinceKnockback: 1,
+		TicksSinceTeleport:  1,
+		Rotation:            mgl32.Vec3{s.Start.Pitch, s.Start.Yaw, s.Start.Yaw},
 	}
 	state.Client.Pos = state.Pos
 	velocities := map[int]mgl32.Vec3{}
