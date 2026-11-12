@@ -41,7 +41,7 @@ fn a_flooding_client_is_disconnected_with_a_reason() {
     let mut config = UnastarConfig::default();
     config.server.bind_address = format!("127.0.0.1:{port}");
     config.server.online_mode = false;
-    config.server.default_chunk_radius = 2;
+    config.server.max_chunk_radius = 2;
     config.world = unastar::world::WorldConfig::void_spawn_platform(1);
     config.players.data_dir = directory.path().join("players");
     config.spawn_rules = vec![SpawnRule {

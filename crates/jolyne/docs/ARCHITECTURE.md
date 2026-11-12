@@ -125,7 +125,8 @@ phase with `ProtocolError::DeferredOverflow`.
   `Manual` waits for `flush()`; `Interval(d)` arms a timer at the first queued
   packet (`poll_timeout` / `handle_timeout`). In every mode the pending batch is
   also sealed when it reaches `max_packets_per_outbound_batch` (812) or
-  `max_pending_bytes` (4 MiB), and before compression or encryption is enabled:
+  `max_pending_bytes` (256 KiB, so a sealed batch stays under the 512 split
+  parts a RakNet peer reassembles), and before compression or encryption is enabled:
   `NetworkSettings` and `ServerToClientHandshake` therefore always leave in the
   old format. `send_batch` / `send_batch_raw` seal what is pending and then send
   their packets as one batch (split only at the per-batch limits).

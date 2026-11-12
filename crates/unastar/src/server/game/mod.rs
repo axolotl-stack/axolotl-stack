@@ -74,8 +74,8 @@ use crate::storage::PlayerData;
 use crate::world::ChunkManager;
 use crate::world::ecs::{
     AwaitingSpawnStatus, BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkPosition,
-    ChunkTickingState, LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent,
-    PlayerSpawnedEvent, on_block_changed, register_chunk_systems,
+    ChunkTickingState, ColumnLoads, LastPublisherState, PlayerDespawnedEvent, PlayerSpawnedEvent,
+    StreamStats, on_block_changed, register_chunk_systems,
 };
 
 // Re-export public types
@@ -396,7 +396,8 @@ impl GameServer {
             .insert_resource(ChunkManager::new(world_config));
         ecs.world_mut()
             .insert_resource(ChunkLoadConfig::from_server_config(&config));
-        ecs.world_mut().init_resource::<PendingChunkGenerations>();
+        ecs.world_mut().init_resource::<ColumnLoads>();
+        ecs.world_mut().init_resource::<StreamStats>();
         ecs.world_mut().init_resource::<ChunkTickingState>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<BlockBroadcastEvent>>();
@@ -535,6 +536,21 @@ impl GameServer {
                 .after(crate::entity::mob::derive_mob_state)
                 .before(tick_physics),
         );
+        // Stage markers inside the physics set (see `TickStages`).
+        ecs.schedule_mut().add_systems((
+            crate::ecs::stage_marker("physics: mob ai")
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::derive_mob_state)
+                .before(crate::entity::mob::ai::tick_mob_ai),
+            crate::ecs::stage_marker("physics: bodies")
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::ai::push_mobs)
+                .before(tick_physics),
+            crate::ecs::stage_marker("physics: projectiles")
+                .in_set(PhysicsSet)
+                .after(tick_physics)
+                .before(crate::entity::projectile::tick_projectiles),
+        ));
 
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
@@ -741,6 +757,14 @@ impl GameServer {
     }
 
     pub async fn save_all_chunks(&mut self) -> SaveCounts {
+        // Unloaded columns still being written finish first; one whose write
+        // failed comes back as a loaded chunk and is saved again below.
+        if let Some(mut loads) = self.ecs.world_mut().remove_resource::<ColumnLoads>() {
+            loads.finish_saves().await;
+            let held = loads.take_held();
+            self.ecs.world_mut().insert_resource(loads);
+            crate::world::ecs::restore_held_columns(self.ecs.world_mut(), held);
+        }
         let Some((provider, dimension)) =
             self.ecs
                 .world()
@@ -877,6 +901,18 @@ impl GameServer {
         saved
     }
 
+    /// Gives a spawned player's session the transport's send queue, which
+    /// chunk streaming reads to stay under the transport's queue limit.
+    pub fn attach_send_queue(
+        &mut self,
+        player: Entity,
+        probe: jolyne::stream::transport::SendQueueProbe,
+    ) {
+        if let Some(mut session) = self.ecs.world_mut().get_mut::<PlayerSession>(player) {
+            session.set_send_queue(probe);
+        }
+    }
+
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
         let player_uuid = data
             .uuid
@@ -889,11 +925,7 @@ impl GameServer {
         let chunk_x = (position.0.x / 16.0).floor() as i32;
         let chunk_z = (position.0.z / 16.0).floor() as i32;
 
-        let mut chunk_loader = ChunkLoader::new(data.chunk_radius);
-        chunk_loader.move_to(chunk_x, chunk_z);
-        if !chunk_loader.has_pending() {
-            chunk_loader.force_reload();
-        }
+        let chunk_loader = ChunkLoader::new_at(data.chunk_radius, (chunk_x, chunk_z));
 
         let config = &self
             .ecs
@@ -1351,19 +1383,19 @@ mod tests {
         }
     }
 
-    /// The synchronous chunk-load system drops a request whose storage read
-    /// fails: the tick doesn't panic, no chunk entity is created, the chunk
-    /// isn't marked loaded for the player and no `LevelChunk` is sent.
+    /// Streaming drops a column whose storage read fails: the tick doesn't
+    /// panic, no chunk entity is created (nothing is generated over it), the
+    /// chunk isn't marked loaded for the player and no `LevelChunk` is sent.
     #[test]
-    fn a_storage_read_error_on_the_sync_load_path_drops_the_request() {
+    fn a_storage_read_error_drops_the_request() {
         let mut server = void_server();
         assert!(
             !server
                 .ecs
                 .world()
                 .resource::<ChunkManager>()
-                .has_async_generation(),
-            "the void world loads chunks on the synchronous path"
+                .has_generation_pool(),
+            "the void world generates inline, right after a storage miss"
         );
         server
             .ecs
@@ -1394,8 +1426,21 @@ mod tests {
             "the player starts with chunks to load"
         );
 
-        for _ in 0..3 {
+        // Reads finish in the background; each failure leaves the queue.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
             server.tick();
+            let world = server.ecs.world();
+            if !world.get::<ChunkLoader>(player).unwrap().has_pending()
+                && world.resource::<crate::world::ecs::ColumnLoads>().is_idle()
+            {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the reads never finished"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
         }
 
         let world = server.ecs.world_mut();
@@ -1914,7 +1959,6 @@ mod tests {
     #[test]
     fn player_spawn_sets_join_chunk_gate_without_network_io() {
         let mut server = GameServer::with_config(ServerConfig {
-            default_chunk_radius: 2,
             max_chunk_radius: 4,
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
@@ -1942,8 +1986,9 @@ mod tests {
 
             let chunk_loader = world.get::<ChunkLoader>(entity).expect("chunk loader");
             assert_eq!(chunk_loader.position(), (0, 0));
-            assert_eq!(chunk_loader.queue_len(), 25);
-            assert_eq!(chunk_loader.peek_next_to_load(), Some((0, 0)));
+            // The view disk of radius 2: dx² + dz² <= 9.
+            assert_eq!(chunk_loader.queue_len(), 29);
+            assert_eq!(chunk_loader.queue().first(), Some(&(0, 0)));
             assert!(
                 chunk_loader.has_pending(),
                 "spawn should leave chunk publish work queued for the join gate"
@@ -1971,13 +2016,12 @@ mod tests {
     }
 
     /// The streamed spawn hands the player over at its radius request, before
-    /// `PlayStatus(PlayerSpawn)`. The first tick sends BDS's order: the view
-    /// (`NetworkChunkPublisherUpdate`), the chunks it has, then `PlayerSpawn`
-    /// once; the rest of the view keeps streaming on later ticks.
+    /// `PlayStatus(PlayerSpawn)`. The first tick sends the view
+    /// (`NetworkChunkPublisherUpdate`) and then `PlayerSpawn`, once; the
+    /// terrain, loaded in the background, follows the view.
     #[test]
-    fn first_tick_after_join_sends_view_chunks_then_player_spawn() {
+    fn first_tick_after_join_sends_view_then_player_spawn_and_terrain_follows() {
         let mut server = GameServer::with_config(ServerConfig {
-            default_chunk_radius: 4,
             max_chunk_radius: 4,
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
@@ -1997,48 +2041,158 @@ mod tests {
             })
             .expect("fresh player spawns");
         let mut drain = || {
-            let mut packets = Vec::new();
+            let mut names = Vec::new();
             while let Ok(packet) = outbound_rx.try_recv() {
-                packets.push(packet);
+                names.push(packet.data.packet_id());
             }
-            packets
+            names
         };
-        let names = |packets: &[jolyne::valentine::McpePacket]| -> Vec<_> {
-            packets
-                .iter()
-                .map(|packet| packet.data.packet_id())
-                .collect()
-        };
-        let joined = drain();
         assert!(
-            !names(&joined).contains(&McpePacketName::PlayStatusPacket),
+            !drain().contains(&McpePacketName::PlayStatusPacket),
             "PlayerSpawn waits for the first view"
         );
 
         server.tick();
-        let first = names(&drain());
+        let first = drain();
         let position = |name| first.iter().position(|sent| *sent == name);
         let publisher = position(McpePacketName::NetworkChunkPublisherUpdatePacket)
             .unwrap_or_else(|| panic!("no publisher update on the first tick: {first:?}"));
-        let first_chunk = position(McpePacketName::LevelChunkPacket)
-            .unwrap_or_else(|| panic!("no chunk on the first tick: {first:?}"));
         let spawn = position(McpePacketName::PlayStatusPacket)
             .unwrap_or_else(|| panic!("no PlayerSpawn on the first tick: {first:?}"));
-        assert!(publisher < first_chunk && first_chunk < spawn, "{first:?}");
-        let chunks = |names: &[McpePacketName]| {
-            names
-                .iter()
-                .filter(|name| **name == McpePacketName::LevelChunkPacket)
-                .count()
-        };
+        assert!(publisher < spawn, "{first:?}");
 
-        server.tick();
-        let second = names(&drain());
-        assert!(chunks(&second) > 0, "the view keeps streaming: {second:?}");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut later = Vec::new();
+        while !later.contains(&McpePacketName::LevelChunkPacket) {
+            assert!(std::time::Instant::now() < deadline, "no terrain followed");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+            server.tick();
+            later.extend(drain());
+        }
         assert!(
-            !second.contains(&McpePacketName::PlayStatusPacket),
+            !later.contains(&McpePacketName::PlayStatusPacket),
             "PlayerSpawn is sent once"
         );
+    }
+
+    /// The view streams within the player's send window: the first tick sends
+    /// one window of columns nearest first, nothing more goes out until the
+    /// client requests sub-chunks, and every request lets more through until
+    /// the whole view arrived, each column once.
+    #[test]
+    fn the_view_streams_within_the_acknowledged_send_window() {
+        use super::packet_queues::{ChunkAction, ChunkPacketQueue};
+        use crate::world::ecs::SendWindow;
+        use jolyne::valentine::SubChunkRequestPacket;
+        use jolyne::valentine::types::{
+            DimensionType, SubChunkPacketPayloadSubChunkPosOffset, SubChunkPos,
+        };
+
+        let radius = 8;
+        let mut server = GameServer::with_config(ServerConfig {
+            max_chunk_radius: radius,
+            world: crate::world::WorldConfig {
+                generator: crate::world::WorldGenerator::SuperFlat,
+                ..crate::world::WorldConfig::default()
+            },
+            ..ServerConfig::default()
+        });
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(4096);
+        let player = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 42,
+                display_name: "streamer".to_string(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000043".to_string()),
+                runtime_id: 7,
+                position: DVec3::new(0.5, -50.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: radius,
+            })
+            .expect("fresh player spawns");
+        // Columns that arrived this tick, in order.
+        let mut columns = || {
+            let mut columns = Vec::new();
+            while let Ok(packet) = outbound_rx.try_recv() {
+                if let McpePacketData::LevelChunkPacket(chunk) = packet.data {
+                    assert!(chunk.client_request_sub_chunk_limit.unwrap_or(0) > 0);
+                    columns.push((chunk.chunk_position.x, chunk.chunk_position.z));
+                }
+            }
+            columns
+        };
+
+        // Ticks until `ticks` in a row sent nothing new, giving the background
+        // loads time; returns what was sent.
+        let mut settle = |server: &mut GameServer, ticks: usize| {
+            let mut sent = Vec::new();
+            let mut quiet = 0;
+            for _ in 0..2000 {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                server.tick();
+                let more = columns();
+                quiet = if more.is_empty() { quiet + 1 } else { 0 };
+                sent.extend(more);
+                if quiet >= ticks && !sent.is_empty() {
+                    break;
+                }
+            }
+            sent
+        };
+
+        let first = settle(&mut server, 20);
+        assert_eq!(
+            first.len(),
+            SendWindow::INITIAL,
+            "one window, then nothing more without requests"
+        );
+
+        // The view disk: dx² + dz² <= (radius + 1)².
+        let in_view = |(x, z): (i32, i32)| x * x + z * z <= (radius + 1) * (radius + 1);
+        let view = (-radius - 1..=radius + 1)
+            .flat_map(|x| (-radius - 1..=radius + 1).map(move |z| (x, z)))
+            .filter(|&c| in_view(c))
+            .count();
+        let mut received: Vec<(i32, i32)> = first.clone();
+        let mut unacked = first;
+        for _ in 0..100 {
+            // The client requests every column it got, like load_bench does.
+            let requests = unacked.drain(..).map(|(x, z)| {
+                (
+                    player,
+                    ChunkAction::SubchunkRequest(SubChunkRequestPacket {
+                        dimension_type: DimensionType { value: 0 },
+                        sub_chunk_position_offset_list: vec![
+                            SubChunkPacketPayloadSubChunkPosOffset::default(),
+                        ],
+                        center_pos: SubChunkPos {
+                            subchunk_position_x: x,
+                            subchunk_position_y: -4,
+                            subchunk_position_z: z,
+                        },
+                    }),
+                )
+            });
+            server
+                .ecs
+                .world_mut()
+                .resource_mut::<ChunkPacketQueue>()
+                .0
+                .extend(requests);
+            // The requests reopen the window.
+            let more = settle(&mut server, 5);
+            assert!(!more.is_empty(), "requests reopen the window");
+            received.extend(&more);
+            unacked = more;
+            if received.len() >= view {
+                break;
+            }
+        }
+        let distinct: std::collections::HashSet<_> = received.iter().copied().collect();
+        assert_eq!(received.len(), view, "every column once");
+        assert_eq!(distinct.len(), view);
+        assert!(distinct.iter().all(|&c| in_view(c)));
     }
 }
 

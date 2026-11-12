@@ -1,0 +1,245 @@
+[
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "order",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1143.3616,
+        "first_chunk_ms": 556.2080000000001,
+        "flight": null,
+        "join_ms": 555.2418,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 1278.5614999999998,
+        "terrain_bytes": 20043115
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-order.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1143.3616,
+    "worst_square_view_ms": 1278.5614999999998
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "order",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2271.0696000000003,
+        "first_chunk_ms": 462.0968,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 0.0002,
+          "chunks_per_second": 46.25,
+          "missing_disk_max": 0.0022675736961451248,
+          "missing_disk_mean": 0.000890022675736961,
+          "nearest_missing_at_worst": 12.0,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 313.5417,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2664.7242,
+        "terrain_bytes": 20032140
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-order.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2271.0696000000003,
+    "worst_square_view_ms": 2664.7242
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "order",
+    "players": 8,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2434.4741,
+        "first_chunk_ms": 473.1879,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 203.7487,
+          "chunks_per_second": 42.5,
+          "missing_disk_max": 0.015873015873015872,
+          "missing_disk_mean": 0.001513605442176872,
+          "nearest_missing_at_worst": 11.045361017187261,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 343.3491,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2823.0064,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2436.4796,
+        "first_chunk_ms": 473.6205,
+        "flight": {
+          "blocks_flown": 600.0012817382812,
+          "catch_up_ms": 1743.707,
+          "chunks_per_second": 49.9,
+          "missing_disk_max": 0.17913832199546487,
+          "missing_disk_mean": 0.023197278911564635,
+          "nearest_missing_at_worst": 9.219544457292887,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 331.8983,
+        "name": "LoadBot1",
+        "square_chunks": 625,
+        "square_view_ms": 2823.9106,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2435.7257,
+        "first_chunk_ms": 473.5093,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 400.74989999999997,
+          "chunks_per_second": 41.3,
+          "missing_disk_max": 0.049886621315192746,
+          "missing_disk_mean": 0.002766439909297051,
+          "nearest_missing_at_worst": 10.44030650891055,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 336.609,
+        "name": "LoadBot2",
+        "square_chunks": 625,
+        "square_view_ms": 2825.3437999999996,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2431.9841,
+        "first_chunk_ms": 473.5509,
+        "flight": {
+          "blocks_flown": 600.000244140625,
+          "catch_up_ms": 2443.1023,
+          "chunks_per_second": 49.1,
+          "missing_disk_max": 0.24036281179138322,
+          "missing_disk_mean": 0.034705215419501154,
+          "nearest_missing_at_worst": 8.48528137423857,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 378.96639999999996,
+        "name": "LoadBot3",
+        "square_chunks": 625,
+        "square_view_ms": 2824.5515,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2441.2097,
+        "first_chunk_ms": 473.6835,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 2493.1654,
+          "chunks_per_second": 35.7,
+          "missing_disk_max": 0.30385487528344673,
+          "missing_disk_mean": 0.04624149659863942,
+          "nearest_missing_at_worst": 7.810249675906654,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 379.1958,
+        "name": "LoadBot4",
+        "square_chunks": 625,
+        "square_view_ms": 2823.7766,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2437.3195,
+        "first_chunk_ms": 473.8769,
+        "flight": {
+          "blocks_flown": 600.0006713867188,
+          "catch_up_ms": 2594.9252,
+          "chunks_per_second": 48.1,
+          "missing_disk_max": 0.30839002267573695,
+          "missing_disk_mean": 0.04733560090702948,
+          "nearest_missing_at_worst": 7.810249675906654,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 375.7197,
+        "name": "LoadBot5",
+        "square_chunks": 625,
+        "square_view_ms": 2823.9516999999996,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2433.5787,
+        "first_chunk_ms": 473.1204,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 1045.2489,
+          "chunks_per_second": 40.95,
+          "missing_disk_max": 0.09297052154195011,
+          "missing_disk_mean": 0.008594104308390024,
+          "nearest_missing_at_worst": 10.44030650891055,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 347.88829999999996,
+        "name": "LoadBot6",
+        "square_chunks": 625,
+        "square_view_ms": 2824.2815,
+        "terrain_bytes": 20054026
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2438.7176,
+        "first_chunk_ms": 473.65160000000003,
+        "flight": {
+          "blocks_flown": 600.001708984375,
+          "catch_up_ms": 2196.7808,
+          "chunks_per_second": 50.2,
+          "missing_disk_max": 0.2108843537414966,
+          "missing_disk_mean": 0.029705215419501135,
+          "nearest_missing_at_worst": 8.94427190999916,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 336.6062,
+        "name": "LoadBot7",
+        "square_chunks": 625,
+        "square_view_ms": 2824.57,
+        "terrain_bytes": 20054026
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-order.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2441.2097,
+    "worst_square_view_ms": 2825.3437999999996
+  }
+]

@@ -73,27 +73,66 @@ pub(crate) fn client_bind_addr(server: SocketAddr, configured: Option<SocketAddr
     SocketAddr::new(ip, 0)
 }
 
-/// RTT estimate in microseconds shared between a muxer (writer) and its
-/// `RaknetStream` (reader); `u64::MAX` means no sample yet.
+/// Link state shared between a muxer (writer) and its `RaknetStream` and
+/// [`LinkMonitor`]s (readers): the RTT estimate and the reliable bytes queued
+/// towards the peer.
 #[derive(Clone, Debug)]
-pub(crate) struct RttCell(std::sync::Arc<std::sync::atomic::AtomicU64>);
+pub(crate) struct LinkCell(std::sync::Arc<LinkState>);
 
-impl RttCell {
+#[derive(Debug)]
+struct LinkState {
+    /// Microseconds; `u64::MAX` means no sample yet.
+    rtt_micros: std::sync::atomic::AtomicU64,
+    queued_bytes: std::sync::atomic::AtomicUsize,
+}
+
+impl LinkCell {
     pub(crate) fn new() -> Self {
-        Self(std::sync::Arc::new(std::sync::atomic::AtomicU64::new(
-            u64::MAX,
-        )))
+        Self(std::sync::Arc::new(LinkState {
+            rtt_micros: std::sync::atomic::AtomicU64::new(u64::MAX),
+            queued_bytes: std::sync::atomic::AtomicUsize::new(0),
+        }))
     }
 
-    pub(crate) fn store(&self, micros: u64) {
-        self.0.store(micros, std::sync::atomic::Ordering::Relaxed);
+    /// Publishes the session's current RTT and queued reliable bytes.
+    pub(crate) fn store(&self, managed: &crate::session::manager::ManagedSession) {
+        use std::sync::atomic::Ordering::Relaxed;
+        self.0.rtt_micros.store(managed.rtt_micros(), Relaxed);
+        self.0
+            .queued_bytes
+            .store(managed.queued_reliable_bytes(), Relaxed);
     }
 
-    pub(crate) fn load(&self) -> Option<std::time::Duration> {
-        match self.0.load(std::sync::atomic::Ordering::Relaxed) {
+    pub(crate) fn rtt(&self) -> Option<std::time::Duration> {
+        match self.0.rtt_micros.load(std::sync::atomic::Ordering::Relaxed) {
             u64::MAX => None,
             micros => Some(std::time::Duration::from_micros(micros)),
         }
+    }
+
+    fn queued_bytes(&self) -> usize {
+        self.0
+            .queued_bytes
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+/// A read-only view of one connection's link, usable without the stream
+/// (for example by the code that decides what to send next).
+#[derive(Clone, Debug)]
+pub struct LinkMonitor(LinkCell);
+
+impl LinkMonitor {
+    /// Smoothed round-trip time, once measured.
+    pub fn rtt(&self) -> Option<std::time::Duration> {
+        self.0.rtt()
+    }
+
+    /// Reliable bytes queued towards the peer and counted against
+    /// `max_queued_reliable_bytes` (`Optimized`: not yet sent; `Vanilla`: not
+    /// yet acknowledged), as of the session's last flush.
+    pub fn queued_bytes(&self) -> usize {
+        self.0.queued_bytes()
     }
 }
 

@@ -111,7 +111,7 @@ Outbound packets SHALL be framed into a pending batch sealed by the `FlushMode` 
 
 #### Scenario: Default bounds
 - **WHEN** `ConnectionOptions::default()` is used
-- **THEN** batches auto-seal at 812 packets or 4 MiB pending, and sealed output is capped at 64 MiB
+- **THEN** batches auto-seal at 812 packets or 256 KiB pending (well under the 512 split parts a RakNet peer reassembles), and sealed output is capped at 64 MiB
 
 #### Scenario: Interval flush
 - **WHEN** packets are queued under `FlushMode::Interval(50 ms)`
@@ -125,7 +125,7 @@ Outbound packets SHALL be framed into a pending batch sealed by the `FlushMode` 
 - **WHEN** the server sends the `StartGame` group, or answers `RequestChunkRadius`, under `FlushMode::Immediate`
 - **THEN** the group, and `ChunkRadiusUpdated` with `PlayStatus(PlayerSpawn)`, each leave as one batch
 
-Evidence: crates/jolyne/src/config.rs (`ConnectionOptions`, `FlushMode`), crates/jolyne/src/proto/conn.rs (`flush_modes_immediate_manual_interval_and_auto_seal_limits`, `refused_batch_leaves_the_cipher_in_sync`, `failed_encode_keeps_the_pending_batch_intact`, `switching_to_interval_arms_the_timer_for_pending_packets`, `send_batch_splits_at_the_limit_with_the_requested_reliability`), crates/jolyne/src/proto/tests.rs (`start_game_and_spawn_answers_leave_as_single_batches`), crates/jolyne/src/stream/tests.rs (`manual_and_interval_flush_batch_packets`, `sends_wait_for_transport_capacity`)
+Evidence: crates/jolyne/src/config.rs (`ConnectionOptions`, `FlushMode`), crates/jolyne/docs/ARCHITECTURE.md, crates/jolyne/src/proto/conn.rs (`flush_modes_immediate_manual_interval_and_auto_seal_limits`, `refused_batch_leaves_the_cipher_in_sync`, `failed_encode_keeps_the_pending_batch_intact`, `switching_to_interval_arms_the_timer_for_pending_packets`, `send_batch_splits_at_the_limit_with_the_requested_reliability`), crates/jolyne/src/proto/tests.rs (`start_game_and_spawn_answers_leave_as_single_batches`), crates/jolyne/src/stream/tests.rs (`manual_and_interval_flush_batch_packets`, `sends_wait_for_transport_capacity`)
 
 ### Requirement: Encryption handshake
 When `encryption_enabled`, the server SHALL send `ServerToClientHandshake` in plaintext (an ES384 JWT with its P-384 key in `x5u` and a 16-byte random salt), then switch both directions to AES-256-CTR keyed by `SHA256(salt || ECDH(P-384) x)` with the key's first 12 bytes as IV. Each encrypted batch MUST carry an 8-byte checksum, and a checksum failure MUST invalidate the cipher permanently. Unreliable batches MUST be refused while encrypted.
@@ -183,11 +183,15 @@ Every join phase SHALL have an absolute deadline, checked first in `advance`, th
 Evidence: crates/jolyne/src/proto/phase.rs (`deadline_after`), crates/jolyne/src/config.rs (`BedrockListenerConfig::default`, `ClientConfig::default`), crates/jolyne/src/stream/server/mod.rs (`authenticate`), crates/jolyne/src/proto/tests.rs (`each_stage_has_a_mandatory_deadline`, `deadline_elapses_exactly_at_login_timeout`, `huge_configured_timeouts_mean_far_deadlines_not_overflow`, `resource_pack_timeouts_and_failures_have_their_own_disconnect_reasons`), crates/jolyne/src/stream/tests.rs (`advancing_is_bounded_by_the_step_deadline`)
 
 ### Requirement: Spawn completion
-After `StartGame` the server SHALL answer the first `RequestChunkRadius` (radius at least 1, else `InvalidChunkRadius`) with `ChunkRadiusUpdated` carrying `WorldJoinParams::chunk_radius` when set, and complete at a `SetLocalPlayerAsInitialized` whose runtime ID equals the `StartGame` one, else `RuntimeIdMismatch`. One sent before the radius request MUST be checked and held, never completing the spawn alone. A streamed spawn MUST hand over at the radius request.
+After `StartGame` the server SHALL answer the first `RequestChunkRadius` (at least 1, else `InvalidChunkRadius`) with `ChunkRadiusUpdated` carrying `WorldJoinParams::chunk_radius`, else the request capped at `max_chunk_radius` when set. It MUST complete at a `SetLocalPlayerAsInitialized` with the `StartGame` runtime ID (else `RuntimeIdMismatch`); one sent before the radius request MUST be held. A streamed spawn MUST hand over at the radius request.
 
 #### Scenario: Server override
 - **WHEN** the client requests radius 16 and the join params set radius 4
 - **THEN** both sessions report chunk radius 4; a request of 0 fails with `InvalidChunkRadius`
+
+#### Scenario: Radius limit
+- **WHEN** the client requests radius 16 and the join params set no radius but a limit of 12, and then of 32
+- **THEN** both sessions report chunk radius 12, and then 16
 
 #### Scenario: Plain spawn announces no terrain
 - **WHEN** `start_game` is used
@@ -209,7 +213,7 @@ After `StartGame` the server SHALL answer the first `RequestChunkRadius` (radius
 - **WHEN** a client receives a `ChunkRadiusUpdated` below 1, or a second `StartGame` with a different runtime ID
 - **THEN** it fails with `InvalidChunkRadius` or `ConflictingStartGame`
 
-Evidence: crates/jolyne/src/proto/server.rs (`ServerSpawn`), crates/jolyne/src/proto/session.rs (`Session::next_packet`), crates/jolyne/src/proto/tests.rs (`chunk_radius_requires_one_and_honours_the_server_override`, `runtime_id_mismatch_is_rejected`, `spawn_does_not_announce_terrain_it_does_not_send`, `streamed_spawn_lets_the_application_deliver_the_view_first`, `streamed_spawn_keeps_the_spawn_deadline_and_runtime_id_check`, `early_initialize_still_gets_the_spawn_answer`, `streamed_early_initialize_hands_over_an_initialized_session`, `client_rejects_a_chunk_radius_below_one`, `client_rejects_a_conflicting_start_game`), crates/jolyne/docs/LOGIN_SEQUENCE.md, crates/jolyne/src/stream/tests.rs (`streamed_spawn_completes_on_the_play_receive_path`, `streamed_spawn_times_out_on_the_play_receive_path`)
+Evidence: crates/jolyne/src/proto/server.rs (`ServerSpawn`), crates/jolyne/src/world.rs (`WorldJoinParams`), crates/jolyne/src/proto/session.rs (`Session::next_packet`), crates/jolyne/src/proto/tests.rs (`chunk_radius_requires_one_and_honours_the_server_override`, `chunk_radius_limit_caps_the_granted_request`, `runtime_id_mismatch_is_rejected`, `spawn_does_not_announce_terrain_it_does_not_send`, `streamed_spawn_lets_the_application_deliver_the_view_first`, `streamed_spawn_keeps_the_spawn_deadline_and_runtime_id_check`, `early_initialize_still_gets_the_spawn_answer`, `streamed_early_initialize_hands_over_an_initialized_session`, `client_rejects_a_chunk_radius_below_one`, `client_rejects_a_conflicting_start_game`), crates/jolyne/docs/LOGIN_SEQUENCE.md, crates/jolyne/src/stream/tests.rs (`streamed_spawn_completes_on_the_play_receive_path`, `streamed_spawn_times_out_on_the_play_receive_path`)
 
 ### Requirement: Refusals and disconnects
 A failed step SHALL keep its connection in `Failed`; `Failed::disconnect()` MUST send a `Disconnect` whose reason is mapped from the error and whose message is one fixed sentence per reason, never the error text. Refusals MUST be answered by the phase itself: `PlayStatus(LoginFailedServerFull)` when `max_players` is reached and `Disconnect{Kicked}` with the hook's message when admission refuses. An inbound `Disconnect` MUST surface once as `JolyneError::Disconnected`, then `ConnectionClosed`.

@@ -137,10 +137,11 @@ pub async fn accept_join_sequence(
     };
 
     // 6. Build join params (use session_id as entity/runtime ID for now). The
-    // server grants its default view distance; later radius requests are
-    // handled by the chunk systems.
+    // client gets the view distance it requests, up to `max_chunk_radius`
+    // (BDS caps requests at `view-distance`); later radius requests are
+    // handled by the chunk systems with the same cap.
     let mut join_params = world.template.to_join_params(session_id as i64);
-    join_params.chunk_radius = Some(config.server.default_chunk_radius);
+    join_params.max_chunk_radius = Some(config.server.max_chunk_radius);
     join_params.start_game.position = initial_position.clone();
     // The clock, difficulty and game rules as they are now, not as the
     // template was built at startup.

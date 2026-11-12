@@ -86,19 +86,31 @@ more than 64 blocks from the server-tracked one.
 ## Joining
 
 Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):
-the player enters the ECS at its `RequestChunkRadius` with the granted radius
-(`server.default_chunk_radius`), and the chunk systems send the view
-(`NetworkChunkPublisherUpdate`), the chunks available that tick, and then
-`PlayStatus(PlayerSpawn)` once, never waiting for generation. The rest of the
+the player enters the ECS at its `RequestChunkRadius` with the view distance it
+requested, capped at `server.max_chunk_radius` (default 16, like BDS caps
+requests at `view-distance`; the old `server.default_chunk_radius` key is
+accepted but ignored with a startup warning), and the chunk systems send the view
+(`NetworkChunkPublisherUpdate`) and then `PlayStatus(PlayerSpawn)` once, never
+waiting for storage or generation. The rest of the
 view streams through the same `ChunkLoader` while the client loads, so nothing
 is resent after it initializes; jolyne's receive path enforces
 `SetLocalPlayerAsInitialized` and the 60 s spawn timeout. Clients that withhold
 initialization until their announced view has loaded (BDS-style, Cinnabar)
-therefore never wait on terrain that is not coming. Loopback timing with the
-jolyne client (connect to `PlayerSpawn` / to the whole radius-disk view loaded):
-Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
-is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
-generated (8 chunks per player per tick bound the generated case).
+therefore never wait on terrain that is not coming.
+
+Chunk streaming (`world::ecs::streaming`) reads, generates and encodes columns in
+the background and never on the tick. Each column is encoded once per revision and
+the encoding is shared by every player and sub-chunk answer. Each player's view is
+the disk `dx² + dz² <= (r + 1)²`, sent nearest first, and columns a moving player
+reaches within two seconds are loaded before they enter it. Sending is not capped
+per tick: a send window of unacknowledged columns and a 512 KiB budget on what the
+RakNet session still holds bound it. That is an intended deviation from BDS's
+bursts of 20 `LevelChunk`s (see `docs/quirks/bds.md`). Unloaded chunks are written
+in the background; a column whose write fails comes back loaded and is retried.
+The generation pool stays three requests deep per worker, and Java terrain is
+generated in parallel (one lock per chunk; see `world::generator::pipeline`).
+Load timings, method and history are in
+[`tools/perf/README.md`](../../tools/perf/README.md).
 
 A player's actor data follows BDS 1.26.51 (`entity/player_life/actor_data.rs`):
 its own join `SetActorData` and the `AddPlayer` other players get carry every
@@ -121,7 +133,7 @@ player and its viewers as BDS groups them; the evidence and tests are in
 The default spawn rule keeps returning players at their saved position and otherwise
 uses the generator's spawn; set `location` (with `always_at_location = true`) to pin it.
 Java-style chunks are generated on a bounded pool of `world.generation_threads`
-workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3D
+workers (0 = half the cores, 1..=16), off the ECS tick thread. Chunk biomes are 3D
 (4x4x4 quarts) on the wire and in storage (`Data3D`).
 
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages

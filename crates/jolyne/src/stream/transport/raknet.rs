@@ -85,6 +85,11 @@ impl Transport for RakNetTransport {
         self.inner.rtt()
     }
 
+    fn send_queue_probe(&self) -> Option<super::SendQueueProbe> {
+        let monitor = self.inner.link_monitor();
+        Some(super::SendQueueProbe::new(move || monitor.queued_bytes()))
+    }
+
     /// The peer's disconnection notification (`ClosedByRemotePeer`); a
     /// timeout or any other reason stays an error.
     fn is_peer_close(error: &RaknetError) -> bool {

@@ -33,6 +33,9 @@ pub enum NetworkEvent {
         outbound_tx: mpsc::Sender<McpePacket>,
         /// This session's inbound packet queue.
         inbound_rx: mpsc::Receiver<InboundPacket>,
+        /// Bytes the transport has queued towards this player, when it
+        /// tracks them; chunk streaming stays under the transport's limit.
+        send_queue: Option<jolyne::stream::transport::SendQueueProbe>,
     },
 
     /// Player disconnected (network task exiting).

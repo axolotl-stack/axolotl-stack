@@ -1,0 +1,564 @@
+[
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 289,
+        "disk_chunks": 197,
+        "disk_view_ms": 1508.6961,
+        "first_chunk_ms": 508.3155,
+        "flight": null,
+        "join_ms": 382.4517,
+        "name": "LoadBot0",
+        "square_chunks": 289,
+        "square_view_ms": 1812.4608
+      }
+    ],
+    "radius": 8,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 1508.6961,
+    "worst_square_view_ms": 1812.4608
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 289,
+        "disk_chunks": 197,
+        "disk_view_ms": 1051.9544999999998,
+        "first_chunk_ms": 655.4629,
+        "flight": null,
+        "join_ms": 655.0678,
+        "name": "LoadBot0",
+        "square_chunks": 289,
+        "square_view_ms": 1241.817
+      }
+    ],
+    "radius": 8,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1051.9544999999998,
+    "worst_square_view_ms": 1241.817
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2317.1817,
+        "first_chunk_ms": 522.792,
+        "flight": null,
+        "join_ms": 386.7969,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2774.3624000000004
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2317.1817,
+    "worst_square_view_ms": 2774.3624000000004
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1463.4768,
+        "first_chunk_ms": 564.5658,
+        "flight": null,
+        "join_ms": 555.3177000000001,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 1864.7867
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1463.4768,
+    "worst_square_view_ms": 1864.7867
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 1089,
+        "disk_chunks": 797,
+        "disk_view_ms": 3396.164,
+        "first_chunk_ms": 497.277,
+        "flight": null,
+        "join_ms": 361.0321,
+        "name": "LoadBot0",
+        "square_chunks": 1089,
+        "square_view_ms": 4051.2915
+      }
+    ],
+    "radius": 16,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 3396.164,
+    "worst_square_view_ms": 4051.2915
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 1089,
+        "disk_chunks": 797,
+        "disk_view_ms": 2167.1798,
+        "first_chunk_ms": 574.4239,
+        "flight": null,
+        "join_ms": 573.8697999999999,
+        "name": "LoadBot0",
+        "square_chunks": 1089,
+        "square_view_ms": 2764.1979
+      }
+    ],
+    "radius": 16,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 2167.1798,
+    "worst_square_view_ms": 2764.1979
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2208.6018,
+        "first_chunk_ms": 458.695,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 0.0001,
+          "chunks_per_second": 46.25,
+          "missing_disk_max": 0.0022675736961451248,
+          "missing_disk_mean": 0.000640589569160999,
+          "nearest_missing_at_worst": 12.0,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 366.1648,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2656.9631999999997
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2208.6018,
+    "worst_square_view_ms": 2656.9631999999997
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 8,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.2904,
+        "first_chunk_ms": 482.0145,
+        "flight": null,
+        "join_ms": 353.2025,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2575.8201
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.2278,
+        "first_chunk_ms": 481.9686,
+        "flight": null,
+        "join_ms": 361.4376,
+        "name": "LoadBot1",
+        "square_chunks": 625,
+        "square_view_ms": 2576.613
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.3949,
+        "first_chunk_ms": 481.3289,
+        "flight": null,
+        "join_ms": 362.2697,
+        "name": "LoadBot2",
+        "square_chunks": 625,
+        "square_view_ms": 2576.0341000000003
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.458,
+        "first_chunk_ms": 481.7277,
+        "flight": null,
+        "join_ms": 357.63960000000003,
+        "name": "LoadBot3",
+        "square_chunks": 625,
+        "square_view_ms": 2576.0561
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.3176999999996,
+        "first_chunk_ms": 481.5395,
+        "flight": null,
+        "join_ms": 357.7727,
+        "name": "LoadBot4",
+        "square_chunks": 625,
+        "square_view_ms": 2576.6077
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.3224,
+        "first_chunk_ms": 481.5219,
+        "flight": null,
+        "join_ms": 352.8154,
+        "name": "LoadBot5",
+        "square_chunks": 625,
+        "square_view_ms": 2575.838
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.2971,
+        "first_chunk_ms": 481.5601,
+        "flight": null,
+        "join_ms": 362.4463,
+        "name": "LoadBot6",
+        "square_chunks": 625,
+        "square_view_ms": 2576.7709999999997
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2176.2416,
+        "first_chunk_ms": 481.9854,
+        "flight": null,
+        "join_ms": 356.96430000000004,
+        "name": "LoadBot7",
+        "square_chunks": 625,
+        "square_view_ms": 2576.6149
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2176.458,
+    "worst_square_view_ms": 2576.7709999999997
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 8,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.4372000000003,
+        "first_chunk_ms": 448.4141,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 242.5061,
+          "chunks_per_second": 41.25,
+          "missing_disk_max": 0.047619047619047616,
+          "missing_disk_mean": 0.0020011337868480737,
+          "nearest_missing_at_worst": 11.04536101718726,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 326.8893,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2551.145
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.3905000000004,
+        "first_chunk_ms": 448.9794,
+        "flight": {
+          "blocks_flown": 600.0012817382812,
+          "catch_up_ms": 292.482,
+          "chunks_per_second": 54.5,
+          "missing_disk_max": 0.06802721088435375,
+          "missing_disk_mean": 0.0030102040816326536,
+          "nearest_missing_at_worst": 10.63014581273465,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 319.3098,
+        "name": "LoadBot1",
+        "square_chunks": 625,
+        "square_view_ms": 2551.025
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.7125,
+        "first_chunk_ms": 449.4785,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 0.0001,
+          "chunks_per_second": 44.9,
+          "missing_disk_max": 0.022675736961451247,
+          "missing_disk_mean": 0.0009920634920634929,
+          "nearest_missing_at_worst": 11.0,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 323.733,
+        "name": "LoadBot2",
+        "square_chunks": 625,
+        "square_view_ms": 2551.2613
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.5899,
+        "first_chunk_ms": 449.4018,
+        "flight": {
+          "blocks_flown": 600.000244140625,
+          "catch_up_ms": 540.3803,
+          "chunks_per_second": 54.9,
+          "missing_disk_max": 0.090702947845805,
+          "missing_disk_mean": 0.0053344671201814055,
+          "nearest_missing_at_worst": 10.44030650891055,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 327.6099,
+        "name": "LoadBot3",
+        "square_chunks": 625,
+        "square_view_ms": 2550.9632
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.8956,
+        "first_chunk_ms": 449.0606,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 0.0001,
+          "chunks_per_second": 45.65,
+          "missing_disk_max": 0.0045351473922902496,
+          "missing_disk_mean": 0.0010204081632653051,
+          "nearest_missing_at_worst": 11.704699910719626,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 324.4412,
+        "name": "LoadBot4",
+        "square_chunks": 625,
+        "square_view_ms": 2551.4172
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.7247,
+        "first_chunk_ms": 447.9581,
+        "flight": {
+          "blocks_flown": 600.0006713867188,
+          "catch_up_ms": 796.9657,
+          "chunks_per_second": 53.0,
+          "missing_disk_max": 0.17233560090702948,
+          "missing_disk_mean": 0.01492063492063492,
+          "nearest_missing_at_worst": 9.219544457292889,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 323.1505,
+        "name": "LoadBot5",
+        "square_chunks": 625,
+        "square_view_ms": 2551.1268
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.8448000000003,
+        "first_chunk_ms": 449.3917,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 0.0001,
+          "chunks_per_second": 44.75,
+          "missing_disk_max": 0.006802721088435374,
+          "missing_disk_mean": 0.001173469387755101,
+          "nearest_missing_at_worst": 11.704699910719626,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 323.9896,
+        "name": "LoadBot6",
+        "square_chunks": 625,
+        "square_view_ms": 2551.4329
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2151.9105999999997,
+        "first_chunk_ms": 448.6115,
+        "flight": {
+          "blocks_flown": 600.001708984375,
+          "catch_up_ms": 0.0001,
+          "chunks_per_second": 58.0,
+          "missing_disk_max": 0.027210884353741496,
+          "missing_disk_mean": 0.001422902494331066,
+          "nearest_missing_at_worst": 11.180339887498947,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 327.8533,
+        "name": "LoadBot7",
+        "square_chunks": 625,
+        "square_view_ms": 2551.3566
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2151.9105999999997,
+    "worst_square_view_ms": 2551.4329
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 8,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1430.0839,
+        "first_chunk_ms": 558.0327000000001,
+        "flight": null,
+        "join_ms": 557.2447999999999,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 1835.6257
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1429.6599999999999,
+        "first_chunk_ms": 553.3121,
+        "flight": null,
+        "join_ms": 552.936,
+        "name": "LoadBot1",
+        "square_chunks": 625,
+        "square_view_ms": 1835.7462
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1429.7018,
+        "first_chunk_ms": 561.8059,
+        "flight": null,
+        "join_ms": 561.3343,
+        "name": "LoadBot2",
+        "square_chunks": 625,
+        "square_view_ms": 1835.7875
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1429.9382,
+        "first_chunk_ms": 558.1569,
+        "flight": null,
+        "join_ms": 557.5196,
+        "name": "LoadBot3",
+        "square_chunks": 625,
+        "square_view_ms": 1836.3312999999998
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1430.1581999999999,
+        "first_chunk_ms": 560.9865000000001,
+        "flight": null,
+        "join_ms": 560.412,
+        "name": "LoadBot4",
+        "square_chunks": 625,
+        "square_view_ms": 1835.4047
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1429.6858000000002,
+        "first_chunk_ms": 562.2278,
+        "flight": null,
+        "join_ms": 561.8084,
+        "name": "LoadBot5",
+        "square_chunks": 625,
+        "square_view_ms": 1835.1372000000001
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1430.1534,
+        "first_chunk_ms": 556.567,
+        "flight": null,
+        "join_ms": 556.144,
+        "name": "LoadBot6",
+        "square_chunks": 625,
+        "square_view_ms": 1836.0376999999999
+      },
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1430.0959,
+        "first_chunk_ms": 558.6063,
+        "flight": null,
+        "join_ms": 557.7879,
+        "name": "LoadBot7",
+        "square_chunks": 625,
+        "square_view_ms": 1835.4747
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1430.1581999999999,
+    "worst_square_view_ms": 1836.3312999999998
+  }
+]

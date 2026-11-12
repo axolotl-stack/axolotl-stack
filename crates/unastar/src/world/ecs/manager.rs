@@ -5,10 +5,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::components::{
-    ChunkActorStore, ChunkData, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
-    PendingActorRestore,
+    ChunkActorStore, ChunkData, ChunkPendingUnload, ChunkPosition, ChunkState, ChunkStateFlags,
+    ChunkViewers, PendingActorRestore,
 };
 use super::generation_worker::{ChunkGenerationWorker, generation_threads};
+use super::streaming::{ChunkNetCache, ColumnLoads, HeldColumn};
 use crate::storage::{ChunkColumn, StorageResult, WorldProvider};
 use crate::world::generator::ChunkPipeline;
 use crate::world::{Chunk, ChunkPos, WorldConfig};
@@ -43,6 +44,7 @@ pub(crate) type ChunkEntityComponents = (
     ChunkViewers,
     ChunkActorStore,
     ChunkStateFlags,
+    ChunkNetCache,
 );
 
 /// Components of a chunk entity for a column fresh from storage or the
@@ -71,19 +73,67 @@ pub(crate) fn chunk_entity_components(
             ChunkViewers::default(),
             store,
             state_flags,
+            ChunkNetCache::default(),
         ),
         restore,
     )
 }
 
-/// A newly created chunk's encoded biomes and highest subchunk, ready for
-/// `LevelChunk`.
-pub type EncodedNewChunk = (Vec<u8>, u16);
+/// Components of a chunk entity for an unloaded column whose write failed:
+/// its edits and actors come back, it stays dirty, and its unload is retried
+/// after a backoff (see [`ChunkPendingUnload::after_failed_save`]).
+pub(crate) fn held_column_components(
+    held: HeldColumn,
+    grace_ticks: u32,
+) -> (
+    ChunkEntityComponents,
+    Option<PendingActorRestore>,
+    ChunkPendingUnload,
+) {
+    let retry = ChunkPendingUnload {
+        ticks_remaining: 0,
+        failed_saves: held.failed_saves.saturating_sub(1),
+    }
+    .after_failed_save(grace_ticks);
+    let (mut components, restore) = chunk_entity_components(
+        ChunkPosition::new(held.pos.0, held.pos.1),
+        held.column,
+        true,
+    );
+    components.5.mark_dirty();
+    (components, restore, retry)
+}
+
+/// Puts columns whose unload write failed back into the world (see
+/// [`held_column_components`]), restoring their actors at once.
+pub fn restore_held_columns(world: &mut World, held: Vec<HeldColumn>) {
+    for column in held {
+        spawn_held_column(world, column);
+    }
+}
+
+fn spawn_held_column(world: &mut World, held: HeldColumn) -> Entity {
+    let grace_ticks = world
+        .get_resource::<super::ChunkLoadConfig>()
+        .map_or(ChunkPendingUnload::default().ticks_remaining, |config| {
+            config.unload_grace_ticks
+        });
+    let pos = ChunkPosition::new(held.pos.0, held.pos.1);
+    let (components, actors, retry) = held_column_components(held, grace_ticks);
+    let mut spawned = world.spawn((components, retry));
+    if let Some(actors) = actors {
+        spawned.insert(actors);
+    }
+    let entity = spawned.id();
+    world.resource_mut::<ChunkManager>().insert(pos, entity);
+    crate::entity::mob::persistence::restore_actors_of_chunk(world, entity);
+    entity
+}
 
 /// Global resource for chunk entity management.
 ///
-/// Provides O(1) lookup from chunk coordinates to ECS entity,
-/// and handles chunk generation when needed.
+/// Provides O(1) lookup from chunk coordinates to ECS entity, and owns what
+/// loading needs: the storage provider, the generator and its pool.
 ///
 /// NOTE: Chunk data is stored in the ECS ChunkData component, not in this manager.
 /// This manager only tracks the mapping from coordinates to entities.
@@ -99,10 +149,20 @@ pub struct ChunkManager {
     pipeline: Arc<ChunkPipeline>,
     /// Chunks that need viewers added once their entity is fully spawned/ready.
     pub pending_viewers: HashMap<(i32, i32), Vec<Entity>>,
-    /// Track pending async generation requests (chunk coords -> waiting viewers).
-    pub pending_generation: HashMap<(i32, i32), Vec<Entity>>,
     /// Generation pool (only for generators that are too expensive to run inline).
     generation_worker: Option<ChunkGenerationWorker>,
+    /// Runtime that runs background loads (none outside a multi-thread
+    /// runtime: tools and tests use a private one).
+    runtime: Option<tokio::runtime::Handle>,
+}
+
+/// The current runtime, if background loads can run on it while the tick
+/// blocks its thread: a current-thread runtime (`#[tokio::test]`) runs
+/// nothing until the caller yields, which a ticking test never does.
+fn background_runtime() -> Option<tokio::runtime::Handle> {
+    tokio::runtime::Handle::try_current()
+        .ok()
+        .filter(|handle| handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread)
 }
 
 impl ChunkManager {
@@ -125,8 +185,8 @@ impl ChunkManager {
             provider: None,
             pipeline,
             pending_viewers: HashMap::new(),
-            pending_generation: HashMap::new(),
             generation_worker,
+            runtime: background_runtime(),
         }
     }
 
@@ -135,9 +195,18 @@ impl ChunkManager {
         &self.pipeline
     }
 
-    /// Set the world provider for chunk loading.
+    /// Set the world provider for chunk loading. Storage reads run on the
+    /// current tokio runtime when it is multi-threaded.
     pub fn set_provider(&mut self, provider: Arc<dyn WorldProvider>) {
         self.provider = Some(provider);
+        if self.runtime.is_none() {
+            self.runtime = background_runtime();
+        }
+    }
+
+    /// Runtime for background loads, if the world lives inside one.
+    pub fn runtime(&self) -> Option<&tokio::runtime::Handle> {
+        self.runtime.as_ref()
     }
 
     /// Get a reference to the world provider.
@@ -244,121 +313,23 @@ impl ChunkManager {
         Ok((ChunkColumn::new(self.generate_chunk(x, z)), false))
     }
 
-    /// Get or create a chunk entity using deferred Commands.
-    /// If the chunk doesn't exist, loads from disk or generates it and spawns an entity.
-    ///
-    /// Returns `(entity, Some((encoded_biomes, highest_subchunk)))` for newly created chunks,
-    /// or `(entity, None)` for existing chunks. A storage read error creates
-    /// nothing and is returned (see [`Self::load_or_generate_chunk`]).
-    ///
-    /// ## Phase 3 Optimization
-    /// Encodes chunk data BEFORE spawning to avoid cloning ~200KB chunk data.
-    /// The encoded data is returned for immediate network transmission.
-    ///
-    /// Newly generated (not loaded) chunks have the DIRTY flag set in ChunkStateFlags for persistence.
-    pub fn get_or_create(
-        &mut self,
-        x: i32,
-        z: i32,
-        commands: &mut Commands,
-        viewer: Entity,
-    ) -> StorageResult<(Entity, Option<EncodedNewChunk>)> {
-        // Check if chunk entity already exists
-        if let Some(entity) = self.get_by_coords(x, z) {
-            // Chunk exists - add viewer to pending list for flush_pending_viewers to handle
-            self.pending_viewers.entry((x, z)).or_default().push(viewer);
-            return Ok((entity, None));
-        }
-
-        // Chunk doesn't exist - try to load from disk, otherwise generate
-        let (column, was_loaded) = self.load_or_generate_chunk(x, z)?;
-        let pos = ChunkPosition::new(x, z);
-
-        // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
-        // This saves ~200KB allocation per new chunk
-        let encoded_biomes = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
-
-        // Newly generated (not loaded from disk) chunks are dirty for
-        // persistence; stored actors are restored by the chunk systems.
-        let (components, actors) = chunk_entity_components(pos, column, was_loaded);
-        let mut spawned = commands.spawn(components);
-        if let Some(actors) = actors {
-            spawned.insert(actors);
-        }
-        let entity = spawned.id();
-
-        // Register the entity in our lookup map
-        self.insert(pos, entity);
-
-        // Add viewer to pending list - flush_pending_viewers will apply it once entity is ready
-        self.pending_viewers.entry((x, z)).or_default().push(viewer);
-
-        Ok((entity, Some((encoded_biomes, highest_subchunk))))
-    }
-
-    // =========================================================================
-    // Async Generation API (Phase 1 performance optimization)
-    // =========================================================================
-
-    /// Check if chunk generation is already pending for these coordinates.
-    pub fn is_generation_pending(&self, x: i32, z: i32) -> bool {
-        self.pending_generation.contains_key(&(x, z))
-    }
-
-    /// Check if this manager uses async generation (vanilla worlds only).
-    pub fn has_async_generation(&self) -> bool {
+    /// Whether missing chunks are generated by the pool (expensive generators)
+    /// rather than inline.
+    pub fn has_generation_pool(&self) -> bool {
         self.generation_worker.is_some()
     }
 
-    /// Request chunk generation asynchronously.
-    ///
-    /// Returns `Some(receiver)` if generation was started, `None` if:
-    /// - Chunk already exists
-    /// - Chunk is already being generated
-    /// - No async worker available (non-vanilla generator)
-    ///
-    /// The viewer entity is tracked so they can be notified when generation completes.
-    pub fn request_generation(
-        &mut self,
-        x: i32,
-        z: i32,
-        viewer: Entity,
-    ) -> Option<tokio::sync::oneshot::Receiver<super::generation_worker::ChunkLoadResult>> {
-        // Already loaded?
-        if self.chunks.contains_key(&(x, z)) {
-            self.pending_viewers.entry((x, z)).or_default().push(viewer);
-            return None;
-        }
-
-        // Already being generated?
-        if let Some(viewers) = self.pending_generation.get_mut(&(x, z)) {
-            viewers.push(viewer);
-            return None;
-        }
-
-        // Start generation via worker
-        if let Some(worker) = &self.generation_worker
-            && let Some(receiver) = worker.generate(x, z, self.provider.clone(), self.dimension())
-        {
-            self.pending_generation.insert((x, z), vec![viewer]);
-            return Some(receiver);
-        }
-
-        None
+    /// Worker threads of the generation pool (0 without one).
+    pub fn generation_threads(&self) -> usize {
+        self.generation_worker
+            .as_ref()
+            .map_or(0, ChunkGenerationWorker::threads)
     }
 
-    /// Complete a pending generation request.
-    ///
-    /// Returns the list of viewer entities that were waiting for this chunk,
-    /// or `None` if no generation was pending for these coordinates.
-    pub fn complete_generation(&mut self, x: i32, z: i32) -> Option<Vec<Entity>> {
-        self.pending_generation.remove(&(x, z))
-    }
-
-    /// Get the count of pending generation requests.
-    pub fn pending_generation_count(&self) -> usize {
-        self.pending_generation.len()
+    /// The generation pool (expensive generators only). Storage misses are
+    /// requested with no provider: the caller has already read storage.
+    pub fn generation_pool(&self) -> Option<ChunkGenerationWorker> {
+        self.generation_worker.clone()
     }
 }
 
@@ -366,7 +337,7 @@ impl ChunkManager {
 /// This is needed for synchronous chunk creation outside of ECS systems.
 pub trait ChunkManagerWorldExt {
     /// Get or create a chunk entity synchronously.
-    /// Unlike get_or_create(), this spawns immediately without deferral and
+    /// It spawns immediately, without deferral, and
     /// restores the chunk's stored actors before returning. A storage read
     /// error creates nothing and is returned.
     fn get_or_create_chunk(&mut self, x: i32, z: i32) -> StorageResult<Entity>;
@@ -384,6 +355,17 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
             }
         }
 
+        // A column still being written after an unload is read only once the
+        // write is done; one whose write failed comes back as it was.
+        let held = self
+            .get_resource_mut::<ColumnLoads>()
+            .and_then(|mut loads| {
+                loads.wait_for_save((x, z));
+                loads.take_held_at((x, z))
+            });
+        if let Some(held) = held {
+            return Ok(spawn_held_column(self, held));
+        }
         let (column, was_loaded) = self
             .get_resource::<ChunkManager>()
             .expect("ChunkManager must exist")

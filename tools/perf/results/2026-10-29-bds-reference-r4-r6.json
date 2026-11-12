@@ -1,0 +1,176 @@
+[
+  {
+    "generation_threads": 0,
+    "generator": "bds",
+    "label": "bds-fresh",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 113,
+        "columns_received": 113,
+        "disk_chunks": 81,
+        "disk_missing_at_timeout": null,
+        "disk_view_ms": 1321.6062,
+        "first_chunk_ms": 1108.9762999999998,
+        "flight": null,
+        "granted_radius": 5,
+        "join_ms": 1108.8069,
+        "name": "LoadBot0",
+        "square_chunks": 121,
+        "square_view_ms": null,
+        "terrain_bytes": 3586328
+      }
+    ],
+    "radius": 4,
+    "seed": 12345,
+    "server": "external 127.0.0.1:19140",
+    "world": "fresh",
+    "worst_disk_view_ms": 1321.6062,
+    "worst_square_view_ms": null
+  },
+  {
+    "generation_threads": 0,
+    "generator": "bds",
+    "label": "bds-generated",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 113,
+        "columns_received": 113,
+        "disk_chunks": 81,
+        "disk_missing_at_timeout": null,
+        "disk_view_ms": 1385.1579000000002,
+        "first_chunk_ms": 1162.2323,
+        "flight": null,
+        "granted_radius": 5,
+        "join_ms": 1162.1434,
+        "name": "LoadBot0",
+        "square_chunks": 121,
+        "square_view_ms": null,
+        "terrain_bytes": 3580403
+      }
+    ],
+    "radius": 4,
+    "seed": 12345,
+    "server": "external 127.0.0.1:19140",
+    "world": "fresh",
+    "worst_disk_view_ms": 1385.1579000000002,
+    "worst_square_view_ms": null
+  },
+  {
+    "generation_threads": 0,
+    "generator": "bds",
+    "label": "bds-fresh",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 113,
+        "columns_received": 113,
+        "disk_chunks": 81,
+        "disk_missing_at_timeout": null,
+        "disk_view_ms": 1324.7192,
+        "first_chunk_ms": 1104.4963,
+        "flight": null,
+        "granted_radius": 5,
+        "join_ms": 1104.3868,
+        "name": "LoadBot0",
+        "square_chunks": 121,
+        "square_view_ms": null,
+        "terrain_bytes": 3581380
+      }
+    ],
+    "radius": 5,
+    "seed": 12345,
+    "server": "external 127.0.0.1:19140",
+    "world": "fresh",
+    "worst_disk_view_ms": 1324.7192,
+    "worst_square_view_ms": null
+  },
+  {
+    "generation_threads": 0,
+    "generator": "bds",
+    "label": "bds-generated",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 113,
+        "columns_received": 113,
+        "disk_chunks": 81,
+        "disk_missing_at_timeout": null,
+        "disk_view_ms": 1416.0698,
+        "first_chunk_ms": 1172.1571,
+        "flight": null,
+        "granted_radius": 5,
+        "join_ms": 1172.037,
+        "name": "LoadBot0",
+        "square_chunks": 121,
+        "square_view_ms": null,
+        "terrain_bytes": 3579618
+      }
+    ],
+    "radius": 5,
+    "seed": 12345,
+    "server": "external 127.0.0.1:19140",
+    "world": "fresh",
+    "worst_disk_view_ms": 1416.0698,
+    "worst_square_view_ms": null
+  },
+  {
+    "generation_threads": 0,
+    "generator": "bds",
+    "label": "bds-fresh",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 153,
+        "columns_received": 153,
+        "disk_chunks": 113,
+        "disk_missing_at_timeout": null,
+        "disk_view_ms": 1584.1340000000002,
+        "first_chunk_ms": 1270.4068,
+        "flight": null,
+        "granted_radius": 6,
+        "join_ms": 1270.2467,
+        "name": "LoadBot0",
+        "square_chunks": 169,
+        "square_view_ms": null,
+        "terrain_bytes": 4832418
+      }
+    ],
+    "radius": 6,
+    "seed": 12345,
+    "server": "external 127.0.0.1:19140",
+    "world": "fresh",
+    "worst_disk_view_ms": 1584.1340000000002,
+    "worst_square_view_ms": null
+  },
+  {
+    "generation_threads": 0,
+    "generator": "bds",
+    "label": "bds-generated",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 113,
+        "columns_received": 0,
+        "disk_chunks": 113,
+        "disk_missing_at_timeout": 113,
+        "disk_view_ms": null,
+        "first_chunk_ms": 1325.234,
+        "flight": null,
+        "granted_radius": 6,
+        "join_ms": 1325.0401000000002,
+        "name": "LoadBot0",
+        "square_chunks": 169,
+        "square_view_ms": null,
+        "terrain_bytes": 351312
+      }
+    ],
+    "radius": 6,
+    "seed": 12345,
+    "server": "external 127.0.0.1:19140",
+    "world": "fresh",
+    "worst_disk_view_ms": null,
+    "worst_square_view_ms": null
+  }
+]

@@ -28,6 +28,7 @@ impl UnastarEcs {
         world.insert_resource(TickCounter::default());
         world.insert_resource(EventBuffer::default());
         world.insert_resource(ActionQueue::default());
+        world.insert_resource(TickStages::default());
 
         // Build tick schedule with ordered system sets
         let mut tick_schedule = Schedule::default();
@@ -45,6 +46,30 @@ impl UnastarEcs {
 
         // Add the tick increment system to cleanup
         tick_schedule.add_systems(increment_tick.in_set(CleanupSet));
+
+        // Stage markers between the sets (see `TickStages`).
+        tick_schedule.add_systems((
+            (|mut stages: ResMut<TickStages>| {
+                stages.begin();
+                stages.mark("packets");
+            })
+            .before(PacketApplySet),
+            stage_marker("physics")
+                .after(PacketApplySet)
+                .before(PhysicsSet),
+            stage_marker("entities")
+                .after(PhysicsSet)
+                .before(EntityLogicSet),
+            stage_marker("chunks")
+                .after(EntityLogicSet)
+                .before(ChunkSet),
+            stage_marker("network send")
+                .after(ChunkSet)
+                .before(NetworkSendSet),
+            stage_marker("cleanup")
+                .after(NetworkSendSet)
+                .before(CleanupSet),
+        ));
 
         Self {
             world,
