@@ -19,7 +19,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 29 | 24 | 3 | 25 | 1 | 34.6% |
 | [Protocol](#protocol) | 231 | 137 | 21 | 44 | 14 | 15 | 26.9% |
-| [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
+| [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
 ## Where to help
@@ -87,12 +87,12 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 Nothing in this domain is claimed.
 
-**World generation**: 0 open rows free, 538 claimed.
+**World generation**: 0 open rows free, 517 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
 | Bedrock world generation | lane BED | 2026-10-29 | 491 |
-| Java world generation | lane JAVA | 2026-10-29 | 47 |
+| Java world generation | lane JAVA | 2026-10-29 | 26 |
 
 **Gameplay systems**: 52 open rows free, 16 claimed.
 
@@ -657,18 +657,18 @@ One row per worldgen element (biome, feature, structure, carver, surface rule) p
 | bedrock/unmatched/carver | 1 | 0 | 0 | 0 | 0 | 1 | n/a |
 | bedrock/unmatched/feature_rule | 54 | 0 | 0 | 0 | 0 | 54 | n/a |
 | java/end/biome | 5 | 0 | 0 | 5 | 0 | 0 | 100.0% |
-| java/end/feature | 5 | 0 | 1 | 4 | 0 | 0 | 80.0% |
+| java/end/feature | 5 | 0 | 0 | 5 | 0 | 0 | 100.0% |
 | java/end/structure | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | java/end/surface_rule | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | java/nether/biome | 5 | 0 | 0 | 5 | 0 | 0 | 100.0% |
 | java/nether/carver | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | java/nether/feature | 40 | 0 | 0 | 39 | 1 | 0 | 100.0% |
-| java/nether/structure | 4 | 0 | 1 | 3 | 0 | 0 | 75.0% |
+| java/nether/structure | 4 | 0 | 0 | 4 | 0 | 0 | 100.0% |
 | java/nether/surface_rule | 22 | 0 | 2 | 20 | 0 | 0 | 90.9% |
 | java/overworld/biome | 54 | 0 | 0 | 48 | 6 | 0 | 100.0% |
 | java/overworld/carver | 3 | 0 | 0 | 3 | 0 | 0 | 100.0% |
-| java/overworld/feature | 173 | 0 | 18 | 154 | 1 | 0 | 89.6% |
-| java/overworld/structure | 29 | 0 | 3 | 26 | 0 | 0 | 89.7% |
+| java/overworld/feature | 173 | 0 | 2 | 170 | 1 | 0 | 98.8% |
+| java/overworld/structure | 29 | 0 | 0 | 29 | 0 | 0 | 100.0% |
 | java/overworld/surface_rule | 102 | 0 | 22 | 80 | 0 | 0 | 78.4% |
 | java/pool/feature | 10 | 0 | 0 | 10 | 0 | 0 | 100.0% |
 
@@ -738,33 +738,18 @@ One row per worldgen element (biome, feature, structure, carver, surface rule) p
 
 - `bedrock/structure_set/abandoned_camp`, `bedrock/structure_set/trail_ruins`: Spread placement is only unit-tested synthetically; start positions unmeasured against BDS.
 
-**java/end/feature**
-
-- `java/end/feature/end_gateway_return`: The gateway's block entity gets no exit position or exact-teleport flag.
-
-**java/nether/structure**
-
-- `java/nether/structure/nether_fossil`: Never places the dried ghast Java can add to a fossil.
-
 **java/nether/surface_rule**
 
 - `java/nether/surface_rule/13-warped_wart_block`, `java/nether/surface_rule/15-nether_wart_block`: No committed test or native capture reaches this leaf's conditions.
 
 **java/overworld/feature**
 
-- `java/overworld/feature/birch_tall`, `java/overworld/feature/cherry_bees_005`, `java/overworld/feature/fancy_oak_bees`, `java/overworld/feature/mangrove_checked`, `java/overworld/feature/super_birch_bees`, `java/overworld/feature/tall_mangrove_checked`, `java/overworld/feature/trees_birch`, `java/overworld/feature/trees_birch_and_oak_leaf_litter`, `java/overworld/feature/trees_cherry`, `java/overworld/feature/trees_flower_forest`, `java/overworld/feature/trees_mangrove`, `java/overworld/feature/trees_meadow` and 1 more: Bee nests are placed without their bees: the nest block entity gets no occupants.
 - `java/overworld/feature/fossil_lower`, `java/overworld/feature/fossil_upper`: No test exercises the fossil feature type.
-- `java/overworld/feature/iceberg_blue`, `java/overworld/feature/iceberg_packed`: Ellipse cuts with a zero axis carve blocks Java keeps (Java treats the NaN distance as outside).
-- `java/overworld/feature/desert_well`: Suspicious sand gets no archaeology loot table on its block entity.
-
-**java/overworld/structure**
-
-- `java/overworld/structure/ruined_portal_jungle`, `java/overworld/structure/ruined_portal_swamp`: Vines attach only to sturdy faces; Java also hangs them from full collision cubes such as leaves.
-- `java/overworld/structure/shipwreck_beached`: Beached wrecks ignore template waterlogging; Java waterlogs their submerged stairs, slabs and fences.
 
 **java/overworld/surface_rule**
 
-- `java/overworld/surface_rule/13-red_sandstone`, `java/overworld/surface_rule/16-white_terracotta`, `java/overworld/surface_rule/17-stone`, `java/overworld/surface_rule/18-gravel`, `java/overworld/surface_rule/2-coarse_dirt`, `java/overworld/surface_rule/22-air`, `java/overworld/surface_rule/23-ice`, `java/overworld/surface_rule/24-water`, `java/overworld/surface_rule/3-coarse_dirt`, `java/overworld/surface_rule/36-calcite`, `java/overworld/surface_rule/38-stone`, `java/overworld/surface_rule/49-stone` and 10 more: No committed test or native capture reaches this leaf's conditions.
+- `java/overworld/surface_rule/16-white_terracotta`, `java/overworld/surface_rule/17-stone`, `java/overworld/surface_rule/18-gravel`, `java/overworld/surface_rule/23-ice`, `java/overworld/surface_rule/24-water`, `java/overworld/surface_rule/3-coarse_dirt`, `java/overworld/surface_rule/38-stone`, `java/overworld/surface_rule/49-stone`, `java/overworld/surface_rule/5-dirt`, `java/overworld/surface_rule/53-dirt`, `java/overworld/surface_rule/8-orange_terracotta`, `java/overworld/surface_rule/86-stone` and 1 more: No committed test or native capture reaches this leaf's conditions.
+- `java/overworld/surface_rule/13-red_sandstone`, `java/overworld/surface_rule/2-coarse_dirt`, `java/overworld/surface_rule/22-air`, `java/overworld/surface_rule/36-calcite`, `java/overworld/surface_rule/54-stone`, `java/overworld/surface_rule/63-water`, `java/overworld/surface_rule/74-calcite`, `java/overworld/surface_rule/76-stone`, `java/overworld/surface_rule/90-stone`: No committed test or committed native capture reaches this leaf's conditions.
 
 ## Gameplay systems
 

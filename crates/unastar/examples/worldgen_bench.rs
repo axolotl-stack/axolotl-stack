@@ -116,8 +116,8 @@ impl Options {
                         .map(str::parse)
                         .collect::<std::result::Result<_, _>>()?;
                     ensure!(
-                        options.workers.iter().all(|n| (1..=16).contains(n)),
-                        "workers must be in 1..=16"
+                        options.workers.iter().all(|n| (1..=64).contains(n)),
+                        "workers must be in 1..=64"
                     );
                 }
                 "--help" | "-h" => {
