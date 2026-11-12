@@ -79,6 +79,27 @@ for good.
 
 Result files are in `results/` (one JSON array of runs per file).
 
+### 2026-11-12: the lanes ported onto main (`2026-11-12-port-java.json`)
+
+One release run after porting the streaming and loading lanes onto main
+(`--world generated --jump tp`, Java, seed 12345, radius 12, one player,
+loopback, native lock held). About ten other cargo builds and test runs were
+running on the machine, so this is one noisy sample, not a sweep:
+
+| measure | lane (recorded above) | port |
+|---|---|---|
+| stored join: first chunk | ~400 ms | 395 ms |
+| stored join: render disk complete | 855-866 ms (stream2) | 1007 ms |
+| stored join: after the first chunk | 368-421 ms | 612 ms |
+| `/tp` 3000 blocks: first chunk | 105 ms (paced) | 85 ms |
+| `/tp` 3000 blocks: render disk complete | 671 ms (paced) | 895 ms |
+
+Every column arrived (441 of the disk, 529 sent with the square edge) and the
+player was not disconnected. The port is slower on this run by 150-220 ms on
+the two "complete" numbers; the lane's own runs varied by ±300 ms with other
+builds on the machine, so re-measure on a quiet machine before reading a
+regression into it.
+
 ### 2026-11-01: elytra flight (prefetch ahead of the view)
 
 The raw result file of this run was never committed; only this table
