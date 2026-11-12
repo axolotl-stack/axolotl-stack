@@ -453,9 +453,9 @@ fn guard_input(
     if block != state.block {
         state.retarget(block);
     }
-    let tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .map_or(0, |tick| tick.get());
+    // The app always has the tick counter; a guard without it would count
+    // every input in tick 0, so its absence is a bug, not a default.
+    let tick = world.resource::<crate::ecs::resources::TickCounter>().get();
     let counts = state.budget.take(tick);
     if !counts {
         trace!(player = ?player, tick, "Break progress over the per-tick budget");
