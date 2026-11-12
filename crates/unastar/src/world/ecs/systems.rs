@@ -420,13 +420,16 @@ pub fn stream_chunks(
     // Worlds with storage read every column first; worlds without storage
     // and a cheap generator generate it in the background the same way.
     let loads_first = has_storage || !has_pool;
-    let read_budget = if loads_first {
-        MAX_STORAGE_READS.saturating_sub(loads.reads_in_flight())
-    } else {
-        0
+    let budget = LoadBudget {
+        reads: if loads_first {
+            MAX_STORAGE_READS.saturating_sub(loads.reads_in_flight())
+        } else {
+            0
+        },
+        generations: (manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER)
+            .saturating_sub(loads.generations_in_flight()),
+        loads_first,
     };
-    let generation_budget = (manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER)
-        .saturating_sub(loads.generations_in_flight());
     // Per player, nearest first: columns to load and columns to generate, for
     // the view, then ahead of it.
     let mut wishes: Vec<Wish> = Vec::new();
@@ -444,12 +447,11 @@ pub fn stream_chunks(
         let transport_queued = session.transport_queued_bytes();
         stats.record_queue(transport_queued);
         let started = Instant::now();
-        let mut reads = Vec::new();
-        let mut generations = Vec::new();
+        let mut wish = Wish::default();
         let mut sent = HashSet::new();
         let mut can_send = true;
         for pos in loader.queue().to_vec() {
-            if !can_send && reads.len() >= read_budget && generations.len() >= generation_budget {
+            if !can_send && wish.is_full(&budget) {
                 break;
             }
             if let Some(entity) = manager.get_by_coords(pos.0, pos.1) {
@@ -460,27 +462,20 @@ pub fn stream_chunks(
                 let Ok((data, cache)) = chunks.get_mut(entity) else {
                     continue;
                 };
-                let encoded = match cache {
-                    Some(mut cache) => {
-                        cache.current(pos, &data.inner, &mut loads, manager.runtime(), ids, &stats)
-                    }
-                    // A chunk spawned without one (tools, tests) gets one.
-                    None => {
-                        let mut cache = ChunkNetCache::default();
-                        let encoded = cache.current(
-                            pos,
-                            &data.inner,
-                            &mut loads,
-                            manager.runtime(),
-                            ids,
-                            &stats,
-                        );
-                        commands.entity(entity).insert(cache);
-                        encoded
-                    }
-                };
                 // Being encoded: it goes out once the encoding finished.
-                let Some(encoded) = encoded else { continue };
+                let Some(encoded) = current_encoding(
+                    &mut commands,
+                    entity,
+                    pos,
+                    &data.inner,
+                    cache,
+                    &mut loads,
+                    manager.runtime(),
+                    ids,
+                    &stats,
+                ) else {
+                    continue;
+                };
                 if !loader.window_mut().may_send(transport_queued, now) {
                     can_send = false;
                     continue;
@@ -494,66 +489,31 @@ pub fn stream_chunks(
                 pending_viewers.push((pos, player));
                 continue;
             }
-            match loads.state(pos) {
-                Some(LoadState::Missing) if generations.len() < generation_budget => {
-                    generations.push(pos);
-                }
-                None if loads_first && reads.len() < read_budget => reads.push(pos),
-                None if !loads_first && generations.len() < generation_budget => {
-                    generations.push(pos);
-                }
-                _ => {}
-            }
+            wish.want(pos, loads.state(pos), &budget);
         }
         if !sent.is_empty() {
             loader.retain_queue(|pos| !sent.contains(pos));
             stats.sent.record_many(sent.len() as u64, started.elapsed());
         }
-        wishes.push((reads, generations));
+        wishes.push(wish);
         // Columns about to enter the view are loaded (not sent) with what
         // the view leaves of the budgets.
-        let (mut reads, mut generations) = (Vec::new(), Vec::new());
+        let mut prefetch = Wish::default();
         for pos in loader.prefetch() {
-            if reads.len() >= read_budget && generations.len() >= generation_budget {
+            if prefetch.is_full(&budget) {
                 break;
             }
-            if manager.contains_coords(pos.0, pos.1) {
-                continue;
-            }
-            match loads.state(pos) {
-                Some(LoadState::Missing) if generations.len() < generation_budget => {
-                    generations.push(pos);
-                }
-                None if loads_first && reads.len() < read_budget => reads.push(pos),
-                None if !loads_first && generations.len() < generation_budget => {
-                    generations.push(pos);
-                }
-                _ => {}
+            if !manager.contains_coords(pos.0, pos.1) {
+                prefetch.want(pos, loads.state(pos), &budget);
             }
         }
-        prefetches.push((reads, generations));
+        prefetches.push(prefetch);
     }
     for (pos, player) in pending_viewers.drain(..) {
         manager.pending_viewers.entry(pos).or_default().push(player);
     }
-    let (reads_left, generations_left) = start_loads(
-        &manager,
-        &mut loads,
-        &stats,
-        ids,
-        wishes,
-        read_budget,
-        generation_budget,
-    );
-    start_loads(
-        &manager,
-        &mut loads,
-        &stats,
-        ids,
-        prefetches,
-        reads_left,
-        generations_left,
-    );
+    let left = start_loads(&manager, &mut loads, &stats, ids, &wishes, budget);
+    start_loads(&manager, &mut loads, &stats, ids, &prefetches, left);
 
     // Now and then, forget storage misses no player wants any more.
     *ticks += 1;
@@ -566,43 +526,107 @@ pub fn stream_chunks(
     }
 }
 
-/// One player's wished loads: storage reads, then generations, nearest first.
-type Wish = (Vec<(i32, i32)>, Vec<(i32, i32)>);
+/// The encoding of a chunk entity's current contents, or `None` while it is
+/// being encoded in the background. A chunk spawned without a cache (tools and
+/// tests) gets one.
+#[allow(clippy::too_many_arguments)]
+fn current_encoding(
+    commands: &mut Commands,
+    entity: Entity,
+    pos: (i32, i32),
+    chunk: &crate::world::Chunk,
+    cache: Option<Mut<ChunkNetCache>>,
+    loads: &mut ColumnLoads,
+    runtime: Option<&tokio::runtime::Handle>,
+    ids: BlockNetworkIds,
+    stats: &StreamStats,
+) -> Option<Arc<EncodedColumn>> {
+    match cache {
+        Some(mut cache) => cache.current(pos, chunk, loads, runtime, ids, stats),
+        None => {
+            let mut cache = ChunkNetCache::default();
+            let encoded = cache.current(pos, chunk, loads, runtime, ids, stats);
+            commands.entity(entity).insert(cache);
+            encoded
+        }
+    }
+}
+
+/// What this tick may still start: storage reads (or background generation
+/// for worlds that load first) and pool generations.
+#[derive(Debug, Clone, Copy)]
+struct LoadBudget {
+    reads: usize,
+    generations: usize,
+    /// Worlds with storage, or without a generation pool, read (or generate
+    /// in the background) every column first; the pool gets storage misses.
+    loads_first: bool,
+}
+
+/// One player's wished loads, nearest first, within a [`LoadBudget`].
+#[derive(Debug, Default)]
+struct Wish {
+    reads: Vec<(i32, i32)>,
+    generations: Vec<(i32, i32)>,
+}
+
+impl Wish {
+    /// Whether no more of either kind fits the budget.
+    fn is_full(&self, budget: &LoadBudget) -> bool {
+        self.reads.len() >= budget.reads && self.generations.len() >= budget.generations
+    }
+
+    /// Wishes for `pos`, which is not in memory, given its load state: a
+    /// storage miss (or, in a pool world without storage, a column not yet
+    /// asked for) is generated; any other column not yet asked for is read.
+    fn want(&mut self, pos: (i32, i32), state: Option<LoadState>, budget: &LoadBudget) {
+        let generate = match state {
+            Some(LoadState::Missing) => true,
+            None => !budget.loads_first,
+            Some(_) => return,
+        };
+        if generate {
+            if self.generations.len() < budget.generations {
+                self.generations.push(pos);
+            }
+        } else if self.reads.len() < budget.reads {
+            self.reads.push(pos);
+        }
+    }
+}
 
 /// Starts the players' wished loads in turns, one per player per round.
-/// Returns the reads and generations left of the budgets.
+/// Returns what is left of the budget.
 fn start_loads(
     manager: &ChunkManager,
     loads: &mut ColumnLoads,
     stats: &StreamStats,
     ids: BlockNetworkIds,
-    wishes: Vec<Wish>,
-    read_budget: usize,
-    generation_budget: usize,
-) -> (usize, usize) {
-    let (mut reads_left, mut generations_left) = (read_budget, generation_budget);
+    wishes: &[Wish],
+    mut budget: LoadBudget,
+) -> LoadBudget {
     let mut round = 0;
-    while reads_left + generations_left > 0 {
+    while budget.reads + budget.generations > 0 {
         let mut more = false;
-        for (reads, generations) in &wishes {
-            if let Some(&pos) = reads.get(round) {
+        for wish in wishes {
+            if let Some(&pos) = wish.reads.get(round) {
                 more = true;
-                if reads_left > 0
+                if budget.reads > 0
                     && loads.state(pos).is_none()
                     && !manager.contains_coords(pos.0, pos.1)
                 {
                     loads.start_read(pos, manager, ids, stats);
-                    reads_left -= 1;
+                    budget.reads -= 1;
                 }
             }
-            if let Some(&pos) = generations.get(round) {
+            if let Some(&pos) = wish.generations.get(round) {
                 more = true;
-                if generations_left > 0
+                if budget.generations > 0
                     && matches!(loads.state(pos), None | Some(LoadState::Missing))
                     && !manager.contains_coords(pos.0, pos.1)
                     && loads.start_generation(pos, manager, ids, stats)
                 {
-                    generations_left -= 1;
+                    budget.generations -= 1;
                 }
             }
         }
@@ -611,7 +635,7 @@ fn start_loads(
         }
         round += 1;
     }
-    (reads_left, generations_left)
+    budget
 }
 
 /// System: Handle ChunkRadius changes.
@@ -1037,6 +1061,34 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_wish_reads_new_columns_and_generates_misses_within_the_budget() {
+        let budget = LoadBudget {
+            reads: 1,
+            generations: 1,
+            loads_first: true,
+        };
+        let mut wish = Wish::default();
+        wish.want((0, 0), None, &budget);
+        wish.want((1, 0), None, &budget);
+        wish.want((2, 0), Some(LoadState::Missing), &budget);
+        wish.want((3, 0), Some(LoadState::Reading), &budget);
+        assert_eq!(wish.reads, [(0, 0)]);
+        assert_eq!(wish.generations, [(2, 0)]);
+        assert!(wish.is_full(&budget));
+
+        // A pool world without storage generates what it has not asked for.
+        let pool_only = LoadBudget {
+            reads: 0,
+            generations: 2,
+            loads_first: false,
+        };
+        let mut wish = Wish::default();
+        wish.want((0, 0), None, &pool_only);
+        assert_eq!(wish.generations, [(0, 0)]);
+        assert!(wish.reads.is_empty());
+    }
 
     #[test]
     fn held_chunk_summary_is_rate_limited() {
