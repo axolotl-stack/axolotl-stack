@@ -446,6 +446,11 @@ impl Filter {
         Self::AllOf(Vec::new())
     }
 
+    /// The filter that never passes (an empty `any_of`).
+    pub fn never() -> Self {
+        Self::AnyOf(Vec::new())
+    }
+
     /// Parse any accepted spelling. `path` names the location in errors and
     /// diagnostics.
     pub fn parse(

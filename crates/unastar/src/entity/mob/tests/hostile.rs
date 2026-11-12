@@ -270,6 +270,48 @@ fn spawned_wither_skeleton_add_actor_matches_native_summon() {
     assert_add_actor_matches(h.world(), "minecraft:wither_skeleton", skeleton, &native);
 }
 
+/// The skeleton family (the skeleton, stray, bogged and parched): each
+/// summon's AddActor equals BDS's, its hand holding the bow its gear table
+/// rolls, its native skeleton kind and its ranged-mode composition included.
+#[test]
+fn spawned_skeleton_family_add_actor_matches_native_summon() {
+    for (seed, identifier, bytes) in [
+        (
+            30,
+            "minecraft:skeleton",
+            &include_bytes!(
+                "../../../../../bds-extractor/captures/1.26.51/operator/summons/skeleton.bin"
+            )[..],
+        ),
+        (
+            31,
+            "minecraft:stray",
+            &include_bytes!(
+                "../../../../../bds-extractor/captures/1.26.51/operator/summons/stray.bin"
+            )[..],
+        ),
+        (
+            32,
+            "minecraft:bogged",
+            &include_bytes!(
+                "../../../../../bds-extractor/captures/1.26.51/operator/summons/bogged.bin"
+            )[..],
+        ),
+        (
+            33,
+            "minecraft:parched",
+            &include_bytes!(
+                "../../../../../bds-extractor/captures/1.26.51/operator/summons/parched.bin"
+            )[..],
+        ),
+    ] {
+        let mut h = harness(seed, Difficulty::Easy);
+        let native = native(bytes);
+        let mob = h.at_native(identifier, &native);
+        assert_add_actor_matches(h.world(), identifier, mob, &native);
+    }
+}
+
 #[test]
 fn spawned_endermite_add_actor_matches_native_summon() {
     let mut h = harness(5, Difficulty::Easy);

@@ -125,11 +125,14 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::RiderCount
         | BuiltinTest::IsPersistent
         | BuiltinTest::DistanceToNearestPlayer
-        | BuiltinTest::InactivityTimer => subject == Subject::Self_,
+        | BuiltinTest::InactivityTimer
+        | BuiltinTest::InBlock
+        | BuiltinTest::IsUnderground => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
         | BuiltinTest::HasComponent
         | BuiltinTest::HasEquipment
+        | BuiltinTest::HasRangedWeapon
         | BuiltinTest::EnumProperty
         | BuiltinTest::InWater
         | BuiltinTest::IsUnderwater
@@ -240,6 +243,9 @@ pub struct MobArchetype {
     /// The definition's base components include `minecraft:projectile`: the
     /// actor flies as a projectile instead of living physics and AI.
     pub projectile: bool,
+    /// The height of the base `minecraft:collision_box` (0 without one):
+    /// where a shot places its projectile before the projectile exists.
+    pub base_height: f64,
 }
 
 impl MobArchetype {
@@ -310,6 +316,12 @@ impl MobArchetype {
             filters: bindings.filters.into_boxed_slice(),
             legacy_friction: format_before(&source.format_version, [1, 26, 20]),
             projectile,
+            base_height: source
+                .components
+                .get(ActorComponent::CollisionBox.name())
+                .and_then(|body| body.get("height"))
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
         })
     }
 }

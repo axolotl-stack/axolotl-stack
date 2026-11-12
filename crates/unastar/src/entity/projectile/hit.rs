@@ -16,7 +16,8 @@ use crate::entity::definition::apply_pending_definitions;
 use crate::entity::mob::combat::{Hit, hurt_mob, knockback_power_of};
 use crate::entity::mob::constants::{
     DEFAULT_POTION_COLOUR_ARGB, ICONCRACK_ITEM_SHIFT, POTION_SPLASH_LEVEL_EVENT,
-    PROJECTILE_PARTICLE_LEVEL_EVENT,
+    PROJECTILE_PARTICLE_LEVEL_EVENT, SHOT_DAMAGE_PER_DIFFICULTY, SHOT_DAMAGE_SPREAD,
+    TIPPED_ARROW_EFFECTS,
 };
 use crate::entity::mob::events::{MobFacts, fire_event};
 use crate::entity::mob::net::sound::{level_event, queue_synced_sound};
@@ -51,6 +52,12 @@ pub(super) fn on_hit(
             rebound(world, projectile, rules, applied);
         }
     }
+    if let Target::Actor(actor) = target
+        && rules.arrow_effect
+        && let Some(potion) = world.get::<super::ArrowPotion>(projectile).copied()
+    {
+        arrow_effect(world, potion, actor);
+    }
     if let (Target::Block, Some(shake)) = (target, rules.stick_in_ground) {
         stick(world, projectile, at, shake);
     }
@@ -75,6 +82,30 @@ pub(super) fn on_hit(
         queue_synced_sound(world, None, at, sound, -1);
     }
     removed
+}
+
+/// `arrow_effect`: a tipped arrow gives the actor it hit its potion's
+/// effect (the measured table [`TIPPED_ARROW_EFFECTS`]), hurt or not
+/// (BDS 1.26.51: a player under Resistance V got it from 0-damage hits).
+fn arrow_effect(world: &mut World, potion: super::ArrowPotion, actor: Entity) {
+    if world
+        .get::<GameMode>(actor)
+        .is_some_and(|mode| matches!(mode, GameMode::Creative | GameMode::Spectator))
+    {
+        return;
+    }
+    let Some(&(_, effect, ticks)) = TIPPED_ARROW_EFFECTS
+        .iter()
+        .find(|(aux, _, _)| *aux == potion.0)
+    else {
+        return;
+    };
+    crate::entity::effects::give(
+        world,
+        actor,
+        effect,
+        crate::entity::components::ActiveEffect::new(0, ticks),
+    );
 }
 
 /// `grant_xp`: the potion-splash level event in the default potion colour
@@ -107,7 +138,10 @@ fn grant_xp(world: &mut World, (min, max): (i32, i32), at: DVec3) {
 /// the health removed.
 ///
 /// Speed damage (`power_multiplier`, arrows) is the projectile's speed
-/// times the multiplier, rounded up when `ceil_pre_critical_damage`, plus
+/// times the multiplier (for `difficulty_randomization: multiplicative`,
+/// a mob's arrows, scaled by `1 + SHOT_DAMAGE_PER_DIFFICULTY × difficulty`
+/// and a uniform draw within ±`SHOT_DAMAGE_SPREAD`), rounded up when
+/// `ceil_pre_critical_damage`, plus
 /// for a critical shot a random bonus of up to half that plus one
 /// (public reference; recorded as unmeasured in `docs/quirks/bds.md`).
 fn impact_damage(
@@ -132,7 +166,22 @@ fn impact_damage(
         let speed = world
             .get::<crate::entity::components::Velocity>(projectile)
             .map_or(0.0, |v| v.0.length() as f32);
-        let mut damage = speed * impact.power_multiplier;
+        let difficulty = world
+            .get_resource::<crate::world::rules::Difficulty>()
+            .copied()
+            .unwrap_or_default();
+        let draw = if impact.difficulty_randomization
+            == super::config::DifficultyRandomization::Multiplicative
+        {
+            world
+                .get_resource_or_init::<EntityRandom>()
+                .0
+                .gen_range(-SHOT_DAMAGE_SPREAD..SHOT_DAMAGE_SPREAD)
+        } else {
+            0.0
+        };
+        let multiplier = speed_damage_multiplier(impact, difficulty, draw);
+        let mut damage = speed * multiplier;
         if impact.ceil_pre_critical {
             damage = damage.ceil();
         }
@@ -177,6 +226,22 @@ fn impact_damage(
         impact.destroy_on_hit && (applied > 0.0 || !impact.destroy_requires_damage),
         applied,
     )
+}
+
+/// The speed damage multiplier: `power_multiplier`, for
+/// `difficulty_randomization: multiplicative` scaled by `1 +
+/// SHOT_DAMAGE_PER_DIFFICULTY × difficulty + draw` (`draw` uniform within
+/// ±`SHOT_DAMAGE_SPREAD`).
+pub(crate) fn speed_damage_multiplier(
+    impact: &ImpactDamage,
+    difficulty: crate::world::rules::Difficulty,
+    draw: f32,
+) -> f32 {
+    if impact.difficulty_randomization != super::config::DifficultyRandomization::Multiplicative {
+        return impact.power_multiplier;
+    }
+    impact.power_multiplier
+        * (1.0 + SHOT_DAMAGE_PER_DIFFICULTY * f32::from(difficulty as u8) + draw)
 }
 
 /// A projectile that hit an actor without being destroyed: one that dealt

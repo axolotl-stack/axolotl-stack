@@ -1459,6 +1459,34 @@ defaults! {
     spell_effect_amplifier -> i32 = p::SPELL_EFFECTS_AMPLIFIER;
 }
 
+/// `minecraft:shooter`: the projectile a mob's ranged attack launches.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Shooter {
+    /// The projectile actor identifier.
+    pub def: String,
+    /// The projectile's aux value (a tipped arrow's potion, one more than
+    /// the potion id; -1: none).
+    #[serde(default = "shooter_aux_val")]
+    pub aux_val: i32,
+    /// A sound played when the projectile is launched (empty: none).
+    #[serde(default)]
+    pub sound: String,
+    /// Launched as a thrown potion (the witch).
+    #[serde(default)]
+    pub magic: bool,
+    /// Launch speed instead of the projectile's own `power` (0: its own).
+    #[serde(default)]
+    pub power: f32,
+    /// Projectiles chosen by filter (the witch's potions).
+    #[serde(default)]
+    pub projectiles: Vec<serde_json::Value>,
+}
+
+defaults! {
+    shooter_aux_val -> i32 = p::SHOOTER_AUX_VAL;
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1522,6 +1550,7 @@ dynamic_bodies!(
     Rideable,
     Scale,
     Shareables,
+    Shooter,
     SkinId,
     SpawnEggInteraction,
     SpawnEntity,

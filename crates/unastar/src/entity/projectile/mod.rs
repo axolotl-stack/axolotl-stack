@@ -60,7 +60,7 @@ pub use flight::tick_projectiles;
 #[cfg(test)]
 pub(crate) use hit::spawn_count;
 pub(crate) use launch::derive_projectile;
-pub use launch::{LaunchError, LaunchSpec, apply_throws, launch, launch_with, thrown_by};
+pub use launch::{LaunchError, LaunchSpec, apply_throws, heading, launch, launch_with, thrown_by};
 pub use pickup::pick_up_stuck_projectiles;
 
 /// Flight state of a projectile actor.
@@ -92,3 +92,9 @@ pub struct ProjectileItem(pub crate::item::ItemStack);
 /// system, thrown by [`apply_throws`]).
 #[derive(Resource, Default)]
 pub struct ThrowQueue(pub Vec<Entity>);
+
+/// A tipped arrow's aux value (its potion id plus one), shot by a mob's
+/// `minecraft:shooter` `aux_val`; the arrow's `arrow_effect` applies the
+/// potion's effect to an actor it hits.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArrowPotion(pub u8);

@@ -140,7 +140,7 @@ fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
 }
 
 /// The rotation a projectile faces when flying along `velocity`.
-pub(super) fn heading(velocity: DVec3) -> (f32, f32) {
+pub fn heading(velocity: DVec3) -> (f32, f32) {
     let horizontal = velocity.x.hypot(velocity.z);
     (
         velocity.x.atan2(velocity.z).to_degrees() as f32,

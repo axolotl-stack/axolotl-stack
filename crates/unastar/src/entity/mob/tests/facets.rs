@@ -44,6 +44,10 @@ const WITHER_SKELETON: &str = "minecraft:wither_skeleton";
 const ENDERMITE: &str = "minecraft:endermite";
 const ZOMBIE_PIGMAN: &str = "minecraft:zombie_pigman";
 const ZOGLIN: &str = "minecraft:zoglin";
+const SKELETON: &str = "minecraft:skeleton";
+const STRAY: &str = "minecraft:stray";
+const BOGGED: &str = "minecraft:bogged";
+const PARCHED: &str = "minecraft:parched";
 /// `/summon minecraft:zombie_villager` creates this actor (see
 /// `hostile::summoned_zombie_villager_is_a_v2_whose_add_actor_matches_native_summon`).
 const ZOMBIE_VILLAGER: &str = "minecraft:zombie_villager_v2";
@@ -268,6 +272,10 @@ fn listed_mobs_fall_and_stay_on_the_ground() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ENDERMITE,
         ZOMBIE_PIGMAN,
         ZOGLIN,
@@ -300,6 +308,10 @@ fn listed_mobs_stroll_within_their_range_around_obstacles() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ENDERMITE,
         ZOMBIE_PIGMAN,
         ZOGLIN,
@@ -349,6 +361,10 @@ fn listed_mobs_jump_a_block_to_reach_a_stroll_target() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ENDERMITE,
         ZOMBIE_PIGMAN,
         ZOMBIE_VILLAGER,
@@ -379,6 +395,10 @@ fn overlapping_listed_mobs_push_each_other_apart() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ENDERMITE,
         ZOMBIE_PIGMAN,
         ZOGLIN,
@@ -434,6 +454,10 @@ fn listed_mobs_turn_their_heads_toward_a_nearby_player() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ZOMBIE_PIGMAN,
         ZOGLIN,
         ZOMBIE_VILLAGER,
@@ -465,6 +489,10 @@ fn idle_listed_mobs_look_around_within_the_angle_range() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ZOMBIE_PIGMAN,
         ZOGLIN,
         ZOMBIE_VILLAGER,
@@ -505,6 +533,10 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
     for identifier in [
         HUSK,
         WITHER_SKELETON,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
         ENDERMITE,
         ZOMBIE_PIGMAN,
         ZOGLIN,
@@ -526,7 +558,23 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 6] = [
+    let cases: [(&str, &[&str], &str); 10] = [
+        (SKELETON, &["skeleton", "undead", "monster", "mob"], "stray"),
+        (
+            STRAY,
+            &["stray", "skeleton", "monster", "mob", "undead"],
+            "bogged",
+        ),
+        (
+            BOGGED,
+            &["bogged", "skeleton", "monster", "mob", "undead"],
+            "parched",
+        ),
+        (
+            PARCHED,
+            &["parched", "skeleton", "monster", "mob", "undead"],
+            "wither",
+        ),
         (
             ZOMBIE_VILLAGER,
             &["zombie", "zombie_villager", "undead", "monster", "mob"],
@@ -582,7 +630,15 @@ fn listed_mobs_belong_to_their_authored_families() {
 /// kill without equipment.
 #[test]
 fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
-    let cases: [(&str, &[&str], Option<&str>, u32); 6] = [
+    // The stray, bogged and parched also drop a tipped arrow on a player
+    // kill (`set_potion`), which loot does not implement.
+    let cases: [(&str, &[&str], Option<&str>, u32); 7] = [
+        (
+            SKELETON,
+            &["minecraft:arrow", "minecraft:bone"],
+            Some("minecraft:bone"),
+            5,
+        ),
         (
             ZOMBIE_VILLAGER,
             &[
@@ -665,7 +721,15 @@ fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
 /// by the lava cause and burns to death.
 #[test]
 fn listed_mobs_standing_in_lava_are_hurt_by_it() {
-    for identifier in [HUSK, ENDERMITE, ZOMBIE_VILLAGER] {
+    for identifier in [
+        HUSK,
+        ENDERMITE,
+        ZOMBIE_VILLAGER,
+        SKELETON,
+        STRAY,
+        BOGGED,
+        PARCHED,
+    ] {
         let mut a = floor(21, Difficulty::Normal, GameMode::Creative);
         let mob = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
         a.without::<RandomStrollGoal>(mob);

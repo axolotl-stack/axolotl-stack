@@ -30,6 +30,7 @@ pub mod interact;
 pub mod knockback;
 pub mod loot;
 pub mod movement;
+pub mod ranged;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
@@ -68,6 +69,7 @@ pub use interact::{
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
+pub use ranged::{AvoidEntry, AvoidMobTypeGoal, RangedAttackGoal, ShooterConfig};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
@@ -155,6 +157,10 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
          sinking or freezing behaviour on the server",
     ),
     (
+        ActorComponent::FreezingImmune,
+        "keeps powder snow from freezing the mob, and powder snow has no          freezing behaviour on the server: no actor freezes",
+    ),
+    (
         ActorComponent::GameEventMovementTracking,
         "emits flap/move/swim game events, which only vibration listeners \
          (sculk sensors, wardens, allays) consume; vibrations are not implemented",
@@ -194,6 +200,8 @@ pub fn register_component_kinds(
     inert::<bodies::DimensionBound>(builder)?;
     inert::<bodies::BlockClimber>(builder)?;
     inert::<bodies::CanStandOnPowderSnow>(builder)?;
+    inert::<bodies::FreezingImmune>(builder)?;
+    ranged::register_component_kinds(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;
@@ -201,7 +209,7 @@ pub fn register_component_kinds(
     damage_sensor::register_component_kinds(builder)?;
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
-    equipment::register_component_kinds(builder)?;
+    equipment::register_component_kinds(builder, items)?;
     knockback::register_component_kinds(builder)?;
     variant::register_component_kinds(builder)?;
     target_triggers::register_component_kinds(builder)?;

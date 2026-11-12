@@ -9,6 +9,7 @@
 //! yaw, head yaw and velocity (acceleration and jumps) that the physics step
 //! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
 
+mod avoid;
 mod break_door;
 mod control;
 mod eat_block;
@@ -18,6 +19,7 @@ mod melee;
 mod nearby;
 mod path;
 mod pickup;
+mod ranged;
 pub mod sensing;
 mod targeting;
 
@@ -96,6 +98,9 @@ pub struct AiScratch {
     /// Melee hits `(attacker, target)` of this tick; dealt once the AI's
     /// resource scopes end (hits draw randomness and hurt players).
     attacks: Vec<(Entity, Entity)>,
+    /// Ranged shots `(shooter, target)` of this tick; made once the AI's
+    /// resource scopes end (they spawn projectiles).
+    shots: Vec<(Entity, Entity)>,
     /// Item pickups, equips and pickup events of this tick; made once the
     /// AI's resource scopes end (they spawn items and fire events).
     gear: Vec<(Entity, pickup::GearWork)>,
@@ -196,6 +201,7 @@ pub fn tick_mob_ai(
                         output,
                         &mut scratch.eaten,
                         &mut scratch.attacks,
+                        &mut scratch.shots,
                         &mut scratch.gear,
                         &mut scratch.target_changes,
                     );
@@ -208,6 +214,9 @@ pub fn tick_mob_ai(
     }
     for (attacker, target) in scratch.attacks.drain(..) {
         super::combat::melee::melee_attack(world, attacker, target);
+    }
+    for (shooter, target) in scratch.shots.drain(..) {
+        super::combat::ranged::shoot(world, shooter, target);
     }
     for (entity, work) in scratch.gear.drain(..) {
         pickup::finish(world, entity, work);
@@ -269,7 +278,7 @@ fn think(
         step_height: physics.step_height,
         on_ground,
         liquid: living_liquid(world, Aabb::from_feet(feet, physics.width, physics.height)),
-        movement: mob.get::<MovementConfig>().map_or(0.0, |m| m.value),
+        movement: movement_speed(mob, kind),
     };
     let policy = WalkPolicy::new(
         mob.get::<WalkNavigationConfig>(),
@@ -371,6 +380,19 @@ fn think(
     })
 }
 
+/// The mob's movement speed: its movement attribute (`minecraft:movement`
+/// with the speed and slowness effects' modifiers, clamped at 0) when it has
+/// one, else the authored value.
+fn movement_speed(mob: EntityRef<'_>, kind: &MobKind) -> f32 {
+    let authored = mob.get::<MovementConfig>().map_or(0.0, |m| m.value);
+    let Some(id) = &kind.0.movement_attribute else {
+        return authored;
+    };
+    mob.get::<crate::entity::definition::attributes::ActorAttributes>()
+        .and_then(|attributes| attributes.get(id).ok())
+        .map_or(authored, |value| value.current)
+}
+
 /// A change of a mob's target this tick.
 #[derive(Debug, Clone, Copy)]
 struct TargetChange {
@@ -389,6 +411,7 @@ fn apply(
     output: Output,
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
+    shots: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
     target_changes: &mut Vec<TargetChange>,
 ) {
@@ -468,6 +491,16 @@ fn apply(
     }
     if let Some(target) = effects.attack {
         attacks.push((entity, target));
+    }
+    if let Some(facing) = effects.ranged_facing {
+        set_flag(
+            &mut world.entity_mut(entity),
+            actor_flags::FACING_TARGET_TO_RANGE_ATTACK,
+            facing,
+        );
+    }
+    if let Some(target) = effects.shoot {
+        shots.push((entity, target));
     }
     if !effects.gear.is_empty() {
         gear.push((entity, effects.gear));
@@ -602,7 +635,14 @@ fn warn_of_target(world: &mut World, mob: Entity) {
 
 /// The actor ID viewers know `actor` by: a mob's runtime ID, a player's
 /// runtime entity ID (unastar sends the same number as the unique ID).
-fn wire_actor_id(world: &World, actor: Entity) -> i64 {
+/// The centre of a living target's box; `None` for a dead or missing
+/// actor.
+pub(crate) fn target_centre(world: &World, actor: Entity) -> Option<DVec3> {
+    targeting::Candidate::of(world, actor)
+        .map(|candidate| (candidate.aabb.min + candidate.aabb.max) / 2.0)
+}
+
+pub(crate) fn wire_actor_id(world: &World, actor: Entity) -> i64 {
     world
         .get::<crate::entity::components::RuntimeId>(actor)
         .map(|id| id.0)

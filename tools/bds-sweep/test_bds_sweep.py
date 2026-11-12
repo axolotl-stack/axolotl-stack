@@ -378,6 +378,59 @@ class EffectTrials(unittest.TestCase):
             self.assertTrue(item['frozen'])
             self.assertTrue(any('resistance 100000 4' in line for line in item['setup']))
 
+    def test_ranged_item_sets_pin_geometry_spread_damage_and_avoidance(self):
+        geometry = sweep.ranged_items(self.args('geometry'))
+        self.assertEqual(len({tuple(item['at'][:3]) for item in geometry}), len(geometry))
+        for item in geometry:
+            self.assertEqual(item['mob'], 'minecraft:' + item['key'].split('|')[0])
+            self.assertTrue(any('resistance 100000 4' in line for line in item['setup']))
+        spread = sweep.ranged_items(self.args('spread'))
+        for item in spread:
+            # Every barrier the setup places, the cleanup clears.
+            placed = [line for line in item['setup'] if line.endswith(' barrier')]
+            self.assertEqual(len(placed), 3)
+            for line in placed:
+                self.assertIn(line.replace(' barrier', ' air'), item['cleanup'])
+        damage = sweep.ranged_items(self.args('damage'))
+        for item in damage:
+            self.assertFalse(any('resistance' in line for line in item['setup']))
+            self.assertTrue(any('health_boost' in line for line in item['setup']))
+        avoid = sweep.ranged_items(self.args('avoid'))
+        for item in avoid:
+            self.assertFalse(item['frozen'])
+            self.assertTrue(any('summon minecraft:wolf' in line for line in item['setup']))
+        with self.assertRaises(SystemExit):
+            sweep.ranged_items(self.args('every'))
+
+    def test_ranged_fixture_structures_setup_and_scripted_commands(self):
+        import ranged_fixture
+        self.assertEqual(ranged_fixture.block_change('fill 0 -60 -1 1 -58 -1 barrier'),
+                         {'from': [0, -60, -1], 'to': [1, -58, -1], 'block': 'minecraft:barrier'})
+        self.assertEqual(ranged_fixture.block_change('setblock 1 -56 0 dispenser ["facing_direction"=0]'),
+                         {'from': [1, -56, 0], 'to': [1, -56, 0], 'block': 'minecraft:dispenser',
+                          'states': {'facing_direction': 0}})
+        self.assertIsNone(ranged_fixture.block_change('gamemode survival "BDSSweep"'))
+        actions = [{'t': 5, 'commands': ['replaceitem entity @e[type=minecraft:skeleton] slot.weapon.mainhand 0 '
+                                         'minecraft:air', 'event entity @e[type=minecraft:skeleton] '
+                                                          'minecraft:spring_trap']},
+                   {'t': 65, 'commands': ['tp "BDSSweep" 0.5 -60 0.5 -90 0']}]
+        self.assertEqual(ranged_fixture.scripted(actions),
+                         {'hand': [{'t': 5, 'item': None}], 'teleports': [{'t': 65, 'to': [0.5, -60.0, 0.5]}],
+                          'fired_events': [{'t': 5, 'event': 'minecraft:spring_trap'}]})
+
+    def test_silverfish_items_restore_every_block_they_place(self):
+        merge = sweep.silverfish_items(self.args('merge'))
+        self.assertEqual(len(merge), 10)
+        wake = sweep.silverfish_items(self.args('wake'))
+        for item in wake:
+            placed = [line for line in item['setup'] if line.endswith(' infested_stone')]
+            self.assertTrue(placed)
+            for line in placed:
+                self.assertIn(line.replace(' infested_stone', ' air'), item['cleanup'])
+            self.assertEqual(item['actions'][0]['t'], 40)
+        with self.assertRaises(SystemExit):
+            sweep.silverfish_items(self.args('every'))
+
     def test_mooshroom_items_interact_twice_with_the_held_item(self):
         items = sweep.mooshroom_items(self.args())
         self.assertEqual([item['hold']['item'] for item in items],
