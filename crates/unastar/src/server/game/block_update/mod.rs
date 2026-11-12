@@ -34,6 +34,7 @@ use glam::IVec3;
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
 
+pub(crate) mod rails;
 pub(crate) mod shape;
 pub(crate) mod support;
 #[cfg(test)]
@@ -101,6 +102,13 @@ enum Reaction {
 pub(crate) fn changed<T: UpdateTarget>(target: &mut T, pos: IVec3, placed: bool) {
     let mut queue = VecDeque::with_capacity(16);
     if placed {
+        // A placed rail takes its shape from the rails around it and turns
+        // the rails it joins (`rails`); their neighbours re-shape.
+        for moved in rails::placed(target, pos) {
+            if moved != pos {
+                queue.extend(NEIGHBOURS.map(|offset| (moved + offset, Update::Shape)));
+            }
+        }
         queue.push_back((pos, Update::Placed));
     }
     queue.extend(NEIGHBOURS.map(|offset| {
@@ -151,6 +159,11 @@ fn react(blocks: &impl BlockSource, pos: IVec3, state: u32, update: Update) -> R
     let Some(entry) = blocks.registry().get_by_runtime_id(state) else {
         return Reaction::Keep;
     };
+    if let Update::Neighbour { from } = update
+        && let Some(after) = support::multiface_after(blocks, pos, entry, state, from)
+    {
+        return after.map_or(Reaction::Pop, Reaction::Become);
+    }
     let check = match update {
         Update::Placed => support::Check::Placed,
         Update::Shape => support::Check::None,

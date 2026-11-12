@@ -448,7 +448,6 @@ enum BlockUse {
 /// An interactive block's `use` (crafting table, container) runs before item
 /// placement unless the player is sneaking with an item in hand.
 fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
-    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let block_use = block_at(world, clicked).and_then(|runtime_id| {
         let entry = world
             .get_resource::<super::types::BlockRegistryResource>()?
@@ -461,15 +460,22 @@ fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<
                 .map(|_| BlockUse::Container)
         }
     })?;
+    (!sneaking_with_item(world, entity)).then_some(block_use)
+}
+
+/// A player sneaking with an item in hand places it (or uses it) instead of
+/// using the clicked block.
+fn sneaking_with_item(world: &World, entity: Entity) -> bool {
+    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let sneaking = world
         .get::<PlayerState>(entity)
         .is_some_and(|state| state.sneaking);
-    let holding = world
-        .get::<HeldSlot>(entity)
-        .zip(world.get::<MainInventory>(entity))
-        .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
-        .is_some_and(|stack| !stack.is_empty());
-    (!(sneaking && holding)).then_some(block_use)
+    sneaking
+        && world
+            .get::<HeldSlot>(entity)
+            .zip(world.get::<MainInventory>(entity))
+            .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
+            .is_some_and(|stack| !stack.is_empty())
 }
 
 /// Resolve placeable content exclusively from the server's selected stack.
@@ -493,8 +499,9 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     let registry = &world
         .get_resource::<super::types::BlockRegistryResource>()?
         .0;
-    let block = registry
-        .get_by_name(stack.item_id())
+    let block = super::placement::item_block_override(stack.item_id())
+        .and_then(|name| registry.get_by_name(name))
+        .or_else(|| registry.get_by_name(stack.item_id()))
         .or_else(|| super::placement::item_placed_block(registry, stack.item_id()))?;
     Some((block.default_state_id, stack, item.network_id()))
 }
@@ -564,6 +571,15 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                         placed.string_id.ends_with("double_slab")
                             || placed.string_id.contains("double_cut_copper_slab")
                     });
+            let onto = block_at(world, *position)
+                .filter(|current| *current != *blocks::AIR)
+                .and_then(|current| {
+                    let registry = &world
+                        .get_resource::<super::types::BlockRegistryResource>()?
+                        .0;
+                    Some(registry.get_by_runtime_id(current)?.string_id.clone())
+                });
+            let held_item = held_item(world, *entity).map(|stack| stack.item_id().to_owned());
             set_block(world, pos, *block_id, false);
             if let Some((above, upper_state)) = upper {
                 set_block(world, above, upper_state, false);
@@ -578,8 +594,27 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 }
                 _ => pos,
             };
-            place_sound(world, sound_at, *block_id, held_block, merged_slab);
+            let clicked_pos = IVec3::new(clicked.0, clicked.1, clicked.2);
+            let measured = held_item.as_deref().is_some_and(|item| {
+                super::place_sounds::play(
+                    world,
+                    item,
+                    *block_id,
+                    pos,
+                    onto.as_deref(),
+                    clicked_pos,
+                    *face,
+                )
+            });
+            if !measured {
+                place_sound(world, sound_at, *block_id, held_block, merged_slab);
+            }
             super::containers::placed(world, pos);
+            super::block_actors::placed(world, *entity, pos);
+            if let Some((other, _)) = upper {
+                super::block_actors::placed(world, *entity, other);
+            }
+            super::block_use::placed(world, pos);
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -1054,6 +1089,16 @@ fn handle_block_click(
         }
         None => {}
     }
+    // Signs (and the other blocks a click acts on) answer before placement.
+    if let Some(changed) = interact_with_block(world, entity, clicked_pos) {
+        // BDS answers a use with the player's inventory, and a use that
+        // changed something also with the click corrections.
+        super::inventory::resync_inventory(world, entity);
+        if changed {
+            click_corrections(world, entity, clicked_pos, data.face);
+        }
+        return;
+    }
     // Spawn eggs spawn their mob on the clicked face instead of placing.
     let main_hand_selected = data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
         && world
@@ -1106,6 +1151,9 @@ fn handle_block_click(
                 ),
                 yaw: rotation.yaw,
                 pitch: rotation.pitch,
+                eye: world
+                    .get::<crate::entity::components::Position>(entity)
+                    .map_or(glam::DVec3::ZERO, |position| position.0),
             };
             super::placement::resolve_placement(world, held_entry, &input)
         });
@@ -1150,6 +1198,20 @@ fn handle_block_click(
             face: data.face,
         });
     }
+}
+
+/// A click acting on the clicked block itself (round 2 of the blocks lane:
+/// `testdata/bds-placements-*.json`): `None` when the block does not react
+/// to this click, else whether the click changed something (BDS then sends
+/// the click corrections).
+fn interact_with_block(world: &mut World, entity: Entity, clicked: IVec3) -> Option<bool> {
+    if sneaking_with_item(world, entity) {
+        return None;
+    }
+    let held = held_item(world, entity).filter(|stack| !stack.is_empty());
+    let held_id = held.as_ref().map(|stack| stack.item_id().to_owned());
+    super::signs::used(world, entity, clicked, held_id.as_deref())
+        .or_else(|| super::block_use::used(world, entity, clicked))
 }
 
 /// Whether the click's item is the stack in the player's selected hotbar
@@ -1216,8 +1278,13 @@ fn placement_upper(
     let merging_slab = double_slab(&registry, held).is_some_and(|double| {
         double.string_id == placed.string_id && current.string_id == held.string_id
     });
-    let fills_free_space =
-        super::placement::places_as(held, placed) && is_replaceable(current, current_state);
+    // Stacking blocks and candle cakes go into the block that is there.
+    let grows = (super::placement::stacks(placed)
+        && current.string_id == placed.string_id
+        && current_state != state)
+        || (current.string_id == "minecraft:cake" && placed.string_id.ends_with("candle_cake"));
+    let fills_free_space = super::placement::places_as(held, placed)
+        && (is_replaceable(current, current_state) || grows);
     if !(merging_slab || fills_free_space) {
         return None;
     }

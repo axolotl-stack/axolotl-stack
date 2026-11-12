@@ -459,3 +459,226 @@ def items(families: str) -> list[dict]:
         # Items with the same step signature share waves.
         out += sorted(family, key=lambda i: [f'wait{s[1]}' if s[0] == 'wait' else s[0] for s in i['steps']])
     return out
+
+
+# ------------------------------------------------------------------ round 2
+
+def named(*suffixes: str, exclude: tuple[str, ...] = ()) -> list[str]:
+    """Every block whose identifier ends with one of `suffixes`."""
+    import native
+    names = sorted({e['name'] for e in native.block_states(typed=True)})
+    return [n for n in names if n.endswith(suffixes) and not any(part in n for part in exclude)]
+
+
+def stair_blocks() -> list[str]:
+    return named('_stairs')
+
+
+def fence_blocks() -> list[str]:
+    return named('_fence')
+
+
+def pane_blocks() -> list[str]:
+    return named('_pane', '_bars')
+
+
+def wall_blocks() -> list[str]:
+    return named('_wall', exclude=('sign', 'banner', 'fan', 'torch'))
+
+
+def stairs_blocks() -> list[dict]:
+    """Every stair block but oak (round 1): the centre in each of its eight
+    orientations with one stair of the same block beside it on each side in
+    each orientation, the neighbour placed first."""
+    variants = [(w, u) for w in range(4) for u in (False, True)]
+    items = []
+    for block in stair_blocks():
+        if block == 'minecraft:oak_stairs':
+            continue
+        for cw, cu in variants:
+            centre = set_(HERE, *stair(cw, cu, block))
+            for side, off in SIDES.items():
+                for nw, nu in variants:
+                    items.append({'key': key('stairs_blocks', block, [cw, cu], side, [nw, nu]),
+                                  'family': 'stairs_blocks',
+                                  'steps': [set_(off, *stair(nw, nu, block)), centre, wait(1),
+                                            read('after', HERE, off)]})
+    return items
+
+
+# Neighbours for every fence, pane, bars and wall centre: one block of each
+# kind round 1 found (full faces, partial faces, the blocks that never or
+# always connect) and every fence, pane, bars and wall.
+CURATED_NEIGHBOURS = [
+    ('minecraft:air', {}), (STONE, {}), ('minecraft:glass', {}), ('minecraft:dirt', {}), ('minecraft:oak_planks', {}),
+    ('minecraft:oak_leaves', {'persistent_bit': True, 'update_bit': False}), ('minecraft:azalea', {}),
+    ('minecraft:white_shulker_box', {}), ('minecraft:barrier', {}), ('minecraft:carved_pumpkin', {}),
+    ('minecraft:pumpkin', {}), ('minecraft:melon_block', {}), ('minecraft:cauldron', {}), ('minecraft:dragon_egg', {}),
+    ('minecraft:honey_block', {}), ('minecraft:mud', {}), ('minecraft:soul_sand', {}), ('minecraft:structure_void', {}),
+    ('minecraft:oak_slab', {'minecraft:vertical_half': 'bottom'}),
+    ('minecraft:oak_slab', {'minecraft:vertical_half': 'top'}),
+    ('minecraft:trapdoor', {'direction': 0, 'open_bit': False, 'upside_down_bit': False}),
+    ('minecraft:trapdoor', {'direction': 1, 'open_bit': True, 'upside_down_bit': False}),
+    ('minecraft:chest', {}), ('minecraft:enchanting_table', {}), ('minecraft:white_carpet', {}),
+    ('minecraft:torch', {'torch_facing_direction': 'top'}), ('minecraft:lantern', {'hanging': False}),
+    ('minecraft:snow_layer', {'height': 0, 'covered_bit': False}),
+    ('minecraft:snow_layer', {'height': 7, 'covered_bit': False}), ('minecraft:end_rod', {}),
+    ('minecraft:iron_chain', {}), ('minecraft:cactus', {}), ('minecraft:anvil', {}), ('minecraft:hopper', {}),
+    ('minecraft:farmland', {}), ('minecraft:grass_path', {}), ('minecraft:cake', {}), ('minecraft:lectern', {}),
+    ('minecraft:border_block', {}), ('minecraft:scaffolding', {}), ('minecraft:daylight_detector', {}),
+]
+
+
+def connection_neighbours() -> list[tuple[str, dict]]:
+    gates = [('minecraft:fence_gate', {'minecraft:cardinal_direction': d, 'open_bit': o, 'in_wall_bit': False})
+             for d in ('south', 'east') for o in (False, True)]
+    stairs_ = [stair(w, u) for w in range(4) for u in (False, True)]
+    families = [(name, {}) for name in fence_blocks() + pane_blocks() + wall_blocks()]
+    return CURATED_NEIGHBOURS + gates + stairs_ + families
+
+
+def connections_blocks() -> list[dict]:
+    """Connections of every fence, pane, bars and wall: each centre with
+    one neighbour east (the curated kinds and every connecting block), the
+    neighbour placed first, read after the walls' deferred update."""
+    items = []
+    for centre in fence_blocks() + pane_blocks() + wall_blocks():
+        for block, states in connection_neighbours():
+            items.append({'key': key('connections_blocks', centre, block, states), 'family': 'connections_blocks',
+                          'steps': [set_(EAST, block, states), set_(HERE, centre), wait(3),
+                                    read('after', HERE, EAST)]})
+    return items
+
+
+WALL_ABOVES = [
+    ('minecraft:air', {}), (STONE, {}), ('minecraft:stone_pressure_plate', {}), ('minecraft:white_carpet', {}),
+    ('minecraft:torch', {'torch_facing_direction': 'top'}), ('minecraft:oak_slab', {'minecraft:vertical_half': 'bottom'}),
+    ('minecraft:oak_slab', {'minecraft:vertical_half': 'top'}), ('minecraft:lantern', {'hanging': False}),
+    ('minecraft:cobblestone_wall', {}), ('minecraft:oak_fence', {}), ('minecraft:glass_pane', {}),
+    ('minecraft:chest', {}), ('minecraft:cake', {}), ('minecraft:candle', {}), ('minecraft:end_rod', {}),
+    ('minecraft:flower_pot', {}), ('minecraft:standing_sign', {}),
+]
+
+
+def wall_heights_blocks() -> list[dict]:
+    """Every wall's arm heights and post under a set of blocks: straight,
+    end and lone walls of the same block, the block above placed last."""
+    items = []
+    for wall in wall_blocks():
+        for block, states in WALL_ABOVES:
+            for shape, sides in (('straight', [EAST, WEST]), ('end', [EAST]), ('lone', [])):
+                steps = [set_(off, wall) for off in sides] + [set_(HERE, wall), wait(3),
+                                                              set_(UP, block, states), wait(3),
+                                                              read('after', HERE, UP)]
+                items.append({'key': key('wall_heights_blocks', wall, shape, block, states),
+                              'family': 'wall_heights_blocks', 'steps': steps})
+    return items
+
+
+def multiface_support() -> list[dict]:
+    """Vines, glow lichen, sculk veins and resin clumps in every state inside
+    a stone shell; the shell is removed one side at a time (both orders)
+    and the whole state is read after each removal."""
+    import native
+    items = []
+    for entry in native.block_states(typed=True):
+        if entry['name'] not in ('minecraft:vine', 'minecraft:glow_lichen', 'minecraft:sculk_vein',
+                                 'minecraft:resin_clump'):
+            continue
+        block, states = entry['name'], entry['states']
+        for order in ('forward', 'backward'):
+            sides = list(SHELL) if order == 'forward' else list(reversed(SHELL))
+            steps = [set_(SHELL[s], STONE, physics=False) for s in SHELL]
+            steps += [set_(HERE, block, states), wait(1), read('placed', HERE)]
+            for side in sides:
+                steps += [set_(SHELL[side], 'minecraft:air'), wait(2), read(f'without_{side}', HERE)]
+            items.append({'key': key('multiface_support', order, block, states), 'family': 'multiface_support',
+                          'steps': steps})
+    return items
+
+
+def rails() -> list[dict]:
+    """Rail shapes from neighbouring rails: a rail (or powered, detector,
+    activator rail) at the centre with no, a flat or a raised rail (on a
+    stone, one block up) on each side, neighbours first or the centre
+    first."""
+    import itertools
+    centres = ['minecraft:rail', 'minecraft:golden_rail', 'minecraft:detector_rail', 'minecraft:activator_rail']
+    names = ['north', 'east', 'south', 'west']
+    items = []
+    for centre in centres:
+        for config in itertools.product(('none', 'flat', 'raised'), repeat=4):
+            neighbour_steps = []
+            reads = [HERE]
+            for side, kind in zip(names, config):
+                off = SIDES[side]
+                if kind == 'flat':
+                    neighbour_steps.append(set_(off, 'minecraft:rail'))
+                    reads.append(off)
+                elif kind == 'raised':
+                    neighbour_steps.append(set_(off, STONE, physics=False))
+                    up = [off[0], 1, off[2]]
+                    neighbour_steps.append(set_(up, 'minecraft:rail'))
+                    reads.append(up)
+            for order in ('neighbours_first', 'centre_first'):
+                centre_step = set_(HERE, centre)
+                steps = (neighbour_steps + [centre_step] if order == 'neighbours_first'
+                         else [centre_step] + neighbour_steps)
+                items.append({'key': key('rails', centre, list(config), order), 'family': 'rails',
+                              'steps': steps + [wait(2), read('after', *reads)]})
+    return items
+
+
+SOIL_PLANTS = [('minecraft:waterlily', {}), ('minecraft:wither_rose', {}), ('minecraft:red_shrub', {}),
+               ('minecraft:brown_mushroom', {}), ('minecraft:red_mushroom', {}), ('minecraft:cactus_flower', {}),
+               ('minecraft:frog_spawn', {})]
+WATERY = [('minecraft:water', {'liquid_depth': 0}), ('minecraft:flowing_water', {'liquid_depth': 0}),
+          ('minecraft:water', {'liquid_depth': 3}), ('minecraft:lava', {'liquid_depth': 0})]
+
+
+def soils_more() -> list[dict]:
+    """The plants round 1 did not sweep, on every block's default state and
+    on water and lava below (the liquid replaces the floor, so it cannot
+    flow): set as in `soils`."""
+    items = []
+    candidates = sorted(defaults().items()) + WATERY
+    for candidate, cstates in candidates:
+        for block, states in SOIL_PLANTS:
+            steps = [set_(DOWN, candidate, cstates, physics=False), set_(HERE, block, states), set_(UP, STONE),
+                     wait(2), read('after', HERE, DOWN)]
+            items.append({'key': key('soils_more', block, states, candidate, cstates), 'family': 'soils_more',
+                          'steps': steps})
+    return items
+
+
+def coral_death() -> list[dict]:
+    """Live coral set (with a block update) in air, read every 10 ticks for
+    300 ticks: blocks, plants, floor fans and wall fans (on a stone east of
+    them), three cells each; and with water below them (the water replaces
+    the floor)."""
+    items = []
+    reads = []
+    for tick in range(10, 310, 10):
+        reads += [wait(10), read(f't{tick}', HERE)]
+    kinds = ('brain', 'bubble', 'fire', 'horn', 'tube')
+    for kind in kinds:
+        cells = [('block', [set_(HERE, f'minecraft:{kind}_coral_block')]),
+                 ('plant', [set_(HERE, f'minecraft:{kind}_coral')]),
+                 ('fan', [set_(HERE, f'minecraft:{kind}_coral_fan', {'coral_fan_direction': 0})]),
+                 ('wall_fan', [set_(EAST, STONE, physics=False),
+                               set_(HERE, f'minecraft:{kind}_coral_wall_fan', {'coral_direction': 0})])]
+        for name, steps in cells:
+            padded = steps if len(steps) == 2 else [set_(WEST, 'minecraft:air', physics=False)] + steps
+            for repeat in range(3):
+                items.append({'key': key('coral_death', kind, name, repeat), 'family': 'coral_death',
+                              'steps': padded + reads})
+            water = [set_(DOWN, 'minecraft:water', {'liquid_depth': 0}, physics=False)] + padded[1:]
+            items.append({'key': key('coral_death', kind, f'{name}_over_water', 0), 'family': 'coral_death',
+                          'steps': [set_(WEST, 'minecraft:air', physics=False)] + water + reads})
+    return items
+
+
+ROUND_TWO = {'stairs_blocks': stairs_blocks, 'connections_blocks': connections_blocks,
+             'wall_heights_blocks': wall_heights_blocks, 'multiface_support': multiface_support, 'rails': rails,
+             'soils_more': soils_more, 'coral_death': coral_death}
+FAMILIES.update(ROUND_TWO)

@@ -562,14 +562,10 @@ fn unmodelled_support(block: &str) -> Option<&'static str> {
         "unlit_redstone_torch" | "lit_redstone_lamp" | "powered_repeater" => "redstone",
         "farmland" | "grass_path" => "turns to dirt under a block",
         "brown_mushroom" | "red_mushroom" => "light level",
-        "vine" | "glow_lichen" | "sculk_vein" | "resin_clump" => "multi-face attachment",
         "big_dripleaf" | "chorus_flower" | "chorus_plant" | "cactus" | "reeds" | "frog_spawn"
         | "seagrass" | "kelp" | "twisting_vines" | "cocoa" | "pitcher_crop"
         | "pale_moss_carpet" | "bed" | "straw_bed" | "grindstone" | "shelf_mushroom"
         | "mangrove_propagule" | "wall_banner" | "chalkboard" => "not modelled",
-        // Plants on stone: BDS removes them at the first neighbour change;
-        // their soils (water for a lily pad) were not swept.
-        "red_shrub" | "wither_rose" | "waterlily" => "soils not measured",
         _ if dead_coral_attachment => return None,
         _ if name.contains("coral") && !name.ends_with("_block") => "coral death",
         _ if name.ends_with("_hanging_sign") => "not modelled",
@@ -606,14 +602,6 @@ fn blocks_fall_off_when_their_support_goes_like_bds() {
             || row[1]["torch_facing_direction"] == "unknown"
         {
             *skipped.entry("bell on a wall, unknown torch").or_default() += 1;
-            continue;
-        }
-        // Sloped rails also need the block they climb against (not modelled).
-        if row[1]["rail_direction"]
-            .as_i64()
-            .is_some_and(|d| (2..=5).contains(&d))
-        {
-            *skipped.entry("sloped rail").or_default() += 1;
             continue;
         }
         let placed = state(block, &row[1]);
@@ -659,4 +647,265 @@ fn blocks_fall_off_when_their_support_goes_like_bds() {
     let skipped_rows: usize = skipped.values().sum();
     assert_eq!(checked + placement + 2 * skipped_rows, 2 * rows.len());
     assert!(checked >= 10_000, "{checked} {skipped:?}");
+}
+
+/// Every stair block (round 2): the centre in each orientation with one
+/// stair of the same block beside it, the neighbour placed first.
+#[test]
+fn every_stair_block_takes_its_corner_like_bds() {
+    let rows = rows("stairs_blocks");
+    assert_eq!(rows.len(), 96 * 256);
+    let mut wrong = Vec::new();
+    for row in &rows {
+        let block = row[0].as_str().unwrap();
+        let mut cell = Cell::new();
+        let side_pos = side(row[3].as_str().unwrap());
+        cell.set(side_pos, stairs(block, &row[4], &row[5]), true);
+        cell.set(IVec3::ZERO, stairs(block, &row[1], &row[2]), true);
+        let got = [IVec3::ZERO, side_pos].map(|pos| value_str(cell.get(pos), "minecraft:corner"));
+        let expected = [0, 1].map(|i| row[6][i].as_str().unwrap().to_owned());
+        if got != expected {
+            wrong.push(format!("{row}: got {got:?}"));
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} differ:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+}
+
+/// Every fence, pane, bars and wall block (round 2) next to the curated
+/// neighbours.
+#[test]
+fn every_fence_pane_and_wall_connects_like_bds() {
+    let rows = rows("connections_blocks");
+    let mut checked = 0;
+    let mut wrong = Vec::new();
+    for row in &rows {
+        let neighbour = state(row[0].as_str().unwrap(), &row[1]);
+        for (centre, measured) in row[2].as_object().unwrap() {
+            let mut cell = Cell::new();
+            cell.set(IVec3::X, neighbour, true);
+            cell.set(IVec3::ZERO, default_state(centre), true);
+            let expected = state(centre, measured);
+            if cell.get(IVec3::ZERO) != expected {
+                wrong.push(format!(
+                    "{centre} next to {} {}: got {} want {}",
+                    row[0],
+                    row[1],
+                    describe(cell.get(IVec3::ZERO)),
+                    describe(expected)
+                ));
+            }
+            checked += 1;
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} differ:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+    assert!(checked > 12_000, "{checked}");
+}
+
+/// Every wall block's arm heights and post (round 2) under the curated
+/// blocks: straight, end and lone walls of the same block.
+#[test]
+fn every_wall_takes_its_heights_like_bds() {
+    let rows = rows("wall_heights_blocks");
+    let mut checked = 0;
+    let mut wrong = Vec::new();
+    for row in &rows {
+        let wall_name = row[0].as_str().unwrap();
+        let wall = default_state(wall_name);
+        let above = state(row[1].as_str().unwrap(), &row[2]);
+        for (shape, measured) in row[3].as_object().unwrap() {
+            let sides: &[IVec3] = match shape.as_str() {
+                "straight" => &[IVec3::X, IVec3::NEG_X],
+                "end" => &[IVec3::X],
+                "lone" => &[],
+                other => panic!("shape {other}"),
+            };
+            let mut cell = Cell::new();
+            for &pos in sides {
+                cell.set(pos, wall, true);
+            }
+            cell.set(IVec3::ZERO, wall, true);
+            cell.set(IVec3::Y, above, true);
+            let expected = state(wall_name, measured);
+            if cell.get(IVec3::ZERO) != expected {
+                wrong.push(format!(
+                    "{shape} {wall_name} under {} {}: got {}",
+                    row[1],
+                    row[2],
+                    describe(cell.get(IVec3::ZERO))
+                ));
+            }
+            checked += 1;
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} differ:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+    assert_eq!(checked, 32 * 17 * 3);
+}
+
+/// Vines, glow lichen, sculk veins and resin clumps in every state, their
+/// stone neighbours removed one at a time: the faces that come off and the
+/// removal that pops the block (round 2).
+#[test]
+fn multi_face_blocks_lose_faces_like_bds() {
+    let rows = rows("multiface_support");
+    assert_eq!(rows.len(), 2 * (16 + 3 * 64));
+    let stone = default_state("minecraft:stone");
+    let mut wrong = Vec::new();
+    for row in &rows {
+        let block = row[0].as_str().unwrap();
+        let mut cell = Cell::new();
+        for side_name in ["east", "west", "south", "north", "up", "down"] {
+            cell.write(side(side_name), stone);
+        }
+        cell.set(IVec3::ZERO, state(block, &row[1]), true);
+        assert_eq!(cell.get(IVec3::ZERO), state(block, &row[3]), "{row}");
+        for removal in row[4].as_array().unwrap() {
+            cell.set(side(removal[0].as_str().unwrap()), air(), true);
+            let expected = state(removal[1].as_str().unwrap(), &removal[2]);
+            if cell.get(IVec3::ZERO) != expected {
+                wrong.push(format!(
+                    "{block} {} without {}: got {} want {}",
+                    row[1],
+                    removal[0],
+                    describe(cell.get(IVec3::ZERO)),
+                    describe(expected)
+                ));
+                break;
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} differ:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+}
+
+/// Rails, powered, detector and activator rails with every combination of
+/// no, flat and raised rails beside them, placed before or after them: every
+/// rail's shape (round 2).
+#[test]
+fn rails_take_their_shapes_like_bds() {
+    let rows = rows("rails");
+    assert_eq!(rows.len(), 4 * 81 * 2);
+    let stone = default_state("minecraft:stone");
+    let rail = default_state("minecraft:rail");
+    let mut wrong = Vec::new();
+    for row in &rows {
+        let centre = default_state(row[0].as_str().unwrap());
+        let mut cell = Cell::new();
+        let mut neighbours = Vec::new();
+        for (side_name, kind) in ["north", "east", "south", "west"]
+            .into_iter()
+            .zip(row[1].as_array().unwrap())
+        {
+            match kind.as_str().unwrap() {
+                "flat" => neighbours.push(side(side_name)),
+                "raised" => neighbours.push(side(side_name) + IVec3::Y),
+                _ => {}
+            }
+        }
+        let place_neighbours = |cell: &mut Cell| {
+            for &pos in &neighbours {
+                if pos.y == 1 {
+                    cell.write(pos - IVec3::Y, stone);
+                }
+                cell.set(pos, rail, true);
+            }
+        };
+        if row[2] == "neighbours_first" {
+            place_neighbours(&mut cell);
+            cell.set(IVec3::ZERO, centre, true);
+        } else {
+            cell.set(IVec3::ZERO, centre, true);
+            place_neighbours(&mut cell);
+        }
+        let got: Vec<u32> = std::iter::once(IVec3::ZERO)
+            .chain(neighbours.iter().copied())
+            .map(|pos| cell.get(pos))
+            .collect();
+        let expected: Vec<u32> = row[3]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|read| state(read[0].as_str().unwrap(), &read[1]))
+            .collect();
+        if got != expected {
+            wrong.push(format!(
+                "{} {} {}: got {:?} want {:?}",
+                row[0],
+                row[1],
+                row[2],
+                got.iter().map(|s| describe(*s)).collect::<Vec<_>>(),
+                expected.iter().map(|s| describe(*s)).collect::<Vec<_>>()
+            ));
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} differ:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+}
+
+/// Lily pads, wither roses, red shrubs, mushrooms (in daylight), cactus
+/// flowers and frog spawn on every block's default state and on liquids
+/// (round 2).
+#[test]
+fn more_plants_stay_on_the_soils_bds_keeps_them_on() {
+    let rows = rows("soils_more");
+    assert_eq!(rows.len(), 7);
+    let stone = default_state("minecraft:stone");
+    let mut checked = 0;
+    let mut wrong = Vec::new();
+    let mut skipped = 0;
+    for row in &rows {
+        let plant = row[0].as_str().unwrap();
+        // Mushrooms stay on any block in low light; unastar has no light
+        // levels, so their measured daylight soils are not applied.
+        if plant.ends_with("_mushroom") {
+            skipped += 1;
+            continue;
+        }
+        let plant_state = state(plant, &row[1]);
+        for case in row[2].as_array().unwrap() {
+            let soil = state(case[0].as_str().unwrap(), &case[1]);
+            let mut cell = Cell::new();
+            cell.write(IVec3::NEG_Y, soil);
+            cell.set(IVec3::ZERO, plant_state, true);
+            cell.set(IVec3::Y, stone, true);
+            let stayed = name(cell.get(IVec3::ZERO)) == plant;
+            if stayed != case[2].as_bool().unwrap() {
+                wrong.push(format!(
+                    "{plant} on {} {}: stayed {stayed}",
+                    case[0], case[1]
+                ));
+            }
+            checked += 1;
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "{} differ:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+    assert_eq!(skipped, 2);
+    assert!(checked > 6_800, "{checked}");
 }
