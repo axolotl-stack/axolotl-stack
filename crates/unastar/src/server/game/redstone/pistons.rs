@@ -318,10 +318,13 @@ fn state_with(
     entry.with_state_value(entry.default_state_id, property, value)
 }
 
-fn default_state(registry: &BlockRegistry, name: &str) -> u32 {
+/// The default state of `name`, a block every registry the circuit runs on
+/// has (air, the moving block).
+pub(crate) fn default_state(registry: &BlockRegistry, name: &str) -> u32 {
     registry
         .get_by_name(name)
-        .map_or(0, |entry| entry.default_state_id)
+        .map(|entry| entry.default_state_id)
+        .unwrap_or_else(|| panic!("the block registry has no {name}"))
 }
 
 fn ints(positions: &[IVec3]) -> NBTTag {

@@ -933,3 +933,77 @@ fn plates_press_like_bds_under_the_measured_actors() {
     );
     assert!(compared > 3000, "{compared}");
 }
+
+/// Why a block has no measured piston class: the per-block sweep could not
+/// stand its default state in a cell. Such blocks break.
+fn unmeasured_reason(id: &str) -> Option<&'static str> {
+    let short = id.strip_prefix("minecraft:").unwrap_or(id);
+    let water = short.ends_with("_coral_fan") && !short.starts_with("dead_")
+        || short.ends_with("_coral_wall_fan") && !short.starts_with("dead_")
+        || matches!(
+            short,
+            "kelp"
+                | "seagrass"
+                | "sea_pickle"
+                | "underwater_torch"
+                | "underwater_tnt"
+                | "water"
+                | "flowing_water"
+                | "lava"
+                | "flowing_lava"
+                | "bubble_column"
+        );
+    if water {
+        return Some("water plants and liquids flood the cells beside them");
+    }
+    if short.ends_with("_button")
+        || matches!(
+            short,
+            "frame"
+                | "glow_frame"
+                | "chalkboard"
+                | "small_dripleaf_block"
+                | "wall_banner"
+                | "tripwire_hook"
+        )
+    {
+        return Some("the default state falls off when set");
+    }
+    if short == "air" || short == "moving_block" || short == "unknown" {
+        return Some("not a block a piston meets as such");
+    }
+    if matches!(short, "fire" | "soul_fire" | "portal" | "end_gateway") {
+        return Some(
+            "not measured: the sweep's cell does not keep it (fire burns out, a portal needs its frame)",
+        );
+    }
+    None
+}
+
+/// Every block without a measured piston class has a reason; the list
+/// fails when a new block appears that the sweep has not measured.
+#[test]
+fn every_unmeasured_piston_block_has_a_reason() {
+    let measured = unastar_data::pistons::blocks();
+    let mut missing = Vec::new();
+    for entry in registry().iter() {
+        let id = entry.string_id.as_str();
+        let rest = id.strip_prefix("minecraft:").unwrap_or(id);
+        let base = ["lit_", "unlit_", "powered_", "unpowered_"]
+            .iter()
+            .find_map(|prefix| rest.strip_prefix(prefix))
+            .unwrap_or(rest);
+        let known = ["", "lit_", "unlit_", "powered_", "unpowered_"]
+            .iter()
+            .any(|prefix| measured.movement(&format!("{prefix}{base}")).is_some());
+        if !known && unmeasured_reason(id).is_none() {
+            missing.push(id.to_string());
+        }
+    }
+    missing.sort();
+    assert!(
+        missing.is_empty(),
+        "{} blocks have no piston class or reason: {missing:?}",
+        missing.len()
+    );
+}

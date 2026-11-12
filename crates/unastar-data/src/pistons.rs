@@ -13,7 +13,8 @@ use std::sync::LazyLock;
 use serde::Deserialize;
 
 /// How a piston treats a block in its way.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Movement {
     /// Pushed, and pulled back by a sticky piston.
     PushPull,
@@ -28,7 +29,7 @@ pub enum Movement {
 #[derive(Debug, Deserialize)]
 struct BlocksFile {
     /// `[block, class]`.
-    rows: Vec<(String, String)>,
+    rows: Vec<(String, Movement)>,
 }
 
 /// The measured class of every block whose default state the sweep could
@@ -47,26 +48,12 @@ impl PistonBlocks {
 }
 
 /// Decode `pistons/blocks.json`.
-pub fn decode_blocks() -> Result<PistonBlocks, String> {
+pub fn decode_blocks() -> Result<PistonBlocks, serde_json::Error> {
     let file: BlocksFile =
-        serde_json::from_str(include_str!("../data/measured/pistons/blocks.json"))
-            .map_err(|error| error.to_string())?;
-    let mut classes = HashMap::new();
-    for (block, class) in file.rows {
-        let movement = match class.as_str() {
-            "push_pull" => Movement::PushPull,
-            "push_only" => Movement::PushOnly,
-            "breaks" => Movement::Breaks,
-            "immovable" => Movement::Immovable,
-            other => {
-                return Err(format!(
-                    "pistons/blocks.json: {block}: unknown class {other}"
-                ));
-            }
-        };
-        classes.insert(block, movement);
-    }
-    Ok(PistonBlocks { classes })
+        serde_json::from_str(include_str!("../data/measured/pistons/blocks.json"))?;
+    Ok(PistonBlocks {
+        classes: file.rows.into_iter().collect(),
+    })
 }
 
 /// The measured piston block classes (decoded on first use).

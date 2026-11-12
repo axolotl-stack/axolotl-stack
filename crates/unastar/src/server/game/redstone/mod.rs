@@ -829,9 +829,7 @@ impl Redstone {
                 // `explosions/tnt_prime.json`).
                 Consumer::Tnt => {
                     if powered && !was {
-                        let air = registry
-                            .get_by_name("minecraft:air")
-                            .map_or(0, |entry| entry.default_state_id);
+                        let air = pistons::default_state(registry, "minecraft:air");
                         self.write(world, table, pos, air);
                         world.prime_tnt(pos);
                     }

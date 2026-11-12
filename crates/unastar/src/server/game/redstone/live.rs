@@ -157,7 +157,11 @@ fn pressers(world: &mut World) -> Vec<Presser> {
         }
         let feet = position.0 - glam::DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
         out.push(Presser {
-            aabb: Aabb::from_feet(feet, 0.6, 1.8),
+            aabb: Aabb::from_feet(
+                feet,
+                crate::entity::mob::constants::PLAYER_BOX_WIDTH,
+                crate::entity::mob::constants::PLAYER_BOX_HEIGHT,
+            ),
             item: false,
         });
     }
@@ -173,7 +177,7 @@ pub(crate) fn press_plates(world: &mut World) {
         .map_or(0, |ticks| ticks.current);
     let pressers = pressers(world);
     let registry = world.registry().clone();
-    let mut candidates: Vec<IVec3> = world
+    let mut candidates: std::collections::HashSet<IVec3> = world
         .get_resource::<Plates>()
         .map(|plates| plates.pressed().collect())
         .unwrap_or_default();
@@ -183,10 +187,7 @@ pub(crate) fn press_plates(world: &mut World) {
         for x in min.x..=max.x {
             for z in min.z..=max.z {
                 for y in min.y..=min.y.max(max.y.min(min.y + 1)) {
-                    let pos = IVec3::new(x, y, z);
-                    if !candidates.contains(&pos) {
-                        candidates.push(pos);
-                    }
+                    candidates.insert(IVec3::new(x, y, z));
                 }
             }
         }

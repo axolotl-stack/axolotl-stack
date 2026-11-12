@@ -29,6 +29,8 @@ pub enum ExplodeError {
     NegatesFallDamage,
     #[error("explode causes_fire is not implemented (fire does not spread yet)")]
     CausesFire,
+    #[error("explode allow_underwater is not implemented")]
+    AllowUnderwater,
     #[error("explode fuse_length range [{min}, {max}] is reversed")]
     FuseRange { min: f32, max: f32 },
 }
@@ -60,7 +62,6 @@ pub struct ExplodeConfig {
     pub breaks_blocks: bool,
     pub destroy_affected_by_griefing: bool,
     pub max_resistance: f32,
-    pub allow_underwater: bool,
     pub damage_scaling: f32,
     pub knockback_scaling: f32,
     /// The level sound the explosion plays.
@@ -111,6 +112,9 @@ fn compile(b: body::Explode) -> Result<ExplodeConfig, ExplodeError> {
     if b.causes_fire {
         return Err(ExplodeError::CausesFire);
     }
+    if b.allow_underwater {
+        return Err(ExplodeError::AllowUnderwater);
+    }
     let fuse = match b.fuse_length {
         None => FuseLength { min: 0.0, max: 0.0 },
         Some(ValueOrRange::Value(seconds)) => FuseLength {
@@ -135,7 +139,6 @@ fn compile(b: body::Explode) -> Result<ExplodeConfig, ExplodeError> {
         breaks_blocks: b.breaks_blocks,
         destroy_affected_by_griefing: b.destroy_affected_by_griefing,
         max_resistance: b.max_resistance,
-        allow_underwater: b.allow_underwater,
         damage_scaling: b.damage_scaling,
         knockback_scaling: b.knockback_scaling,
         sound: Arc::from(b.sound_effect.as_str()),

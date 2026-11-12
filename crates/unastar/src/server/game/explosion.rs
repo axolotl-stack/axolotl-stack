@@ -28,16 +28,13 @@ use crate::entity::mob::MobKind;
 use crate::entity::mob::ai::sensing::can_see;
 use crate::entity::mob::combat::{Hit, hurt_mob};
 use crate::entity::mob::components::KnockbackPower;
+use crate::entity::mob::constants::{PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH};
 use crate::entity::mob::state::Dead;
 use crate::entity::systems::BlockSource;
 use crate::entity::{EntityRandom, PLAYER_EYE_HEIGHT};
 use crate::registry::collision::Aabb;
 
 mod viewers;
-
-/// A player's box.
-const PLAYER_WIDTH: f64 = 0.6;
-const PLAYER_HEIGHT: f64 = 1.8;
 
 #[cfg(test)]
 mod tests;
@@ -220,8 +217,8 @@ fn targets(world: &mut World, centre: DVec3, reach: f64) -> Vec<Target> {
         out.push(Target {
             entity,
             feet,
-            width: PLAYER_WIDTH,
-            aabb: Aabb::from_feet(feet, PLAYER_WIDTH, PLAYER_HEIGHT),
+            width: PLAYER_BOX_WIDTH,
+            aabb: Aabb::from_feet(feet, PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT),
             player: true,
         });
     }
@@ -268,10 +265,11 @@ pub(crate) fn explode(world: &mut World, blast: &Blast) {
     break_blocks(world, &blocks);
 }
 
-/// The damage and the push an actor `distance` from the blast, seeing
-/// `seen` of it, takes.
+/// The damage an actor `distance` from the blast, seeing `seen` of it,
+/// takes, and the strength of its push (the impact, scaled by the blast's
+/// knockback scaling; the damage uses the unscaled impact).
 fn hit_for(blast: &Blast, distance: f64, seen: f64) -> (Hit, f64) {
-    let impact = impact(distance, blast.power, seen) * f64::from(blast.knockback_scaling);
+    let impact = impact(distance, blast.power, seen);
     let hit = Hit {
         damage: damage(impact, blast.power) * blast.damage_scaling,
         cause: if blast.source.is_some() {
@@ -284,7 +282,7 @@ fn hit_for(blast: &Blast, distance: f64, seen: f64) -> (Hit, f64) {
         knockback_from: None,
         knockback_power: KnockbackPower::DEFAULT,
     };
-    (hit, impact)
+    (hit, impact * f64::from(blast.knockback_scaling))
 }
 
 /// Damage and push every actor within reach.
