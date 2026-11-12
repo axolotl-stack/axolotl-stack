@@ -200,10 +200,18 @@ impl DecorationWrites {
         });
     }
 
-    fn replay(&self, dx: i32, dz: i32, chunk: &mut Chunk,
-        mut keep: impl FnMut(&Chunk, &BlockWrite) -> bool) {
-        assert_eq!(chunk.state_space(), self.state_space,
-            "decoration writes cannot cross Java/Bedrock state domains");
+    fn replay(
+        &self,
+        dx: i32,
+        dz: i32,
+        chunk: &mut Chunk,
+        mut keep: impl FnMut(&Chunk, &BlockWrite) -> bool,
+    ) {
+        assert_eq!(
+            chunk.state_space(),
+            self.state_space,
+            "decoration writes cannot cross Java/Bedrock state domains"
+        );
         let slot = slot_of(dx, dz);
         let blocks = &self.per_slot[slot];
         let mut applied = 0;
