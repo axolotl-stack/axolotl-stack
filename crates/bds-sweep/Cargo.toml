@@ -14,5 +14,6 @@ client-diff = { path = "../client-diff" }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 clap.workspace = true
 anyhow.workspace = true
+uuid.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
