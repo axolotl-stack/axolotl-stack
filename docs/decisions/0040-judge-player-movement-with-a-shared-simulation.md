@@ -16,7 +16,7 @@ undo it. Matching BDS needs a simulation that agrees with a vanilla client to `f
 (BDS takes a client's position only within 0.1 of its copy, pulls 0.005 a tick otherwise), and
 that simulation can only be measured on BDS with a client that runs it. Measurements and the
 acceptance rules are in `docs/quirks/bds.md` (Entities / player movement authority, pull,
-teleport); the change is `openspec/changes/server-authoritative-movement/`.
+teleport); the change is `openspec/changes/archive/2026-11-12-server-authoritative-movement/`.
 
 ## Decision Drivers
 

@@ -3,7 +3,7 @@ title: BDS judges reported positions against its own copy of the player; watch t
 area: server
 tags: [movement, authority, correction, teleport, player-auth-input, bds-sweep, viewer, fixture]
 date: 2026-11-11
-origin: openspec/changes/server-authoritative-movement
+origin: openspec/changes/archive/2026-11-12-server-authoritative-movement
 status: current
 ---
 
