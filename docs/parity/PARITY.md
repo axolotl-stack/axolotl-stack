@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 117 | 0 | 3 | 13 | 4 | 12.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1084 | 2658 | 277 | 17 | 46 | 7.3% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 113 | 1 | 3 | 16 | 4 | 14.3% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1004 | 2675 | 308 | 49 | 46 | 8.8% |
 | [Blocks](#blocks) | 1477 | 0 | 564 | 633 | 113 | 167 | 56.9% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -30,20 +30,20 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change doing the work, if any); remove it when you stop or when the change is archived. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 62 open rows free, 55 claimed.
+**Entities**: 62 open rows free, 52 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
 | object | 16 | 16 | 0 |
-| projectile | 15 | 15 | 0 |
+| projectile | 15 | 14 | 1 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 55 |
+| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 52 |
 
 **Blocks**: 315 open rows free, 249 claimed.
 
@@ -123,11 +123,11 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | aquatic | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
-| hostile | 38 | 33 | 0 | 0 | 5 | 0 | 13.2% |
+| hostile | 38 | 30 | 0 | 0 | 8 | 0 | 21.1% |
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 15 | 0 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 14 | 1 | 2 | 1 | 0 | 16.7% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -135,35 +135,35 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 101 | 12 | 0 | 2 | 1 | 1.7% |
-| physics | 125 | 0 | 111 | 13 | 0 | 1 | 10.5% |
-| type_family | 124 | 1 | 109 | 13 | 0 | 1 | 10.6% |
-| collision_box | 124 | 0 | 109 | 14 | 0 | 1 | 11.4% |
-| pushable_by_entity | 109 | 0 | 100 | 9 | 0 | 0 | 8.3% |
+| conditional_bandwidth_optimization | 116 | 98 | 15 | 0 | 2 | 1 | 1.7% |
+| physics | 125 | 0 | 108 | 15 | 1 | 1 | 12.9% |
+| type_family | 124 | 1 | 106 | 16 | 0 | 1 | 13.0% |
+| collision_box | 124 | 0 | 106 | 10 | 7 | 1 | 13.8% |
+| pushable_by_entity | 109 | 0 | 98 | 11 | 0 | 0 | 10.1% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
+| health | 94 | 1 | 84 | 5 | 3 | 1 | 8.6% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
-| health | 94 | 1 | 83 | 9 | 0 | 1 | 9.7% |
-| is_hidden_when_invisible | 92 | 1 | 82 | 0 | 9 | 0 | 9.8% |
-| movement | 92 | 0 | 83 | 9 | 0 | 0 | 9.8% |
-| hurt_on_condition | 87 | 0 | 78 | 8 | 0 | 1 | 9.3% |
-| experience_reward | 80 | 0 | 70 | 10 | 0 | 0 | 12.5% |
-| jump.static | 79 | 0 | 70 | 9 | 0 | 0 | 11.4% |
-| loot | 78 | 0 | 68 | 9 | 0 | 1 | 11.7% |
-| despawn | 76 | 0 | 67 | 9 | 0 | 0 | 11.8% |
-| behavior.look_at_player | 69 | 0 | 61 | 8 | 0 | 0 | 11.6% |
+| is_hidden_when_invisible | 92 | 1 | 80 | 0 | 11 | 0 | 12.0% |
+| movement | 92 | 0 | 81 | 5 | 6 | 0 | 12.0% |
+| hurt_on_condition | 87 | 0 | 77 | 9 | 0 | 1 | 10.5% |
+| jump.static | 79 | 0 | 69 | 10 | 0 | 0 | 12.7% |
+| experience_reward | 80 | 0 | 68 | 12 | 0 | 0 | 15.0% |
+| loot | 78 | 0 | 66 | 11 | 0 | 1 | 14.3% |
+| despawn | 76 | 0 | 65 | 11 | 0 | 0 | 14.5% |
+| behavior.look_at_player | 69 | 0 | 59 | 10 | 0 | 0 | 14.5% |
 | can_climb | 57 | 0 | 57 | 0 | 0 | 0 | 0.0% |
-| navigation.walk | 66 | 0 | 57 | 9 | 0 | 0 | 13.6% |
-| movement.basic | 65 | 0 | 56 | 9 | 0 | 0 | 13.8% |
-| behavior.random_stroll | 64 | 0 | 55 | 9 | 0 | 0 | 14.1% |
+| navigation.walk | 66 | 0 | 55 | 11 | 0 | 0 | 16.7% |
 | spawn_rules | 59 | 5 | 50 | 4 | 0 | 0 | 6.8% |
-| behavior.random_look_around | 55 | 0 | 47 | 8 | 0 | 0 | 14.5% |
-| behavior.nearest_attackable_target | 49 | 0 | 45 | 4 | 0 | 0 | 8.2% |
+| movement.basic | 65 | 0 | 54 | 11 | 0 | 0 | 16.9% |
+| behavior.random_stroll | 64 | 0 | 53 | 11 | 0 | 0 | 17.2% |
+| behavior.random_look_around | 55 | 0 | 45 | 10 | 0 | 0 | 18.2% |
 | behavior.float | 49 | 0 | 44 | 5 | 0 | 0 | 10.2% |
-| attack | 48 | 0 | 43 | 5 | 0 | 0 | 10.4% |
+| behavior.nearest_attackable_target | 49 | 0 | 43 | 6 | 0 | 0 | 12.2% |
 | leashable | 43 | 39 | 4 | 0 | 0 | 0 | 0.0% |
 | leashable_to | 42 | 38 | 4 | 0 | 0 | 0 | 0.0% |
-| scale | 47 | 0 | 39 | 8 | 0 | 0 | 17.0% |
-| behavior.hurt_by_target | 42 | 0 | 38 | 3 | 1 | 0 | 9.5% |
+| attack | 48 | 0 | 41 | 7 | 0 | 0 | 14.6% |
+| damage_sensor | 39 | 0 | 38 | 1 | 0 | 0 | 2.6% |
+| behavior.hurt_by_target | 42 | 0 | 37 | 5 | 0 | 0 | 11.9% |
 
 ### Entities gaps
 
@@ -183,7 +183,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **hostile**
 
-- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 21 more
+- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 18 more
 
 **object**
 
@@ -195,7 +195,8 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **projectile**
 
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 3 more
+- `minecraft:xp_bottle`: players cannot throw bottles; AddActor/RemoveActor timing differs from BDS by a tick (see notes)
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 2 more
 
 **village**
 
