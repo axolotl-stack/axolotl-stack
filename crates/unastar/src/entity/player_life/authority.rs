@@ -31,7 +31,9 @@
 //! sprint its food level forbids: slowdowns the simulation does not model)
 //! is taken too, except while a knockback must play out. A teleport is
 //! enforced whatever the trust. A client must never be corrected where BDS
-//! would not correct it.
+//! would not correct it. The movement differential (`tools/movement-diff`)
+//! decides what the simulation covers: what it matches BDS on bit for bit is
+//! judged.
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
@@ -43,7 +45,7 @@ use jolyne::valentine::{CorrectPlayerMovePredictionPacket, PlayerAuthInputPacket
 use unastar_rules::movement::authority::{self, Authority, TINY, Verdict};
 use unastar_rules::movement::{
     self as sim, Aabb, Block, BlockKind, Body, Controls, JUMP_DELAY, NETWORK_OFFSET, Pose, Terrain,
-    WIDTH,
+    WIDTH, walk_speed,
 };
 
 use crate::entity::PLAYER_EYE_HEIGHT;
@@ -97,30 +99,24 @@ pub struct MotionTable {
 }
 
 /// Blocks with movement rules of their own the simulation does not
-/// reproduce yet: a player near one is trusted. Climbing (ladders, vines,
-/// scaffolding), sticky or slowing blocks (honey, soul sand, sweet berries)
-/// and bubble columns. Families the simulation has but no BDS run has
-/// confirmed ([`BlockKind::confirmed`]), lava, flowing water (whose current
-/// pushes) and friction other than [`CONFIRMED_FRICTION`] (ice) are not
-/// supported either.
+/// reproduce yet: a player near one is trusted. The climbable plants but
+/// ladders and vines, scaffolding (climbing it is not yet BDS's), sweet
+/// berries and bubble columns. Families the simulation has but no BDS run
+/// has confirmed ([`BlockKind::confirmed`]: beds, powder snow), lava and
+/// flowing water (whose current pushes) are not supported either.
+/// Ladders, vines, honey, soul sand, slime, cobwebs and ice are: the
+/// movement differential (`tools/movement-diff`) matches BDS on them bit for
+/// bit.
 const UNSUPPORTED: &[&str] = &[
-    "minecraft:ladder",
-    "minecraft:vine",
     "minecraft:twisting_vines",
     "minecraft:weeping_vines",
     "minecraft:cave_vines",
     "minecraft:cave_vines_body_with_berries",
     "minecraft:cave_vines_head_with_berries",
     "minecraft:scaffolding",
-    "minecraft:honey_block",
-    "minecraft:soul_sand",
     "minecraft:sweet_berry_bush",
     "minecraft:bubble_column",
 ];
-
-/// The ground friction BDS runs of the sweep client confirmed (every block
-/// but ice, honey and slime).
-const CONFIRMED_FRICTION: f32 = 0.6;
 
 impl MotionTable {
     pub fn new(registry: &BlockRegistry) -> Self {
@@ -138,12 +134,9 @@ impl MotionTable {
                 // its own.
                 let liquid_supported = liquid
                     .is_none_or(|liquid| liquid.kind == LiquidKind::Water && liquid.depth == 0);
-                let friction_supported = kind == BlockKind::Air
-                    || (entry.data.friction - CONFIRMED_FRICTION).abs() < 1.0e-6;
                 let supported = kind.confirmed()
                     && !UNSUPPORTED.contains(&entry.string_id.as_str())
-                    && liquid_supported
-                    && friction_supported;
+                    && liquid_supported;
                 blocks[index] = (
                     Block {
                         friction: entry.data.friction,
@@ -317,8 +310,7 @@ pub enum Trust {
     /// Flying in a game mode that can fly, or a spectator: flight is not
     /// simulated.
     Flight,
-    /// A movement effect the simulation does not apply, or applies without
-    /// a BDS run confirming it.
+    /// Slowness or levitation (see [`MovementEffects::unsupported`]).
     Effect,
     /// A riptide trident's spin, started in water, launches the player.
     Riptide,
@@ -404,16 +396,29 @@ const MAX_TRUSTED_SPEED: f32 = 4.0;
 /// copy is judged, not taken: the knockback must play out as BDS's.
 const PUSH_SETTLE: u8 = 20;
 
-/// A player's movement effects as the simulation reads them.
+/// A player's movement effects as the simulation reads them: levels are
+/// amplifier + 1, 0 without the effect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MovementEffects {
-    /// Jump boost level (amplifier + 1), 0 without.
     pub jump_boost: u8,
     pub slow_falling: bool,
-    /// An effect the input is trusted under: speed, slowness and
-    /// levitation are not simulated; jump boost and slow falling are, but no
-    /// BDS run has confirmed them yet.
-    pub unsupported: bool,
+    pub speed: u8,
+    pub slowness: u8,
+    pub levitation: u8,
+}
+
+impl MovementEffects {
+    /// Whether an input is trusted under these effects. Speed, jump boost
+    /// and slow falling are simulated as BDS moves them. Levitation is
+    /// simulated too, but a levitating player's first ground contact is
+    /// not yet BDS's. Slowness is simulated as BDS moves it, but this
+    /// server does not send the movement attribute with the effect's
+    /// modifier, so whether a vanilla client slows down is not known: a
+    /// copy slowed where the client is not would correct it. (A client that
+    /// does not speed up is only slower than the copy, and taken.)
+    pub fn unsupported(&self) -> bool {
+        self.slowness > 0 || self.levitation > 0
+    }
 }
 
 /// Movement enchantments a player wears, and a riptide trident in hand.
@@ -447,21 +452,18 @@ pub fn movement_effects_of(effects: Option<&Effects>) -> MovementEffects {
     let Some(effects) = effects else {
         return MovementEffects::default();
     };
+    // Levels are amplifiers: 0 is level I.
+    let level = |effect| {
+        effects
+            .get(effect)
+            .map_or(0, |effect| effect.level.saturating_add(1))
+    };
     MovementEffects {
-        // Levels are amplifiers: 0 is level I.
-        jump_boost: effects
-            .get(EffectType::JUMP_BOOST)
-            .map_or(0, |effect| effect.level.saturating_add(1)),
+        jump_boost: level(EffectType::JUMP_BOOST),
         slow_falling: effects.has(EffectType::SLOW_FALLING),
-        unsupported: [
-            EffectType::SPEED,
-            EffectType::SLOWNESS,
-            EffectType::LEVITATION,
-            EffectType::JUMP_BOOST,
-            EffectType::SLOW_FALLING,
-        ]
-        .into_iter()
-        .any(|effect| effects.has(effect)),
+        speed: level(EffectType::SPEED),
+        slowness: level(EffectType::SLOWNESS),
+        levitation: level(EffectType::LEVITATION),
     }
 }
 
@@ -693,7 +695,7 @@ impl PlayerMotion {
         let sneaking = input.input_data.contains(&Flag::Sneaking) || self.body.sneaking;
         if situation.flight {
             Some(Trust::Flight)
-        } else if situation.effects.unsupported {
+        } else if situation.effects.unsupported() {
             Some(Trust::Effect)
         } else if self.spin > 0 {
             Some(Trust::Riptide)
@@ -733,6 +735,16 @@ impl PlayerMotion {
         };
     }
 
+    /// Carry the player's movement effects on the copy: the walk speed of
+    /// speed and slowness, jump boost, slow falling and levitation.
+    fn follow_effects(&mut self, effects: &MovementEffects) {
+        let body = &mut self.body;
+        body.jump_boost = effects.jump_boost;
+        body.slow_falling = effects.slow_falling;
+        body.levitation = effects.levitation;
+        body.set_walk_speed(walk_speed(effects.speed, effects.slowness));
+    }
+
     /// The input, judged, trusted, or `Err` with the trust it was refused
     /// under.
     fn judge_input(
@@ -744,6 +756,7 @@ impl PlayerMotion {
         let tick = input.client_tick.inputtick;
         let claim = feet_of_reported(&input.position);
         self.follow_spin(input, terrain, situation);
+        self.follow_effects(&situation.effects);
         if std::mem::take(&mut self.settling) {
             // The spawn point is the server's choice (a configured location
             // can sit inside a block); a client that joined or respawned
@@ -818,8 +831,6 @@ impl PlayerMotion {
         // Only a move the keys drive can be slowed: a pull, or momentum
         // after the keys are let go, moves the copy as BDS's.
         let driven = pull == [0.0; 3] && (controls.forward != 0.0 || controls.strafe != 0.0);
-        self.body.jump_boost = situation.effects.jump_boost;
-        self.body.slow_falling = situation.effects.slow_falling;
         if situation.glide
             && input.input_data.contains(&Flag::Startgliding)
             && !self.body.on_ground

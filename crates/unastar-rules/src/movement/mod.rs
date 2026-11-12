@@ -297,11 +297,11 @@ impl BlockKind {
         }
     }
 
-    /// Whether BDS runs of the sweep client confirmed how this family
-    /// moves a player (slime and bed bounces, powder snow, cobwebs,
-    /// climbing, soul sand and honey are simulated, but not yet confirmed).
+    /// Whether BDS runs confirmed how this family moves a player, bit for
+    /// bit (the movement differential's scenarios, `tools/movement-diff`):
+    /// beds and powder snow are simulated, but not yet confirmed.
     pub fn confirmed(self) -> bool {
-        matches!(self, Self::Plain | Self::Air | Self::SoulSoil)
+        !matches!(self, Self::Bed | Self::PowderSnow)
     }
 }
 

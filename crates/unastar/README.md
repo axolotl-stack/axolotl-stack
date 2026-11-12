@@ -115,16 +115,20 @@ The server grants these; a trusted input more than 64 blocks from the copy is
 rejected whole:
 - flying in a game mode that can fly, and spectators (a survival client's
   `StartFlying` is ignored);
-- inputs under a movement effect: speed, slowness, levitation, jump boost or
-  slow falling.
+- inputs under slowness or levitation. Speed, jump boost and slow falling
+  are simulated. Levitation's first ground contact is not yet BDS's, and
+  slowness waits for the movement attribute to carry the effect's modifier,
+  without which a vanilla client may not slow down.
 
 A client can seek these out, so they cover about one tick of movement (1.5
 blocks horizontally, 4 vertically) and never pass through a block the
 simulation reproduces; beyond that the copy judges the input:
-- inputs near blocks with movement rules of their own: climbing, honey, soul
-  sand, sweet berries, lava, flowing water, bubble columns, slime, beds, powder
-  snow, cobwebs, and ice, whose friction is unconfirmed (`MotionTable`, both
-  block layers);
+- inputs near blocks with movement rules the simulation does not reproduce
+  yet: twisting, weeping and cave vines, scaffolding, sweet berries, lava,
+  flowing water, bubble columns, beds and powder snow (`MotionTable`, both
+  block layers). Ladders, vines, honey, soul sand, slime, cobwebs and ice are
+  judged: the movement differential (`tools/movement-diff`) matches BDS on
+  them bit for bit;
 - depth strider near water, swift sneak while sneaking, soul speed near soul
   sand or soil;
 - a riptide trident's spin started in water, for at most 20 inputs (up to 4

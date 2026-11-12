@@ -450,9 +450,9 @@ fn a_survival_client_cannot_fly() {
 }
 
 /// A sprint the copy picks up after trusted inputs keeps its speed: a
-/// client that starts sprinting under an effect the copy trusts goes on
-/// sprinting once the effect ends, and the copy follows it exactly,
-/// without a correction.
+/// client that starts sprinting under an effect the copy trusts
+/// (levitation) goes on sprinting once the effect ends, and the copy
+/// follows it exactly, without a correction.
 #[test]
 fn a_sprint_goes_on_after_trusted_inputs() {
     use crate::entity::components::{EffectType, Effects};
@@ -461,7 +461,7 @@ fn a_sprint_goes_on_after_trusted_inputs() {
     let start = h.feet();
     h.put(start);
     let mut effects = Effects::new();
-    effects.add(EffectType::JUMP_BOOST, 0, 100_000);
+    effects.add(EffectType::LEVITATION, 0, 100_000);
     h.world().entity_mut(player).insert(effects);
     let mut client = unastar_rules::movement::Body::at(start.as_vec3().to_array());
     client.on_ground = true;
@@ -574,17 +574,17 @@ fn a_knockback_must_be_followed() {
 }
 
 /// The trusts a client can seek out reach about one tick of movement, and
-/// not through blocks the simulation reproduces: next to a ladder, a claim
-/// 10 blocks away or inside the wall beside it is judged and corrected, and
-/// so is a claim in a crawl space the copy is not in.
+/// not through blocks the simulation reproduces: next to scaffolding, a
+/// claim 10 blocks away or inside the wall beside it is judged and
+/// corrected, and so is a claim in a crawl space the copy is not in.
 #[test]
 fn near_trusts_do_not_reach_far() {
-    fn ladder(h: &mut Harness) -> DVec3 {
+    fn scaffolding(h: &mut Harness) -> DVec3 {
         let id = h
             .world()
             .resource::<crate::server::game::types::BlockRegistryResource>()
             .0
-            .default_state_id_by_name("minecraft:ladder")
+            .default_state_id_by_name("minecraft:scaffolding")
             .unwrap();
         h.set_block(HOME.floor().as_ivec3() + IVec3::X, id);
         DVec3::new(10.0, 0.0, 0.0)
@@ -594,9 +594,9 @@ fn near_trusts_do_not_reach_far() {
         h.set_block((HOME + away).floor().as_ivec3() + IVec3::Y, *blocks::STONE);
         away
     }
-    /// A ladder on a wall: the claim steps into the wall beside it.
+    /// Scaffolding by a wall: the claim steps into the wall beside it.
     fn into_a_wall(h: &mut Harness) -> DVec3 {
-        ladder(h);
+        scaffolding(h);
         for y in 0..2 {
             h.set_block(
                 HOME.floor().as_ivec3() + IVec3::new(0, y, 1),
@@ -607,9 +607,9 @@ fn near_trusts_do_not_reach_far() {
     }
     type Setup = fn(&mut Harness) -> DVec3;
     let cases: [(&str, Setup); 3] = [
-        ("a ladder", ladder),
+        ("scaffolding", scaffolding),
         ("a crawl space", crawl_space),
-        ("a wall by a ladder", into_a_wall),
+        ("a wall by scaffolding", into_a_wall),
     ];
     for (case, setup) in cases {
         let mut h = harness(Difficulty::Easy);
@@ -673,10 +673,11 @@ fn a_riptide_spin_is_trusted_for_twenty_inputs() {
 }
 
 /// Inputs the simulation does not reproduce are trusted, each for its
-/// reason, and only where it applies: a movement effect, swift sneak
-/// sneaking, depth strider next to water, soul speed on soul soil, a
-/// riptide trident's spin started in water, a block at eye height (a crawl
-/// space), ice underfoot (its friction is unconfirmed).
+/// reason, and only where it applies: levitation, slowness, swift sneak sneaking,
+/// depth strider next to water, soul speed on soul soil, a riptide
+/// trident's spin started in water, a block at eye height (a crawl space),
+/// scaffolding. What the movement differential verified is judged: speed,
+/// jump boost, ice, ladders, honey.
 #[test]
 fn situations_the_simulation_does_not_cover_are_trusted() {
     use crate::entity::components::{
@@ -705,10 +706,43 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
 
     type Setup = fn(&mut Harness) -> Vec<Flag>;
     type Case = (&'static str, Setup, Option<Trust>);
-    let cases: [Case; 13] = [
+    let cases: [Case; 19] = [
         ("nothing", |_| Vec::new(), None),
         (
-            "jump boost",
+            "levitation",
+            |h| {
+                let player = h.player;
+                let mut effects = Effects::new();
+                effects.add(EffectType::LEVITATION, 1, 1000);
+                h.world().entity_mut(player).insert(effects);
+                Vec::new()
+            },
+            Some(Trust::Effect),
+        ),
+        (
+            "slowness",
+            |h| {
+                let player = h.player;
+                let mut effects = Effects::new();
+                effects.add(EffectType::SLOWNESS, 1, 1000);
+                h.world().entity_mut(player).insert(effects);
+                Vec::new()
+            },
+            Some(Trust::Effect),
+        ),
+        (
+            "speed (judged: the simulation matches BDS)",
+            |h| {
+                let player = h.player;
+                let mut effects = Effects::new();
+                effects.add(EffectType::SPEED, 1, 1000);
+                h.world().entity_mut(player).insert(effects);
+                Vec::new()
+            },
+            None,
+        ),
+        (
+            "jump boost (judged: the simulation matches BDS)",
             |h| {
                 let player = h.player;
                 let mut effects = Effects::new();
@@ -716,7 +750,7 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
                 h.world().entity_mut(player).insert(effects);
                 Vec::new()
             },
-            Some(Trust::Effect),
+            None,
         ),
         (
             "swift sneak sneaking",
@@ -802,13 +836,40 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
             Some(Trust::Crawl),
         ),
         (
-            "ice underfoot",
+            "scaffolding beside",
+            |h| {
+                let scaffolding = block_named(h, "minecraft:scaffolding");
+                h.set_block(HOME.floor().as_ivec3() + IVec3::X, scaffolding);
+                Vec::new()
+            },
+            Some(Trust::Block),
+        ),
+        (
+            "ice underfoot (judged: the simulation matches BDS)",
             |h| {
                 let ice = block_named(h, "minecraft:ice");
                 h.set_block(HOME.floor().as_ivec3() - IVec3::Y, ice);
                 Vec::new()
             },
-            Some(Trust::Block),
+            None,
+        ),
+        (
+            "a ladder beside (judged)",
+            |h| {
+                let ladder = block_named(h, "minecraft:ladder");
+                h.set_block(HOME.floor().as_ivec3() + IVec3::X, ladder);
+                Vec::new()
+            },
+            None,
+        ),
+        (
+            "honey underfoot (judged)",
+            |h| {
+                let honey = block_named(h, "minecraft:honey_block");
+                h.set_block(HOME.floor().as_ivec3() - IVec3::Y, honey);
+                Vec::new()
+            },
+            None,
         ),
         (
             "an item in use (judged: standing, nothing slows)",

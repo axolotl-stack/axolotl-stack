@@ -45,10 +45,14 @@ before the server judges that block or effect. The server keeps a per-player cop
 `MOVING` and exhaustion, and a teleport makes the next input rest at the destination. Where
 the simulation does not reproduce vanilla, or no BDS run has confirmed it, the copy takes the
 client's position and velocity, as the server did before:
-- blocks: climbing, honey, soul sand, lava, flowing water, bubble columns, slime and bed
-  bounces, powder snow, cobwebs, ice;
-- movement effects, movement enchantments, riptide spins, crawl spaces;
+- blocks: climbing plants other than ladders and vines, scaffolding, sweet berries, lava,
+  flowing water, bubble columns, beds, powder snow;
+- slowness and levitation, movement enchantments, riptide spins, crawl spaces;
 - flight in a game mode that can fly.
+
+What the movement differential (`tools/movement-diff`, decision 0054) matches BDS on bit for
+bit is judged: ladders, vines, honey, soul sand, slime, cobwebs, ice, speed, jump boost, slow
+falling.
 
 The trusts the server grants (flight, effects) reach 64 blocks; beyond that an input is
 rejected whole. The ones a client can seek out reach about one tick of movement; beyond that

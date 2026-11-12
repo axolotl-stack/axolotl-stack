@@ -87,7 +87,7 @@ When the server moves a player (a command, a plugin, an ender pearl or chorus fr
 Evidence: crates/unastar/src/entity/player_life/authority.rs (`PlayerMotion::teleported`, `PlayerMotion::respawned`), crates/unastar/src/command/exec/teleport.rs, crates/unastar/src/server/game/item_use/mod.rs (`teleport`), crates/unastar/src/server/game/plugins.rs, crates/unastar/src/entity/player_life/respawn.rs, crates/unastar/src/server/game/command_tests.rs (`a_teleport_cannot_be_undone_by_the_input_already_on_its_way`), crates/unastar/src/entity/player_life/tests/authority.rs (`the_copy_moves_and_corrects_like_bds`), crates/unastar/src/entity/player_life/tests/respawn.rs (`the_copy_of_the_player_respawns_with_it`)
 
 ### Requirement: Movement the simulation does not cover is trusted
-The server SHALL take a client's state without judging it where the simulation does not reproduce vanilla: flight in a game mode that can fly, movement effects, nearby blocks with rules of their own, movement enchantments where they act, a riptide spin started in water, a crawl space, a client only slower than the copy's simulation of its keys (not after a knockback), or the first input after a join or respawn near the spawn point. Each trust MUST be bounded by the move it allows.
+The server SHALL take a client's state without judging it where the simulation does not reproduce vanilla: flight in a game mode that can fly, slowness or levitation, nearby blocks with rules of their own, movement enchantments where they act, a riptide spin started in water, a crawl space, a client only slower than the copy's simulation of its keys (not after a knockback), or the first input after a join or respawn near the spawn point. Each trust MUST be bounded by the move it allows.
 
 #### Scenario: Replayed vanilla movement
 - **WHEN** the BDS movement capture's phases (walking, sprinting, sneaking, jumps, swims, glides, falls onto slime, beds, hay, water and powder snow, fire, lava, knockback) are replayed
@@ -106,7 +106,7 @@ The server SHALL take a client's state without judging it where the simulation d
 - **THEN** the flag is ignored and the input is judged and corrected
 
 #### Scenario: Situations the simulation does not cover
-- **WHEN** a standing player sends an input under jump boost, sneaking in swift sneak leggings, next to water in depth strider boots, on soul soil in soul speed boots, starting a riptide spin next to water, under a block at eye height or on ice
+- **WHEN** a standing player sends an input under slowness or levitation, sneaking in swift sneak leggings, next to water in depth strider boots, on soul soil in soul speed boots, starting a riptide spin next to water, under a block at eye height or next to scaffolding
 - **THEN** the input is trusted and no correction is sent
 
 #### Scenario: A slower client
