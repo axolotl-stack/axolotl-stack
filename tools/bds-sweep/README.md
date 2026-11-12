@@ -162,6 +162,9 @@ Tooling for such runs:
   (`MovePlayer` every tick); while the first client disagrees, BDS moves its
   copy towards the client's position by up to 0.005 blocks a tick, so
   calibrate against runs without corrections.
+- `bds-sweep-client --scenarios CORPUS --scenario-log FILE` plays the movement corpus when it
+  gets the `scenarios` order, reporting a position 3 blocks off so BDS's copy moves by its own
+  simulation (`tools/movement-diff/README.md`, run by `tools/movement-diff/bds_run.py`).
 - `authority_fixture.py SPEC.json OUT.json --captures DIR` writes the
   movement-authority fixture from runs where the subject misreports on purpose
   (`offset`, `drift`, `walk`, `teleports`, `corrections ignore`) and a viewer
