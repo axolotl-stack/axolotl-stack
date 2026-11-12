@@ -18,7 +18,7 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
         let provider: Arc<dyn WorldProvider> = if blaze {
             BlazeDBProvider::open(&directory, None).unwrap()
         } else {
-            Arc::new(LevelDBWorldProvider::open(&directory, 0).unwrap())
+            Arc::new(LevelDBWorldProvider::open(&directory).unwrap())
         };
         let mut chunk = Chunk::new(2, -3);
         chunk.set_block(4, 75, 6, *unastar::world::chunk::blocks::DIAMOND_ORE);
@@ -78,7 +78,7 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
                 .unwrap()
                 .is_dirty()
         );
-        assert_eq!(server.save_all_chunks().await, 0);
+        assert_eq!(server.save_all_chunks().await.saved, 0);
         assert_eq!(
             provider
                 .load_column(ChunkPos::new(2, -3), 0)
@@ -164,11 +164,11 @@ async fn chunk_biomes_survive_save_and_reopen_for_both_providers() {
             shut_down_blaze(provider).await;
             loaded
         } else {
-            let provider = LevelDBWorldProvider::open(&directory, 0).unwrap();
+            let provider = LevelDBWorldProvider::open(&directory).unwrap();
             provider.save_column(pos, 0, &column).await.unwrap();
             provider.close().await.unwrap();
             drop(provider);
-            let provider = LevelDBWorldProvider::open(&directory, 0).unwrap();
+            let provider = LevelDBWorldProvider::open(&directory).unwrap();
             provider.load_column(pos, 0).await.unwrap()
         };
         assert_mixed_biomes(&loaded.expect("saved column exists").chunk);
@@ -228,6 +228,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
             Some(&uuid.to_string())
         )
         .await
+        .unwrap()
         .is_none()
     );
     let (outbound_tx, _outbound_rx) = tokio::sync::mpsc::channel(32);
@@ -319,6 +320,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
         Some(&uuid.to_string()),
     )
     .await
+    .unwrap()
     .unwrap();
     let config = unastar::config::UnastarConfig::default();
     let spawn = unastar::server::connect::resolve_spawn_location(
@@ -405,7 +407,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
 async fn synchronous_world_extension_does_not_replace_stored_column() {
     use unastar::world::ecs::ChunkManagerWorldExt;
     let directory = std::env::temp_dir().join(format!("unastar-sync-{}", uuid::Uuid::new_v4()));
-    let provider = Arc::new(LevelDBWorldProvider::open(&directory, 0).unwrap());
+    let provider = Arc::new(LevelDBWorldProvider::open(&directory).unwrap());
     let mut chunk = Chunk::new(0, 0);
     chunk.set_block(1, 75, 1, *unastar::world::chunk::blocks::DIAMOND_ORE);
     provider
@@ -416,7 +418,7 @@ async fn synchronous_world_extension_does_not_replace_stored_column() {
     let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
     manager.set_provider(provider.clone());
     world.insert_resource(manager);
-    let entity = world.get_or_create_chunk(0, 0);
+    let entity = world.get_or_create_chunk(0, 0).unwrap();
     assert_eq!(
         world
             .get::<ChunkData>(entity)
@@ -431,8 +433,10 @@ async fn synchronous_world_extension_does_not_replace_stored_column() {
     std::fs::remove_dir_all(directory).unwrap();
 }
 
+/// A corrupt record is an error (the join is refused) and stays stored as it
+/// was, so no first-join save can overwrite it.
 #[tokio::test]
-async fn corrupt_player_record_falls_back_without_deleting_data() {
+async fn corrupt_player_record_is_an_error_and_is_kept() {
     use bleveldb::{DB, Options, ReadOptions, WriteOptions};
     use unastar::storage::LevelDBPlayerProvider;
     let directory = std::env::temp_dir().join(format!("unastar-corrupt-{}", uuid::Uuid::new_v4()));
@@ -446,11 +450,10 @@ async fn corrupt_player_record_falls_back_without_deleting_data() {
             .unwrap();
     }
     let provider = LevelDBPlayerProvider::open(&directory).unwrap();
-    assert!(
-        unastar::server::connect::load_player_data(Some(&provider), Some(&uuid.to_string()))
-            .await
-            .is_none()
-    );
+    assert!(matches!(
+        unastar::server::connect::load_player_data(Some(&provider), Some(&uuid.to_string())).await,
+        Err(unastar::storage::StorageError::Deserialization(_))
+    ));
     drop(provider);
     {
         let db = DB::open(&directory, &Options::new()).unwrap();
@@ -464,26 +467,39 @@ async fn corrupt_player_record_falls_back_without_deleting_data() {
     std::fs::remove_dir_all(directory).unwrap();
 }
 
+/// A world provider whose every read fails.
+struct UnreadableWorld;
+
+#[async_trait::async_trait]
+impl WorldProvider for UnreadableWorld {
+    async fn load_column(
+        &self,
+        _: ChunkPos,
+        _: i32,
+    ) -> unastar::storage::StorageResult<Option<ChunkColumn>> {
+        Err(unastar::storage::StorageError::Database(
+            "unreadable column".into(),
+        ))
+    }
+    async fn save_column(
+        &self,
+        _: ChunkPos,
+        _: i32,
+        _: &ChunkColumn,
+    ) -> unastar::storage::StorageResult<()> {
+        panic!("failed reads must never produce terrain to save")
+    }
+    async fn flush(&self) -> unastar::storage::StorageResult<()> {
+        Ok(())
+    }
+    async fn close(&self) -> unastar::storage::StorageResult<()> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn storage_read_errors_never_generate_replacement_terrain() {
-    use async_trait::async_trait;
-    use unastar::storage::{StorageError, StorageResult};
-    struct UnreadableWorld;
-    #[async_trait]
-    impl WorldProvider for UnreadableWorld {
-        async fn load_column(&self, _: ChunkPos, _: i32) -> StorageResult<Option<ChunkColumn>> {
-            Err(StorageError::Database("unreadable column".into()))
-        }
-        async fn save_column(&self, _: ChunkPos, _: i32, _: &ChunkColumn) -> StorageResult<()> {
-            panic!("failed reads must never produce terrain to save")
-        }
-        async fn flush(&self) -> StorageResult<()> {
-            Ok(())
-        }
-        async fn close(&self) -> StorageResult<()> {
-            Ok(())
-        }
-    }
+    use unastar::storage::StorageError;
     let mut manager = ChunkManager::new(WorldConfig {
         generator: WorldGenerator::Java { seed: 12345 },
         ..WorldConfig::default()
@@ -496,4 +512,23 @@ async fn storage_read_errors_never_generate_replacement_terrain() {
         receiver.await.unwrap(),
         Err(StorageError::Database(_))
     ));
+}
+
+/// The synchronous path returns a storage read error instead of panicking the
+/// tick thread or generating terrain, and creates no chunk entity.
+#[test]
+fn synchronous_storage_read_error_creates_no_chunk_and_does_not_panic() {
+    use unastar::storage::StorageError;
+    use unastar::world::ecs::ChunkManagerWorldExt;
+    let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
+    manager.set_provider(Arc::new(UnreadableWorld));
+    let mut world = World::new();
+    world.insert_resource(manager);
+
+    assert!(matches!(
+        world.get_or_create_chunk(0, 0),
+        Err(StorageError::Database(_))
+    ));
+    assert!(world.resource::<ChunkManager>().is_empty());
+    assert_eq!(world.query::<&ChunkData>().iter(&world).count(), 0);
 }

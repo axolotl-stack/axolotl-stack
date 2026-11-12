@@ -10,8 +10,9 @@ behaviour, not copies of Mojang data files; the raw per-run logs
 `manifest.json` lists every artefact with its SHA-256, the BDS version, the
 harness revision, the sweep runs (start time, status, seconds, item count) and
 the measurement method. The capture-derived tables (`recipe_legacy_identities.json`,
-`builtin_recipes.json`, `potion_types.json`) are not sweep artefacts and record
-their source capture's SHA-256 inside the file instead.
+`builtin_recipes.json`, `potion_types.json`, `block_name_keys.json`) are not
+sweep artefacts and record their source capture's SHA-256 inside the file
+instead.
 `tests/measured_manifest.rs` checks every listed hash and that no other file is
 missing from the manifest. Regenerate a family with `sweep.py` (exclusive BDS
 slot; resumable with `--out`) and then `summarize.py`, e.g.:
@@ -29,14 +30,18 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | File | Content | Method |
 |---|---|---|
 | `block_drops/<block>.json` | `{"block", "cases": [...]}`, one compact case per line: `states` (list of requested block states sharing this case), `placed_states` (what BDS stored, aligned with `states`; only present where it differs), `tools` (tool keys sharing this outcome, see below), `samples`, `observed` (histogram of whole outcomes: per dropped stack `name@data` + `x` + count, `;`-separated, `""` = nothing), `fit`, `loot_table` | `/loot spawn <p> mine <block> mainhand` run as the sweep player holding the tool; 400 samples per tool for each block's first palette state, 64 for every other state |
+| `block_updates/<family>.json` | `{family, method, row, rows: [...]}`, one row per line, in the shape `row` describes: the states BDS stored after each block scenario (stair corners, fence/pane/bars/wall connections, wall heights and posts, fence gate `in_wall_bit`, which neighbours hold each block up, which blocks hold attached blocks, plant soils, wall junctions, two-block halves); `connection_faces.json` is derived from `connections.json`: the blocks whose face fences, panes, bars and walls treat differently from their collision shape | `sweep.py scenarios`: blocks set through the Endstone block API with or without the block update a placement triggers, in waves of side-by-side cells on the superflat world, read back after the wait each file's `method` states |
 | `armor_slots.json` | `{item: {head, chest, legs, feet, offhand}}`, true when the slot holds the item after the command | `/replaceitem entity <player> slot.armor.<slot>\|slot.weapon.offhand 0 <item>` |
+| `item_blocks.json` | `{items: {item: {block, states} or null}, not_given: [...]}`: the block state BDS describes a stack of each item with (`null`: the item is no block item, e.g. doors, beds, signs, hoppers); `not_given` lists the items `/replaceitem` refuses (internal block items such as double slabs and wall signs) | `sweep.py item-blocks`: `/replaceitem entity <player> slot.hotbar 0 <item> 1` for every registry item, slot 0 of the next main-inventory `InventoryContent` the scripted client received |
 | `fuel_burn_ticks.json` | `{item: ticks}` for every item that lights a furnace | furnace with one cobblestone input and the item as fuel; server ticks from lit to unlit (±1) |
 | `armor_values.json` | `{item: {slot, defense, toughness_range, per_hit}}`: health lost per hit for each damage amount; `defense` exact (from a 1000-point hit); `toughness_range` = interval per damage amount where the 1/hits read-out resolves it, else null (formula in `summarize.py`) | wearing only that (unbreakable) item, `/damage <player> D entity_attack` repeated past the hurt cooldown, max health 2000, natural regeneration off |
-| `attack_damage.json` | `{tool key: {tool_item, damage: [per trial], consistent}}` | the scripted player attacks a fresh pig (InventoryTransaction attack); Endstone `ActorDamageEvent` value |
-| `mining_ticks.json` | `{block state: {variant: {ticks: [3 trials], median, tool_item, commands, on_ground, in_water}}}`; variants: tool key plus `+efficiencyN`, `+haste1`, `+haste2`, `+mining_fatigue1`, `+underwater`. Airborne is not measured (levitation lifts the player out of reach) | the scripted player keeps mining (Start/ContinueDestroyBlock); ticks from the click event to the break event (±1 tick) |
+| `armor_wear.json` | `{item: {slot, wear: {damage amount: durability lost}}}` for one hit of each amount | wearing only that (breakable) item, one `/damage <player> D entity_attack` per D, the piece read back before and after each hit |
+| `attack_damage.json` | `{tool key: {tool_item, damage: [per trial], consistent, gamemode, wear}}`; `wear`: durability damage each trial added to the held stack, the ignored warm-up attack first | the scripted player (survival) attacks a fresh pig (InventoryTransaction attack); Endstone `ActorDamageEvent` value; the held stack read back after every trial |
+| `mining_ticks.json` | `{block state: {variant: {ticks: [trials], median, tool_item, commands, on_ground, in_water, wear}}}`; variants: tool key plus `+efficiencyN`, `+hasteN`, `+mining_fatigueN`, `+underwater`, and held items by name; `wear`: durability damage each break added to the held stack. Airborne is not measured (levitation lifts the player out of reach); the `+underwater` cells are unreliable (the water ran off the player's head between trials) | the scripted player keeps mining (Start/ContinueDestroyBlock); ticks from the click event to the break event (±1 tick); the held stack read back after every break |
 | `recipe_legacy_identities.json` | canonical input/output item and aux identities for legacy recipe spellings | pinned 1.26.51 CraftingData capture; `../../tools/extract_recipe_identities.py` |
 | `builtin_recipes.json` | native shaped/shapeless/user-data recipes absent from pack JSON, stable UUID groups/multi identities, result NBT and canonical block states (`null` explicitly means no block state) | same pinned capture; transient network ids/random UUID values discarded; source SHA-256 included |
 | `potion_types.json` | lowercase pack potion type identifier to measured aux | unique labelled-graph solution against all captured brewing edges; source SHA-256 included |
+| `block_name_keys.json` | block identifier to the translation key command feedback names it by (`minecraft:dirt` → `tile.dirt.default.name`); blocks the `Block` command enum refuses are absent | `capture.py --commands` session of `/testforblock 8 199 8 <block>` for every palette block (default state) against stone, `--command-wait 150`, answers paired in order; `commands.testforblock.failed.tile` names the expected block; source SHA-256 of the session's `command-outputs.json` included |
 
 `loot_table` uses the behaviour-pack loot-table schema (`pools`, `rolls`,
 `entries` of `type` `item`/`empty`, `weight`, `functions` `set_count` and
@@ -63,16 +68,21 @@ sword); `shears`; enchantments appended as `+<enchantment><level>`
 drops sweep uses: hand, every tier of each correct tool (protocolgen native
 mining classes), one wrong tool (diamond), shears, silk touch and fortune
 I-III on the diamond correct tool (pickaxe when none). Mining variants add
-`+efficiencyN`, `+haste1/2`, `+mining_fatigue1`, `+underwater`.
+`+efficiencyN`, `+haste1/2`, `+mining_fatigue1`, `+underwater` (diamond correct
+tool), `hand+haste1/2/3`, `hand+mining_fatigue1/2`, and held items keyed by name
+(`apple`, `iron_chestplate`, `wooden_spear`, ...).
 
 Coverage: drops for every canonical block state of the protocolgen 1.26.51
 palette (22,091 states, 287,231 (state, tool) cells); 5 states crashed Endstone
 (43 cells: one yellow glazed terracotta, one prismarine double slab and three
-hanging-sign states); mining for the 10-block slice of `sweep.py`; armour
-slots and fuels for every registry item; armour values for every
-`minecraft:is_armor` item; attack damage for every tool tier, trident, mace and
-sharpness I-V. Not measured yet: airborne mining, enchantability, mining for
-blocks outside the slice.
+hanging-sign states); mining for the 10-block slice of `sweep.py`, Haste I-III
+and Mining Fatigue I-II by hand, every non-tool item the parity catalog gives a
+`digger` facet (110) on dirt, netherrack and oak leaves, and every tool's speed
+and wear on dirt and netherrack (and on wool, vine, glow lichen and short grass
+for shears and the weapons); armour slots and fuels for every registry item;
+armour values and wear per hit for every `minecraft:is_armor` item; attack damage and wear for
+every tool tier, trident, mace, spear and sharpness I-V. Not measured yet:
+airborne and underwater mining, enchantability, mining for other blocks.
 
 Notes from the sweeps:
 

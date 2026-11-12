@@ -225,6 +225,7 @@ pub fn land_players(
         return;
     }
     let table = table.get_or_insert_with(|| LandingTable::new(world.registry()));
+    super::actor_data::enter_player_tick(world);
     for (player, feet, distance) in due.drain(..) {
         if !hurtable(world, player) {
             continue;
@@ -247,6 +248,7 @@ pub fn land_players(
         );
         play_block_fall_sound(world, player, feet, outcome.block);
     }
+    super::actor_data::leave_player_tick(world);
 }
 
 /// The players the environment can hurt: alive, with a position.
@@ -270,6 +272,7 @@ pub fn hurt_players_by_environment(
     let table = table.get_or_insert_with(|| ContactTable::new(world.registry()));
     let rules = world.resource::<PlayerRules>().clone();
     let void = f64::from(crate::world::chunk::MIN_Y) - VOID_DEPTH;
+    super::actor_data::enter_player_tick(world);
     for (player, eyes) in due.drain(..) {
         let feet = eyes - DVec3::Y * PLAYER_EYE_HEIGHT;
         if eyes.y < void {
@@ -332,6 +335,7 @@ pub fn hurt_players_by_environment(
         }
         burn(world, player, now);
     }
+    super::actor_data::leave_player_tick(world);
 }
 
 /// Set `player` alight for at least `ticks` from `now`.

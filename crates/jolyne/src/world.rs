@@ -95,6 +95,10 @@ pub struct WorldJoinParams {
     /// Server-chosen chunk radius (gophertunnel `GameData.ChunkRadius`);
     /// `None` grants the client's request.
     pub chunk_radius: Option<i32>,
+    /// Largest radius a granted request may have (BDS grants the client's
+    /// request up to its `view-distance`); `None` grants any request. Not
+    /// applied to [`Self::chunk_radius`].
+    pub max_chunk_radius: Option<i32>,
 }
 
 impl WorldTemplate {
@@ -120,6 +124,7 @@ impl WorldTemplate {
             available_entities: Some(self.available_entities.clone()),
             creative_content: Some(self.creative_content.clone()),
             chunk_radius: None,
+            max_chunk_radius: None,
         }
     }
 }

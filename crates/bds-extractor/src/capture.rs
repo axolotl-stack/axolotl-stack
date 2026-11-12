@@ -221,7 +221,16 @@ pub async fn run(options: &Options) -> Result<()> {
             for command in &options.commands {
                 info!("/{command}");
                 session.command(command).await?;
-                session.pump_for(options.command_wait).await?;
+                match session.pump_for(options.command_wait).await {
+                    Ok(()) => {}
+                    // A script may end by kicking its own player: the
+                    // recording up to the disconnect is complete.
+                    Err(error) if error.downcast_ref::<ServerDisconnected>().is_some() => {
+                        warn!("{error}; script stops after /{command}");
+                        break;
+                    }
+                    Err(error) => return Err(error),
+                }
             }
             phases.commands_end = Some(session.next_seq()?);
         }
@@ -260,6 +269,44 @@ pub async fn run(options: &Options) -> Result<()> {
     Ok(())
 }
 
+/// The server closed the session (a `/kick` of the capturing player ends a
+/// command script this way).
+#[derive(Debug)]
+struct ServerDisconnected(String);
+
+impl std::fmt::Display for ServerDisconnected {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "server disconnected: {}", self.0)
+    }
+}
+
+impl std::error::Error for ServerDisconnected {}
+
+/// Derives every output of a capture directory again from its
+/// `packets.jsonl`, for a session that stopped before writing them. The
+/// phases come from the recording: the join ends at the first
+/// `CommandRequest` and the commands at the last record.
+pub fn rewrite(dir: &Path) -> Result<()> {
+    let records = read_records(&dir.join("packets.jsonl"))?;
+    let first_command = records
+        .iter()
+        .find(|r| r.dir == "c2s" && r.name == "CommandRequestPacket")
+        .map(|r| r.seq);
+    let end = records.last().map_or(0, |r| r.seq + 1);
+    let phases = Phases {
+        join_end: first_command.unwrap_or(end),
+        summon_end: None,
+        commands_end: first_command.map(|_| end),
+    };
+    let manifest = write_outputs(dir, &records, phases, &[])?;
+    info!(
+        "Rewrote {} files in {}",
+        manifest["files"].as_array().map_or(0, Vec::len),
+        dir.display()
+    );
+    Ok(())
+}
+
 struct Session<'a, T: jolyne::stream::transport::Transport> {
     play: &'a mut BedrockStream<Play, Client, T>,
     recorder: &'a Mutex<Recorder>,
@@ -280,7 +327,7 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
         let packet = match self.play.recv_packet_raw().await {
             Ok(packet) => packet,
             Err(JolyneError::Disconnected(disconnect)) => {
-                bail!("server disconnected: {:?}", disconnect.packet.body())
+                return Err(ServerDisconnected(format!("{:?}", disconnect.packet.body())).into());
             }
             Err(error) => return Err(error.into()),
         };

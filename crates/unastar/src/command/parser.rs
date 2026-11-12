@@ -271,6 +271,9 @@ pub enum ParseError {
     Syntax(SyntaxError),
 }
 
+/// How many characters before the offending token a syntax error shows.
+const SYNTAX_CONTEXT: usize = 10;
+
 /// BDS's `commands.generic.syntax` parameters.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyntaxError {
@@ -284,8 +287,12 @@ impl SyntaxError {
     fn at(line: &str, at: usize) -> Self {
         let rest = &line[at..];
         let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+        // Measured: BDS shows at most the last ten characters before the token
+        // (`/scoreboard objectives add bad deathCount` → "s add bad ").
+        let before = format!("/{}", &line[..at]);
+        let skip = before.chars().count().saturating_sub(SYNTAX_CONTEXT);
         Self {
-            before: format!("/{}", &line[..at]),
+            before: before.chars().skip(skip).collect(),
             token: rest[..end].to_owned(),
             after: rest[end..].to_owned(),
         }
@@ -321,6 +328,17 @@ pub fn parse_overloads(
     line: &str,
     start: usize,
 ) -> Result<Args, ParseError> {
+    match_overloads(schema, definition, line, start)
+        .map_err(|furthest| ParseError::Syntax(SyntaxError::at(line, furthest.min(line.len()))))
+}
+
+/// [`parse_overloads`], failing with the furthest position any overload reached.
+fn match_overloads(
+    schema: &CommandSchema,
+    definition: &'static CommandDefinition,
+    line: &str,
+    start: usize,
+) -> Result<Args, ErrorAt> {
     let mut furthest = start;
     'overloads: for (overload, o) in definition.overloads.iter().enumerate() {
         let mut cursor = Cursor {
@@ -342,7 +360,7 @@ pub fn parse_overloads(
                 // `commands.generic.invalidMessage`.
                 if index + 1 == o.params.len() && param.kind == ParamKind::Basic(BasicType::Message)
                 {
-                    args.insert(param.name.as_str(), ArgValue::Message(String::new()));
+                    args.insert(index, ArgValue::Message(String::new()));
                     break;
                 }
                 furthest = furthest.max(cursor.pos);
@@ -357,8 +375,8 @@ pub fn parse_overloads(
                 furthest = furthest.max(cursor.pos);
                 continue 'overloads;
             }
-            match parse_param(schema, param, &mut cursor) {
-                Ok(value) => args.insert(param.name.as_str(), value),
+            match parse_param(schema, definition, param, &mut cursor) {
+                Ok(value) => args.insert(index, value),
                 Err(at) => {
                     furthest = furthest.max(at);
                     continue 'overloads;
@@ -372,14 +390,12 @@ pub fn parse_overloads(
         }
         return Ok(args);
     }
-    Err(ParseError::Syntax(SyntaxError::at(
-        line,
-        furthest.min(line.len()),
-    )))
+    Err(furthest)
 }
 
 fn parse_param(
     schema: &CommandSchema,
+    definition: &'static CommandDefinition,
     param: &CommandParam,
     cursor: &mut Cursor<'_>,
 ) -> Result<ArgValue, ErrorAt> {
@@ -407,8 +423,12 @@ fn parse_param(
             let number = lower.strip_suffix(postfix.as_str()).ok_or(start)?;
             parse_int(number).map(ArgValue::Postfix).ok_or(start)
         }
+        // The rest of the line is the next subcommand of the same command
+        // (`/execute as @s at @s run …`): it must parse as one of the
+        // command's own overloads, so errors point into the whole line.
         ParamKind::Chained(_) => {
             let rest = cursor.rest().trim_end().to_owned();
+            match_overloads(schema, definition, cursor.text, cursor.pos)?;
             cursor.pos = cursor.text.len();
             Ok(ArgValue::Chained(rest))
         }
