@@ -18,9 +18,10 @@ use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_ta
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
-    BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FloatGoal, FollowParentGoal,
-    HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal, NearestAttackableTargetGoal, PanicGoal,
-    PickupItemsGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
+    BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal, FloatGoal,
+    FollowParentGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
+    NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal, RandomLookAroundGoal,
+    RandomStrollGoal, TemptGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -54,10 +55,11 @@ pub enum Goal {
     MeleeBoxAttack,
     PickupItems,
     EquipItem,
+    FleeSun,
 }
 
 impl Goal {
-    const ALL: [Goal; 14] = [
+    const ALL: [Goal; 15] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -72,6 +74,7 @@ impl Goal {
         Goal::MeleeBoxAttack,
         Goal::PickupItems,
         Goal::EquipItem,
+        Goal::FleeSun,
     ];
 
     pub fn id(self) -> GoalId {
@@ -83,11 +86,14 @@ impl Goal {
     }
 
     /// The goal kind's native controls; `behavior.eat_block`,
-    /// `behavior.pickup_items` and `behavior.equip_item` may author their own.
+    /// `behavior.pickup_items`, `behavior.equip_item` and `behavior.flee_sun`
+    /// may author their own.
     fn controls(self) -> GoalControls {
         match self {
             Goal::Float => GoalControls::JUMP,
-            Goal::Panic | Goal::FollowParent | Goal::RandomStroll => GoalControls::MOVE,
+            Goal::Panic | Goal::FollowParent | Goal::RandomStroll | Goal::FleeSun => {
+                GoalControls::MOVE
+            }
             Goal::Breed | Goal::Tempt | Goal::RandomLookAround => {
                 GoalControls::MOVE | GoalControls::LOOK
             }
@@ -148,6 +154,14 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             id: Goal::EatBlock.id(),
             kind: GoalKind::Normal,
             priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<FleeSunGoal>() {
+        out.push(GoalSpec {
+            id: Goal::FleeSun.id(),
+            kind: GoalKind::Normal,
+            priority: goal.base.priority,
             controls: goal.controls,
         });
     }
@@ -235,6 +249,8 @@ struct BreedState {
 pub struct GoalStates {
     panic_target: DVec3,
     panic_repath: u32,
+    /// The covered block `behavior.flee_sun` walks to.
+    pub(super) flee_target: DVec3,
     tempt: TemptState,
     parent: Option<Entity>,
     parent_repath: u32,
@@ -295,7 +311,7 @@ impl<'a> GoalContext<'a> {
     }
 
     /// Search a path to `goal` into the staging buffer.
-    fn path_to(&mut self, goal: DVec3) -> bool {
+    pub(super) fn path_to(&mut self, goal: DVec3) -> bool {
         find_path(
             self.world,
             self.table,
@@ -616,13 +632,14 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_can_start(),
             Goal::PickupItems => self.pickup_can_start(),
             Goal::EquipItem => self.equip_can_start(),
+            Goal::FleeSun => self.flee_sun_can_start(),
         }
     }
 
     fn can_continue(&mut self, id: GoalId) -> bool {
         match Goal::from_id(id) {
             Goal::Float => self.body.liquid.is_some(),
-            Goal::Panic | Goal::RandomStroll => !self.nav.is_done(),
+            Goal::Panic | Goal::RandomStroll | Goal::FleeSun => !self.nav.is_done(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -747,13 +764,14 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_start(),
             Goal::PickupItems => self.pickup_start(),
             Goal::EquipItem => {}
+            Goal::FleeSun => self.flee_sun_start(),
         }
     }
 
     fn stop(&mut self, id: GoalId) {
         match Goal::from_id(id) {
             Goal::Float => {}
-            Goal::Panic | Goal::RandomStroll => self.nav.stop(self.movement),
+            Goal::Panic | Goal::RandomStroll | Goal::FleeSun => self.nav.stop(self.movement),
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -805,7 +823,7 @@ impl GoalCallbacks for GoalContext<'_> {
                     }
                 }
             }
-            Goal::RandomStroll => {}
+            Goal::RandomStroll | Goal::FleeSun => {}
             Goal::EatBlock => {
                 self.states.eat_ticks = self.states.eat_ticks.max(1) - 1;
                 if self.states.eat_ticks == 0 {

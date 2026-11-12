@@ -681,8 +681,12 @@ fn creative_throws_keep_the_egg_and_hatch_chicks_at_the_native_rates() {
         assert!(is_baby(world, chick));
         assert_eq!(climate(world, chick), "cold");
         let feet = world.get::<Position>(chick).unwrap().0;
+        // Hatched where the egg met the floor top (some are mid-hop now).
+        let floor_top = f64::from(FLOOR + 1);
         assert!(
-            feet.x == 2.5 && feet.y > f64::from(FLOOR + 1) && (8.0..12.0).contains(&feet.z),
+            feet.x == 2.5
+                && (floor_top..floor_top + 1.0).contains(&feet.y)
+                && (8.0..12.0).contains(&feet.z),
             "chick at {feet}"
         );
     }

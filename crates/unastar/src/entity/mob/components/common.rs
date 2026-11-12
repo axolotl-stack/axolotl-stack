@@ -14,7 +14,7 @@ use unastar_rules::molang::{Expr, QueryContext, QueryRegistry, parse};
 
 use super::ACCEPTED_WITHOUT_BEHAVIOUR;
 use crate::entity::definition::{ComponentCompileError, ComponentKindsBuilder, DefinitionError};
-use crate::entity::mob::archetype::{UnsupportedFilterTest, check_filter};
+use crate::entity::mob::archetype::UnsupportedFilterTest;
 use crate::entity::mob::constants;
 
 /// Why an item name cannot be parsed.
@@ -119,12 +119,21 @@ pub enum FilterError {
 
 /// Parse a component's filter and check the runtime can answer every test.
 pub fn filter(json: &FilterJson) -> Result<Filter, FilterError> {
+    filter_with(json, &[])
+}
+
+/// [`filter`], also accepting `extra` tests on `self` that the component's
+/// own evaluator answers.
+pub fn filter_with(
+    json: &FilterJson,
+    extra: &[unastar_rules::filter::BuiltinTest],
+) -> Result<Filter, FilterError> {
     let mut diagnostics = unastar_rules::Diagnostics::default();
     let filter = Filter::parse(json, FilterRegistry::vanilla(), "filters", &mut diagnostics)?;
     if !diagnostics.items.is_empty() {
         return Err(FilterError::Diagnostics(diagnostics.items));
     }
-    check_filter(&filter)?;
+    crate::entity::mob::archetype::check_filter_with(&filter, extra)?;
     Ok(filter)
 }
 

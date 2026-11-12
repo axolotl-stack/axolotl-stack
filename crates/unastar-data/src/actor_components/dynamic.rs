@@ -1374,6 +1374,91 @@ pub struct AnnotationBreakDoor {
     pub min_difficulty: Difficulty,
 }
 
+/// An attribute component body: the attribute's `value` and, optionally,
+/// its `max`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AttributeBody {
+    pub value: f32,
+    #[serde(default)]
+    pub max: Option<f32>,
+}
+
+/// `minecraft:follow_range`: how far a mob keeps track of its target (the
+/// follow range attribute). Vanilla authors `{"value": v, "max": m}`, and
+/// once a bare number.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum FollowRange {
+    Value(f32),
+    Attribute(AttributeBody),
+}
+
+/// `minecraft:knockback_resistance`: the knockback resistance attribute.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KnockbackResistance {
+    pub value: f32,
+    #[serde(default)]
+    pub max: Option<f32>,
+}
+
+/// One box of `minecraft:custom_hit_test`, centred on the actor's position
+/// plus `pivot`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Hitbox {
+    pub width: f32,
+    pub height: f32,
+    pub pivot: Vec3,
+}
+
+/// `minecraft:custom_hit_test`: boxes a player's hit on the actor may land
+/// on besides its collision box.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CustomHitTest {
+    #[serde(default)]
+    pub hitboxes: Vec<Hitbox>,
+}
+
+/// `minecraft:mob_effect_immunity`: effects that are never applied to the
+/// actor.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MobEffectImmunity {
+    #[serde(default, deserialize_with = "super::de::optional_one_or_many")]
+    pub mob_effects: Option<Vec<String>>,
+}
+
+/// One effect `minecraft:spell_effects` adds.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpellEffect {
+    pub effect: String,
+    /// Seconds.
+    pub duration: f32,
+    #[serde(default = "spell_effect_amplifier")]
+    pub amplifier: i32,
+    #[serde(default)]
+    pub display_on_screen_animation: bool,
+}
+
+/// `minecraft:spell_effects`: effects added to and removed from the actor
+/// when the component is applied.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpellEffects {
+    #[serde(default)]
+    pub add_effects: Option<Vec<SpellEffect>>,
+    #[serde(default, deserialize_with = "super::de::optional_one_or_many")]
+    pub remove_effects: Option<Vec<String>>,
+}
+
+defaults! {
+    spell_effect_amplifier -> i32 = p::SPELL_EFFECTS_AMPLIFIER;
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1411,19 +1496,23 @@ dynamic_bodies!(
     Color,
     Color2,
     ConditionalBandwidthOptimization,
+    CustomHitTest,
     DamageSensor,
     Despawn,
     EnvironmentSensor,
     EquipItem,
     Equipment,
+    FollowRange,
     Health,
     HurtOnCondition,
     IsDyeable,
     ItemControllable,
+    KnockbackResistance,
     Leashable,
     LeashableTo,
     Loot,
     MarkVariant,
+    MobEffectImmunity,
     Movement,
     MovementBasic,
     Nameable,
@@ -1436,6 +1525,7 @@ dynamic_bodies!(
     SkinId,
     SpawnEggInteraction,
     SpawnEntity,
+    SpellEffects,
     Transformation,
     Timer,
     TypeFamily,

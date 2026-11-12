@@ -329,9 +329,20 @@ pub const PROJECTILE_ROTATION_SMOOTHING: f32 = 0.2;
 pub const PROJECTILE_HIT_INFLATE_DELAY: f64 = 2.0;
 pub const PROJECTILE_HIT_INFLATE_STEP: f64 = 0.05;
 pub const PROJECTILE_HIT_INFLATE_MAX: f64 = 0.3;
-/// A projectile is spawned invisible and becomes visible on this tick of
-/// its flight (the first being 1).
+/// A projectile is spawned invisible and becomes visible at the end of this
+/// tick of its flight (the first being 1).
 pub const PROJECTILE_VISIBLE_TICK: u64 = 2;
+/// Synchronised level sounds of an actor turning invisible and visible
+/// again, played at the centre of its box with data -1 (BDS 1.26.51 sends
+/// them for every projectile; only the wandering trader's sound set gives
+/// them a sound).
+pub const DISAPPEARED_SOUND: &str = "disappeared";
+pub const REAPPEARED_SOUND: &str = "reappeared";
+/// `grant_xp`: the potion-splash level event at the hit …
+pub const POTION_SPLASH_LEVEL_EVENT: i32 = 2002;
+/// … with the default potion colour (ARGB `0xFF385DC6`) as its data: BDS
+/// 1.26.51 sends data -13083194 where an xp bottle breaks.
+pub const DEFAULT_POTION_COLOUR_ARGB: i32 = 0xFF38_5DC6_u32 as i32;
 /// Level event of one `particle_on_hit` particle (data = the particle id).
 pub const PROJECTILE_PARTICLE_LEVEL_EVENT: i32 = 2009;
 /// Particle id of `iconcrack`; its level event data also carries the item's
@@ -589,6 +600,14 @@ pub const MATERIAL_ICE: u8 = 13;
 /// Material ordinal of leaves: a spawn column whose top spawn block is
 /// leaves keeps its next spawn block below on the surface.
 pub const MATERIAL_LEAVES: u8 = 7;
+// --- Flee sun (`behavior.flee_sun`, confirmed) --------------------------------
+
+/// Candidate cover blocks drawn per attempt to start …
+pub const FLEE_SUN_ATTEMPTS: u32 = 10;
+/// … each `random(2 × range) - range` from the feet block on x/z and y.
+pub const FLEE_SUN_RANGE_XZ: i32 = 10;
+pub const FLEE_SUN_RANGE_Y: i32 = 3;
+
 /// The overworld brightness ramp: the brightness each raw light level
 /// `0..=15` stands for, `(1 - f) / (3f + 1)` with `f = 1 - level / 15`, as
 /// the f32 values the game stores (confirmed).
@@ -621,6 +640,10 @@ pub const ANIMAL_GRASS_WALK_TARGET: f32 = 10.0;
 /// An animal's walk-target value elsewhere is the brightness ramp at the
 /// block plus this (confirmed).
 pub const ANIMAL_WALK_TARGET_OFFSET: f32 = -0.5;
+/// An animal's or monster's walk-target value above a magma block, unless
+/// it is fire immune (a grass block below an animal wins; confirmed).
+pub const MAGMA_WALK_TARGET: f32 = -0.5;
+pub const MAGMA_BLOCK: &str = "minecraft:magma";
 /// A naturally spawned monster needs raw brightness below this at its feet
 /// (confirmed).
 pub const MONSTER_SPAWN_BRIGHTNESS_LIMIT: u8 = 8;

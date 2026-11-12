@@ -19,9 +19,11 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::mob::MobKind;
 use crate::entity::mob::constants::{
-    PROJECTILE_HIT_INFLATE_DELAY, PROJECTILE_HIT_INFLATE_MAX, PROJECTILE_HIT_INFLATE_STEP,
-    PROJECTILE_ROTATION_SMOOTHING, PROJECTILE_VISIBLE_TICK,
+    DISAPPEARED_SOUND, PROJECTILE_HIT_INFLATE_DELAY, PROJECTILE_HIT_INFLATE_MAX,
+    PROJECTILE_HIT_INFLATE_STEP, PROJECTILE_ROTATION_SMOOTHING, PROJECTILE_VISIBLE_TICK,
+    REAPPEARED_SOUND,
 };
+use crate::entity::mob::net::sound::queue_synced_sound;
 use crate::entity::mob::state::Dead;
 use crate::entity::systems::physics::{collect_block_boxes, living_liquid};
 use crate::registry::block::LiquidKind;
@@ -122,9 +124,6 @@ fn step(
     }
     let now = world.resource::<TickCounter>().current;
     let ticks = now.saturating_sub(flight.launched_tick) + 1;
-    if ticks == PROJECTILE_VISIBLE_TICK {
-        set_invisible(world, projectile, false);
-    }
 
     hits.clear();
     let to = from + velocity;
@@ -168,14 +167,23 @@ fn step(
     hits.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let mut removed = false;
-    for &(_, target) in hits.iter() {
-        removed |= on_hit(world, projectile, flight.owner, rules, from, target);
+    for &(t, target) in hits.iter() {
+        // The effects happen where the segment meets the target: BDS
+        // 1.26.51 sends an xp bottle's splash event, orbs and hit sound at
+        // the top of the block it fell on.
+        let at = from + velocity * t;
+        removed |= on_hit(world, projectile, flight.owner, rules, from, at, target);
         if removed || !rules.multiple_targets {
             break;
         }
     }
     if removed {
         world.despawn(projectile);
+        return;
+    }
+    if world.get::<super::Stuck>(projectile).is_some() {
+        // It stays where it stuck.
+        show_from_visible_tick(world, projectile, ticks);
         return;
     }
 
@@ -200,6 +208,15 @@ fn step(
         rotation.yaw = lerp_rotation(rotation.yaw, yaw);
         rotation.pitch = lerp_rotation(rotation.pitch, pitch);
     }
+    show_from_visible_tick(world, projectile, ticks);
+}
+
+/// At the end of every flight tick from [`PROJECTILE_VISIBLE_TICK`] on, the
+/// projectile is made visible (a change only the first time).
+fn show_from_visible_tick(world: &mut World, projectile: Entity, ticks: u64) {
+    if ticks >= PROJECTILE_VISIBLE_TICK {
+        set_invisible(world, projectile, false);
+    }
 }
 
 /// Turn `current` towards `target` (degrees) by the smoothing fraction, the
@@ -212,16 +229,48 @@ fn lerp_rotation(current: f32, target: f32) -> f32 {
     current + delta * PROJECTILE_ROTATION_SMOOTHING
 }
 
-fn set_invisible(world: &mut World, projectile: Entity, on: bool) {
+/// Turn a projectile invisible or visible, as BDS does for any actor: when
+/// the state changes, `INVISIBLE` follows `on`, `CAN_SHOW_NAME` the
+/// opposite, and the actor plays the synchronised `disappeared` or
+/// `reappeared` sound at the centre of its box (data -1).
+pub(crate) fn set_invisible(world: &mut World, projectile: Entity, on: bool) {
     let mut entity = world.entity_mut(projectile);
     let Some(mut flags) = entity.get_mut::<ActorFlags>() else {
         return;
     };
-    flags
-        .update(actor_flags::INVISIBLE, on)
-        .expect("catalogue flag index");
+    if flags
+        .get(actor_flags::INVISIBLE)
+        .expect("catalogue flag index")
+        == on
+    {
+        return;
+    }
+    for (flag, value) in [
+        (actor_flags::INVISIBLE, on),
+        (actor_flags::CAN_SHOW_NAME, !on),
+    ] {
+        flags.update(flag, value).expect("catalogue flag index");
+    }
     let word = flags.snapshot().words()[0];
     if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
         metadata.set_long(ids::RESERVED_0, word as i64);
     }
+    let Some(feet) = entity.get::<Position>().map(|p| p.0) else {
+        return;
+    };
+    let height = entity
+        .get::<RawCollisionBox>()
+        .map_or(0.0, |b| f64::from(b.height.max(0.0)));
+    let sound = if on {
+        DISAPPEARED_SOUND
+    } else {
+        REAPPEARED_SOUND
+    };
+    queue_synced_sound(
+        world,
+        Some(projectile),
+        feet + DVec3::Y * (height / 2.0),
+        sound,
+        -1,
+    );
 }
