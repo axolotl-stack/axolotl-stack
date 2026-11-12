@@ -463,6 +463,20 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
+### Measured mob behaviour
+
+Mob AddActor packets are compared field by field with the retained native
+summons (`../bds-extractor/captures/1.26.51/operator/summons/*.bin`). Behaviour
+measured with scripted command captures (`tools/bds-sweep/capture.py
+--commands`) is kept as small fixtures in `src/entity/mob/testdata/`, each
+naming its source capture by hash: which damage causes a `minecraft:fire_immune`
+mob ignores (`bds-1.26.51-fire-immune-causes.json`), the effect a husk or wither
+skeleton hit applies per difficulty (`bds-1.26.51-attack-effects.json`), how a
+zombie pigman's anger spreads and ends (`bds-1.26.51-pigman-anger.json`), and
+how often its spawn event draws a branch that names an undeclared event
+(`bds-1.26.51-pigman-spawn-branches.json`). The tests in
+`src/entity/mob/tests/hostile.rs` replay each fixture.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the
@@ -664,12 +678,35 @@ data is stored verbatim and compared decoded, so a default buffer equals none.
 
 Block interaction requires Survival or Creative mode and server-position reach
 (five blocks in Survival, six in Creative, measured to the block's bounding box).
-Survival predicted breaks must complete the server-tracked mining duration.
+Survival breaking follows BDS input by input:
+- The break advances once per `PlayerAuthInput`, not per server tick. Inputs that arrive together
+  are applied together, as BDS does; a player's inputs after one that completed a break wait one
+  tick, for its commit.
+- The server completes the break itself when the progress does.
+- A client prediction is accepted only on the input that completes the break. An early one gets
+  the blocks back and the break goes on.
+- `StopDestroyBlock` does not end the break, and a completed break goes on at that position from
+  zero.
+- Every input is answered with BDS's crack events, and no sound is sent for a break.
+
+`server/game/blocks/breaking_tests.rs` replays a BDS capture of all of this.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not
 replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDestroy
 rules, and unsupported inventory operations are not implemented.
+
+Survival block clicks answer like BDS 1.26.51 click by click
+(`server/game/placement_capture_tests.rs` replays the 205 captured clicks of
+`server/game/testdata/bds-placements.json`): the placed state (orientation rules in
+`server/game/placement.rs`), refusals where the block could not stay, the six
+`UpdateBlock` corrections after every click, the `place` sound (data, position, actor
+id -1) and the inventory resync (after a placement, a click out of reach or a click
+claiming a stack the player does not hold; a refused click in reach gets only the
+corrections). Stacks describe the block BDS describes them with
+(`unastar_data::item_blocks`, measured for every item). Not copied: the attribute and
+actor-data resend BDS sends after every click, and the sign editor BDS opens after a
+sign is placed (sign text is not implemented).
 
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
@@ -706,7 +743,8 @@ blast furnaces, smokers and hoppers have block actors
 - Breaking drops the contents (random 10..30 item chunks, furnaces whole
   stacks), unpairs the partner and closes viewers with a server-initiated close.
 - Furnaces tick per BDS (cook 200 or 100 ticks, measured fuel times scaled by
-  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3)
+  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3);
+  every measured fuel burns a furnace for its BDS time (`containers/tests/fuel.rs`)
   and pay XP straight to the taking player. Follow-up: spawn XP orbs once the
   entity lane's XP orb entity reaches main (also for breaking a furnace).
 - Hoppers move one item per 8 ticks between containers (furnace input from
@@ -751,13 +789,15 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Eat/drink: start on air use, server finishes after the use duration, early consume finishes at once, release or slot switch cancels | done | BDS capture (timing, `CompletedUsingItem` 1 / -1, burp at eye - 0.1, using flag word to the user too) |
 | Food values, effects, removed effects, bowls/bottles, milk clears effects | done | pack data; golden apple, rotten flesh, honey, milk compared with the capture |
 | Suspicious stew effects (data 0-9) | done | BDS capture table |
-| Chorus fruit teleport | done | public reference (16 tries within `on_use_range`) |
+| Chorus fruit teleport | done | `on_use_range` from pack data; 16 tries and the landing search are public references |
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
 | Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
 | Attribute sync (health, absorption, hunger, saturation, exhaustion) | done, changed values once | BDS join ranges; BDS also repeats some attributes, not copied |
 | Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
-| Tool wear: mining, melee (sword 1, other tools 2), bow and crossbow shots, Unbreaking, break sound | done | public reference |
-| Armour wear when hurt (`max(1, damage/4)` per piece) | done | public reference |
+| Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
+| Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
+| Melee damage: measured per item, Sharpness +1.25 per level truncated to whole points | done | BDS attack sweep (`entity/mob/combat/hit/measured_tests.rs`); critical hits not done |
+| Armour wear when hurt (`max(1, floor(damage/4))` per piece with armour points; the elytra never) | done | BDS armour-wear sweep (`entity/player_life/tests/hurt.rs`) |
 | Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
 | Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |
 | Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
@@ -807,6 +847,24 @@ naming the column's coordinates and dimension and saying the stored column is
 kept on disk untouched; players see a gap there until it is repaired. A
 stored subchunk, biome or block-entity record that doesn't decode fails the load
 of its column the same way, in both providers, rather than loading as air.
+
+Sub-chunks saved by BDS 1.26.51 load block for block. Each sub-chunk storage says
+in the low bit of its header how its palette is written: BDS writes block names
+and states as NBT (resolved through `BlockRegistry::state_by_properties`),
+unastar writes runtime ids. Reading follows what BDS reads: the key places a
+record whatever its Y byte, bytes after the last storage are skipped, and a
+palette may list more entries than its bit width indexes. Damage that BDS would
+paper over fails the column instead: an index past its palette, or an unknown
+block name, state or NBT shape (`docs/quirks/bds.md`, "World / storage";
+`tests/bds_subchunks.rs` against `tests/fixtures/bds_1_26_51_subchunks.json`,
+written by `tools/bds-sweep/subchunk_fixture.py`). Block names and states are
+not upgraded, so a sub-chunk an older Bedrock version wrote with a block or
+state renamed since fails its column too.
+
+Saving still writes runtime ids, which BDS reads as air (OpenSpec change
+`persist-block-states-by-name`). A column is saved again after any edit and
+whenever it holds or held actors, so running unastar on a BDS world makes those
+columns unreadable to BDS: use a copy of the world.
 Loaded columns start clean, while generated or edited columns are saved on
 unload and shutdown. A chunk whose save before unload fails stays loaded, with
 its edits and mobs. Its unload is retried with a per-chunk exponential backoff
@@ -841,7 +899,9 @@ world providers, stored-column preservation through asynchronous loading and
 the save cycle, player disconnect/reconnect, corrupt player data, storage errors
 on both load paths, and out-of-range block heights. Unload save failures, the
 shutdown order and undecodable subchunks are covered by unit tests in
-`entity/mob/persistence`, `server/game` and `storage/leveldb_world`. On Windows,
+`entity/mob/persistence`, `server/game` and `storage/leveldb_world`;
+`cargo test -p unastar --test bds_subchunks` loads BDS-saved sub-chunks of every
+palette width, both layers and all three dimensions. On Windows,
 set `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
 
 ## Bedrock-style generator

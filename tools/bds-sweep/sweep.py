@@ -4,6 +4,8 @@
     python tools/bds-sweep/sweep.py drops --blocks all --states all --out DIR
     python tools/bds-sweep/sweep.py armor-slots --out DIR
     python tools/bds-sweep/sweep.py fuel --out DIR
+    python tools/bds-sweep/sweep.py scenarios --family pilot --out DIR
+    python tools/bds-sweep/sweep.py placements --out DIR
 
 Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
 (`bds-sweep-1.26.51`, peaceful, operators by default), launches
@@ -22,6 +24,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -31,6 +34,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import native  # noqa: E402
+import placements  # noqa: E402
+import scenarios  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
@@ -41,7 +46,12 @@ STOP_REQUEST = 'stop.request'
 # `mine_block`, which is at eye level (eyes at y + 1.62).
 ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6],
          'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4,
-         'target': [2.0, -60, 0.5]}
+         'target': [2.0, -60, 0.5],
+         # Block scenarios: 8 x 8 cells, 6 blocks apart, east of the player and
+         # inside its ticking range.
+         'scenarios': {'origin': [8, -60, -24], 'spacing': 6, 'columns': 8},
+         # Survival block clicks: cleared box (offsets) around the origin.
+         'placements': {'origin': [4, -60, 4], 'clear': [[-3, -1, -4], [5, 4, 13]]}}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -144,9 +154,104 @@ def item_names(spec: str, slice_: list[str]) -> list[str]:
     return spec.split(',')
 
 
+HELD_BLOCKS = ['minecraft:dirt', 'minecraft:netherrack', 'minecraft:oak_leaves']
+# Per block, the effects measured on the empty hand: stone resolves the haste
+# multipliers (150 ticks by hand), dirt the mining fatigue ones (15 ticks).
+EFFECT_CELLS = {'minecraft:stone': ['haste1', 'haste2', 'haste3'],
+                'minecraft:dirt': ['mining_fatigue1', 'mining_fatigue2']}
+
+
+def block_cells(names: list[str]) -> list[tuple[str, dict]]:
+    first = native.default_states()
+    return [(name, SLICE_BLOCKS.get(name, first[name])) for name in names]
+
+
+def non_tool_diggers() -> list[str]:
+    """Items the parity catalog gives a `digger` facet through their native
+    mining class alone (no `minecraft:digger` tag and no digger or shears
+    class): armour, bows, bundles, spears, music discs, ... Education
+    Edition items (glow sticks, sparklers) are skipped."""
+    rows = json.loads((REPO / 'crates' / 'unastar-data' / 'src' / 'items.json').read_text(encoding='utf-8'))
+    return sorted(row['identifier'] for row in rows
+                  if row['mine_block_type'] in (1, 2) and 'minecraft:digger' not in row.get('tags', [])
+                  and row['identifier'] not in ('minecraft:glow_stick', 'minecraft:sparkler'))
+
+
+def wear_tools() -> list[str]:
+    """Every tier of every digger and sword, shears, trident and mace."""
+    return ([f'minecraft:{tier}_{kind}' for kind in DIGGERS for tier in TIERS]
+            + ['minecraft:shears', 'minecraft:trident', 'minecraft:mace'])
+
+
+def held_mining_items(args) -> list[dict]:
+    """The empty hand (3 trials) and every held item (`--trials` trials) on
+    each block: whether a non-tool item mines like the hand, and what one
+    break costs its durability. The default set also breaks dirt and
+    netherrack (cells the tool slice does not have) with every tool, for the
+    wear a break costs each tool."""
+    default = args.items in ('slice', 'non-tool-diggers')
+    names = non_tool_diggers() if default else args.items.split(',')
+    blocks = HELD_BLOCKS if args.blocks == 'slice' else args.blocks.split(',')
+    items = []
+    for block, states in block_cells(blocks):
+        held = names + (wear_tools() if default and block != 'minecraft:oak_leaves' else [])
+        for spec, repeats in [(None, 3)] + [({'item': name}, args.trials) for name in held]:
+            items.append({'key': f'{state_key(block, states)}|{tool_key(spec)}', 'block': block,
+                          'states': states, 'tool': spec, 'commands': [], 'max_ticks': args.mine_ticks,
+                          'repeats': repeats})
+    return items
+
+
+def effect_mining_items(args) -> list[dict]:
+    """Haste and mining fatigue levels on the empty hand (`EFFECT_CELLS`),
+    `--trials` trials each, keyed like the slice's `+haste1` variants."""
+    items = []
+    for block, states in block_cells(list(EFFECT_CELLS)):
+        for effect in EFFECT_CELLS[block]:
+            name, level = effect.rstrip('0123456789'), int(effect[len(effect.rstrip('0123456789')):])
+            items.append({'key': f'{state_key(block, states)}|hand+{effect}', 'block': block, 'states': states,
+                          'tool': None, 'commands': [f'effect {{player}} {name} 1000 {level - 1} true'],
+                          'max_ticks': args.mine_ticks, 'repeats': args.trials})
+    return items
+
+
+def capture_mining_items(args) -> list[dict]:
+    """One trial of each breaking situation, for packet captures of the whole
+    flow (run with `--client-capture`): a break BDS completes itself (dirt by
+    hand, stone with a diamond pickaxe, Haste II, a block above, a tool that
+    wears), an instant break (short grass), a client prediction on time and
+    early, and an abort after 5 ticks."""
+    dirt = ('minecraft:dirt', {})
+    cells = [
+        ('hand', dirt, None, {}),
+        ('diamond_pickaxe', ('minecraft:stone', {}), {'item': 'minecraft:diamond_pickaxe'}, {}),
+        ('iron_shovel', dirt, {'item': 'minecraft:iron_shovel'}, {}),
+        ('hand+instant', ('minecraft:short_grass', {}), None, {}),
+        ('hand+predict14', dirt, None, {'predict_after': 14}),
+        ('hand+predict10', dirt, None, {'predict_after': 10, 'max_ticks': 40}),
+        ('hand+abort5', dirt, None, {'max_ticks': 5}),
+        ('hand+haste2', dirt, None, {'commands': ['effect {player} haste 1000 1 true']}),
+        ('hand+stone_above', dirt, None, {'commands': ['setblock 1 -58 0 stone'],
+                                          'cleanup': ['setblock 1 -58 0 air']}),
+    ]
+    items = []
+    for variant, (block, states), spec, extra in cells:
+        items.append({'key': f'{state_key(block, states)}|{variant}', 'block': block, 'states': states,
+                      'tool': spec, 'commands': [], 'max_ticks': args.mine_ticks, 'repeats': 1, **extra})
+    return items
+
+
 def mining_items(args) -> list[dict]:
     """Hand, every tier of each correct digger, shears, efficiency I-V on the
-    diamond correct tool, and haste I/II and mining fatigue I with it."""
+    diamond correct tool, and haste I/II and mining fatigue I with it
+    (`--variants tools`); see `held_mining_items`, `effect_mining_items` and
+    `capture_mining_items` for the other variant sets."""
+    if args.variants == 'held':
+        return held_mining_items(args)
+    if args.variants == 'effects':
+        return effect_mining_items(args)
+    if args.variants == 'capture':
+        return capture_mining_items(args)
     facts = native.mining()
     cells = list(SLICE_BLOCKS.items()) if args.blocks == 'slice' else [
         (name, native.default_states()[name]) for name in args.blocks.split(',')]
@@ -208,16 +313,33 @@ def armor_value_items(args) -> list[dict]:
     return items
 
 
+SPEARS = [f'minecraft:{tier}_spear' for tier in TIERS]
+
+
+# One hit of each amount per piece: wear rules round the damage per 4 points.
+ARMOR_WEAR_AMOUNTS = [1, 3, 4, 5, 7, 8, 12, 16, 40]
+
+
+def armor_wear_items(args) -> list[dict]:
+    """Every item with the native tag `minecraft:is_armor` (or `--items`), in
+    the slot the measured `armor_slots.json` assigns, like `armor-values`."""
+    return [item for item in armor_value_items(args) if item['item']]
+
+
 def attack_items(args) -> list[dict]:
     """Hand, every tier of every digger and sword, trident and mace, and
-    sharpness I-V on the diamond sword."""
+    sharpness I-V on the diamond sword; `--items` adds held items (`spears`:
+    every spear tier), spaced `--gap` extra ticks apart (spears declare a
+    0.65 s attack cooldown)."""
     tools: list[dict | None] = [None]
     tools += [tool(kind, tier) for kind in DIGGERS for tier in TIERS]
     tools += [{'item': 'minecraft:trident'}, {'item': 'minecraft:mace'}]
     tools += [tool('sword', 'diamond', sharpness=level) for level in range(1, 6)]
+    items = [{'key': tool_key(spec), 'tool': spec} for spec in tools]
     if args.items not in ('slice', 'all'):
-        tools += [{'item': name} for name in args.items.split(',')]
-    return [{'key': tool_key(spec), 'tool': spec} for spec in tools]
+        names = SPEARS if args.items == 'spears' else args.items.split(',')
+        items += [{'key': tool_key({'item': name}), 'tool': {'item': name}, 'gap': args.gap} for name in names]
+    return items
 
 
 def build_job(args, out: Path) -> dict:
@@ -231,8 +353,19 @@ def build_job(args, out: Path) -> dict:
         job['items'] = [{'key': name, 'item': name} for name in item_names(args.items, SLICE_ITEMS)]
     elif args.kind == 'armor-values':
         job.update(max_health=2000, damage=ARMOR_DAMAGE, items=armor_value_items(args))
+    elif args.kind == 'armor-wear':
+        job.update(max_health=2000, amounts=ARMOR_WEAR_AMOUNTS, items=armor_wear_items(args))
     elif args.kind == 'attack':
         job.update(target='minecraft:pig', items=attack_items(args))
+        if args.gamemode:
+            job['gamemode'] = args.gamemode
+    elif args.kind == 'scenarios':
+        job['items'] = scenarios.items(args.family)
+    elif args.kind == 'placements':
+        job['items'] = placements.items()
+    elif args.kind == 'item-blocks':
+        job['items'] = [{'key': name.removeprefix('minecraft:'), 'item': name}
+                        for name in item_names(args.items, native.items())]
     elif args.kind == 'fuel':
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
@@ -242,14 +375,27 @@ def build_job(args, out: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'armor-wear', 'attack',
+                                         'fuel', 'scenarios', 'placements', 'item-blocks'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
     parser.add_argument('--items', default='slice', help="'slice' or comma-separated identifiers")
     parser.add_argument('--samples', type=int, default=200)
+    parser.add_argument('--family', default='pilot', help="scenarios: 'all' or comma-separated families")
     parser.add_argument('--max-ticks', type=int, default=24000, help='fuel: longest burn to wait for')
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
+    parser.add_argument('--variants', default='tools', choices=['tools', 'held', 'effects', 'capture'],
+                        help="mining: 'tools' (every tier, efficiency, effects with the diamond tool), "
+                             "'held' (--items held on --blocks; default every non-tool digger on dirt, "
+                             "netherrack and leaves), 'effects' (haste/mining fatigue levels by hand) or 'capture' "
+                             "(one trial of each breaking situation, for --client-capture)")
+    parser.add_argument('--trials', type=int, default=3, help='mining held/effects: trials per item')
+    parser.add_argument('--gamemode', choices=['survival', 'creative'],
+                        help='attack: the player game mode (survival shows wear per hit)')
+    parser.add_argument('--gap', type=int, default=0, help='attack: extra ticks between trials of --items')
+    parser.add_argument('--client-capture', action='store_true',
+                        help="record the client's packets to <out>/client-capture/packets.jsonl")
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
     args = parser.parse_args()
@@ -281,10 +427,18 @@ def main() -> int:
     properties = bds_runtime.base_properties(
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty='peaceful',
         default_player_permission_level='operator', view_distance=6, tick_distance=4)
-    env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin')}
+    env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin'),
+           # This checkout's plugin source wins over the shared venv's editable
+           # install, so a worktree runs its own jobs without reinstalling it.
+           'PYTHONPATH': os.pathsep.join(filter(None, [
+               str(REPO / 'tools' / 'bds-sweep' / 'endstone-sweep' / 'src'), os.environ.get('PYTHONPATH')]))}
     started = time.monotonic()
     status = 'timeout'
     client_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', PLAYER]
+    if args.client_capture or args.kind in ('placements', 'item-blocks'):
+        # The client records both directions: BDS's answer to every click,
+        # the stack descriptors BDS sends.
+        client_command += ['--capture-dir', str(out / 'client-capture')]
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
             with (out / 'client.log').open('a', encoding='utf-8') as log:

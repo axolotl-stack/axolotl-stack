@@ -31,6 +31,11 @@ pub struct NativeTraits {
     /// zombie classes number their kind (zombie 0, zombie villager 1, husk 2,
     /// zombie pigman 3, drowned 4).
     pub aux_value: Option<i16>,
+    /// The `VARIANT` actor data the class starts with, if it sets one: the
+    /// native skeleton classes number their kind there (skeleton 0, wither
+    /// skeleton 1, stray 2, bogged 3, parched 4) although their definitions
+    /// declare no `minecraft:variant`.
+    pub variant: Option<i32>,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -50,6 +55,7 @@ impl NativeTraits {
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
+        let variant = skeleton_kind(actor_type);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -58,6 +64,7 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                variant,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -66,6 +73,7 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                variant,
             },
         }
     }
@@ -118,6 +126,20 @@ const fn zombie_kind(class: ActorType) -> Option<i16> {
         A::Husk => 2,
         A::ZombiePigman => 3,
         A::Drowned => 4,
+        _ => return None,
+    })
+}
+
+/// The kind number the native skeleton classes send as `VARIANT`
+/// (measured from the retained 1.26.51 summon captures).
+const fn skeleton_kind(class: ActorType) -> Option<i32> {
+    use ActorType as A;
+    Some(match class {
+        A::Skeleton => 0,
+        A::WitherSkeleton => 1,
+        A::Stray => 2,
+        A::Bogged => 3,
+        A::Parched => 4,
         _ => return None,
     })
 }

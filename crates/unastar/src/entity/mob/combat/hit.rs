@@ -37,6 +37,8 @@ use crate::entity::mob::components::{
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
+use crate::item::ItemStack;
+use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::collision::Aabb;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
@@ -99,7 +101,7 @@ pub fn player_attack(
         return;
     }
     let held = held_item(world, player).cloned();
-    let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
+    let damage = melee_damage(held.as_ref());
     let applied = hurt_mob(
         world,
         target,
@@ -122,6 +124,16 @@ pub fn player_attack(
     }
 }
 
+/// Damage of a player's melee hit with `held` (`None`: empty hand): the
+/// item's measured BDS damage plus 1.25 per Sharpness level, truncated to
+/// whole points as BDS deals it (a diamond sword with Sharpness I-V hits for
+/// 9, 10, 11, 13 and 14, not 9.25 ... 14.25; `docs/quirks/bds.md`).
+pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
+    let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
+    let sharpness = held.map_or(0, |stack| enchantment_level(stack, Enchantment::Sharpness));
+    (base + 1.25 * f32::from(sharpness)).floor()
+}
+
 /// The eye position of a player that may attack this tick.
 fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
     world.get::<Player>(player)?;
@@ -138,11 +150,16 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// returns the health actually removed (0 when the hit was ignored). A hit
 /// that empties the mob's health starts its death. Zero damage still counts
 /// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
+/// A fire-immune mob ignores the [`constants::FIRE_IMMUNE_CAUSES`] before
+/// anything else looks at the hit.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
+        return 0.0;
+    }
+    if constants::FIRE_IMMUNE_CAUSES.contains(&hit.cause) && fire_immune(world, target) {
         return 0.0;
     }
     let (hit, sensor_trigger) = match damage_sensor::sense(world, target, hit) {
@@ -205,6 +222,17 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         death::begin_death(world, target);
     }
     applied
+}
+
+/// Whether `entity` carries the `FIRE_IMMUNE` flag (`minecraft:fire_immune`).
+pub fn fire_immune(world: &World, entity: Entity) -> bool {
+    world
+        .get::<crate::entity::definition::flags::ActorFlags>(entity)
+        .is_some_and(|flags| {
+            flags
+                .get(jolyne::valentine::actor_flags::FIRE_IMMUNE)
+                .unwrap_or(false)
+        })
 }
 
 /// Push `target` away from `from` (horizontally).
@@ -301,6 +329,9 @@ pub fn hurt_on_condition(
         }
     }
 }
+
+#[cfg(test)]
+mod measured_tests;
 
 #[cfg(test)]
 mod tests;
