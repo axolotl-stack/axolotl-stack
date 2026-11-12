@@ -446,132 +446,18 @@ pub fn cleanup_despawned_entities(
 // Block Breaking Systems
 // =============================================================================
 
-use crate::entity::components::BreakingState;
 use crate::world::ChunkManager;
-use crate::world::ecs::{ChunkData, ChunkViewers};
-use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket};
+use crate::world::ecs::ChunkViewers;
 
-// Level event identifiers are the protocol constants used by Dragonfly and
-// gophertunnel. Protocolgen 1.26.51 intentionally exposes this packet's event
-// field as the canonical i32 rather than carrying the legacy enum wrapper.
-const LEVEL_EVENT_BLOCK_BREAK_SPEED: i32 = 3602;
-const LEVEL_EVENT_PARTICLE_PUNCH_BLOCK: i32 = 2014;
 const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
 const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
-/// System: Tick block breaking state for all players.
-///
-/// For each player currently breaking a block:
-/// - Increments their break counter
-/// - Every 5 ticks: broadcasts cracking animation, punch particles, and breaking sound
-///
-/// This implements server-side block cracking animations like dragonfly does.
-pub fn tick_block_breaking(
-    mut players: Query<(Entity, &mut BreakingState, &PlayerSession), With<Player>>,
-    chunk_manager: bevy_ecs::prelude::Res<ChunkManager>,
-    chunks: Query<(&ChunkViewers, &ChunkData)>,
-    all_sessions: Query<&PlayerSession>,
-    config: Res<crate::server::game::types::ServerConfigResource>,
-) {
-    for (_player_entity, mut breaking, _player_session) in players.iter_mut() {
-        // Skip if not breaking
-        if !breaking.is_breaking() {
-            continue;
-        }
-
-        let Some((x, y, z)) = breaking.position else {
-            continue;
-        };
-
-        // Tick the breaking state - returns true every 5 ticks
-        let should_broadcast = breaking.tick();
-
-        if should_broadcast {
-            // Calculate chunk coords
-            let cx = x >> 4;
-            let cz = z >> 4;
-
-            // Get chunk entity to find viewers
-            let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) else {
-                continue;
-            };
-
-            // Build LevelEvent::BlockBreakSpeed packet (cracking animation)
-            let event_data = if breaking.expected_ticks > 0 {
-                65535i32 / (breaking.expected_ticks as i32)
-            } else {
-                65535i32
-            };
-
-            let crack_event = LevelEventPacket {
-                event_id: LEVEL_EVENT_BLOCK_BREAK_SPEED,
-                position: Vec3 {
-                    x: x as f32,
-                    y: y as f32,
-                    z: z as f32,
-                },
-                data: event_data,
-            };
-
-            // Look up block runtime ID from chunk data for correct particles/sounds
-            let block_runtime_id = chunks
-                .get(chunk_entity)
-                .ok()
-                .map(|(_, chunk_data)| {
-                    let local_x = (x & 15) as u8;
-                    let local_y = y as i16;
-                    let local_z = (z & 15) as u8;
-                    chunk_data.inner.get_block(local_x, local_y, local_z)
-                })
-                .unwrap_or(0);
-            let block_runtime_id = config.0.block_network_ids.to_wire(block_runtime_id);
-
-            // Build punch particles with block runtime ID
-            let particle_event = LevelEventPacket {
-                event_id: LEVEL_EVENT_PARTICLE_PUNCH_BLOCK,
-                position: Vec3 {
-                    x: x as f32 + 0.5,
-                    y: y as f32 + 0.5,
-                    z: z as f32 + 0.5,
-                },
-                data: block_runtime_id as i32,
-            };
-
-            // Build breaking sound (SoundType::Hit with block data)
-            let sound_event = LevelSoundEventPacket {
-                sound_event: "hit".into(),
-                position: Vec3 {
-                    x: x as f32 + 0.5,
-                    y: y as f32 + 0.5,
-                    z: z as f32 + 0.5,
-                },
-                data: block_runtime_id as i32,
-                actor_identifier: "".into(),
-                is_baby: false,
-                is_global: false,
-                actor_unique_id: 0,
-                fire_at_position: None,
-            };
-
-            // Broadcast to all chunk viewers including breaking player
-            if let Ok((viewers, _)) = chunks.get(chunk_entity) {
-                for viewer_entity in viewers.iter() {
-                    if let Ok(session) = all_sessions.get(viewer_entity) {
-                        let _ = session.send(McpePacket::from(crack_event.clone()));
-                        let _ = session.send(McpePacket::from(particle_event.clone()));
-                        let _ = session.send(McpePacket::from(sound_event.clone()));
-                    }
-                }
-            }
-
-            tracing::debug!(
-                pos = ?(x, y, z),
-                counter = breaking.break_counter(),
-                "Block cracking tick (with particles/sound)"
-            );
-        }
-    }
-}
+/// Schedule anchor for the entity logic that has to run before plugin
+/// actions; it has no work of its own. Survival breaking advances once per
+/// player input in `blocks::apply_block_actions`, and nothing about a break
+/// happens per server tick: BDS sends no crack events while a breaking client
+/// sends no input (BDS 1.26.51, scripted client paused for 10 ticks).
+pub fn tick_block_breaking() {}
 
 // =============================================================================
 // Batched Block Update Broadcasting
@@ -931,7 +817,7 @@ pub fn sync_actor_viewers(
 mod actor_viewer_tests {
     use super::*;
     use crate::entity::spawn_item_drop;
-    use crate::world::ecs::ChunkPosition;
+    use crate::world::ecs::{ChunkData, ChunkPosition};
     use glam::DVec3;
     use jolyne::valentine::McpePacketData;
     use std::sync::Arc;

@@ -16,9 +16,11 @@ TOOL_FAMILIES = ('pickaxe', 'axe', 'shovel', 'hoe', 'sword', 'shears')
 class _Reader:
     """Network little-endian NBT (varint lengths, zigzag varint ints)."""
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, data: bytes, bytes_as_bool: bool = False) -> None:
         self.data = data
         self.pos = 0
+        # Block-state byte properties are booleans in commands.
+        self.bytes_as_bool = bytes_as_bool
 
     def byte(self) -> int:
         value = self.data[self.pos]
@@ -46,7 +48,8 @@ class _Reader:
 
     def payload(self, tag: int):
         if tag == 1:
-            return struct.unpack('<b', bytes([self.byte()]))[0]
+            value = struct.unpack('<b', bytes([self.byte()]))[0]
+            return bool(value) if self.bytes_as_bool else value
         if tag == 2:
             value = struct.unpack_from('<h', self.data, self.pos)[0]
             self.pos += 2
@@ -84,9 +87,11 @@ class _Reader:
         raise ValueError(f'unknown NBT tag {tag}')
 
 
-def block_states() -> list[dict]:
-    """Every canonical block state, in palette order: `{name, states}`."""
-    reader = _Reader((DATA / 'registry' / 'block_states.nbt').read_bytes())
+def block_states(typed: bool = False) -> list[dict]:
+    """Every canonical block state, in palette order: `{name, states}`.
+    `typed` reads byte properties as booleans (the command and Endstone
+    form) instead of 0/1."""
+    reader = _Reader((DATA / 'registry' / 'block_states.nbt').read_bytes(), bytes_as_bool=typed)
     out = []
     while reader.pos < len(reader.data):
         if reader.byte() != 10:

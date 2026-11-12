@@ -62,14 +62,12 @@ pub fn apply_movement(
                     hunger.exhaust(moved.exhaustion(&exhaustion));
                 }
 
-                // Forward block actions to block queue
-                if let Some(block_actions) = pk.player_block_actions
-                    && !block_actions.is_empty()
-                {
-                    block_queue
-                        .0
-                        .push((entity, BlockAction::AuthInputActions(block_actions)));
-                }
+                // Every accepted input goes to the block system, with or
+                // without block actions: a break advances once per input.
+                block_queue.0.push((
+                    entity,
+                    BlockAction::AuthInputActions(pk.player_block_actions.unwrap_or_default()),
+                ));
             }
             MovementInput::PlayerAction(pk) => {
                 process_player_action(entity, &pk, &mut players, &mut events);

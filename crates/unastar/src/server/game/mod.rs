@@ -5,6 +5,7 @@
 
 pub mod attributes;
 mod block_drops;
+pub(crate) mod block_update;
 pub(crate) mod blocks;
 mod chunks;
 #[cfg(test)]
@@ -27,6 +28,8 @@ mod packet_domains;
 mod packet_queues;
 mod packets;
 mod placement;
+#[cfg(test)]
+mod placement_capture_tests;
 mod plugins;
 pub mod types;
 
@@ -1101,10 +1104,24 @@ impl GameServer {
                     };
                     let item_network_id = item_entry.network_id();
 
-                    let block_runtime_id =
-                        blocks.get_by_name(creative_item.item_id()).map_or(0, |b| {
-                            block_ids.item_block_to_wire(item_network_id, b.default_state_id) as i32
-                        });
+                    // The entry's own state where it names one (a creative
+                    // piston faces up, a given one down), else the item's.
+                    let block = match creative_item
+                        .block_states()
+                        .and_then(unastar_data::item_blocks::creative_block_states)
+                    {
+                        Some(states) => crate::registry::item::block_state_with(
+                            blocks,
+                            creative_item.item_id(),
+                            states,
+                        ),
+                        None => {
+                            crate::registry::item::item_block_state(blocks, creative_item.item_id())
+                        }
+                    };
+                    let block_runtime_id = block.map_or(0, |state| {
+                        block_ids.item_block_to_wire(item_network_id, state) as i32
+                    });
 
                     items_list.push(CreativeItemEntryPayload {
                         creative_net_id: TypedServerNetIdstructCreativeItemNetIdTag {
@@ -1589,6 +1606,53 @@ mod tests {
             };
             assert_eq!(item.user_data_buffer[..], *expected, "item {}", item.id);
         }
+    }
+
+    /// Every item unastar's creative inventory shares with the BDS 1.26.51
+    /// join capture describes the block BDS shows for it (the creative
+    /// entries' own states: a creative piston faces up, a given one down).
+    /// The lists themselves differ (order, a few entries); that is not
+    /// compared here.
+    #[test]
+    fn creative_items_describe_the_blocks_bds_shows() {
+        use jolyne::valentine::bedrock::codec::{BedrockCodec, VarUInt};
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../bds-extractor/captures/1.26.51/member/join/00047-CreativeContentPacket.bin");
+        let bytes = std::fs::read(path).unwrap();
+        let mut input = bytes.as_slice();
+        let _header = VarUInt::decode(&mut input, ()).unwrap();
+        let bds = jolyne::valentine::CreativeContentPacket::decode(&mut input, ()).unwrap();
+        let mut items = ItemRegistry::new();
+        items.load_vanilla();
+        let mut blocks = BlockRegistry::new();
+        blocks.load_vanilla();
+        let ours = GameServer::build_creative_content(
+            &items,
+            &blocks,
+            crate::registry::block::BlockNetworkIds::Hashed,
+        );
+        let mut shown = std::collections::HashMap::<_, Vec<i32>>::new();
+        for entry in &bds.entries {
+            let item = &entry.item_instance;
+            shown
+                .entry((item.id, item.auxvalue))
+                .or_default()
+                .push(item.block_runtime_id);
+        }
+        let mut compared = 0;
+        let mut wrong = Vec::new();
+        for entry in &ours.entries {
+            let item = &entry.item_instance;
+            let Some(blocks) = shown.get(&(item.id, item.auxvalue)) else {
+                continue;
+            };
+            compared += 1;
+            if !blocks.contains(&item.block_runtime_id) {
+                wrong.push((item.id, item.block_runtime_id, blocks.clone()));
+            }
+        }
+        assert!(wrong.is_empty(), "{} items differ: {wrong:?}", wrong.len());
+        assert!(compared >= 1800, "{compared} items compared");
     }
 
     #[test]

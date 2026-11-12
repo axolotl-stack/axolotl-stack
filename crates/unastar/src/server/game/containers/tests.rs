@@ -19,6 +19,8 @@ use jolyne::valentine::{
 };
 use tokio::sync::mpsc::Receiver;
 
+mod fuel;
+
 struct Harness {
     server: crate::GameServer,
     player: Entity,
