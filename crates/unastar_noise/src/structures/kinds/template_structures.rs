@@ -17,8 +17,9 @@
 //!   `*_chest`) check the block *state* where Java checks for the container
 //!   block entity, and the new loot table replaces the template block entity
 //!   data reported for that chest.
-//! - Ruined portal vines test the support face of the block
-//!   (`is_face_sturdy`) where Java tests the collision shape's face.
+//! - Ruined portal vines need a full collision face toward the vine; the
+//!   physics data covers sturdy faces and full collision cubes (so leaves
+//!   qualify), which spans every block a ruined portal places.
 
 use std::sync::LazyLock;
 
@@ -651,15 +652,15 @@ pub struct ShipwreckPiece {
 
 impl ShipwreckPiece {
     fn new(name: &str, pos: BlockPos, rotation: Rotation, beached: bool) -> Self {
-        // A native ocean shipwreck (seed -55506848734215641, chunk 9,-24)
-        // waterlogged its submerged stairs, slabs and fences. Beached wrecks
-        // ignore waterlogging; no beached wreck has been captured natively yet.
+        // Native ocean (seed -55506848734215641, chunk 9,-24) and beached
+        // (seed 6788061584965324779, chunk 255,-212) shipwrecks both waterlog
+        // their submerged stairs, slabs and fences.
         let placement = TemplatePlacement {
             rotation,
             mirror: Mirror::None,
             pivot: SHIPWRECK_PIVOT,
             processors: vec![&IGNORE_STRUCTURE_AND_AIR],
-            apply_waterlogging: !beached,
+            apply_waterlogging: true,
             shared_random: false,
         };
         Self {
@@ -1234,7 +1235,9 @@ impl RuinedPortalPiece {
     }
 }
 
-/// `maybeAddVines`: a vine on a random horizontal side of a solid block.
+/// `maybeAddVines`: a vine on a random horizontal side of a block whose
+/// collision face there is full. Native jungle ruined portals (seed
+/// -55506848734215641, chunk -26,-26) hang vines from persistent jungle leaves.
 fn maybe_add_vines(rng: &mut FeatureRandom, world: &mut dyn FeatureWorld, pos: BlockPos) {
     let state = world.get_state(pos);
     if state.is_air() || state.is(b::VINE) {
@@ -1242,7 +1245,9 @@ fn maybe_add_vines(rng: &mut FeatureRandom, world: &mut dyn FeatureWorld, pos: B
     }
     let dir = Direction::HORIZONTAL[rng.next_int_bounded(4) as usize];
     let target = pos.rel(dir);
-    if world.get_state(target).is_air() && state.is_face_sturdy(dir) {
+    if world.get_state(target).is_air()
+        && (state.is_face_sturdy(dir) || state.is_collision_full_cube())
+    {
         world.set_state(target, states::VINE.with_bool(dir.opposite().name(), true));
     }
 }
@@ -1413,7 +1418,8 @@ impl StructurePiece for NetherFossilPiece {
     }
 
     /// `NetherFossilPiece.postProcess`: the box is grown to the whole template,
-    /// so every chunk the fossil touches places all of it.
+    /// so every chunk the fossil touches places all of it, then may add a
+    /// dried ghast.
     fn post_process(
         &self,
         world: &mut dyn FeatureWorld,
@@ -1423,9 +1429,38 @@ impl StructurePiece for NetherFossilPiece {
         chunk: (i32, i32),
         pivot: BlockPos,
     ) {
+        let fossil = self.inner.base.bbox;
         let mut bx = *chunk_box;
-        bx.encapsulate(&self.inner.base.bbox);
+        bx.encapsulate(&fossil);
         self.inner.post_process(world, ctx, rng, &bx, chunk, pivot);
+        place_dried_ghast(world, &fossil, &bx);
+    }
+}
+
+/// A fossil's dried ghast: a legacy random forked from the world seed and
+/// positioned at the fossil box centre decides (chance 1/2) a cell on the box's
+/// bottom layer and a random rotation of the default (north) facing; the ghast
+/// replaces only air inside the placement box. Measured on native fossils of
+/// seeds 6788061584965324779 and 2097595355691761853 (both placed) and on 11
+/// other captured fossils (none placed, or the cell was bone).
+fn place_dried_ghast(world: &mut dyn FeatureWorld, fossil: &BoundingBox, bx: &BoundingBox) {
+    let factory = LegacyRandom::new(world.seed()).next_long();
+    let center = fossil.center();
+    let mut random = LegacyRandom::new(
+        crate::structures::util::pos_seed(center.x, center.y, center.z) ^ factory,
+    );
+    if random.next_float() >= 0.5 {
+        return;
+    }
+    let x = fossil.min_x + random.next_int_bounded(fossil.max_x - fossil.min_x + 1);
+    let z = fossil.min_z + random.next_int_bounded(fossil.max_z - fossil.min_z + 1);
+    let pos = BlockPos::new(x, fossil.min_y, z);
+    if world.get_state(pos).is_air() && bx.is_inside(pos) {
+        let rotation = Rotation::random(&mut random);
+        world.set_state(
+            pos,
+            crate::structures::transform::rotate_state(states::DRIED_GHAST, rotation),
+        );
     }
 }
 
@@ -1441,6 +1476,43 @@ mod tests {
             .iter()
             .find(|d| d.name == name)
             .unwrap_or_else(|| panic!("no structure {name}"))
+    }
+
+    /// Dried ghasts of actual native nether fossils (position and west facing
+    /// from FEATURES captures), and a captured fossil that has none.
+    #[test]
+    fn nether_fossil_dried_ghast_matches_native_placements() {
+        let cases = [
+            (
+                6788061584965324779,
+                BoundingBox::new(3940, 74, 4170, 3942, 80, 4170),
+                Some(BlockPos::new(3942, 74, 4170)),
+            ),
+            (
+                2097595355691761853,
+                BoundingBox::new(-4512, 81, 4264, -4506, 87, 4269),
+                Some(BlockPos::new(-4508, 81, 4264)),
+            ),
+            (
+                -55506848734215641,
+                BoundingBox::new(-4092, 39, 4100, -4088, 43, 4106),
+                None,
+            ),
+        ];
+        for (seed, fossil, expected) in cases {
+            let mut world = TestWorld::flat(-64);
+            world.seed = seed;
+            place_dried_ghast(&mut world, &fossil, &fossil);
+            let placed: Vec<_> = world.blocks.iter().map(|(p, s)| (*p, *s)).collect();
+            match expected {
+                Some(pos) => assert_eq!(
+                    placed,
+                    [(pos, states::DRIED_GHAST.with("facing", "west"))],
+                    "seed {seed}"
+                ),
+                None => assert!(placed.is_empty(), "seed {seed}"),
+            }
+        }
     }
 
     /// Flat noise terrain: `fill` up to `floor`, `liquid` up to `liquid_top`.

@@ -1152,7 +1152,8 @@ impl StrongholdPiece {
                     self.put(w, cobble, 4, y, 6, bx);
                     self.put(w, cobble, 6, y, 6, bx);
                 }
-                self.put(w, states::TORCH, 5, 3, 5, bx);
+                // A default (north-facing) wall torch on the central pillar.
+                self.put(w, states::WALL_TORCH, 5, 3, 5, bx);
                 let planks = states::OAK_PLANKS;
                 for z in 2..=8 {
                     self.put(w, planks, 2, 3, z, bx);
@@ -1801,6 +1802,28 @@ mod tests {
             assert!(world.count(states::MOSSY_STONE_BRICKS) > 0);
             assert!(world.count(states::CRACKED_STONE_BRICKS) > 0);
             assert!(world.count(states::INFESTED_STONE_BRICKS) > 0);
+        }
+    }
+
+    /// The type 2 room crossing pillar carries a wall torch, not a standing
+    /// torch (native: seed -3412945871029348671, chunk 33 -130).
+    #[test]
+    fn room_crossing_pillar_torch_is_a_wall_torch() {
+        let (seed, pieces) = (0i64..64)
+            .map(|seed| (seed, build(seed, -2, 6)))
+            .find(|(_, pieces)| {
+                pieces
+                    .iter()
+                    .any(|p| matches!(p.kind, PieceKind::RoomCrossing { room_type: 2 }))
+            })
+            .expect("a stronghold with a type 2 room crossing");
+        let mut world = TestWorld::flat(64);
+        place_all(&pieces, &mut world, seed);
+        for room in pieces
+            .iter()
+            .filter(|p| matches!(p.kind, PieceKind::RoomCrossing { room_type: 2 }))
+        {
+            assert!(world.blocks[&room.base.world_pos(5, 3, 5)].is(b::WALL_TORCH));
         }
     }
 

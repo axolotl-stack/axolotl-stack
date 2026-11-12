@@ -382,6 +382,7 @@ fn all_template_actor_exports_match_native_saved_payloads() {
                     template_nbt: Some(*actor),
                     loot: *loot,
                     spawner_entity: *spawner_entity,
+                    ..BlockEntityData::NONE
                 },
             );
             let expected_proto = proto_observations
@@ -467,8 +468,7 @@ fn save_mode_structure_block_retains_native_saved_defaults() {
         "minecraft:structure_block",
         BlockEntityData {
             template_nbt: Some(actor),
-            loot: None,
-            spawner_entity: None,
+            ..BlockEntityData::NONE
         },
     );
     let saved = Tag::read_root(&actual.java_nbt().unwrap()).unwrap();

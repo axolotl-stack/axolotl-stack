@@ -20,6 +20,8 @@ worlds, and open-source projects (cubiomes, MIT). Bedrock quirks live in
 | Template palettes | `getRandomPalette` always draws `nextInt(paletteCount)`, even for one palette; with a shared placement random (fossils) that draw shifts every later draw. | `structures/template.rs` |
 | Template order | Template blocks are processed full-cube blocks first, then other blocks, then blocks with block entities, each sorted by (y, x, z). Processors that draw randomness see that order. | `codegen/templates.rs` |
 | Spring fluid | `spring_feature.state` is a fluid state; the placed block is its legacy block (source = level 0). | `codegen/emitter/feature.rs` |
+| Table sine | `Mth.sin`/`Mth.cos` widen the float angle to double before scaling by the double table factor; a float product selects a neighbouring table entry for some angles (one extra carved voxel, seed 5823730942511315655 chunk 14,14). | `carver.rs` |
+| Iceberg ellipses | A zero ellipse axis makes the distance NaN; Java's `d < 0` test treats NaN as outside, so nothing is placed or cut there. | `features/kinds/ice.rs` |
 
 ## Approximations
 
