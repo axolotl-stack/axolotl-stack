@@ -166,6 +166,27 @@ pub struct ItemRegistry {
     network_id_map: HashMap<i32, u32>,
 }
 
+/// The canonical state of a measured block state, `None` when the block or
+/// one of its values is unknown.
+pub(crate) fn measured_block(
+    block: &unastar_data::give::GivenBlock,
+    blocks: &super::BlockRegistry,
+) -> Option<u32> {
+    let entry = blocks.get_by_name(&block.name)?;
+    let mut state = blocks.default_state_id_by_name(&block.name)?;
+    for (property, wanted) in &block.states {
+        let values = entry
+            .data
+            .properties
+            .iter()
+            .find(|p| p.name == property)?
+            .values;
+        let value = values.iter().copied().find(|v| wanted.matches(*v))?;
+        state = entry.with_state_value(state, property, value)?;
+    }
+    Some(state)
+}
+
 impl ItemRegistry {
     /// Create an empty item registry.
     pub fn new() -> Self {
@@ -419,8 +440,12 @@ impl ItemRegistry {
             .map(|item| crate::item::ItemStack::new(item, count))
     }
 
-    /// Shared world/item constructor. Block defaults retain the block registry's
-    /// documented source policy; non-block items have no block state.
+    /// Shared world/item constructor: the stack carries the block state
+    /// BDS 1.26.51's stack of the item carries (measured with `/give`,
+    /// [`unastar_data::give`]: none for doors, beds and other items that
+    /// place a block of their own, BDS's own default for chests and a few
+    /// others). An item BDS's `/give` does not give carries the block of its
+    /// name's default state, if any.
     pub fn stack_with_block(
         &self,
         name: &str,
@@ -428,7 +453,16 @@ impl ItemRegistry {
         blocks: &super::BlockRegistry,
     ) -> Option<crate::item::ItemStack> {
         let stack = self.stack(name, count)?;
-        let runtime_id = match blocks.default_state_id_by_name(name) {
+        let qualified = unastar_data::item_identity::qualify(name);
+        let qualified: &str = &qualified;
+        let state = match unastar_data::give::vanilla().given.get(qualified) {
+            Some(given) if given.item == qualified => match &given.block {
+                Some(block) => Some(measured_block(block, blocks)?),
+                None => None,
+            },
+            _ => blocks.default_state_id_by_name(name),
+        };
+        let runtime_id = match state {
             Some(state) => i32::try_from(state).ok()?,
             None => 0,
         };
