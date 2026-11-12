@@ -39,6 +39,7 @@ import native  # noqa: E402
 import placements  # noqa: E402
 import random_ticks  # noqa: E402
 import scenarios  # noqa: E402
+import tnt  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
@@ -64,7 +65,8 @@ ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 
 # long redstone circuit cells of `circuits.py`, with the server properties
 # each needs (circuits reach farther from the player than tick distance 4).
 ARENAS = {'cells': (ARENA['scenarios'], {}), 'circuits': (circuits.LAYOUT, circuits.PROPERTIES),
-          'fields': (random_ticks.LAYOUT, random_ticks.PROPERTIES), 'coral': (coral.LAYOUT, coral.PROPERTIES)}
+          'fields': (random_ticks.LAYOUT, random_ticks.PROPERTIES), 'coral': (coral.LAYOUT, coral.PROPERTIES),
+          'blast': (tnt.LAYOUT, tnt.PROPERTIES)}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',

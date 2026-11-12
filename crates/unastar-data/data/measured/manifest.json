@@ -6280,6 +6280,96 @@
     }
    ]
   },
+  "explosions": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "explosions/tnt_actors.json",
+     "rows": 34,
+     "sha256": "79fa94d858163d0ec21c6b4b45d74cc57c738f9fe65e5c4b890776a9b33711de"
+    },
+    {
+     "path": "explosions/tnt_blast.json",
+     "rows": 256,
+     "sha256": "b7cb08f1a0a8de94a38fa6c623fe8c757349a124f21b14ccd24b3aa199f47690"
+    },
+    {
+     "path": "explosions/tnt_hits.json",
+     "rows": 62,
+     "sha256": "5f6148ef71aa4784d818a273c90935f3a66001179a1e1df0257d8c48465bc103"
+    },
+    {
+     "path": "explosions/tnt_prime.json",
+     "rows": 24,
+     "sha256": "0c85773c5272c340f4a6f4c526282de013350c315530ae020bbe7ee81a5df4ad"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a",
+   "method": "circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names. Round 4 rows also keep `items` (the item actors that ended in the cell, [item, data, count]) and `actors` (for timelines with an actor box: [tick, [[id, type, dx, dy, dz, vx, vy, vz, health], ...]] whenever the actors in the cell changed; positions relative to the cell origin).",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "r4-pistons-a",
+     "items": 164,
+     "runs": [
+      {
+       "items": 164,
+       "seconds": 41.9,
+       "started": "20261111T173744Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-pistons-blocks",
+     "items": 1448,
+     "runs": [
+      {
+       "items": 1448,
+       "seconds": 102.9,
+       "started": "20261111T173830Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-tnt-a",
+     "items": 58,
+     "runs": [
+      {
+       "items": 58,
+       "seconds": 55.9,
+       "started": "20261112T155701Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-tnt-blast",
+     "items": 256,
+     "runs": [
+      {
+       "items": 256,
+       "seconds": 106.5,
+       "started": "20261112T155853Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-tnt-hits",
+     "items": 62,
+     "runs": [
+      {
+       "items": 62,
+       "seconds": 47.3,
+       "started": "20261112T161604Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "fuel_burn_ticks": {
    "bds_version": "1.26.51",
    "files": [
@@ -6364,6 +6454,116 @@
        "items": 176,
        "seconds": 430.5,
        "started": "20261025T210327Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
+  "pistons": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "pistons/blocks.json",
+     "rows": 1426,
+     "sha256": "41a4c01c5ef5f2244cacd7cda5cf5b2852c90ae9b69d36e9eeae373e00312faf"
+    },
+    {
+     "path": "pistons/pistons_blocks.json",
+     "rows": 1448,
+     "sha256": "be685d15ff21e906962b0bce494f0e9289a06dd087337072211ead75b2174550"
+    },
+    {
+     "path": "pistons/pistons_chains.json",
+     "rows": 8,
+     "sha256": "3d02a210c24e95d9b3f14b1aaa4836a49e29d55bb3d0ba715753cea8d479343a"
+    },
+    {
+     "path": "pistons/pistons_entities.json",
+     "rows": 16,
+     "sha256": "e7487a004aab8c95f7dfc50b8bf2e6ea35e7bd3a03e9b19129295a01b8c51639"
+    },
+    {
+     "path": "pistons/pistons_power.json",
+     "rows": 12,
+     "sha256": "0b36e263033b318569cc119bf8fab87dc68df612616df72ee4b777d4cd5ccd39"
+    },
+    {
+     "path": "pistons/pistons_push.json",
+     "rows": 72,
+     "sha256": "db6329a59e98785ad0549c6e35f7c8373af43eff0d5cba49790e3e0b5c9eba29"
+    },
+    {
+     "path": "pistons/pistons_slime.json",
+     "rows": 24,
+     "sha256": "03c3d9afaf939d601ee3899b7ab6fe095fbcfdd515292cc3cfa62b294ee35654"
+    },
+    {
+     "path": "pistons/pistons_timing.json",
+     "rows": 32,
+     "sha256": "14868493cc600a887006adbd280d36f41c9f4b4363eeafe7be9740b261523c65"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 3062a24422bc3e70591e25990866088dc32535a6; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at d87c689e42c98d9f396f021c835aab33dff2d73a",
+   "method": "circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names. Round 4 rows also keep `items` (the item actors that ended in the cell, [item, data, count]) and `actors` (for timelines with an actor box: [tick, [[id, type, dx, dy, dz, vx, vy, vz, health], ...]] whenever the actors in the cell changed; positions relative to the cell origin).",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "r4-pistons-a",
+     "items": 164,
+     "runs": [
+      {
+       "items": 164,
+       "seconds": 41.9,
+       "started": "20261111T173744Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-pistons-blocks",
+     "items": 1448,
+     "runs": [
+      {
+       "items": 1448,
+       "seconds": 102.9,
+       "started": "20261111T173830Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-tnt-a",
+     "items": 58,
+     "runs": [
+      {
+       "items": 58,
+       "seconds": 55.9,
+       "started": "20261112T155701Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-tnt-blast",
+     "items": 256,
+     "runs": [
+      {
+       "items": 256,
+       "seconds": 106.5,
+       "started": "20261112T155853Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r4-tnt-hits",
+     "items": 62,
+     "runs": [
+      {
+       "items": 62,
+       "seconds": 47.3,
+       "started": "20261112T161604Z",
        "status": "done"
       }
      ]

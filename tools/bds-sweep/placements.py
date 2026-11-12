@@ -842,3 +842,54 @@ def leftovers() -> list[dict]:
 
 
 GROUPS['leftovers'] = leftovers
+
+
+def pistons() -> list[dict]:
+    """Round 4: what a client is sent while a piston moves. The player
+    switches a lever beside a piston (east of the lever, facing east) on and
+    off again 30 ticks later; the watcher records every packet."""
+    lever = block(0, 0, 0, 'minecraft:lever', {'lever_direction': 'up_east_west', 'open_bit': False})
+    click = [0, 0, 0, 1, 500, 100, 500]
+    after = [['wait', 30], ['use', 'player', click], ['wait', 30]]
+    read = [[x, 0, 0] for x in range(0, 6)]
+    east = {'facing_direction': 4}
+    chest = block(3, 0, 0, 'minecraft:chest', {'minecraft:cardinal_direction': 'north'})
+    raised_lever = block(0, 1, 0, 'minecraft:lever', {'lever_direction': 'up_east_west', 'open_bit': False})
+    raised_click = [0, 1, 0, 1, 500, 100, 500]
+    return [
+        case('piston_stone', [lever, block(1, 0, 0, 'minecraft:piston', east), block(2, 0, 0, *STONE)],
+             AIR_HAND, NORTH_OF, click, read, after=after),
+        case('sticky_piston_stone_chest', [lever, block(1, 0, 0, 'minecraft:sticky_piston', east),
+                                           block(2, 0, 0, *STONE), chest],
+             AIR_HAND, NORTH_OF, click, read, after=after),
+        # Raised one block so the slime does not stick to the floor.
+        case('sticky_piston_slime', [block(0, 0, 0, *STONE), raised_lever,
+                                     block(1, 1, 0, 'minecraft:sticky_piston', east), block(2, 1, 0, 'minecraft:slime'),
+                                     block(2, 2, 0, *STONE)],
+             AIR_HAND, NORTH_OF, raised_click, [[x, 1, 0] for x in range(0, 5)] + [[2, 2, 0], [3, 2, 0]],
+             after=[['wait', 30], ['use', 'player', raised_click], ['wait', 30]]),
+        case('piston_breaks_torch', [lever, block(1, 0, 0, 'minecraft:piston', east), block(2, 0, 0, *STONE),
+                                     block(3, 0, 0, 'minecraft:torch', {'torch_facing_direction': 'top'})],
+             AIR_HAND, NORTH_OF, click, read, after=after),
+        case('piston_blocked', [lever, block(1, 0, 0, 'minecraft:piston', east), block(2, 0, 0, 'minecraft:obsidian')],
+             AIR_HAND, NORTH_OF, click, read, after=after),
+    ]
+
+
+GROUPS['pistons'] = pistons
+
+
+def tnt() -> list[dict]:
+    """Round 4: what a client is sent when TNT is primed and explodes. The
+    player switches a lever beside a TNT block (three stones and a dirt
+    block around it to break) and the watcher records every packet for 100
+    ticks."""
+    lever = block(0, 0, 0, 'minecraft:lever', {'lever_direction': 'up_east_west', 'open_bit': False})
+    click = [0, 0, 0, 1, 500, 100, 500]
+    setup = [lever, block(1, 0, 0, 'minecraft:tnt', {'explode_bit': False}), block(2, 0, 0, *STONE),
+             block(1, 0, 1, 'minecraft:dirt'), block(1, 1, 0, 'minecraft:dirt')]
+    return [case('tnt_lever', setup, AIR_HAND, [0.5, 0, -6.5, 0, 10], click, [[x, 0, 0] for x in range(0, 4)],
+                 after=[['wait', 100]])]
+
+
+GROUPS['tnt'] = tnt

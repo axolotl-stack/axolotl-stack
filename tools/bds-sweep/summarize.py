@@ -8,6 +8,7 @@
     python tools/bds-sweep/summarize.py placements SWEEP_DIR
     python tools/bds-sweep/summarize.py circuits SWEEP_DIR [SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py random-ticks SWEEP_DIR [SWEEP_DIR ...]
+    python tools/bds-sweep/summarize.py round4 SWEEP_DIR [SWEEP_DIR ...]
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
@@ -1320,6 +1321,166 @@ def summarize_circuits(sweeps: list[Path]) -> None:
         print(f['path'], f.get('rows', ''), f['sha256'][:12])
 
 
+# ---------------------------------------------------------------- round 4 circuits
+
+ROUND4_METHOD = CIRCUIT_METHOD + (
+    ' Round 4 rows also keep `items` (the item actors that ended in the cell, [item, data, count]) and '
+    '`actors` (for timelines with an actor box: [tick, [[id, type, dx, dy, dz, vx, vy, vz, health], ...]] '
+    'whenever the actors in the cell changed; positions relative to the cell origin).'
+)
+ROUND4_ROW = '[name, witness, steps, trace, items, actors]'
+# Families of `pistons.py` and the directory their rows go to.
+ROUND4_PREFIXES = {'pistons_': 'pistons', 'tnt_': 'explosions'}
+# Actor types left out of the TNT families' actor traces (items thrown by explosions).
+ROUND4_NOISE = {'minecraft:item'}
+BLAST_ROW = '[material, sample, witness, destroyed offsets, dropped items {item: count}]'
+
+
+def piston_classes(rows: list) -> dict:
+    """How a sticky piston treats each block (`pistons_blocks`): `push_pull`
+    (moved out and pulled back), `push_only` (moved, left when the piston
+    retracts), `breaks` (removed as the head comes out, dropping its items)
+    or `immovable` (the head never comes out). Blocks that were not
+    standing at x=2 when the timeline began are left out."""
+    out: dict[str, list] = defaultdict(list)
+    for name, witness, steps, trace, items, actors in rows:
+        block = name[1]
+        first = {k: b for t, k, b, st in trace if t == 0}
+        if first.get(2) != block:
+            continue
+        arm = [t for t, k, b, st in trace if k == 2 and t > 0 and b.endswith('piston_arm_collision')]
+        landed = [t for t, k, b, st in trace if k == 3 and t > 0 and b == block]
+        back = [t for t, k, b, st in trace if k == 2 and arm and t > arm[0] and b == block]
+        if not arm:
+            kind = 'immovable'
+        elif landed and back:
+            kind = 'push_pull'
+        elif landed:
+            kind = 'push_only'
+        else:
+            kind = 'breaks'
+        out[kind].append(block)
+    return {kind: sorted(blocks) for kind, blocks in out.items()}
+
+
+def move_class(classes: dict, block: str, kind: str) -> None:
+    for blocks in classes.values():
+        if block in blocks:
+            blocks.remove(block)
+    classes.setdefault(kind, []).append(block)
+    classes[kind].sort()
+
+
+def glue_moves(classes: dict, rows: list) -> None:
+    """Slime and honey stick to the floor under them in `pistons_blocks`,
+    so the floor holds them there; `pistons_slime` (raised off the floor)
+    shows them pushed and pulled."""
+    for name, witness, steps, trace, items, actors in rows:
+        if name[1:] != ['stuck', 'sticky_piston']:
+            continue
+        glue = name[0]
+        if any(k == 3 and b == glue and t > 0 for t, k, b, st in trace) and                 any(k == 2 and b == glue and t > 20 for t, k, b, st in trace):
+            move_class(classes, glue, 'push_pull')
+
+
+def held_by_heads(classes: dict, rows: list) -> None:
+    """A piston head holds a push (`pistons_chains` "push_head": the piston
+    pushing into another piston's head never extends)."""
+    for name, witness, steps, trace, items, actors in rows:
+        if name[0] != 'push_head':
+            continue
+        if not any(t > 0 and b.endswith('piston_arm_collision') and k == 2 for t, k, b, st in trace):
+            for head in ('piston_arm_collision', 'sticky_piston_arm_collision'):
+                move_class(classes, head, 'immovable')
+
+
+BLAST_METHOD = (
+    'sweep.py scenarios --family tnt_blast_<material> (tools/bds-sweep/tnt.py): a 9 x 9 x 9 cube of the '
+    'material filled from (-4,-3,-4) to (4,5,4) around a TNT block at (0,1,0) (the superflat floor is y=-1, '
+    'bedrock y=-4), primed by a redstone block set at (1,1,0); 110 ticks later every cube position is read '
+    'and the item actors in the cell counted. `destroyed` lists the cube offsets that were air afterwards '
+    '(the TNT and redstone block positions included); `dropped` sums the items by identifier.'
+)
+
+
+def blast_row(family: str, rest: str, row: dict, item: dict) -> list:
+    material = family.removeprefix('tnt_blast_')
+    watch = next(step for step in item['steps'] if step[0] == 'read')[2]
+    destroyed = [offset for offset, (block, states) in zip(watch, row['reads']['after']) if block == 'minecraft:air']
+    dropped = Counter()
+    for item_id, data, count in row.get('items', []):
+        dropped[short(item_id)] += count
+    return [material, json.loads(rest), row['timing']['witness_tick'], destroyed, dict(sorted(dropped.items()))]
+
+
+def actor_trace(row: dict, noise: set) -> list:
+    """The actor trace without the actor types in `noise` (the items an
+    explosion throws), recorded when what is left changes."""
+    out, last = [], None
+    for t, seen in row.get('actor_traces', []):
+        kept = [[a[0], short(a[1]), *a[2:]] for a in seen if a[1] not in noise]
+        if kept != last:
+            out.append([t, kept])
+            last = kept
+    return out
+
+
+def summarize_round4(sweeps: list[Path]) -> None:
+    """Round 4 families (`pistons.py`, `tnt.py`) to `<dir>/<family>.json`,
+    the blast samples to `explosions/tnt_blast.json` and the derived
+    `pistons/blocks.json`."""
+    by_family: dict[str, list] = defaultdict(list)
+    for sweep in sweeps:
+        job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
+        items = {item['key']: item for item in job['items']}
+        for row in results(sweep):
+            family, rest = row['key'].split('|', 1)
+            if not any(family.startswith(prefix) for prefix in ROUND4_PREFIXES) or family.endswith('_pilot'):
+                continue
+            witness = row['timing']['witness_tick']
+            if witness not in (2, 3):
+                raise SystemExit(f'{sweep}: {row["key"]}: no witness tick ({witness})')
+            if family.startswith('tnt_blast_'):
+                by_family['tnt_blast'].append(blast_row(family, rest, row, items[row['key']]))
+                continue
+            trace = [[t, k, short(b), st] for t, k, b, st in row['traces']['trace']]
+            name = [short(p) if isinstance(p, str) else p for p in json.loads(rest)]
+            stacks = [[short(i), d, n] for i, d, n in row.get('items', [])]
+            actors = actor_trace(row, ROUND4_NOISE if family.startswith('tnt_') else set())
+            by_family[family].append([name, witness, short_steps(items[row['key']]['steps']), trace, stacks,
+                                      actors])
+    files = []
+    for family, rows in sorted(by_family.items()):
+        rows.sort(key=lambda r: json.dumps(r[0], sort_keys=True) if family != 'tnt_blast' else json.dumps(r[:2]))
+        directory = next(d for prefix, d in ROUND4_PREFIXES.items() if family.startswith(prefix))
+        header = ({'family': family, 'method': BLAST_METHOD, 'row': BLAST_ROW} if family == 'tnt_blast'
+                  else {'family': family, 'method': ROUND4_METHOD, 'row': ROUND4_ROW})
+        files.append(write_rows(f'{directory}/{family}.json', header, rows))
+    if 'pistons_blocks' in by_family:
+        classes = piston_classes(by_family['pistons_blocks'])
+        glue_moves(classes, by_family.get('pistons_slime', []))
+        held_by_heads(classes, by_family.get('pistons_chains', []))
+        rows = [[block, kind] for kind, blocks in sorted(classes.items()) for block in blocks]
+        rows.sort()
+        files.append(write_rows('pistons/blocks.json', {
+            'method': 'derived from pistons_blocks.json by summarize.py round4: the default state of each block in '
+                      'front of a sticky piston powered for 20 ticks; push_pull = moved and pulled back, '
+                      'push_only = moved and left, breaks = removed as the head came out, immovable = the head '
+                      'never came out. Slime and honey blocks stick to the floor under them there, so their class '
+                      'comes from pistons_slime.json (raised off the floor); the class of the heads from '
+                      'pistons_chains.json (a piston pushing into a head never extends)',
+            'row': '[block, push_pull | push_only | breaks | immovable]'}, rows))
+    for directory in sorted(set(ROUND4_PREFIXES.values())):
+        mine = [f for f in files if f['path'].startswith(directory + '/')]
+        if not mine:
+            continue
+        entry = {**provenance('scenarios', sweeps), 'files': mine,
+                 'method': 'circuits replayed tick by tick: ' + ROUND4_METHOD}
+        update_manifest(directory, merge_manifest_files(directory, entry))
+    for f in files:
+        print(f['path'], f.get('rows', ''), f['sha256'][:12])
+
+
 # ---------------------------------------------------------------- random ticks
 
 RANDOM_METHOD = (
@@ -1393,6 +1554,8 @@ def main() -> int:
         summarize_scenarios(dirs)
     elif kind == 'circuits':
         summarize_circuits(dirs)
+    elif kind == 'round4':
+        summarize_round4(dirs)
     elif kind == 'random-ticks':
         summarize_random_ticks(dirs)
     elif kind == 'item-blocks':

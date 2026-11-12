@@ -460,6 +460,17 @@ def run_event(ctx: Context, at, event: list, touched: set, failures: list) -> No
         # `['build', [[offset, block, states, physics], ...]]`: sets in order.
         for offset, block, states, physics in event[1]:
             run_event(ctx, at, ['set', offset, block, states, physics], touched, failures)
+    elif kind == 'fill':
+        # `['fill', low, high, block]`: `/fill` between two offsets (the box
+        # is cleared after the wave like every touched position).
+        low, high = at(event[1]), at(event[2])
+        for x in range(low[0], high[0] + 1):
+            for y in range(low[1], high[1] + 1):
+                for z in range(low[2], high[2] + 1):
+                    touched.add((x, y, z))
+        line = f'fill {low[0]} {low[1]} {low[2]} {high[0]} {high[1]} {high[2]} {event[3]}'
+        if not ctx.cmd(line):
+            failures.append(line)
     elif kind == 'setblock':
         pos = at(event[1])
         touched.add(pos)
@@ -491,6 +502,38 @@ def run_event(ctx: Context, at, event: list, touched: set, failures: list) -> No
         raise RuntimeError(f'unknown scenario event {event!r}')
 
 
+def read_actors(ctx: Context, wave: list, index: int, bases: list, out: list, last: list, tick: int) -> None:
+    """The actors (players excluded) inside each cell's `actors` box (the
+    timeline's optional sixth element, `{'box': [[lx, ly, lz], [hx, hy, hz]]}`
+    in cell offsets, inclusive): `[tick, [[id, type, dx, dy, dz, vx, vy, vz,
+    health], ...]]` recorded when the list changes. Positions are relative to
+    the cell origin, rounded to 1/1000 (velocities to 1/10000)."""
+    actors = [a for a in ctx.dimension.actors if a.type != 'minecraft:player']
+    for i, item in enumerate(wave):
+        own = item['steps'][index]
+        if len(own) <= 5:
+            continue
+        (lx, ly, lz), (hx, hy, hz) = own[5]['box']
+        base = bases[i]
+        seen = []
+        for actor in actors:
+            loc = actor.location
+            dx, dy, dz = loc.x - base[0], loc.y - base[1], loc.z - base[2]
+            if not (lx <= dx <= hx + 1 and ly <= dy <= hy + 1 and lz <= dz <= hz + 1):
+                continue
+            vel = actor.velocity
+            try:
+                health = actor.health
+            except Exception:  # noqa: BLE001 - actors without health
+                health = None
+            seen.append([actor.id, actor.type, round(dx, 3), round(dy, 3), round(dz, 3),
+                         round(vel.x, 4), round(vel.y, 4), round(vel.z, 4), health])
+        seen.sort(key=lambda a: a[0])
+        if seen != last[i]:
+            out[i].append([tick, seen])
+            last[i] = seen
+
+
 def scenarios(ctx: Context, job: dict):
     """Block scenarios in waves: up to `wave_size` items with the same step
     signature run side by side, each in its own cell (`spacing` blocks apart
@@ -509,7 +552,9 @@ def scenarios(ctx: Context, job: dict):
       server ticks in which `events` (`[[tick, event], ...]`, events as in
       `run_event`) are applied at their tick (0 = the first) and every
       listed position is read once per tick after them; the trace records
-      `[tick, index, type, states]` for the first read and each change.
+      `[tick, index, type, states]` for the first read and each change. An
+      optional sixth element `{'box': [low, high]}` also records the actors
+      in that box every tick (`read_actors`, row `actor_traces`).
 
     Records every read and trace, the item actors that appeared in the cell
     (popped blocks drop items) and failed commands. Afterwards each touched
@@ -566,6 +611,7 @@ def scenarios(ctx: Context, job: dict):
         reads: list[dict] = [{} for _ in wave]
         traces: list[dict] = [{} for _ in wave]
         timings: list[dict] = [{} for _ in wave]
+        actor_traces: list[list] = [[] for _ in wave]
         failures: list[list] = [[] for _ in wave]
         for index, step in enumerate(wave[0]['steps']):
             if step[0] == 'wait':
@@ -575,6 +621,7 @@ def scenarios(ctx: Context, job: dict):
                 # Every tick: the events due, then one read of every listed
                 # position in every cell; one server tick between reads.
                 last: list[list] = [[None] * len(item['steps'][index][4]) for item in wave]
+                actor_last: list = [None for _ in wave]
                 for i in range(len(wave)):
                     traces[i][wave[i]['steps'][index][2]] = []
                 # The witness: a redstone block set at tick 0 next to a dust
@@ -611,6 +658,8 @@ def scenarios(ctx: Context, job: dict):
                             if value != last[i][k]:
                                 trace.append([tick, k, data.type, data.block_states])
                                 last[i][k] = value
+                    if any(len(item['steps'][index]) > 5 for item in wave):
+                        read_actors(ctx, wave, index, bases, actor_traces, actor_last, tick)
                     yield 1
                 for i in range(len(wave)):
                     timings[i] = {'start_tick': start_tick, 'witness_tick': witness_tick}
@@ -624,7 +673,7 @@ def scenarios(ctx: Context, job: dict):
                 continue
             for i, item in enumerate(wave):
                 own = item['steps'][index]
-                if own[0] in ('set', 'build', 'setblock', 'cmd'):
+                if own[0] in ('set', 'build', 'setblock', 'cmd', 'fill'):
                     run_event(ctx, lambda off, b=bases[i]: absolute(b, off), own, touched[i], failures[i])
                 elif own[0] == 'read':
                     values = []
@@ -647,6 +696,8 @@ def scenarios(ctx: Context, job: dict):
                    'items': sorted(stack for kind, stack in mine if kind == 'minecraft:item'),
                    'falling_blocks': sum(1 for kind, _ in mine if kind == 'minecraft:falling_block'),
                    'command_failures': failures[i]}
+            if actor_traces[i]:
+                row['actor_traces'] = actor_traces[i]
             if traces[i]:
                 row['traces'] = traces[i]
                 row['timing'] = timings[i]

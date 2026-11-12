@@ -718,16 +718,30 @@ def _coral_families() -> dict:
     return coral.FAMILIES
 
 
+def _piston_families() -> dict:
+    import pistons
+    return pistons.FAMILIES
+
+
+def _tnt_families() -> dict:
+    import tnt
+    return tnt.FAMILIES
+
+
 ROUND_THREE = _circuit_families()
+ROUND_FOUR = _piston_families()
+TNT = _tnt_families()
 RANDOM_TICKS = _random_tick_families()
 CORAL = _coral_families()
 FAMILIES.update(ROUND_THREE)
 FAMILIES.update(RANDOM_TICKS)
 FAMILIES.update(CORAL)
+FAMILIES.update(ROUND_FOUR)
+FAMILIES.update(TNT)
 # Families that need their own cell layout (name in sweep.ARENAS) and server
 # properties; every family in one run must share a layout.
-LAYOUTS = ({name: 'circuits' for name in ROUND_THREE} | {name: 'fields' for name in RANDOM_TICKS}
-           | {name: 'coral' for name in CORAL} | {'coral_death': 'coral'})
+LAYOUTS = ({name: 'circuits' for name in ROUND_THREE | ROUND_FOUR} | {name: 'fields' for name in RANDOM_TICKS}
+           | {name: 'coral' for name in CORAL} | {'coral_death': 'coral'} | {name: 'blast' for name in TNT})
 
 
 def layout(families: str) -> str:
