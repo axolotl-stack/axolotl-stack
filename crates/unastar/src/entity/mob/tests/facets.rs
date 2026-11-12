@@ -36,7 +36,7 @@ use crate::world::rules::Difficulty;
 
 /// Top of the floor: feet of a mob standing on it.
 pub(super) const SURFACE: f64 = 64.0;
-const MIDNIGHT: u64 = 18_000;
+const MIDNIGHT: i64 = 18_000;
 
 /// The mobs these tests cover, in the order the lists below use.
 const HUSK: &str = "minecraft:husk";
@@ -1145,7 +1145,7 @@ fn a_zoglin_is_hit_on_its_hit_box_beyond_its_collision_box() {
 /// A zombie villager in the open at noon, a one-layer oak-leaf canopy over
 /// x 4..=8, z -2..=2 (sky light 14 under it), with its idle goals removed;
 /// `from_village` gives it `behavior.flee_sun` when `flee`.
-fn sunlit_zombie_villager(seed: u64, flee: bool, time: u64) -> (Arena, Entity) {
+fn sunlit_zombie_villager(seed: u64, flee: bool, time: i64) -> (Arena, Entity) {
     let leaves = block("minecraft:oak_leaves");
     let mut a = arena(seed, Difficulty::Normal, GameMode::Creative, move |pos| {
         ((4..=8).contains(&pos.x) && (-2..=2).contains(&pos.z) && pos.y == 66).then_some(leaves)
@@ -1180,7 +1180,7 @@ fn under_canopy(feet: DVec3) -> bool {
 #[test]
 fn a_burning_zombie_villager_flees_the_sun_under_cover() {
     use crate::entity::mob::combat::fire::is_burning;
-    const NOON: u64 = 6_000;
+    const NOON: i64 = 6_000;
     for (flee, time, takes_cover) in [
         (true, NOON, true),
         (false, NOON, false),

@@ -286,14 +286,17 @@ pub fn sync_player_effects(
 /// The visible-effects actor data (`VISIBLE_MOB_EFFECTS`) `effects` pack:
 /// every effect that shows particles as `(id << 1) | ambient`, 7 bits each.
 /// Measured (`/effect` capture): speed alone packs 2, instant health 12,
-/// effects with hidden particles nothing. [INFERENCE] several visible
-/// effects shift in 7 bits apart in effect-id order, at most 8 (each
-/// capture line has one).
+/// effects with hidden particles nothing. Invisibility with particles
+/// packs nothing either (the player actor-data capture's `/effect
+/// invisibility` sends no visible-effects update); [INFERENCE] that is the
+/// effect itself, not every effect while invisible. [INFERENCE] several
+/// visible effects shift in 7 bits apart in effect-id order, at most 8
+/// (each capture line has one).
 pub fn visible_effects(effects: Option<&Effects>) -> i64 {
     let mut visible: Vec<(u8, bool)> = effects
         .into_iter()
         .flat_map(|effects| &effects.active)
-        .filter(|(_, state)| state.show_particles)
+        .filter(|(effect, state)| state.show_particles && **effect != EffectType::INVISIBILITY)
         .map(|(effect, state)| (effect.0, state.ambient))
         .collect();
     visible.sort_unstable();

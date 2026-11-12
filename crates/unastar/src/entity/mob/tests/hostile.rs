@@ -34,7 +34,7 @@ use crate::world::chunk::{Chunk, blocks};
 use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkViewers};
 use crate::world::rules::Difficulty;
 
-const MIDNIGHT: u64 = 18_000;
+const MIDNIGHT: i64 = 18_000;
 
 struct Harness {
     server: GameServer,
