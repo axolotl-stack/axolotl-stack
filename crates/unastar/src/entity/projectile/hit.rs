@@ -88,6 +88,8 @@ fn grant_xp(world: &mut World, (min, max): (i32, i32), at: DVec3) {
         POTION_SPLASH_LEVEL_EVENT,
         DEFAULT_POTION_COLOUR_ARGB,
     );
+    // In i64: pack data may span the whole i32 range.
+    let (min, max) = (i64::from(min), i64::from(max));
     let amount = if max > min {
         min + world
             .get_resource_or_init::<EntityRandom>()

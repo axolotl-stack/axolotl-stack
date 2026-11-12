@@ -178,10 +178,8 @@ pub fn tick_anger(
             broadcast(world, mob, &config, &mut receivers);
         }
         if state.until_tick.is_some_and(|until| now >= until) {
-            if let Some(mut angry) = world.get_mut::<Angry>(mob) {
-                angry.until_tick = None;
-            }
             calm(world, mob, &config);
+            continue;
         }
         if state.next_sound_tick < now {
             if let Some(sound) = &config.sound
@@ -392,10 +390,11 @@ fn friendly_anger(world: &mut World, receiver: Entity, angry: Entity) {
     }
 }
 
-/// The anger ends: `ANGRY` clears, the target is dropped (its
+/// The anger ends: `ANGRY` clears and the anger state goes (a later
+/// component apply starts a new one), the target is dropped (its
 /// `on_target_escape` fires) and `calm_event` fires.
 fn calm(world: &mut World, mob: Entity, config: &AngryConfig) {
-    set_angry_flag(&mut world.entity_mut(mob), false);
+    stop(&mut world.entity_mut(mob));
     crate::entity::mob::ai::drop_target(world, mob);
     let Some(event) = &config.calm_event else {
         return;
