@@ -68,8 +68,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, cleanup_despawned_entities,
-    sync_actor_viewers, sync_spatial_chunks, tick_block_breaking,
+    EntityGrid, broadcast_block_updates, cleanup_despawned_entities, sync_actor_viewers,
+    sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;

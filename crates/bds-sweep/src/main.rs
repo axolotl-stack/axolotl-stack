@@ -798,7 +798,10 @@ impl Player {
             }
             let walk_flags = [
                 (walk.forward, EnumsPlayerAuthInputPacketPayloadInputData::Up),
-                (walk.grounded, EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision),
+                (
+                    walk.grounded,
+                    EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision,
+                ),
             ];
             for (_, flag) in walk_flags.into_iter().filter(|(on, _)| *on) {
                 if !input_data.contains(&flag) {

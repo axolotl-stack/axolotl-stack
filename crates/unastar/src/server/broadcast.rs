@@ -199,7 +199,6 @@ pub fn cleanup_despawned_entities(
 // Block Breaking Systems
 // =============================================================================
 
-use crate::world::ChunkManager;
 use crate::world::ecs::ChunkViewers;
 
 const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
@@ -607,6 +606,7 @@ pub fn sync_actor_viewers(
 mod actor_viewer_tests {
     use super::*;
     use crate::entity::spawn_item_drop;
+    use crate::world::ChunkManager;
     use crate::world::ecs::{ChunkData, ChunkPosition};
     use glam::DVec3;
     use jolyne::valentine::McpePacketData;
