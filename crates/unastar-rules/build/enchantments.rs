@@ -61,6 +61,12 @@ fn check_protocol_docs(crates: &Path, names: &[String]) {
         .map(|v| v.as_str().expect("Enchant__Type value"))
         .collect();
     assert_eq!(
+        values.len(),
+        names.len() + 2,
+        "{}: enchantment count differs from the BDS capture",
+        path.display()
+    );
+    assert_eq!(
         values[names.len()..],
         ["NumEnchantments", "InvalidEnchantment"],
         "{}: enchantment count differs from the BDS capture",
