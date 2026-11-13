@@ -36,6 +36,7 @@ mod placement;
 #[cfg(test)]
 mod placement_capture_tests;
 mod plugins;
+pub(crate) mod roster;
 pub(crate) mod signs;
 pub mod types;
 
@@ -941,12 +942,25 @@ impl GameServer {
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
+        self.spawn_player_with_login(data, None)
+    }
+
+    /// [`Self::spawn_player`] with the player's validated login client data,
+    /// which its player-list entry (skin, platform) is built from; without
+    /// it the entry carries an empty skin.
+    pub fn spawn_player_with_login(
+        &mut self,
+        data: PlayerSpawnData,
+        client_data: Option<&jolyne::auth::ClientData>,
+    ) -> crate::storage::StorageResult<Entity> {
         let player_uuid = data
             .uuid
             .as_ref()
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         let player_name = data.display_name.clone();
+        let player_name_for_roster = player_name.clone();
+        let player_xuid = data.xuid.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
         let chunk_x = (position.0.x / 16.0).floor() as i32;
@@ -1136,12 +1150,31 @@ impl GameServer {
         // Plugins see the join (`on-player-join`) once the client has spawned:
         // `send_spawn_status` queues it when it clears `AwaitingSpawnStatus`.
 
+        let roster_entry = {
+            let world = self.ecs.world_mut();
+            let taken: Vec<u32> = world
+                .query::<&roster::RosterEntry>()
+                .iter(world)
+                .map(roster::RosterEntry::colour)
+                .collect();
+            roster::RosterEntry::new(
+                player_uuid,
+                runtime_id,
+                &player_name_for_roster,
+                player_xuid.as_deref(),
+                client_data.unwrap_or(&jolyne::auth::ClientData::default()),
+                roster::free_colour(taken),
+            )
+        };
+        self.ecs.world_mut().entity_mut(entity).insert(roster_entry);
+
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
             entity,
             position: data.position,
             runtime_id,
         });
         self.send_join_packets(entity);
+        self.announce_join(entity);
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         Ok(entity)
     }
@@ -1171,6 +1204,7 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
+            self.announce_leave(entity);
             // Every leave path (disconnect packet, network drop) ends here, so
             // plugins see exactly one `on-player-quit` per online player.
             if let Some(mut events) = self
@@ -2007,7 +2041,8 @@ mod tests {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
         });
-        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
+        // Room for the whole join (about 40 packets) so none is dropped.
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(64);
 
         let entity = server
             .spawn_player(PlayerSpawnData {

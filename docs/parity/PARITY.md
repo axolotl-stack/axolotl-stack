@@ -18,7 +18,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
-| [Protocol](#protocol) | 231 | 136 | 22 | 42 | 16 | 15 | 26.9% |
+| [Protocol](#protocol) | 231 | 126 | 27 | 42 | 21 | 15 | 29.2% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -77,11 +77,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Commands | lane COMMANDS | 2026-10-29 | 43 |
 
-**Protocol**: 158 open rows free, 0 claimed.
+**Protocol**: 153 open rows free, 0 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 96 | 87 | 9 |
+| clientbound | 91 | 77 | 14 |
 | bidirectional | 57 | 44 | 13 |
 | serverbound | 5 | 5 | 0 |
 
@@ -598,7 +598,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bidirectional | 80 | 44 | 13 | 15 | 2 | 6 | 23.0% |
-| clientbound | 146 | 87 | 9 | 27 | 14 | 9 | 29.9% |
+| clientbound | 146 | 77 | 14 | 27 | 19 | 9 | 33.6% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
@@ -615,13 +615,13 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 **clientbound**
 
+- `SetCommandsEnabledPacket`, `SetHealthPacket`: the test compares a hand-built packet with the capture; the value and timing the server sends are not compared
 - `AddPlayerPacket`: sent to the players in send range like BDS (when and to whom are verified) with the feet position, game type and actor data of the BDS player-data capture; not preceded by a PlayerList entry (no skin)
 - `BlockEventPacket`: chest lid open/close only; note blocks, pistons, bells and other block events missing
 - `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
-- `LevelEventPacket`: block cracking/destroy, door breaking, egg and grazing particles only; most vanilla level events (weather, sleeping, redstone, portals, ...) never sent
-- 4 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 75 more
+- 8 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 65 more
 
 **serverbound**
 

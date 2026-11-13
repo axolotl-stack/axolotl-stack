@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import capture  # noqa: E402
 import commit_fixtures  # noqa: E402
 import effects_fixture  # noqa: E402
 import knockback_fixture  # noqa: E402
@@ -284,6 +285,23 @@ class RuntimeSlotTest(unittest.TestCase):
         self.assertEqual(properties['server-portv6'], bds_runtime.PORT + 1)
         self.assertEqual(properties['enable-lan-visibility'], 'false')
         self.assertEqual(bds_runtime.ADDR, f'127.0.0.1:{bds_runtime.PORT}')
+
+
+class PairCaptureTest(unittest.TestCase):
+    def test_guests_are_numbered_after_the_host(self):
+        self.assertEqual(capture.guest_names(3), ['BDSExtractor2', 'BDSExtractor3', 'BDSExtractor4'])
+
+    def test_overlapping_guests_stay_until_the_last_one_joined(self):
+        # Taking turns: a short stay each.
+        self.assertEqual([capture.guest_settle(i, 3, None) for i in range(3)], [3, 3, 3])
+        # Started 7 s apart: the first stays 14 s longer than the last.
+        self.assertEqual([capture.guest_settle(i, 3, 7.0) for i in range(3)], [17, 10, 3])
+
+    def test_settle_is_passed_to_the_extractor(self):
+        command = capture.extractor_command(Path('x.exe'), Path('out'), name='G', settle=4)
+        self.assertEqual(command[command.index('--name') + 1], 'G')
+        self.assertEqual(command[command.index('--settle') + 1], '4')
+        self.assertNotIn('--commands', command)
 
 
 class PlayerScript(unittest.TestCase):

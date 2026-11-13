@@ -1,0 +1,138 @@
+{
+  "guest": [
+    {
+      "file": "00011-LevelEventGenericPacket.bin",
+      "seq": 11,
+      "t_ms": 709,
+      "packet": "LevelEventGenericPacket"
+    },
+    {
+      "file": "00012-PlayerListPacket.bin",
+      "seq": 12,
+      "t_ms": 709,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "00031-SetSpawnPositionPacket.bin",
+      "seq": 31,
+      "t_ms": 743,
+      "packet": "SetSpawnPositionPacket"
+    },
+    {
+      "file": "00035-LevelEventPacket.bin",
+      "seq": 35,
+      "t_ms": 743,
+      "packet": "LevelEventPacket"
+    },
+    {
+      "file": "00036-UpdateAdventureSettingsPacket.bin",
+      "seq": 36,
+      "t_ms": 743,
+      "packet": "UpdateAdventureSettingsPacket"
+    },
+    {
+      "file": "00039-PlayerListPacket.bin",
+      "seq": 39,
+      "t_ms": 743,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "00211-SetHealthPacket.bin",
+      "seq": 211,
+      "t_ms": 1039,
+      "packet": "SetHealthPacket"
+    }
+  ],
+  "host": [
+    {
+      "file": "00011-LevelEventGenericPacket.bin",
+      "seq": 11,
+      "t_ms": 756,
+      "packet": "LevelEventGenericPacket"
+    },
+    {
+      "file": "00012-PlayerListPacket.bin",
+      "seq": 12,
+      "t_ms": 756,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "00031-SetSpawnPositionPacket.bin",
+      "seq": 31,
+      "t_ms": 794,
+      "packet": "SetSpawnPositionPacket"
+    },
+    {
+      "file": "00035-UpdateAdventureSettingsPacket.bin",
+      "seq": 35,
+      "t_ms": 794,
+      "packet": "UpdateAdventureSettingsPacket"
+    },
+    {
+      "file": "00038-PlayerListPacket.bin",
+      "seq": 38,
+      "t_ms": 794,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "00413-SetHealthPacket.bin",
+      "seq": 413,
+      "t_ms": 6314,
+      "packet": "SetHealthPacket"
+    },
+    {
+      "file": "01046-LevelEventPacket.bin",
+      "seq": 1046,
+      "t_ms": 11585,
+      "packet": "LevelEventPacket"
+    },
+    {
+      "file": "01047-LevelEventPacket.bin",
+      "seq": 1047,
+      "t_ms": 11585,
+      "packet": "LevelEventPacket"
+    },
+    {
+      "file": "01723-LevelEventGenericPacket.bin",
+      "seq": 1723,
+      "t_ms": 25451,
+      "packet": "LevelEventGenericPacket"
+    },
+    {
+      "file": "01724-PlayerListPacket.bin",
+      "seq": 1724,
+      "t_ms": 25451,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "01726-UpdateAdventureSettingsPacket.bin",
+      "seq": 1726,
+      "t_ms": 25455,
+      "packet": "UpdateAdventureSettingsPacket"
+    },
+    {
+      "file": "01910-LevelEventGenericPacket.bin",
+      "seq": 1910,
+      "t_ms": 29107,
+      "packet": "LevelEventGenericPacket"
+    },
+    {
+      "file": "01911-PlayerListPacket.bin",
+      "seq": 1911,
+      "t_ms": 29107,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "04019-LevelEventPacket.bin",
+      "seq": 4019,
+      "t_ms": 56613,
+      "packet": "LevelEventPacket"
+    },
+    {
+      "file": "04020-LevelEventPacket.bin",
+      "seq": 4020,
+      "t_ms": 56613,
+      "packet": "LevelEventPacket"
+    }
+  ]
+}
