@@ -17,6 +17,14 @@ use super::generated::body::{
 use super::provisional as p;
 use super::{ActorComponent, ComponentBody, FilterJson, decode};
 
+/// `minecraft:underwater_movement`: the movement speed in water (the
+/// `minecraft:underwater_movement` attribute).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UnderwaterMovement {
+    pub value: f32,
+}
+
 /// An event reference: a bare event name or a trigger object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -781,6 +789,16 @@ pub struct MovementBasic {
     pub max_turn: f32,
 }
 
+/// `minecraft:movement.generic`: the move control of a mob that walks,
+/// swims and flies (the drowned).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MovementGeneric {
+    /// Maximum turn per tick, in degrees.
+    #[serde(default = "max_turn")]
+    pub max_turn: f32,
+}
+
 /// `minecraft:nameable`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -851,6 +869,12 @@ pub struct NavigationWalk {
     /// Path through doors using door annotations.
     pub using_door_annotation: Option<bool>,
 }
+
+/// `minecraft:navigation.generic`: the path permissions of
+/// `minecraft:navigation.walk`, read by a navigation that can also swim.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(transparent)]
+pub struct NavigationGeneric(pub NavigationWalk);
 
 /// `minecraft:offspring` (1.26): the offspring half of the old breedable
 /// fields.
@@ -1616,8 +1640,10 @@ dynamic_bodies!(
     MobEffectImmunity,
     Movement,
     MovementBasic,
+    MovementGeneric,
     MovementJump,
     Nameable,
+    NavigationGeneric,
     NavigationWalk,
     Offspring,
     PushableByBlock,
@@ -1633,5 +1659,6 @@ dynamic_bodies!(
     Transformation,
     Timer,
     TypeFamily,
+    UnderwaterMovement,
     Variant,
 );

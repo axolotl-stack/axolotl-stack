@@ -82,6 +82,83 @@ pub enum MobSpawnError {
     /// The lifecycle event failed; the mob was removed again.
     #[error(transparent)]
     Event(#[from] EventError),
+    /// The spawn event a reference names is not defined by the actor.
+    #[error("{identifier} defines no event {event}")]
+    UnknownEvent { identifier: String, event: String },
+}
+
+/// An actor to spawn, as definitions name one: `minecraft:drowned`, or
+/// `minecraft:drowned<minecraft:as_adult>` with the event fired on it
+/// instead of its lifecycle event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActorReference {
+    pub identifier: Arc<str>,
+    pub event: Option<Arc<str>>,
+}
+
+/// An actor reference that is not `identifier` or `identifier<event>`.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("malformed actor reference {0:?}")]
+pub struct ActorReferenceError(pub String);
+
+impl std::str::FromStr for ActorReference {
+    type Err = ActorReferenceError;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let malformed = || ActorReferenceError(text.to_owned());
+        let (identifier, event) = match text.split_once('<') {
+            Some((identifier, rest)) => {
+                let event = rest
+                    .strip_suffix('>')
+                    .filter(|event| !event.is_empty())
+                    .ok_or_else(malformed)?;
+                (identifier, Some(Arc::from(event)))
+            }
+            None => (text, None),
+        };
+        if identifier.is_empty() {
+            return Err(malformed());
+        }
+        Ok(Self {
+            identifier: Arc::from(identifier),
+            event,
+        })
+    }
+}
+
+/// Spawn `reference` at `position`: its event, when it names one, replaces
+/// the lifecycle event of `cause`.
+pub fn spawn_mob_as(
+    world: &mut World,
+    reference: &ActorReference,
+    position: DVec3,
+    yaw: f32,
+    cause: SpawnCause,
+) -> Result<Entity, MobSpawnError> {
+    let Some(name) = &reference.event else {
+        return spawn_mob(world, &reference.identifier, position, yaw, cause);
+    };
+    let event = archetype_of(world, &reference.identifier)?
+        .events
+        .event(name)
+        .ok_or_else(|| MobSpawnError::UnknownEvent {
+            identifier: reference.identifier.to_string(),
+            event: name.to_string(),
+        })?;
+    let entity = spawn_mob(
+        world,
+        &reference.identifier,
+        position,
+        yaw,
+        SpawnCause::Event,
+    )?;
+    if let Err(error) = events::fire_event(world, entity, &event, None) {
+        world.despawn(entity);
+        return Err(error.into());
+    }
+    apply_pending_definitions(world);
+    derive_entity(world, entity);
+    Ok(entity)
 }
 
 /// The compiled archetype of a mob entity.
@@ -100,6 +177,9 @@ pub enum SpawnCause {
     /// Another mob's `minecraft:transformation`:
     /// `minecraft:entity_transformed`.
     Transformed,
+    /// The caller fires a named spawn event instead (`/summon … <event>`,
+    /// [`spawn_mob_as`]): no lifecycle event.
+    Event,
 }
 
 /// Create a mob of `identifier` with its feet at `position`, fire its
@@ -135,6 +215,23 @@ pub fn spawn_mob_by(
     )
 }
 
+/// The archetype of `identifier`, or why it cannot be spawned.
+fn archetype_of(world: &World, identifier: &str) -> Result<Arc<MobArchetype>, MobSpawnError> {
+    let registry = world
+        .get_resource::<MobRegistry>()
+        .ok_or(MobSpawnError::NoRegistry)?;
+    match registry.get(identifier) {
+        Some(archetype) => Ok(Arc::clone(archetype)),
+        None => Err(match registry.unsupported(identifier) {
+            Some(reason) => MobSpawnError::Unsupported {
+                identifier: identifier.to_owned(),
+                reason: Arc::clone(reason),
+            },
+            None => MobSpawnError::UnknownActor(identifier.to_owned()),
+        }),
+    }
+}
+
 fn spawn_mob_with(
     world: &mut World,
     identifier: &str,
@@ -143,21 +240,7 @@ fn spawn_mob_with(
     cause: SpawnCause,
     other: Option<Entity>,
 ) -> Result<Entity, MobSpawnError> {
-    let registry = world
-        .get_resource::<MobRegistry>()
-        .ok_or(MobSpawnError::NoRegistry)?;
-    let archetype = match registry.get(identifier) {
-        Some(archetype) => Arc::clone(archetype),
-        None => {
-            return Err(match registry.unsupported(identifier) {
-                Some(reason) => MobSpawnError::Unsupported {
-                    identifier: identifier.to_owned(),
-                    reason: Arc::clone(reason),
-                },
-                None => MobSpawnError::UnknownActor(identifier.to_owned()),
-            });
-        }
-    };
+    let archetype = archetype_of(world, identifier)?;
     let entity = spawn_unattached(world, &archetype, position, yaw)?;
     if cause == SpawnCause::Loaded {
         // The spawn bonuses were rolled once and saved; restoring puts them
@@ -175,7 +258,7 @@ fn spawn_mob_with(
         SpawnCause::Spawned => archetype.lifecycle.spawned.as_ref(),
         SpawnCause::Born => archetype.lifecycle.born.as_ref(),
         SpawnCause::Transformed => archetype.lifecycle.transformed.as_ref(),
-        SpawnCause::Loaded => None,
+        SpawnCause::Loaded | SpawnCause::Event => None,
     };
     if let Some(event) = event
         && let Err(error) = events::fire_event(world, entity, event, other)

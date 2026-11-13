@@ -1,4 +1,6 @@
-//! `minecraft:spawn_entity`: periodically drop an item (the chicken's egg).
+//! `minecraft:spawn_entity`: periodically drop an item (the chicken's egg)
+//! or spawn an actor (the drowned rider's zombie nautilus, with its
+//! `spawn_event`; an actor that cannot be spawned yet is logged and skipped).
 //! This file compiles the component and holds its timers; the system is
 //! `mob::life::spawn_entity`.
 //!
@@ -18,7 +20,9 @@ use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
 use thiserror::Error;
-use unastar_data::actor_components::body::{self, ActorDefinitionTrigger, FilterSubject};
+use unastar_data::actor_components::body::{
+    self, ActorDefinitionTrigger, EventTrigger, FilterSubject,
+};
 use unastar_rules::filter::Filter;
 use zuri_nbt::{NBTTag, tag};
 
@@ -30,8 +34,10 @@ use crate::registry::ItemRegistry;
 /// Why a `minecraft:spawn_entity` body cannot be compiled.
 #[derive(Debug, Error)]
 pub enum SpawnEntityError {
-    #[error("spawning actors (spawn_entity {0}) is not implemented; only items are")]
-    ActorSpawn(String),
+    #[error("spawn_entity: {0}")]
+    ActorReference(#[from] crate::entity::mob::ActorReferenceError),
+    #[error("a spawn_event trigger with a target or filters is not implemented")]
+    SpawnEventTrigger,
     #[error("leashing spawned actors is not implemented")]
     Leash,
     #[error("unknown spawn item {0}")]
@@ -54,13 +60,23 @@ pub struct SpawnRule {
     pub min_ticks: u32,
     pub max_ticks: u32,
     pub filter: Option<Filter>,
-    /// Item identifier dropped, one per spawn.
-    pub item: Arc<str>,
+    /// What one spawn creates.
+    pub spawns: Spawned,
     pub sound: Arc<str>,
     pub count: u32,
     pub single_use: bool,
     /// Event fired on the mob after the items dropped.
     pub item_event: Option<Arc<str>>,
+}
+
+/// What a spawn rule creates.
+#[derive(Debug, Clone)]
+pub enum Spawned {
+    /// An item dropped at the feet.
+    Item(Arc<str>),
+    /// An actor at the feet with its spawn event (the drowned rider's
+    /// zombie nautilus).
+    Actor(crate::entity::mob::ActorReference),
 }
 
 /// `minecraft:spawn_entity`.
@@ -182,6 +198,7 @@ struct RuleFields {
     spawn_entity: Option<String>,
     spawn_item: String,
     spawn_item_event: Option<ActorDefinitionTrigger>,
+    spawn_event: EventTrigger,
     spawn_sound: String,
 }
 
@@ -205,6 +222,7 @@ fn compile(
                         spawn_entity: e.spawn_entity,
                         spawn_item: e.spawn_item,
                         spawn_item_event: e.spawn_item_event,
+                        spawn_event: e.spawn_event,
                         spawn_sound: e.spawn_sound,
                     },
                 )
@@ -222,6 +240,7 @@ fn compile(
                 spawn_entity: b.spawn_entity,
                 spawn_item: b.spawn_item,
                 spawn_item_event: b.spawn_item_event,
+                spawn_event: b.spawn_event,
                 spawn_sound: b.spawn_sound,
             },
         )?],
@@ -232,16 +251,35 @@ fn compile(
 }
 
 fn compile_rule(items: &ItemRegistry, f: RuleFields) -> Result<SpawnRule, SpawnEntityError> {
-    if let Some(actor) = f.spawn_entity.filter(|actor| !actor.is_empty()) {
-        return Err(SpawnEntityError::ActorSpawn(actor));
-    }
     if f.should_leash {
         return Err(SpawnEntityError::Leash);
     }
-    let item = ItemMatcher::parse(&f.spawn_item)?;
-    if items.get_by_name(&item.identifier).is_none() {
-        return Err(SpawnEntityError::UnknownItem(f.spawn_item));
-    }
+    let spawns = match f.spawn_entity.filter(|actor| !actor.is_empty()) {
+        Some(actor) => {
+            // An event in the reference (`id<event>`) wins over `spawn_event`.
+            let mut reference: crate::entity::mob::ActorReference = actor.parse()?;
+            let event = match f.spawn_event {
+                EventTrigger::Event(event) => event,
+                EventTrigger::Trigger(trigger)
+                    if trigger.target == FilterSubject::SelfValue && trigger.filters.is_none() =>
+                {
+                    trigger.event
+                }
+                EventTrigger::Trigger(_) => return Err(SpawnEntityError::SpawnEventTrigger),
+            };
+            if reference.event.is_none() && !event.is_empty() {
+                reference.event = Some(Arc::from(event.as_str()));
+            }
+            Spawned::Actor(reference)
+        }
+        None => {
+            let item = ItemMatcher::parse(&f.spawn_item)?;
+            if items.get_by_name(&item.identifier).is_none() {
+                return Err(SpawnEntityError::UnknownItem(f.spawn_item));
+            }
+            Spawned::Item(item.identifier)
+        }
+    };
     let item_event = match f.spawn_item_event {
         Some(trigger) if !trigger.event.is_empty() => {
             if trigger.target != FilterSubject::SelfValue {
@@ -259,7 +297,7 @@ fn compile_rule(items: &ItemRegistry, f: RuleFields) -> Result<SpawnRule, SpawnE
         min_ticks: ticks(f.min_wait_time),
         max_ticks: ticks(f.max_wait_time),
         filter: f.filters.as_ref().map(filter).transpose()?,
-        item: item.identifier,
+        spawns,
         sound: Arc::from(f.spawn_sound.as_str()),
         count: f.num_to_spawn.max(0) as u32,
         single_use: f.single_use,

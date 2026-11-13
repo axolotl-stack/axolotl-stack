@@ -47,7 +47,7 @@ use super::components::{
 };
 use super::constants::{
     DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
-    ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
+    ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH, WATER_MOVE_SPEED,
 };
 use super::state::{AttackTarget, Dead, InLove, MateRequest, Persistent};
 use crate::ecs::TickCounter;
@@ -61,7 +61,7 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::goal_selector::{GoalSelector, GoalSpec};
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
-use crate::entity::systems::physics::{living_block_friction, living_liquid};
+use crate::entity::systems::physics::{Swimming, living_block_friction, living_liquid};
 use crate::registry::collision::Aabb;
 
 /// Per-mob AI state: the goal selector over the authored goals, their
@@ -248,6 +248,8 @@ struct Output {
     yaw: f32,
     head_yaw: f32,
     velocity: DVec3,
+    /// The mob swims toward a waypoint this tick (no gravity in water).
+    swimming: bool,
     effects: Effects,
 }
 
@@ -286,6 +288,7 @@ fn think(
         on_ground,
         liquid: living_liquid(world, Aabb::from_feet(feet, physics.width, physics.height)),
         movement: movement_speed(mob, kind),
+        underwater: underwater_speed(mob, kind),
     };
     let policy = WalkPolicy::new(
         mob.get::<WalkNavigationConfig>(),
@@ -340,6 +343,7 @@ fn think(
                 yaw: rotation.yaw,
                 head_yaw: rotation.head_yaw,
                 velocity,
+                swimming: false,
                 effects,
             });
         }
@@ -379,6 +383,7 @@ fn think(
             &body,
             movement,
             goal_jump || hop.jump,
+            false,
             jump_power,
             hop.yaw,
             living_block_friction(world, feet),
@@ -388,6 +393,7 @@ fn think(
             yaw: hop.yaw,
             head_yaw: hop.yaw,
             velocity,
+            swimming: false,
             effects,
         });
     }
@@ -407,10 +413,12 @@ fn think(
     let move_jump = movement.tick(&body, &mut yaw, max_turn);
     let mut head_yaw = rotation.head_yaw;
     look.tick(feet + DVec3::Y * body.height, yaw, &mut head_yaw);
+    let swimming = movement.swimming(&body);
     let velocity = travel(
         &body,
         movement,
         goal_jump || move_jump,
+        control::blocked_ahead(feet, movement.wanted, velocity, yaw, body.width),
         jump_power,
         yaw,
         living_block_friction(world, feet),
@@ -420,6 +428,7 @@ fn think(
         yaw,
         head_yaw,
         velocity,
+        swimming,
         effects,
     })
 }
@@ -435,6 +444,20 @@ fn movement_speed(mob: EntityRef<'_>, kind: &MobKind) -> f32 {
     mob.get::<crate::entity::definition::attributes::ActorAttributes>()
         .and_then(|attributes| attributes.get(id).ok())
         .map_or(authored, |value| value.current)
+}
+
+/// The mob's underwater speed: its `minecraft:underwater_movement`
+/// attribute, else the native default.
+fn underwater_speed(mob: EntityRef<'_>, kind: &MobKind) -> f32 {
+    kind.0
+        .underwater_attribute
+        .as_ref()
+        .and_then(|(id, _)| {
+            mob.get::<crate::entity::definition::attributes::ActorAttributes>()?
+                .get(id)
+                .ok()
+        })
+        .map_or(WATER_MOVE_SPEED, |value| value.current)
 }
 
 /// A change of a mob's target this tick.
@@ -453,6 +476,7 @@ fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Defer
         yaw,
         head_yaw,
         velocity,
+        swimming,
         effects,
     } = output;
     // The target as viewers see it: its actor id in the `TARGET` actor data,
@@ -471,6 +495,13 @@ fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Defer
         && current.0 != velocity
     {
         current.0 = velocity;
+    }
+    if swimming != mob.contains::<Swimming>() {
+        if swimming {
+            mob.insert(Swimming);
+        } else {
+            mob.remove::<Swimming>();
+        }
     }
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);

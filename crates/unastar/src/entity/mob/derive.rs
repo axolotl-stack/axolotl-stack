@@ -15,7 +15,7 @@ use crate::entity::components::{AirSupply, Health, PhysicsBody};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::attributes::{ActorAttributes, AttributeValue};
 use crate::entity::definition::components::{
-    MovementConfig, PhysicsConfig, RawCollisionBox, ScaleConfig,
+    MovementConfig, PhysicsConfig, RawCollisionBox, ScaleConfig, UnderwaterMovementConfig,
 };
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -31,6 +31,7 @@ type DeriveInputs<'a> = (
     Option<&'a WalkNavigationConfig>,
     Option<&'a Health>,
     Option<&'a MovementConfig>,
+    Option<&'a UnderwaterMovementConfig>,
     Option<&'a AirSupply>,
     Option<&'a EffectModifiers>,
 );
@@ -48,13 +49,17 @@ struct Derived {
     can_walk: bool,
     health: Option<(f32, f32)>,
     movement: Option<f32>,
+    /// The authored underwater speed; `None` keeps the native one.
+    underwater: Option<f32>,
     air: Option<(i16, i16)>,
     /// What the active effects do to the movement and health attributes.
     modifiers: EffectModifiers,
 }
 
 fn derive(
-    (kind, collision, scale, physics, walk, health, movement, air, modifiers): DeriveInputs<'_>,
+    (kind, collision, scale, physics, walk, health, movement, underwater, air, modifiers): DeriveInputs<
+        '_,
+    >,
 ) -> Derived {
     let scale = scale.map_or(1.0, |s| s.value);
     // Published rule: negative collision dimensions count as zero.
@@ -75,6 +80,7 @@ fn derive(
         can_walk: walk.is_some_and(|w| w.can_walk),
         health: health.map(|h| (h.current, h.max)),
         movement: movement.map(|m| m.value),
+        underwater: underwater.map(|u| u.value),
         air: air.map(|a| (a.current_ticks as i16, a.max_ticks as i16)),
         modifiers: modifiers.cloned().unwrap_or_default(),
     }
@@ -123,6 +129,18 @@ fn store(
             .expect("archetype attribute layout");
         attributes
             .set_modifiers(id, &derived.modifiers.health_modifiers())
+            .expect("archetype attribute layout");
+    }
+    if let Some((id, native)) = &archetype.underwater_attribute {
+        let value = attributes.get(id).expect("archetype attribute layout");
+        attributes
+            .update(
+                id,
+                AttributeValue {
+                    current: derived.underwater.unwrap_or(*native),
+                    ..value
+                },
+            )
             .expect("archetype attribute layout");
     }
     if let (Some(id), Some(speed)) = (&archetype.movement_attribute, derived.movement) {

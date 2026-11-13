@@ -62,12 +62,26 @@ pub struct Hit {
     pub knockback_power: KnockbackPower,
 }
 
-/// The knockback `attacker` deals: its knockback rules, else the built-in
-/// preset.
-pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
+/// The knockback `attacker` deals to `target`: its knockback rules, else the
+/// built-in preset.
+pub fn knockback_power_of(world: &World, attacker: Entity, target: Entity) -> KnockbackPower {
     world
         .get::<KnockbackRules>(attacker)
-        .map_or(KnockbackPower::DEFAULT, |rules| rules.0)
+        .map_or(KnockbackPower::DEFAULT, |rules| {
+            rules.against(feet_in_water(world, target))
+        })
+}
+
+/// Whether the block at `actor`'s feet is water.
+fn feet_in_water(world: &World, actor: Entity) -> bool {
+    use crate::entity::systems::physics::BlockSource;
+    let Some(feet) = world.get::<Position>(actor) else {
+        return false;
+    };
+    world
+        .block_at(feet.0.floor().as_ivec3())
+        .and_then(|state| world.registry().liquid_state(state))
+        .is_some_and(|liquid| liquid.kind == crate::registry::block::LiquidKind::Water)
 }
 
 /// A player attacks `target` with whatever the server has in the player's

@@ -19,6 +19,8 @@
 //! name/property lookup of its own. The shared `connected_state` helper uses
 //! immutable startup-resolved connection facts and numeric state transitions.
 
+pub(crate) mod swim;
+
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -78,6 +80,8 @@ pub(crate) enum WalkMovement {
     Step,
     Jump,
     Drop,
+    /// Swimming toward the waypoint (`navigation::swim`).
+    Swim,
 }
 
 /// One supported destination. For the edge from the preceding point, a clear

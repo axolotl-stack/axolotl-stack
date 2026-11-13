@@ -78,9 +78,9 @@ pub use slime::{
     AreaAttackConfig, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal, HopMovementConfig,
     HopRandomDirectionGoal,
 };
-pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
+pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer, Spawned};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
-pub use transformation::TransformationConfig;
+pub use transformation::{TransformationConfig, TransformationDue};
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 use crate::registry::ItemRegistry;
@@ -124,14 +124,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     ),
     (
         ActorComponent::Transformation,
-        "only a transformation naming nothing but its target runs (the \
-         mooshroom's into a cow); one with a delay, sounds, added groups, a \
-         spawn event or carry-over flags has no behaviour: the pig gains it \
-         only when struck by lightning (not implemented); the zombie gains it \
-         after 30 s underwater, but its target, the drowned, is not spawnable \
-         yet (it needs swim navigation, the trident ranged attack and \
-         target_nearby_sensor), so an underwater zombie (and husk) shakes \
-         (is_shaking) without converting",
+        "a transformation with added component groups, a delay nearby blocks \
+         shorten (zombie villager curing), a starting sound or the \
+         drop/keep flags has no behaviour: what BDS keeps across those is \
+         not measured; the pig gains its transformation only when struck by \
+         lightning (not implemented)",
     ),
     (
         ActorComponent::BehaviorStompTurtleEgg,

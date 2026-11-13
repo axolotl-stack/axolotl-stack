@@ -372,6 +372,7 @@ pub struct GoalStates {
     /// A path prepared by `can_start`, installed by `start`.
     pub(super) staging: WalkNavigation,
     scratch: NavigationScratch,
+    swim: crate::entity::navigation::swim::SwimScratch,
     candidates: Vec<(f32, DVec3)>,
     boxes: Vec<Aabb>,
     pub(super) targets: super::targeting::TargetStates,
@@ -423,8 +424,26 @@ impl<'a> GoalContext<'a> {
         self.body.feet + DVec3::Y * self.body.height
     }
 
+    /// Whether this tick's paths are swim paths: the navigation can swim
+    /// and the mob is in water.
+    pub(super) fn swimming(&self) -> bool {
+        self.policy.can_swim && self.body.liquid == Some(LiquidKind::Water)
+    }
+
     /// Search a path to `goal` into the staging buffer.
     pub(super) fn path_to(&mut self, goal: DVec3) -> bool {
+        if self.swimming() {
+            return super::path::find_swim(
+                self.world,
+                self.table,
+                self.physics,
+                self.policy,
+                self.body.feet,
+                goal,
+                &mut self.states.swim,
+                &mut self.states.staging,
+            );
+        }
         find_path(
             self.world,
             self.table,
@@ -440,6 +459,10 @@ impl<'a> GoalContext<'a> {
 
     /// Search a path onto the ground under `point` into the staging buffer.
     pub(super) fn path_toward(&mut self, point: DVec3) -> bool {
+        // A swimming mob heads for the point itself, not the ground under it.
+        if self.swimming() {
+            return self.path_to(point);
+        }
         let Some(goal) = ground_below(self.world, point, &mut self.states.boxes) else {
             return false;
         };

@@ -35,7 +35,7 @@ manifest schema_version="1" generated_at="unknown" {
     artifact "blocks" path="blocks.kdl" hash="ad36401cb782a04eb5e7b8b7ebccdd9114eb2a995debdc266518b7b6c54fc083"
     artifact "items" path="items.kdl" hash="6f86fc1a5d95b59bc5aa154d69757bcc9b10433c322bb1ea822e6761ea6ec771"
     artifact "creative" path="creative.kdl" hash="35112ee9b3d22de086b43f8b828386dd3c06145b3e557d043de22291457a3d55"
-    artifact "pack-manifest.json" path="pack-manifest.json" hash="a1977f1a7447463511b7521317a9d8573cfda1ed334e66de14cb9e20bc521c8f"
+    artifact "pack-manifest.json" path="pack-manifest.json" hash="4c8f5ed97e1449f0b76b3df2bf39c22be31e8f57f3a9f53aa67db872fbd4bc0c"
     artifact "actor_identifiers.json" path="actor_identifiers.json" hash="e12f78fc4affebb3f72fc6d567b18a5163ba7eb6bbb00082f533dbf74206c5a6"
     artifact "available_commands.json" path="available_commands.json" hash="45a28adae70b4af169f93829e06651d292e7631ba786750099fd9c52c3a4b149"
     artifact "game_rules.json" path="game_rules.json" hash="a9b194f04571f3e2d990ec1d6d788320e99c8e973e6c805270cc9cdd5cd1d3b9"

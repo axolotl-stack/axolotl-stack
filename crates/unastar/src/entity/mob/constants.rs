@@ -111,7 +111,8 @@ pub const WATER_DRAG: f64 = 0.8;
 pub const LIQUID_GRAVITY: f64 = 0.02;
 /// Lava drag; provisional (the Java Edition value).
 pub const LAVA_DRAG: f64 = 0.5;
-/// Acceleration input while swimming (underwater movement attribute).
+/// Push per unit of forward input in water of a mob without an
+/// `minecraft:underwater_movement` attribute row (the native default).
 pub const WATER_MOVE_SPEED: f32 = 0.02;
 /// Native chicken wing-flap drag: travelling through air with a negative
 /// vertical velocity after gravity and drag, that velocity is multiplied by
