@@ -953,6 +953,148 @@ def slime_spawn_items(args) -> list[dict]:
              'clear': [f'minecraft:{mob}' for mob in monsters]} for n in range(2)]
 
 
+# A glass pool east of the player, water x 3..19, y -60..-54, z -7..7 (the
+# surface at y -53), and glass land east of it, level with the surface.
+POOL = ['fill 2 -61 -8 30 -54 8 glass', 'fill 3 -60 -7 19 -54 7 water']
+UNPOOL = ['fill 2 -61 -8 30 -50 8 air', 'fill 2 -63 -8 30 -62 8 dirt', 'fill 2 -61 -8 30 -61 8 grass_block']
+
+
+def drowned_items(args) -> list[dict]:
+    """`drowned`: the drowned in a glass pool (`POOL`), every drowned,
+    zombie, husk and thrown trident sampled every tick (`track`), summoned
+    with a spawn event (`summon … minecraft:as_adult`). `--items` picks a
+    set: `sink` (no target: the creative player stands outside), `hunt`
+    (the survival player on the pool floor, on a pillar at the surface, or
+    on the land east of the pool), `trident` (a ranged drowned and the
+    player in the water or on the land, no Resistance), `day` (noon, the
+    player in the water or on the land), `equipment` (200 drowned summoned
+    with their natural spawn event, on land), `convert` (a zombie, a baby
+    zombie and a husk held under water until they turn) or `all`."""
+    target = f'"{PLAYER}"'
+    track = ['minecraft:drowned', 'minecraft:zombie', 'minecraft:husk', 'minecraft:thrown_trident']
+    clean = ['kill @e[type=minecraft:item]', 'kill @e[type=minecraft:xp_orb]',
+             'kill @e[type=minecraft:thrown_trident]']
+    alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+             f'effect {target} regeneration 100000 4 true', f'effect {target} water_breathing 100000 0 true']
+    tough = alive + [f'effect {target} resistance 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    far = [0.5, -60, -24.5, 0]
+    floor = [4.5, -60, 0.5, -90]
+    surface = [4.5, -54, 0.5, -90]
+    land = [25.5, -53, 0.5, 90]
+    pillar = ['fill 4 -60 0 4 -55 0 glass']
+
+    def summon(mob, event, at):
+        return f'summon minecraft:{mob} {at[0]} {at[1]} {at[2]} {at[3]} 0 minecraft:{event}'
+
+    def row(key, mob, event, at, player, ticks, setup=(), cleanup=(), actions=()):
+        return {'key': f'drowned|{key}', 'mob': None, 'at': None, 'player': player, 'frozen': False,
+                'ticks': ticks, 'setup': POOL + list(setup) + [summon(mob, event, at)],
+                'cleanup': clean + list(cleanup) + UNPOOL, 'actions': list(actions), 'track': track}
+
+    sets = {}
+    sets['sink'] = [row(f'sink-{n}', 'drowned', 'as_adult', [11.5, -56, 0.5, 90], far, 400) for n in range(3)]
+    hunt = []
+    for n in range(3):
+        hunt.append(row(f'hunt-floor-{n}', 'drowned', 'as_adult', [16.5, -60, 0.5, 90], floor, 300,
+                        setup=tough, cleanup=restore, actions=[heal]))
+        hunt.append(row(f'hunt-surface-{n}', 'drowned', 'as_adult', [16.5, -60, 0.5, 90], surface, 300,
+                        setup=pillar + tough, cleanup=restore, actions=[heal]))
+        hunt.append(row(f'hunt-land-{n}', 'drowned', 'as_adult', [8.5, -60, 0.5, 270], land, 400,
+                        setup=tough, cleanup=restore, actions=[heal]))
+    sets['hunt'] = hunt
+    trident = []
+    for n in range(4):
+        trident.append(row(f'trident-water-{n}', 'drowned', 'as_ranged_adult', [14.5, -60, 0.5, 90], floor, 600,
+                           setup=alive, cleanup=restore, actions=[heal]))
+    for n in range(2):
+        trident.append(row(f'trident-land-{n}', 'drowned', 'as_ranged_adult', [10.5, -60, 0.5, 270], land, 600,
+                           setup=alive, cleanup=restore, actions=[heal]))
+    sets['trident'] = trident
+    noon = ['time set 6000']
+    night = ['time set 18000']
+    sets['day'] = [row(f'day-{where}-{n}', 'drowned', 'as_adult', [16.5, -60, 0.5, 90], spot, 300,
+                       setup=noon + tough, cleanup=night + restore,
+                       actions=[heal])
+                   for n in range(2) for where, spot in (('water', floor), ('land', land))]
+    # 50 drowned a batch on the land west of the player, each with its
+    # natural spawn event; the capture holds their equipment.
+    batch = [f'summon minecraft:drowned {-6.5 - (k % 10) * 2} -60 {-8.5 + (k // 10) * 4} 0 0'
+             for k in range(50)]
+    sets['equipment'] = [{'key': f'drowned|equipment-{n}', 'mob': None, 'at': None, 'player': far,
+                          'frozen': False, 'ticks': 20, 'setup': batch, 'cleanup': clean, 'actions': [],
+                          'track': ['minecraft:drowned']} for n in range(4)]
+    gear = ['replaceitem entity @e[type=minecraft:zombie] slot.weapon.mainhand 0 minecraft:iron_sword',
+            'replaceitem entity @e[type=minecraft:zombie] slot.armor.head 0 minecraft:golden_helmet']
+    convert = [row(f'convert-zombie-{n}', 'zombie', 'as_adult', [11.5, -60, 0.5, 90], far, 1100, setup=[],
+                   actions=[{'t': 1, 'commands': gear}]) for n in range(3)]
+    convert.append(row('convert-baby-0', 'zombie', 'as_baby', [11.5, -60, 0.5, 90], far, 1100))
+    convert += [row(f'convert-husk-{n}', 'husk', 'as_adult', [11.5, -60, 0.5, 90], far, 1100) for n in range(2)]
+    sets['convert'] = convert
+    if args.items == 'all':
+        return [item for name in ('sink', 'hunt', 'trident', 'day', 'equipment', 'convert') for item in sets[name]]
+    if args.items not in sets:
+        raise SystemExit(f'drowned --items must be all or one of {sorted(sets)}')
+    return sets[args.items]
+
+
+def witch_items(args) -> list[dict]:
+    """`witch`: a frozen witch (hidden Slowness 255) and the survival player
+    in a barrier pen open towards it, kept alive by Health Boost X and
+    Regeneration (no Resistance, so the potions land); the witch, the
+    splash potions it throws and the player are sampled every tick.
+    `--items throw` (the player 3, 6, 9 and 10 blocks away, twice),
+    `drink` (the witch under water, standing in fire, hurt by `/damage`, and
+    with its target moved from 6 to 14 blocks), `resist` (`/damage` of
+    several causes and instant damage on a witch with no target) or `all`."""
+    target = f'"{PLAYER}"'
+    track = ['minecraft:witch', 'minecraft:splash_potion']
+    alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+             f'effect {target} regeneration 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    clean = ['kill @e[type=minecraft:splash_potion]', 'kill @e[type=minecraft:item]',
+             'kill @e[type=minecraft:xp_orb]']
+    pen = ['fill -1 -60 -1 -1 -58 1 barrier', 'fill 0 -60 -1 1 -58 -1 barrier', 'fill 0 -60 1 1 -58 1 barrier']
+    unpen = [line.replace(' barrier', ' air') for line in pen]
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    player = [0.5, -60, 0.5, -90]
+    far = [0.5, -60, -24.5, 0]
+
+    def row(key, at, spot, ticks, setup=(), cleanup=(), actions=(), frozen=True):
+        return {'key': f'witch|{key}', 'mob': 'minecraft:witch', 'at': at, 'player': spot, 'frozen': frozen,
+                'ticks': ticks, 'setup': list(setup), 'cleanup': clean + list(cleanup),
+                'actions': list(actions), 'track': track}
+
+    sets = {}
+    sets['throw'] = [row(f'throw-{d}-{n}', [0.5 + d, -60, 0.5, 90], player, 600, setup=pen + alive,
+                         cleanup=restore + unpen, actions=[heal])
+                     for d in (3, 6, 9, 10) for n in range(2)]
+    fire = ['setblock 6 -60 0 fire']
+    hurt = 'damage @e[type=minecraft:witch] 12 entity_attack'
+    move = f'tp {target} -7.5 -60 0.5 -90'
+    sets['drink'] = (
+        [row(f'drink-water-{n}', [11.5, -58, 0.5, 90], far, 400, setup=POOL, cleanup=UNPOOL) for n in range(2)]
+        + [row(f'drink-fire-{n}', [6.5, -60, 0.5, 90], far, 300, setup=fire, cleanup=['setblock 6 -60 0 air'])
+           for n in range(2)]
+        + [row(f'drink-heal-{n}', [6.5, -60, 0.5, 90], far, 400, actions=[{'t': 20, 'commands': [hurt]}])
+           for n in range(2)]
+        + [row(f'drink-swift-{n}', [6.5, -60, 0.5, 90], player, 400, setup=alive, cleanup=restore,
+               actions=[heal, {'t': 80, 'commands': [move]}]) for n in range(2)])
+    who = '@e[type=minecraft:witch]'
+    sets['resist'] = [row('resist-0', [6.5, -60, 0.5, 90], far, 200, actions=[
+        {'t': 10, 'commands': [f'damage {who} 20 magic']},
+        {'t': 40, 'commands': [f'effect {who} instant_damage 1 1 true']},
+        {'t': 70, 'commands': [f'damage {who} 5 entity_attack']},
+        {'t': 100, 'commands': [f'damage {who} 10 wither']},
+        {'t': 130, 'commands': [f'effect {who} poison 4 1 true']}])]
+    if args.items == 'all':
+        return [item for name in ('throw', 'drink', 'resist') for item in sets[name]]
+    if args.items not in sets:
+        raise SystemExit(f'witch --items must be all or one of {sorted(sets)}')
+    return sets[args.items]
+
+
 def melee_effect_items(args) -> list[dict]:
     """`melee-effects`: a husk spawned two blocks east of the sweep player
     (survival) walks up and hits it for 200 ticks; the player lives through
@@ -1060,14 +1202,16 @@ def build_job(args, out: Path) -> dict:
         # Zombies need a difficulty above peaceful and burn in daylight.
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
-    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'slime'):
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'slime', 'drowned',
+                       'witch'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
                         'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
-                        'creeper': creeper_items, 'slime': slime_items}[args.kind](args)
+                        'creeper': creeper_items, 'slime': slime_items, 'drowned': drowned_items,
+                        'witch': witch_items}[args.kind](args)
     elif args.kind == 'slime-spawn':
         job['kind'] = 'spawn_watch'
         job['items'] = slime_spawn_items(args)
@@ -1096,7 +1240,7 @@ def main() -> int:
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
-                                         'silverfish', 'creeper', 'slime', 'slime-spawn'])
+                                         'silverfish', 'creeper', 'slime', 'slime-spawn', 'drowned', 'witch'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

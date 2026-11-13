@@ -89,7 +89,7 @@ pub fn area_attacks(
                 attacker: Some(attacker),
                 by_player: false,
                 knockback_from: Some(feet),
-                knockback_power: knockback_power_of(world, attacker),
+                knockback_power: knockback_power_of(world, attacker, target),
             };
             let dealt = if player {
                 hurt_player(world, target, &hit)

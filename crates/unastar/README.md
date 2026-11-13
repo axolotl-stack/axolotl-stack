@@ -496,8 +496,7 @@ Mooshroom interactions (`sweep.py mooshroom --client-capture`, distilled by
 by `src/entity/mob/interaction/bds_mooshroom.rs`: stew and suspicious stew
 into the hand (`add_items`, `has_mark_variant` loot), flowers eaten with
 `particle_on_start` smoke, shearing with largeexplode particles, five
-mushrooms and the cow it turns into (`minecraft:transformation`, which runs
-only when it names nothing but its target), the particle positions for an
+mushrooms and the cow it turns into (`minecraft:transformation`), the particle positions for an
 adult, a baby and a raised player, and the sounds at the middle of its box.
 
 The skeleton family's ranged attack (`sweep.py ranged --client-capture` on
@@ -541,6 +540,19 @@ distribution over seeded runs, contact damage (`minecraft:area_attack`),
 splitting into 2 to 4 children at the body's block centre, and slime chunks
 (every slime BDS spawned stood in one). They move through the hop control
 `mob::ai::hop` instead of the path follower (decision 0062).
+
+The drowned (`sweep.py drowned --client-capture`: sinking, hunting a player on
+a pool floor, at the surface and on land, trident throws, daytime targeting,
+200 spawn equipments and underwater conversions, distilled by
+`tools/bds-sweep/drowned_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-drowned.json`) is replayed by
+`src/entity/mob/tests/drowned.rs`: its summon, sinking tick by tick, the floor
+walk and the straight swim at its underwater speed, trident throws by
+distribution, daytime targeting, equipment by distribution and the zombie's
+and husk's conversions on BDS's tick. A navigation that can swim paths over
+water cells while the mob is in water (`entity::navigation::swim`), and the
+swimmer has no gravity (decision 0065). Transformations run with a delay, a
+sound, a spawn event (`ActorReference`) and kept equipment.
 
 ### Measured item and falling-block motion
 

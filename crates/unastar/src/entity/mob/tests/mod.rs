@@ -15,6 +15,7 @@ mod anger;
 mod chicken;
 mod creeper;
 mod doors;
+mod drowned;
 mod facets;
 mod hostile;
 mod interaction;

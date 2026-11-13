@@ -123,12 +123,15 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
         | BuiltinTest::RiderCount
+        | BuiltinTest::IsRiding
         | BuiltinTest::IsPersistent
         | BuiltinTest::DistanceToNearestPlayer
         | BuiltinTest::InactivityTimer
         | BuiltinTest::InBlock
         | BuiltinTest::IsUnderground => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
+        // The world's clock: the same for every subject.
+        BuiltinTest::IsDaytime => true,
         BuiltinTest::IsFamily
         | BuiltinTest::HasComponent
         | BuiltinTest::HasEquipment
@@ -234,6 +237,9 @@ pub struct MobArchetype {
     pub attribute_seed: Box<[AttributeValue]>,
     pub health_attribute: Option<AttributeId>,
     pub movement_attribute: Option<AttributeId>,
+    /// `minecraft:underwater_movement`, with the native class's value
+    /// (the summon's row) used when the definition authors none.
+    pub underwater_attribute: Option<(AttributeId, f32)>,
     /// Indexed by [`FilterBinding`].
     pub filters: Box<[Filter]>,
     /// The definition predates the 1.26.20 friction change; BDS marks such
@@ -311,6 +317,12 @@ impl MobArchetype {
             properties: layout,
             health_attribute: attributes.resolve("minecraft:health"),
             movement_attribute: attributes.resolve("minecraft:movement"),
+            underwater_attribute: attributes
+                .names()
+                .iter()
+                .position(|name| name.as_ref() == "minecraft:underwater_movement")
+                .zip(attributes.resolve("minecraft:underwater_movement"))
+                .map(|(index, id)| (id, attribute_seed[index].current)),
             attributes,
             attribute_seed,
             filters: bindings.filters.into_boxed_slice(),

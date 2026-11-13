@@ -285,6 +285,8 @@ impl FilterContext for MobFacts<'_> {
             },
             // Riding is not implemented: no actor ever has a rider.
             BuiltinTest::RiderCount => Fact::Number(0.0),
+            // Riding is not implemented: no mob rides anything.
+            BuiltinTest::IsRiding => Fact::Bool(false),
             BuiltinTest::HasComponent => {
                 let component = ActorComponent::from_name(test.value.as_str()?)?;
                 Fact::Matches(
@@ -343,6 +345,7 @@ impl FilterContext for MobFacts<'_> {
             }
             BuiltinTest::InBlock => Fact::Matches(self.in_block(entity, test.value.as_str()?)?),
             BuiltinTest::IsUnderground => Fact::Bool(self.underground(entity)?),
+            BuiltinTest::IsDaytime => Fact::Bool(crate::world::clock::is_daytime(self.world)),
             // A ranged weapon in the main hand (`constants::RANGED_WEAPONS`).
             BuiltinTest::HasRangedWeapon => {
                 let held = if self.world.get::<MobKind>(entity).is_some() {

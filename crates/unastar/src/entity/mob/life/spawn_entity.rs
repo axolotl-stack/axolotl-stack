@@ -20,12 +20,14 @@ use tracing::warn;
 
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
-use crate::entity::components::Position;
-use crate::entity::mob::MobKind;
-use crate::entity::mob::components::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
+use crate::entity::components::{Position, Rotation};
+use crate::entity::mob::components::{
+    SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer, Spawned,
+};
 use crate::entity::mob::events::{MobFacts, fire_event};
 use crate::entity::mob::net::sound::{body_centre, play_level_sound};
 use crate::entity::mob::state::Dead;
+use crate::entity::mob::{MobKind, SpawnCause, spawn_mob_as};
 
 /// System (exclusive, `EntityLogicSet`): advance spawn timers and fire the
 /// rules that are due.
@@ -88,12 +90,26 @@ fn fire(world: &mut World, mob: Entity, rule: &SpawnRule) {
         return;
     };
     play_level_sound(world, Some(mob), centre, &rule.sound, -1);
-    let Some(stack) = crate::server::game::world_stack(world, &rule.item, 1) else {
-        tracing::warn!(item = %rule.item, "spawn_entity item is not in the item registry");
-        return;
-    };
-    for _ in 0..rule.count {
-        crate::entity::spawn_item_drop(world, feet, stack.clone(), None);
+    match &rule.spawns {
+        Spawned::Item(item) => {
+            let Some(stack) = crate::server::game::world_stack(world, item, 1) else {
+                tracing::warn!(%item, "spawn_entity item is not in the item registry");
+                return;
+            };
+            for _ in 0..rule.count {
+                crate::entity::spawn_item_drop(world, feet, stack.clone(), None);
+            }
+        }
+        Spawned::Actor(actor) => {
+            let yaw = world
+                .get::<Rotation>(mob)
+                .map_or(0.0, |rotation| rotation.yaw);
+            for _ in 0..rule.count {
+                if let Err(error) = spawn_mob_as(world, actor, feet, yaw, SpawnCause::Spawned) {
+                    warn!(actor = %actor.identifier, %error, "spawn_entity actor cannot be spawned");
+                }
+            }
+        }
     }
     let Some(name) = &rule.item_event else {
         return;

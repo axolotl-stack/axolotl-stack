@@ -22,11 +22,14 @@ pub struct ActorWireCatalog {
     /// Hashes of the retained capture manifests, which are the input trust roots.
     pub operator_manifest_sha256: String,
     pub member_manifest_sha256: String,
+    /// Hash of the retained spawn manifest: actors no command summons,
+    /// observed where the game spawned them.
+    pub spawns_manifest_sha256: String,
     /// Canonical pack declarations used to identify observed property type codes.
     pub actor_definitions_sha256: String,
     /// Every consumed manifest-listed file, in relative path order.
     pub sources: Vec<ActorWireSource>,
-    /// Native summon observations in summon identifier order.
+    /// Native summon and spawn observations in identifier order.
     pub observations: Vec<ActorObservation>,
     /// Emitted descriptor identifiers in actual member join packet order.
     pub property_descriptor_order: Vec<String>,

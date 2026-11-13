@@ -23,6 +23,7 @@ use crate::entity::mob::constants::{
     DOOR_HINGE_STATE, DOOR_OPEN_STATE, GRASS_WALK_TARGET_SCORE, IRON_DOOR_BLOCK,
     PATH_DAMAGING_BLOCKS, PATH_MAX_DROP, PATH_MAX_RANGE, RANDOM_POS_ATTEMPTS,
 };
+use crate::entity::navigation::swim::{SwimCell, SwimPathRequest, SwimScratch, find_swim_path};
 use crate::entity::navigation::{
     NavigationScratch, WalkBlockRole, WalkNavigation, WalkPathOutcome, WalkPathRequest,
     find_walk_path,
@@ -132,6 +133,10 @@ pub struct WalkPolicy {
     pub can_open_iron_doors: bool,
     /// The mob breaks doors (`minecraft:annotation.break_door`).
     pub door_breaker: bool,
+    /// The mob swims toward its goal while in water (`navigation::swim`).
+    pub can_swim: bool,
+    pub can_breach: bool,
+    pub can_walk: bool,
 }
 
 impl WalkPolicy {
@@ -151,6 +156,9 @@ impl WalkPolicy {
             can_open_doors: walk.is_some_and(|w| w.can_open_doors),
             can_open_iron_doors: walk.is_some_and(|w| w.can_open_iron_doors),
             door_breaker,
+            can_swim: walk.is_some_and(|w| w.can_swim),
+            can_breach: walk.is_some_and(|w| w.can_breach),
+            can_walk: walk.is_some_and(|w| w.can_walk),
         }
     }
 }
@@ -271,6 +279,45 @@ pub fn find_path(
         },
     );
     outcome == WalkPathOutcome::Found
+}
+
+/// Search a swim path from `start` to the target's feet `goal` into `out`
+/// (`navigation::swim`): lava and damaging blocks count as solid.
+#[allow(clippy::too_many_arguments)]
+pub fn find_swim(
+    blocks: &impl BlockSource,
+    table: &PathBlockTable,
+    body: &PhysicsBody,
+    policy: WalkPolicy,
+    start: DVec3,
+    goal: DVec3,
+    scratch: &mut SwimScratch,
+    out: &mut WalkNavigation,
+) -> bool {
+    let request = SwimPathRequest {
+        start,
+        goal,
+        width: body.width,
+        height: body.height,
+        max_range: PATH_MAX_RANGE as i32,
+        node_budget: PATH_NODE_BUDGET,
+        can_breach: policy.can_breach,
+        can_walk: policy.can_walk,
+    };
+    let outcome = find_swim_path(request, scratch, out, |pos| {
+        let Some(state) = blocks.block_at(pos) else {
+            return SwimCell::Solid;
+        };
+        if table.get(state) & DAMAGING != 0 || solid(blocks, pos) {
+            SwimCell::Solid
+        } else if table.is_water(state) {
+            SwimCell::Water
+        } else {
+            SwimCell::Air
+        }
+    });
+    // A partial route still brings the mob as close as the water lets it.
+    !out.waypoints.is_empty() && outcome != WalkPathOutcome::BudgetExceeded
 }
 
 fn solid(blocks: &impl BlockSource, pos: IVec3) -> bool {
@@ -422,6 +469,9 @@ mod tests {
             can_open_doors,
             can_open_iron_doors,
             door_breaker,
+            can_swim: false,
+            can_breach: false,
+            can_walk: true,
         }
     }
 

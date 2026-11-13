@@ -213,7 +213,7 @@ fn impact_damage(
         attacker,
         by_player: attacker.is_some_and(|owner| world.get::<Player>(owner).is_some()),
         knockback_from: impact.knockback.then_some(at),
-        knockback_power: knockback_power_of(world, projectile),
+        knockback_power: knockback_power_of(world, projectile, actor),
     };
     // Players take hits through the player hurt path (game mode, armour,
     // death); mobs through the mob one.

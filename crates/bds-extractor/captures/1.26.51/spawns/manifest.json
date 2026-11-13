@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "server_version": "1.26.51",
+  "protocol_version": 2193,
+  "source": "bds-sweep `sweep.py drowned --items all --client-capture` (2026-11-12): the first AddActor of a trident a ranged drowned threw at the sweep player (item drowned|trident-water-0), from the sweep player's packets.jsonl",
+  "files": [
+    {
+      "path": "spawns/thrown_trident.bin",
+      "bytes": 418,
+      "sha256": "c94416f36d2eaf6c953c511a792690067a729b568f43af748d4c17c1e9c72d3f",
+      "packet": "AddActorPacket",
+      "seq": 14156
+    }
+  ],
+  "spawns": [
+    {
+      "identifier": "minecraft:thrown_trident",
+      "actor_type": "minecraft:thrown_trident",
+      "seq": 14156
+    }
+  ]
+}

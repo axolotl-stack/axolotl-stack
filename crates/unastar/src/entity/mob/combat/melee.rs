@@ -63,7 +63,7 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
         attacker: Some(attacker),
         by_player: false,
         knockback_from: Some(feet),
-        knockback_power: knockback_power_of(world, attacker),
+        knockback_power: knockback_power_of(world, attacker, target),
     };
     let is_player = world.get::<Player>(target).is_some();
     let dealt = if is_player {

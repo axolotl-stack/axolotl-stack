@@ -445,8 +445,10 @@ fn listed_mobs_float_up_in_water() {
                 _ => None,
             },
         );
+        // Rising at most 0.1 a tick (`v = 0.8 v − 0.02` plus the 0.04
+        // impulse, as BDS's floating slime rises).
         let mob = a.adult(identifier, DVec3::new(0.5, 56.0, 0.5));
-        a.ticks(80);
+        a.ticks(120);
         let feet = a.feet(mob);
         assert!(feet.y > 61.5, "{identifier} still sunk at {feet}");
     }

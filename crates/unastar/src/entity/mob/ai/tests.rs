@@ -372,8 +372,10 @@ fn cow_in_water_floats_up() {
         53..=63 => Some(water),
         _ => None,
     });
+    // Rising at most 0.1 a tick (`v = 0.8 v − 0.02` plus the 0.04 impulse,
+    // as BDS's floating slime rises).
     let cow = terrain.cow(DVec3::new(8.5, 56.0, 8.5));
-    for _ in 0..80 {
+    for _ in 0..120 {
         terrain.tick();
     }
     let feet = terrain.feet(cow);

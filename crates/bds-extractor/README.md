@@ -119,6 +119,11 @@ cache; tests that need them read the cache and check the SHA-256 the committed
 manifest records. `tests/captures.rs` checks every committed fixture against its
 manifest entry and that Valentine decodes and re-encodes it byte for byte.
 
+`captures/1.26.51/spawns/` holds AddActors of actors no command summons, taken where the game
+spawned them (its `manifest.json` names the sweep and item): `spawns/thrown_trident.bin` is the
+first trident a ranged drowned threw in `sweep.py drowned --items trident`. `unastar-data`'s
+actor wire catalog reads its attribute layout like a summon's.
+
 Observed in the 1.26.51 reference capture (2026-10-25): the member and operator
 AvailableCommands are byte-identical (BDS sends one command list and the
 client filters by the UpdateAbilities command permission); opping an online

@@ -106,7 +106,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SummonArgs) -> CommandResult {
         None => None,
     };
     let cause = if event.is_some() {
-        SpawnCause::Loaded
+        SpawnCause::Event
     } else {
         SpawnCause::Spawned
     };

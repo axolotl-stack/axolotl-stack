@@ -49,5 +49,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0042](0042-one-effect-system-for-mobs-and-players.md) | One status effect system for mobs and players | 2026-11-11 | proposed | |
 | [0059](0059-infested-blocks-are-a-measured-table.md) | Infested blocks are a measured table | 2026-11-12 | proposed | |
 | [0062](0062-hopping-mobs-move-through-a-hop-control.md) | Hopping mobs move through a hop control, not the path follower | 2026-11-12 | proposed | |
+| [0065](0065-swimming-mobs-follow-a-pulled-swim-path.md) | Swimming mobs follow a pulled swim path with no gravity | 2026-11-12 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

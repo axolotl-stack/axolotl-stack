@@ -27,6 +27,7 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `silverfish_fixture.py` | `silverfish` sweeps (run with `--client-capture`) to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-silverfish.json`: per merge item the pit's block, mobGriefing, the spawn feet, the `SilverfishMergeAnim` tick, the block that changed (position, network id) and the `RemoveActor` tick; per wake item the hurt tick, the infested cells and per tick the destroy particles, the bare block updates and where each released silverfish's `AddActor` stood |
 | `creeper_fixture.py` | `creeper` sweeps (run with `--client-capture`) to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-creeper.json`: per item the creeper's and the player's feet every tick, whether the player was a target, the actions, and the creeper's `TARGET`, `IGNITED` / `POWERED` / `MOVING` flag changes, `FUSE_TIME` values, sounds, explosion level event and `RemoveActor`, each with its tick; a later sweep's item replaces an earlier one of the same name |
 | `slime_fixture.py` | `slime` sweeps (run with `--client-capture`) and `slime-spawn` runs to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-slime.json`: per item the mob, its size, its first 120 ticks, every tick its ground contact or yaw changed and its hops; for `attack` the player's hits; for `split` where the body was last seen and each child's `AddActor` and `born` sound; and every slime `slime-spawn` saw spawn |
+| `drowned_fixture.py` | `drowned` sweeps (run with `--client-capture`) to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-drowned.json`: per item the player's feet, the summoned mob's ticks (`sink` and `hunt` items), every damage the player took, each thrown trident's first sample, for `convert` items the tick the mob turned and what it held, and the equipment of the 200 `equipment` drowned |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -116,6 +117,8 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `creeper` | the creeper's fuse (`--items slice`, or item names: `approach`, `cancel`, `sight`, `flint`, `charged`, `no-griefing`, `flint-alone`, `gap`, `gap-far`) | the survival player under Resistance V in a barrier pen, a frozen or walking creeper 2-6 blocks east; the floor the blast broke is rebuilt after every item |
 | `slime` | the slime and the magma cube, summoned at a size (`summon … spawn_<size>`), every one of them sampled every tick (`track`): `--items hop` (calm, 600 ticks, three times per size), `attack` (the survival player, Health Boost X, a barrier wall behind it), `split` (killed by `/damage` or `/kill`, 80 ticks), `float` (a slime in water, a magma cube in lava) or `all` | a barrier wall at x = -1 behind the player for `attack`; the job removes the tracked mobs without killing them, so nothing splits into the next item |
 | `slime-spawn` | natural slime spawning (`spawn_watch`: every new slime recorded and removed, other monsters removed) | the still creative player at the origin of the superflat world (floor y -61), normal, midnight, mob spawning on; two items of `--samples` × 100 ticks |
+| `drowned` | the drowned in a glass pool (`POOL`, water x 3..19, y -60..-54), every drowned, zombie, husk and thrown trident sampled every tick: `--items sink` (no target), `hunt` (the survival player on the pool floor, on a pillar at the surface, on land), `trident` (a ranged drowned, no Resistance), `day` (noon, the player in the water or on land), `equipment` (200 drowned with their natural spawn event), `convert` (a zombie, a baby zombie and a husk under water for 1,100 ticks) or `all` | mobs summoned with a spawn event (`summon … minecraft:as_adult`); the player kept alive by Health Boost X, Regeneration V and Water Breathing |
+| `witch` | the witch: `--items throw` (the player 3, 6, 9 and 10 blocks away), `drink` (under water, in fire, hurt, target moved away), `resist` (`/damage` of several causes) or `all` | a frozen witch, the survival player in a barrier pen open towards it, no Resistance; findings in `docs/research/witch-bds-1.26.51.md` |
 | `entity-loot` | `/loot spawn … kill <mob>` outcomes, like `drops` for blocks (`--items <mob>,...`, `--samples`) | a frozen, resistant mob; the sweep player runs the command |
 
 ```powershell
@@ -154,6 +157,9 @@ python tools/bds-sweep/creeper_fixture.py <fixture.json> <creeper dir> [<creeper
 & $py tools/bds-sweep/sweep.py slime --items hop --client-capture   # also attack, split, float
 & $py tools/bds-sweep/sweep.py slime-spawn --samples 120 --client-capture
 python tools/bds-sweep/slime_fixture.py <fixture.json> <hop dir> <float dir> <attack dir> <split dir> <spawn dir>
+& $py tools/bds-sweep/sweep.py drowned --items all --difficulty normal --client-capture
+python tools/bds-sweep/drowned_fixture.py <fixture.json> <drowned dir>
+& $py tools/bds-sweep/sweep.py witch --items all --difficulty normal --client-capture
 & $py tools/bds-sweep/sweep.py entity-loot --items wither_skeleton --samples 800
 cargo run -p bds-extractor -- --decode <dir>/client/packets.jsonl --only MobEffectPacket --output <out.jsonl>
 ```
