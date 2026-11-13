@@ -282,7 +282,8 @@ pub struct NaturalSpawnRules {
     pub entries: Vec<SpawnEntry>,
     /// Bedrock biome id → indices into `entries`, in rule order.
     pub pools: HashMap<u32, Vec<usize>>,
-    /// Mob type → population category (from its spawn rule).
+    /// Mob type → population category (from its spawn rule, or from the
+    /// rule whose `permute_type` spawns it).
     pub categories: HashMap<ActorType, Category>,
     pub unsupported: Vec<UnsupportedEntry>,
     /// The blocks the native spawn checks test.
@@ -330,6 +331,19 @@ impl NaturalSpawnRules {
                         source,
                         reason: error.to_string(),
                     }),
+                }
+            }
+        }
+        // A permutation target without a spawn rule of its own (the zombie
+        // villager, a zombie herd member) counts in the census of the rule
+        // that spawns it.
+        for entry in &rules.entries {
+            let Some(category) = entry.category else {
+                continue;
+            };
+            for permutation in &entry.permutations {
+                if let SpawnTarget::Mob { actor, .. } = permutation.target {
+                    rules.categories.entry(actor).or_insert(category);
                 }
             }
         }

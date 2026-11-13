@@ -1,0 +1,382 @@
+{
+ "version": "1.21.11",
+ "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+ "profile": "actual native FEATURES ProtoChunk saves of feature-created actors: a tree beehive, an end_gateway_return gateway and desert well suspicious sand",
+ "records": [
+  {
+   "block": "minecraft:bee_nest",
+   "position": [
+    -1073,
+    115,
+    -1201
+   ],
+   "bees_ticks_in_hive": [
+    79,
+    135,
+    133
+   ],
+   "proto_saved": {
+    "value": [
+     [
+      "bees",
+      {
+       "value": [
+        10,
+        [
+         {
+          "value": [
+           [
+            "entity_data",
+            {
+             "value": [
+              [
+               "id",
+               {
+                "value": "minecraft:bee",
+                "type": "Str"
+               }
+              ]
+             ],
+             "type": "Compound"
+            }
+           ],
+           [
+            "min_ticks_in_hive",
+            {
+             "value": 600,
+             "type": "Int"
+            }
+           ],
+           [
+            "ticks_in_hive",
+            {
+             "value": 79,
+             "type": "Int"
+            }
+           ]
+          ],
+          "type": "Compound"
+         },
+         {
+          "value": [
+           [
+            "entity_data",
+            {
+             "value": [
+              [
+               "id",
+               {
+                "value": "minecraft:bee",
+                "type": "Str"
+               }
+              ]
+             ],
+             "type": "Compound"
+            }
+           ],
+           [
+            "min_ticks_in_hive",
+            {
+             "value": 600,
+             "type": "Int"
+            }
+           ],
+           [
+            "ticks_in_hive",
+            {
+             "value": 135,
+             "type": "Int"
+            }
+           ]
+          ],
+          "type": "Compound"
+         },
+         {
+          "value": [
+           [
+            "entity_data",
+            {
+             "value": [
+              [
+               "id",
+               {
+                "value": "minecraft:bee",
+                "type": "Str"
+               }
+              ]
+             ],
+             "type": "Compound"
+            }
+           ],
+           [
+            "min_ticks_in_hive",
+            {
+             "value": 600,
+             "type": "Int"
+            }
+           ],
+           [
+            "ticks_in_hive",
+            {
+             "value": 133,
+             "type": "Int"
+            }
+           ]
+          ],
+          "type": "Compound"
+         }
+        ]
+       ],
+       "type": "List"
+      }
+     ],
+     [
+      "components",
+      {
+       "value": [],
+       "type": "Compound"
+      }
+     ],
+     [
+      "id",
+      {
+       "value": "minecraft:beehive",
+       "type": "Str"
+      }
+     ],
+     [
+      "x",
+      {
+       "value": -1073,
+       "type": "Int"
+      }
+     ],
+     [
+      "y",
+      {
+       "value": 115,
+       "type": "Int"
+      }
+     ],
+     [
+      "z",
+      {
+       "value": -1201,
+       "type": "Int"
+      }
+     ]
+    ],
+    "type": "Compound"
+   },
+   "source": "fullstage-overworld-features-seed-55506848734215641-chunk-68_-76.json"
+  },
+  {
+   "block": "minecraft:end_gateway",
+   "position": [
+    741,
+    61,
+    -890
+   ],
+   "exit": [
+    100,
+    50,
+    0
+   ],
+   "exact": true,
+   "proto_saved": {
+    "value": [
+     [
+      "Age",
+      {
+       "value": 0,
+       "type": "Long"
+      }
+     ],
+     [
+      "ExactTeleport",
+      {
+       "value": 1,
+       "type": "Byte"
+      }
+     ],
+     [
+      "components",
+      {
+       "value": [],
+       "type": "Compound"
+      }
+     ],
+     [
+      "exit_portal",
+      {
+       "value": [
+        100,
+        50,
+        0
+       ],
+       "type": "IntArray"
+      }
+     ],
+     [
+      "id",
+      {
+       "value": "minecraft:end_gateway",
+       "type": "Str"
+      }
+     ],
+     [
+      "x",
+      {
+       "value": 741,
+       "type": "Int"
+      }
+     ],
+     [
+      "y",
+      {
+       "value": 61,
+       "type": "Int"
+      }
+     ],
+     [
+      "z",
+      {
+       "value": -890,
+       "type": "Int"
+      }
+     ]
+    ],
+    "type": "Compound"
+   },
+   "source": "fullstage-end-features-seed-55506848734215641-chunk46_-56.json"
+  },
+  {
+   "block": "minecraft:suspicious_sand",
+   "position": [
+    -572,
+    54,
+    321
+   ],
+   "loot_table": "minecraft:archaeology/desert_well",
+   "proto_saved": {
+    "type": "Compound",
+    "value": [
+     [
+      "LootTable",
+      {
+       "type": "Str",
+       "value": "minecraft:archaeology/desert_well"
+      }
+     ],
+     [
+      "LootTableSeed",
+      {
+       "type": "Long",
+       "value": -157230161457098
+      }
+     ],
+     [
+      "components",
+      {
+       "type": "Compound",
+       "value": []
+      }
+     ],
+     [
+      "id",
+      {
+       "type": "Str",
+       "value": "minecraft:brushable_block"
+      }
+     ],
+     [
+      "x",
+      {
+       "type": "Int",
+       "value": -572
+      }
+     ],
+     [
+      "y",
+      {
+       "type": "Int",
+       "value": 54
+      }
+     ],
+     [
+      "z",
+      {
+       "type": "Int",
+       "value": 321
+      }
+     ]
+    ]
+   },
+   "source": "fullstage-overworld-features-seed4432651951229459881-chunk-36_20.json"
+  },
+  {
+   "block": "minecraft:suspicious_sand",
+   "position": [
+    -572,
+    55,
+    321
+   ],
+   "loot_table": "minecraft:archaeology/desert_well",
+   "proto_saved": {
+    "type": "Compound",
+    "value": [
+     [
+      "LootTable",
+      {
+       "type": "Str",
+       "value": "minecraft:archaeology/desert_well"
+      }
+     ],
+     [
+      "LootTableSeed",
+      {
+       "type": "Long",
+       "value": -157230161457097
+      }
+     ],
+     [
+      "components",
+      {
+       "type": "Compound",
+       "value": []
+      }
+     ],
+     [
+      "id",
+      {
+       "type": "Str",
+       "value": "minecraft:brushable_block"
+      }
+     ],
+     [
+      "x",
+      {
+       "type": "Int",
+       "value": -572
+      }
+     ],
+     [
+      "y",
+      {
+       "type": "Int",
+       "value": 55
+      }
+     ],
+     [
+      "z",
+      {
+       "type": "Int",
+       "value": 321
+      }
+     ]
+    ]
+   },
+   "source": "fullstage-overworld-features-seed4432651951229459881-chunk-36_20.json"
+  }
+ ]
+}

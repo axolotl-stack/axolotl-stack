@@ -42,6 +42,12 @@ struct Args {
     #[arg(long)]
     fixture: Option<PathBuf>,
 
+    /// Derive the outputs of an existing capture directory again from its
+    /// packets.jsonl (a session that stopped before writing them), without
+    /// connecting
+    #[arg(long, conflicts_with_all = ["fixture", "capture_dir"])]
+    rewrite: Option<PathBuf>,
+
     /// Record the whole session into this directory (packets.jsonl, per-packet
     /// .bin/.json fixtures, manifest.json) instead of writing extractor JSON
     #[arg(long, conflicts_with = "fixture")]
@@ -62,7 +68,11 @@ struct Args {
 
     /// Capture mode: run the commands of this file (one per line, leading `/`
     /// optional; blank lines and `#` comments skipped) after the join and any
-    /// summons, one at a time (needs operator permission for most commands)
+    /// summons, one at a time (needs operator permission for most commands).
+    /// `!console <command>` lines are server-console commands (printed as
+    /// `@@console@@ <command>` for the harness that owns BDS's stdin);
+    /// `!join <name>` and `!leave <name>` connect and disconnect a second
+    /// client
     #[arg(long, requires = "capture_dir")]
     commands: Option<PathBuf>,
 
@@ -106,6 +116,10 @@ async fn run(args: Args) -> Result<()> {
                 .unwrap_or_else(|_| args.log.parse().unwrap_or_else(|_| "info".parse().unwrap())),
         )
         .init();
+
+    if let Some(dir) = args.rewrite.as_ref() {
+        return capture::rewrite(dir);
+    }
 
     if let Some(fixture) = args.fixture.as_ref() {
         info!("Loading extraction fixture from {}...", fixture.display());
@@ -156,16 +170,15 @@ async fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
-/// The commands of a `--commands` script, without their leading `/`.
-fn read_commands(path: &Path) -> Result<Vec<String>> {
+/// The steps of a `--commands` script.
+fn read_commands(path: &Path) -> Result<Vec<capture::Step>> {
     let text = std::fs::read_to_string(path)
         .with_context(|| format!("reading commands from {}", path.display()))?;
-    Ok(text
-        .lines()
+    text.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(|line| line.strip_prefix('/').unwrap_or(line).to_owned())
-        .collect())
+        .map(capture::Step::parse)
+        .collect()
 }
 
 fn load_fixture(path: &Path) -> Result<output::ExtractedData> {

@@ -6,7 +6,7 @@ Each group may become its own OpenSpec change when work starts. Every group ends
 ## A. Measured drops and mining (deviations X1, X2)
 
 - [ ] A.1 Map each measured drop case onto the loot IR (exact / empirical / unstable); delete the Java-authored block tables; update `server/game/block_drops.rs` docs and the item/block parity rows
-- [ ] A.2 Extend the mining sweep beyond the 10-block slice and to airborne mining; replace the constants in `server/game/mining.rs`
+- [ ] A.2 Extend the mining sweep beyond the 10-block slice and to airborne mining; replace the constants in `server/game/mining.rs` (partly done 2026-11-10: Haste/Mining Fatigue levels, 110 non-tool items and tool wear measured on dirt, netherrack and oak leaves; the effect multipliers, sword Efficiency and wear rules replaced and checked cell by cell; airborne and underwater mining still open)
 - [ ] A.3 Mark X1/X2 resolved in decision 0023's consequences via a new record if the policy changes, otherwise in `docs/research/mob-runtime-constants.md`
 
 ## B. Loot completion

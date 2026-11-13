@@ -441,10 +441,15 @@ dependencies = [
  "anyhow",
  "clap",
  "client-diff",
+ "hex",
  "jolyne",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "unastar-data",
+ "uuid",
 ]
 
 [[package]]

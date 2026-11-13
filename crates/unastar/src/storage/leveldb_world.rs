@@ -19,12 +19,11 @@ use crate::world::{Chunk, ChunkPos};
 
 /// LevelDB-based world provider.
 ///
-/// Each world should have its own instance pointing to `<world>/db`.
+/// Each world should have its own instance pointing to `<world>/db`. Every
+/// dimension shares the database; keys carry the dimension passed to each call.
 pub struct LevelDBWorldProvider {
     /// Thread-safe database handle.
     db: Arc<DB>,
-    /// Dimension ID for key encoding.
-    dimension: i32,
 }
 
 impl LevelDBWorldProvider {
@@ -32,8 +31,7 @@ impl LevelDBWorldProvider {
     ///
     /// # Arguments
     /// * `path` - Path to the `db` directory (e.g., `worlds/main/db`)
-    /// * `dimension` - Dimension ID (0=overworld, 1=nether, 2=end)
-    pub fn open<P: AsRef<Path>>(path: P, dimension: i32) -> StorageResult<Self> {
+    pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
         // Ensure parent directories exist
         std::fs::create_dir_all(path.as_ref())
             .map_err(|e| StorageError::Database(format!("Failed to create directory: {e}")))?;
@@ -46,15 +44,7 @@ impl LevelDBWorldProvider {
         let db =
             DB::open(path.as_ref(), &options).map_err(|e| StorageError::Database(e.to_string()))?;
 
-        Ok(Self {
-            db: Arc::new(db),
-            dimension,
-        })
-    }
-
-    /// Get the dimension ID.
-    pub fn dimension(&self) -> i32 {
-        self.dimension
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
@@ -73,21 +63,25 @@ impl WorldProvider for LevelDBWorldProvider {
                     // Chunk exists - load subchunk data
                     let mut chunk = Chunk::new(pos.x, pos.z);
 
-                    // Load subchunks for standard overworld range (-4 to 19, corresponding to Y -64 to 319)
-                    for y_index in -4i8..20i8 {
+                    // A fresh chunk spans all physical storage, so this reads
+                    // every section any dimension can have stored. A missing
+                    // subchunk is air. One that can't be read or
+                    // decoded fails the whole load (as BlazeDB does): loading
+                    // it as air would let the next save of the column write
+                    // air over the stored blocks.
+                    for y_index in chunk.section_y_indices() {
                         let subchunk_key = keys::subchunk_key(pos, dim, y_index);
-                        if let Ok(Some(data)) = db.get(&subchunk_key, &read_opts) {
-                            // Decode subchunk data into the chunk
-                            if let Err(e) = chunk.decode_subchunk(y_index as i32, &data) {
-                                tracing::warn!(
-                                    chunk = ?(pos.x, pos.z),
-                                    y = y_index,
-                                    error = %e,
-                                    "Failed to decode subchunk, using empty"
-                                );
-                            }
+                        if let Some(data) = db
+                            .get(&subchunk_key, &read_opts)
+                            .map_err(StorageError::Database)?
+                        {
+                            chunk.decode_subchunk(y_index as i32, &data).map_err(|e| {
+                                StorageError::Deserialization(format!(
+                                    "chunk ({}, {}) subchunk y={y_index}: {e}",
+                                    pos.x, pos.z
+                                ))
+                            })?;
                         }
-                        // Missing subchunks are fine - they're just empty (air)
                     }
 
                     // Missing Data3D keeps the default biomes; an unreadable or
@@ -183,6 +177,12 @@ impl WorldProvider for LevelDBWorldProvider {
     }
 
     async fn save_column(&self, pos: ChunkPos, dim: i32, col: &ChunkColumn) -> StorageResult<()> {
+        if let Some(state) = col.chunk.unknown_block_state() {
+            return Err(StorageError::Serialization(format!(
+                "chunk ({}, {}) holds block state {state}, which is not a canonical state",
+                pos.x, pos.z
+            )));
+        }
         let db = self.db.clone();
 
         // Build all key-value pairs to write
@@ -221,15 +221,19 @@ impl WorldProvider for LevelDBWorldProvider {
                 .map_err(|e| StorageError::Serialization(format!("block entity: {e}")))?;
         }
 
-        // Collect subchunk data
-        let mut subchunk_entries: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-        for y_index in -4..20i8 {
-            // Standard overworld range
-            if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
-                let key = keys::subchunk_key(pos, dim, y_index);
-                subchunk_entries.push((key, data));
-            }
-        }
+        // Every section of the column: its record as BDS saves it, or none for
+        // a section of air (BDS keeps no record for one, so an older record of
+        // a section cleared since is deleted).
+        let subchunk_entries: Vec<(Vec<u8>, Option<Vec<u8>>)> = col
+            .chunk
+            .section_y_indices()
+            .map(|y_index| {
+                (
+                    keys::subchunk_key(pos, dim, y_index),
+                    col.chunk.encode_subchunk_disk(i32::from(y_index)),
+                )
+            })
+            .collect();
 
         task::spawn_blocking(move || {
             let write_opts = WriteOptions::new();
@@ -246,7 +250,10 @@ impl WorldProvider for LevelDBWorldProvider {
 
             // Subchunks
             for (key, data) in subchunk_entries {
-                batch.put(&key, &data);
+                match data {
+                    Some(data) => batch.put(&key, &data),
+                    None => batch.delete(&key),
+                }
             }
 
             // Overwrites must remove the previous sparse metadata as well.
@@ -304,7 +311,7 @@ mod tests {
     /// Save an empty column, replace its Data3D value with `data3d` and load it back.
     async fn load_with_data3d(data3d: &[u8]) -> StorageResult<Option<ChunkColumn>> {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(1, 2);
         provider
             .save_column(pos, 0, &ChunkColumn::new(Chunk::new(pos.x, pos.z)))
@@ -358,7 +365,7 @@ mod tests {
     #[tokio::test]
     async fn actors_are_stored_under_a_chunk_digest_and_removed_records_are_deleted() {
         let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
-        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
         let pos = ChunkPos::new(-3, 4);
         let actor = |unique_id: i64| StoredActor {
             unique_id,
@@ -402,6 +409,141 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A stored subchunk the loader can't decode fails the column load, so the
+    /// chunk is never created with that section as air (and then saved over it).
+    #[tokio::test]
+    async fn undecodable_subchunk_fails_the_column_load() {
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
+        let pos = ChunkPos::new(5, -6);
+        let mut chunk = Chunk::new(pos.x, pos.z);
+        chunk.fill_subchunk_solid(4, *crate::world::chunk::blocks::STONE);
+        provider
+            .save_column(pos, 0, &ChunkColumn::new(chunk))
+            .await
+            .expect("save column");
+        // Subchunk version 1 is not a layout the loader accepts.
+        let original = provider
+            .db
+            .get(&keys::subchunk_key(pos, 0, 0), &ReadOptions::new())
+            .unwrap()
+            .expect("stone subchunk stored");
+        let mut unsupported = original.clone();
+        unsupported[0] = 1;
+        provider
+            .db
+            .put(
+                &keys::subchunk_key(pos, 0, 0),
+                &unsupported,
+                &WriteOptions::new(),
+            )
+            .expect("overwrite subchunk");
+
+        let loaded = provider.load_column(pos, 0).await;
+        assert!(
+            matches!(loaded, Err(StorageError::Deserialization(_))),
+            "undecodable subchunk must fail the load, got {:?}",
+            loaded.map(|column| column.is_some())
+        );
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A column unastar saved before it wrote BDS's form (palette entries as
+    /// runtime ids, header bit 1, a record for every section, air included)
+    /// still loads, and its next save rewrites every section by name and
+    /// states and drops the records of air sections.
+    #[tokio::test]
+    async fn runtime_id_sections_load_and_are_rewritten_by_name_on_the_next_save() {
+        use crate::registry::block::BlockNetworkIds;
+        use crate::world::chunk::blocks;
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
+        let pos = ChunkPos::new(-2, 7);
+        let mut chunk = Chunk::new(pos.x, pos.z);
+        chunk.set_block(1, 0, 1, *blocks::STONE);
+        chunk.set_block(2, 3, 4, *blocks::DIRT);
+        chunk
+            .set_block_layers(3, 20, 5, *blocks::OAK_LOG, Some(*blocks::WATER))
+            .unwrap();
+        provider
+            .save_column(pos, 0, &ChunkColumn::new(chunk.clone()))
+            .await
+            .expect("save column");
+        // The records as unastar wrote them before: the runtime form the
+        // network carries (no actors here), for every section.
+        let read = ReadOptions::new();
+        for y in chunk.section_y_indices() {
+            let legacy = chunk
+                .encode_subchunk(i32::from(y), BlockNetworkIds::Sequential)
+                .unwrap();
+            assert_eq!(legacy[3] & 1, 1, "runtime-form header");
+            provider
+                .db
+                .put(
+                    &keys::subchunk_key(pos, 0, y),
+                    &legacy,
+                    &WriteOptions::new(),
+                )
+                .unwrap();
+        }
+
+        let loaded = provider.load_column(pos, 0).await.unwrap().unwrap();
+        for (x, y, z) in [(1, 0, 1), (2, 3, 4), (3, 20, 5), (9, 9, 9)] {
+            for layer in 0..2 {
+                assert_eq!(
+                    loaded.chunk.get_block_layer(x, y, z, layer),
+                    chunk.get_block_layer(x, y, z, layer)
+                );
+            }
+        }
+        provider.save_column(pos, 0, &loaded).await.unwrap();
+        for y in chunk.section_y_indices() {
+            let stored = provider
+                .db
+                .get(&keys::subchunk_key(pos, 0, y), &read)
+                .unwrap();
+            assert_eq!(stored, chunk.encode_subchunk_disk(i32::from(y)), "y {y}");
+            if let Some(record) = stored {
+                assert_eq!(record[3] & 1, 0, "y {y}: persistent-form header");
+            }
+        }
+        assert!(
+            provider
+                .db
+                .get(&keys::subchunk_key(pos, 0, 5), &read)
+                .unwrap()
+                .is_none()
+        );
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A column holding an id that is not a canonical block state (only a
+    /// plugin can write one) is refused with a serialization error, so the
+    /// chunk stays loaded and nothing is written, instead of a panic while
+    /// its palette entries are named.
+    #[tokio::test]
+    async fn a_column_with_an_unknown_block_state_is_not_saved() {
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir).expect("open leveldb");
+        let pos = ChunkPos::new(3, -1);
+        let mut chunk = Chunk::new(pos.x, pos.z);
+        let unknown = 4_000_000;
+        chunk.set_block(1, 2, 3, unknown);
+        let error = provider
+            .save_column(pos, 0, &ChunkColumn::new(chunk))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(&error, StorageError::Serialization(message) if message.contains("4000000")),
+            "{error:?}"
+        );
+        assert!(provider.load_column(pos, 0).await.unwrap().is_none());
         drop(provider);
         let _ = std::fs::remove_dir_all(&dir);
     }

@@ -10,6 +10,22 @@ use jolyne::valentine::types::{
 };
 use jolyne::valentine::{CommandOutputPacket, TextPacket};
 
+/// A line a command prints on the server console besides its answer, as BDS
+/// logs `Missing id, won't persist permissions on disk.` before `/op`'s
+/// answer for a player without an XUID. Executors push with
+/// [`CommandContext::console_note`](super::CommandContext::console_note);
+/// the console prints and clears them after each command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConsoleNote {
+    /// Printed as an error (`ERROR`) rather than information (`INFO`).
+    pub error: bool,
+    pub text: String,
+}
+
+/// Console lines waiting to be printed ([`ConsoleNote`]).
+#[derive(bevy_ecs::prelude::Resource, Debug, Default)]
+pub struct ConsoleNotes(pub Vec<ConsoleNote>);
+
 /// One feedback line: a translation key (or literal text) with parameters.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommandMessage {
@@ -140,19 +156,61 @@ impl CommandOutput {
         let lang = unastar_data::lang::en_us();
         self.messages
             .iter()
-            .map(|m| lang.format(&m.key, &m.params))
+            .map(|m| lang.format_message(&m.key, &m.params))
             .collect()
+    }
+}
+
+/// The admin broadcast of one successful message of `source`'s command
+/// (see [`super::run_as_player`]): a rawtext `§7§o[`, the source's name as a
+/// translation, `: `, the message as a translation with text parameters,
+/// `]`.
+pub fn admin_text(source: &str, key: &str, params: &[String]) -> TextPacket {
+    let with: Vec<serde_json::Value> = params
+        .iter()
+        .map(|text| serde_json::json!({ "text": text }))
+        .collect();
+    let with = if with.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::Value::Array(with)
+    };
+    let rawtext = serde_json::json!({
+        "rawtext": [
+            { "text": "\u{a7}7\u{a7}o[" },
+            { "translate": source },
+            { "text": ": " },
+            { "translate": key, "with": { "rawtext": with } },
+            { "text": "]" },
+        ]
+    });
+    TextPacket {
+        localize: false,
+        body: TextPacketBody::MessageOnly(TextPacketPayloadMessageOnly {
+            message_type: EnumsTextPacketType::Textobject,
+            message: format!("{rawtext}\n").into(),
+        }),
+        senders_xuid: "".into(),
+        platform_id: "".into(),
+        filtered_message: None,
     }
 }
 
 /// The `Textobject` message BDS sends a command's target alongside the
 /// command output (`gameMode.changed`, `commands.give.successRecipient`,
 /// `commands.tp.successVictim`): a rawtext translation with text parameters.
+/// Without parameters the list is `null` (`commands.always.day.locked`,
+/// measured).
 pub fn translation_text(key: &str, params: &[String]) -> TextPacket {
     let with: Vec<serde_json::Value> = params
         .iter()
         .map(|text| serde_json::json!({ "text": text }))
         .collect();
+    let with = if with.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::Value::Array(with)
+    };
     let rawtext = serde_json::json!({
         "rawtext": [{ "translate": key, "with": { "rawtext": with } }]
     });
