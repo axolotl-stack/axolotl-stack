@@ -37,6 +37,11 @@ pub struct NativeTraits {
     /// The class rolls a follow-range bonus at spawn and saves its
     /// `minecraft:follow_range` (`mob::spawn_bonus`).
     pub follow_range_bonus: bool,
+    /// The `VARIANT` actor data the class starts with, if it sets one: the
+    /// native skeleton classes number their kind there (skeleton 0, wither
+    /// skeleton 1, stray 2, bogged 3, parched 4) although their definitions
+    /// declare no `minecraft:variant`.
+    pub variant: Option<i32>,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -69,6 +74,7 @@ impl NativeTraits {
             None
         };
         let follow_range_bonus = zombie_bonuses;
+        let variant = skeleton_kind(actor_type);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -79,6 +85,7 @@ impl NativeTraits {
                 aux_value,
                 knockback_resistance_bonus,
                 follow_range_bonus,
+                variant,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -89,6 +96,7 @@ impl NativeTraits {
                 aux_value,
                 knockback_resistance_bonus,
                 follow_range_bonus,
+                variant,
             },
         }
     }
@@ -141,6 +149,20 @@ const fn zombie_kind(class: ActorType) -> Option<i16> {
         A::Husk => 2,
         A::ZombiePigman => 3,
         A::Drowned => 4,
+        _ => return None,
+    })
+}
+
+/// The kind number the native skeleton classes send as `VARIANT`
+/// (measured from the retained 1.26.51 summon captures).
+const fn skeleton_kind(class: ActorType) -> Option<i32> {
+    use ActorType as A;
+    Some(match class {
+        A::Skeleton => 0,
+        A::WitherSkeleton => 1,
+        A::Stray => 2,
+        A::Bogged => 3,
+        A::Parched => 4,
         _ => return None,
     })
 }

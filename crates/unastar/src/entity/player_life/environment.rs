@@ -57,10 +57,10 @@ use crate::entity::mob::combat::fall::{
 };
 use crate::entity::mob::components::KnockbackPower;
 use crate::entity::systems::BlockSource;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::BlockRegistry;
 use crate::registry::block::LiquidKind;
 use jolyne::valentine::types::EnumsActorEvent;
+use unastar_rules::ids::Enchantment;
 
 /// A player's fall, tracked from its movement input.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Default)]
@@ -280,7 +280,9 @@ pub fn land_players(
 /// not apply yet.
 fn feather_falling(world: &World, player: Entity) -> f32 {
     let level = world.get::<ArmourInventory>(player).map_or(0, |armour| {
-        enchantment_level(armour.boots(), Enchantment::FeatherFalling)
+        armour
+            .boots()
+            .enchantment_level(Enchantment::FeatherFalling)
     });
     1.0 - f32::from(level.min(4)) * FEATHER_FALLING_POINTS * PROTECTION_POINT
 }

@@ -1,0 +1,144 @@
+{
+  "description": "Zombie pigman anger chain, the target at calm, retaliation distance and zoglin anger sounds. Ticks are counted from the tick the hit's Hurt actor event arrived (packet times / 50 ms, rounded; +-1 tick). Pigmen A-D stand in 1x2x1 barrier cells 15 blocks apart along +x on a platform at y 200 and cannot move or reach the player; the player (survival, resistance) hits A once with `/damage ... entity_attack entity @s`. Each pigman's TARGET actor data becomes the player one tick after the previous one's (A one tick after the hit), its `mob.warning` sound and ANGRY flag arrive one tick after its own TARGET, and each clears ANGRY and TARGET together 499 ticks after its ANGRY flag appeared, the hit pigman too. Pigmen F, G and H (12, 24 and 40 blocks away) are each hit once: all three target the player and turn angry; H drops the target again one tick later (beyond its follow range) but stays angry. A zoglin, free to fight the protected player, plays `angry` on the tick after its ANGRY flag and then every 41 to 101 ticks, keeps playing it after the player turns creative and it drops its target, and calms 199 ticks after its last swing.",
+  "server": "BDS 1.26.51 (plain bedrock_server, no Endstone), seed 12345 harness world, difficulty normal, midnight, mobgriefing off",
+  "source": {
+    "capture": "tools/bds-sweep/capture.py --commands, 2026-11-10 (ent2-anger-chain-20261110, BDS slot 3), operator-commands/command-outputs.json",
+    "command_outputs_sha256": "9c8fed0da58e7ffb9b75201f9c10842ebd9245d45ead822180ad434f27145e12"
+  },
+  "broadcast_range": 20,
+  "duration_seconds": 25,
+  "chain": [
+    {
+      "name": "A",
+      "offset": [
+        4.0,
+        0.0,
+        0.0
+      ],
+      "target_tick": 1,
+      "angry_tick": 2,
+      "warning_tick": 2,
+      "warning_position_offset": [
+        4.0,
+        1.615,
+        0.0
+      ],
+      "calm_tick": 501,
+      "target_dropped_tick": 501
+    },
+    {
+      "name": "B",
+      "offset": [
+        19.0,
+        0.0,
+        0.0
+      ],
+      "target_tick": 2,
+      "angry_tick": 3,
+      "warning_tick": 3,
+      "warning_position_offset": [
+        19.0,
+        1.615,
+        0.0
+      ],
+      "calm_tick": 502,
+      "target_dropped_tick": 502
+    },
+    {
+      "name": "C",
+      "offset": [
+        34.0,
+        0.0,
+        0.0
+      ],
+      "target_tick": 3,
+      "angry_tick": 4,
+      "warning_tick": 4,
+      "warning_position_offset": [
+        34.0,
+        1.615,
+        0.0
+      ],
+      "calm_tick": 503,
+      "target_dropped_tick": 503
+    },
+    {
+      "name": "D",
+      "offset": [
+        49.0,
+        0.0,
+        0.0
+      ],
+      "target_tick": 4,
+      "angry_tick": 5,
+      "warning_tick": 5,
+      "warning_position_offset": [
+        49.0,
+        1.615,
+        0.0
+      ],
+      "calm_tick": 504,
+      "target_dropped_tick": 504
+    }
+  ],
+  "retaliation": [
+    {
+      "name": "F",
+      "offset": [
+        -12.0,
+        0.0,
+        0.0
+      ],
+      "target_tick": 1,
+      "angry_tick": 2,
+      "target_dropped_tick": null
+    },
+    {
+      "name": "G",
+      "offset": [
+        0.0,
+        0.0,
+        24.0
+      ],
+      "target_tick": 1,
+      "angry_tick": 2,
+      "target_dropped_tick": null
+    },
+    {
+      "name": "H",
+      "offset": [
+        0.0,
+        0.0,
+        -40.0
+      ],
+      "target_tick": 1,
+      "angry_tick": 2,
+      "target_dropped_tick": 2
+    }
+  ],
+  "zoglin": {
+    "offset": [
+      6.0,
+      0.0,
+      0.0
+    ],
+    "target_tick": 0,
+    "angry_tick": 1,
+    "warning_tick": 1,
+    "angry_sound_ticks": [
+      2,
+      93,
+      159,
+      251,
+      329,
+      385,
+      446,
+      487
+    ],
+    "player_creative_tick": 321,
+    "target_dropped_tick": 322,
+    "last_swing_tick": 312,
+    "calm_tick": 511,
+    "head_height": 1.19
+  }
+}

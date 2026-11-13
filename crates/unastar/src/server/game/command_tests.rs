@@ -230,9 +230,10 @@ fn gamerule_keepinventory_changes_the_rule_and_broadcasts_it() {
     assert!(server.ecs.world().resource::<GameRules>().keep_inventory);
     assert_eq!(
         outputs(&drain(&mut op)),
+        // BDS shows the last ten characters before the token.
         [output(
             "commands.generic.syntax",
-            &["/gamerule keepinventory ", "maybe", ""]
+            &["inventory ", "maybe", ""]
         )]
     );
 }

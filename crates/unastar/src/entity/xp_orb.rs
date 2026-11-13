@@ -230,20 +230,30 @@ pub fn points_to_next_level(level: i32) -> u32 {
 }
 
 /// Add `points` to `experience`, levelling up as often as they allow.
+///
+/// Measured (BDS 1.26.51 `/xp` capture): the progress is an f32 fraction of
+/// the level; the points add `points / needed`, and each level up carries
+/// `(progress - 1) × needed` points into the next level's fraction, all in
+/// f32. `/xp 10` from nothing leaves level 1 at 0x3eaaaaac, one f32 step
+/// above 3/9.
 pub fn add_experience(experience: &mut Experience, points: u32) {
-    let mut needed = points_to_next_level(experience.level);
-    let mut total =
-        f64::from(experience.progress.clamp(0.0, 1.0)) * f64::from(needed) + f64::from(points);
-    while total >= f64::from(needed) {
-        total -= f64::from(needed);
+    let mut needed = points_to_next_level(experience.level) as f32;
+    let mut progress = experience.progress.clamp(0.0, 1.0) + points as f32 / needed;
+    while progress >= 1.0 {
+        let left = (progress - 1.0) * needed;
         experience.level = experience.level.saturating_add(1);
-        needed = points_to_next_level(experience.level);
+        needed = points_to_next_level(experience.level) as f32;
+        progress = left / needed;
     }
-    experience.progress = (total / f64::from(needed)) as f32;
+    experience.progress = progress;
 }
 
-/// The player's level and progress attributes, as the join sequence and
-/// experience changes send them.
+/// The level attribute's maximum (and default maximum), as BDS 1.26.51's
+/// join and `/xp` captures send it.
+const LEVEL_MAX: f32 = 24_791.0;
+
+/// The player's level and progress attributes, as the join sequence sends
+/// them.
 pub fn experience_attributes(experience: &Experience) -> [AttributeData; 2] {
     let attribute = |name: &str, current: f32, max: f32| AttributeData {
         min_value: 0.0,
@@ -256,13 +266,21 @@ pub fn experience_attributes(experience: &Experience) -> [AttributeData; 2] {
         modifiers: Vec::new(),
     };
     [
-        attribute(
-            "minecraft:player.level",
-            experience.level as f32,
-            i32::MAX as f32,
-        ),
+        attribute("minecraft:player.level", experience.level as f32, LEVEL_MAX),
         attribute("minecraft:player.experience", experience.progress, 1.0),
     ]
+}
+
+/// The attributes an experience change sends. Measured (`/xp` capture): a
+/// change of level sends the level and then the progress twice; a change
+/// within the level sends the progress alone.
+pub fn experience_changes(experience: &Experience, level_changed: bool) -> Vec<AttributeData> {
+    let [level, progress] = experience_attributes(experience);
+    if level_changed {
+        vec![level, progress.clone(), progress]
+    } else {
+        vec![progress]
+    }
 }
 
 fn collects(mode: &GameMode, health: Option<&Health>) -> bool {
@@ -318,13 +336,14 @@ pub fn tick_xp_orbs(
             else {
                 continue;
             };
+            let level = experience.level;
             add_experience(&mut experience, xp.value);
             if let Some(session) = session {
                 let _ = session.send(McpePacket::from(UpdateAttributesPacket {
                     target_runtime_id: ActorRuntimeId {
                         actor_runtime_id: runtime_id.0 as u64,
                     },
-                    attribute_list: experience_attributes(&experience).into(),
+                    attribute_list: experience_changes(&experience, experience.level != level),
                     tick: input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick),
                 }));
             }
@@ -369,6 +388,10 @@ mod tests {
         add_experience(&mut xp, 3);
         assert_eq!(xp.level, 1);
         assert!((xp.progress - 3.0 / 9.0).abs() < 1e-6);
+        // BDS's f32 carry: 10 points from nothing (the `/xp 10` capture).
+        let mut xp = Experience::default();
+        add_experience(&mut xp, 10);
+        assert_eq!((xp.level, xp.progress.to_bits()), (1, 0x3eaa_aaac));
         // Level 0 → 16 takes 352 points; level 16 → 17 another 42.
         let mut xp = Experience::default();
         add_experience(&mut xp, 352 + 21);

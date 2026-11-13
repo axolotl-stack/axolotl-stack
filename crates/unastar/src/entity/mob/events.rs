@@ -7,6 +7,7 @@
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
+use jolyne::valentine::actor_data_i_ds as ids;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use thiserror::Error;
@@ -24,6 +25,7 @@ use crate::entity::definition::events::{
     TriggerEvent,
 };
 use crate::entity::definition::flags::ActorFlags;
+use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::definition::properties::{ActorProperties, PropertyError, PropertyValue};
 use crate::entity::definition::{DefinitionState, GroupChange, queue_group_change};
 use crate::entity::systems::BlockSource;
@@ -132,6 +134,45 @@ impl MobFacts<'_> {
         under_water_at(self.world, self.breathing_point(entity)?)
     }
 
+    /// `distance_to_nearest_player`: from the actor's block position (its
+    /// feet floored, as the native test measures) to the nearest player's
+    /// position; the largest float without a player.
+    fn distance_to_nearest_player(&self, entity: Entity) -> Option<f64> {
+        let from = self.feet(entity)?.floor();
+        let mut nearest = f64::from(f32::MAX);
+        let mut players = self.world.try_query_filtered::<&Position, With<Player>>()?;
+        for position in players.iter(self.world) {
+            nearest = nearest.min(position.0.distance(from));
+        }
+        Some(nearest)
+    }
+
+    /// The ticks a mob has gone without action: since it spawned, was last
+    /// hurt, or (with `despawn_from_distance`) last had a player within its
+    /// `min_distance`.
+    fn inactive_ticks(&self, entity: Entity) -> Option<u64> {
+        let now = self
+            .world
+            .get_resource::<crate::ecs::TickCounter>()?
+            .current;
+        let since = self
+            .world
+            .get::<super::life::despawn::Inactivity>(entity)?
+            .last_near_tick
+            .max(
+                self.world
+                    .get::<super::state::LastHurt>(entity)
+                    .map_or(0, |hurt| hurt.tick),
+            );
+        Some(now.saturating_sub(since))
+    }
+
+    fn appearance(&self, entity: Entity, key: u32) -> Option<Fact> {
+        let metadata = self.world.get::<EntityMetadata>(entity)?;
+        let id = super::components::variant::appearance_id(metadata, key)?;
+        Some(Fact::Number(f64::from(id)))
+    }
+
     fn property(&self, entity: Entity, test: &FilterTest) -> Option<PropertyValue> {
         let properties = self.world.get::<ActorProperties>(entity)?;
         let slot = properties.layout().slot(test.domain_str()?)?;
@@ -212,6 +253,12 @@ impl FilterContext for MobFacts<'_> {
                         .is_some_and(|state| state.has_actor_component(component)),
                 )
             }
+            // The appearance ids the actor data carries (`components::variant`
+            // and the native class values); an actor without one is not
+            // answered, so the test is false.
+            BuiltinTest::IsVariant => self.appearance(entity, ids::VARIANT)?,
+            BuiltinTest::IsMarkVariant => self.appearance(entity, ids::MARK_VARIANT)?,
+            BuiltinTest::IsSkinId => self.appearance(entity, ids::SKIN_ID)?,
             // Only players sneak.
             BuiltinTest::IsSneakHeld => Fact::Bool(
                 self.world
@@ -221,6 +268,21 @@ impl FilterContext for MobFacts<'_> {
             BuiltinTest::IsDifficulty => {
                 let want = test.value.as_str()?;
                 Fact::Matches(world_difficulty(self.world)? == want)
+            }
+            BuiltinTest::IsPersistent => {
+                Fact::Bool(self.world.get::<super::state::Persistent>(entity).is_some())
+            }
+            BuiltinTest::DistanceToNearestPlayer => {
+                Fact::Number(self.distance_to_nearest_player(entity)?)
+            }
+            // The native test ignores the operator: inactive for at least
+            // `value` seconds.
+            BuiltinTest::InactivityTimer => {
+                let seconds = test.value.as_f64()?;
+                Fact::Matches(
+                    self.inactive_ticks(entity)? as f64
+                        >= seconds * f64::from(super::constants::TICKS_PER_SECOND),
+                )
             }
             BuiltinTest::HasEquipment => {
                 let want = super::components::ItemMatcher::parse(test.value.as_str()?).ok()?;

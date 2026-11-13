@@ -118,10 +118,9 @@ pub fn process_plugin_actions(
                         );
                         continue;
                     };
-                    let block_runtime_id = block_registry
-                        .0
-                        .get_by_name(&item_id)
-                        .map_or(0, |block| block.default_state_id);
+                    let block_runtime_id =
+                        crate::registry::item::item_block_state(&block_registry.0, &item_id)
+                            .unwrap_or(0);
                     let Ok(runtime_id) = i32::try_from(block_runtime_id) else {
                         warn!(
                             item_id,

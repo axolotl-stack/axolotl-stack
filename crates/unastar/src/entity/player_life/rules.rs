@@ -215,5 +215,13 @@ mod tests {
             }
         );
         assert!(rules.experience_on_death.is_some());
+        // The air written outside the compiled rules (actor data, saved
+        // player records) is the definition's.
+        assert_eq!(
+            crate::entity::player_life::actor_data::FULL_AIR,
+            rules.breath.max_air
+        );
+        assert_eq!(crate::storage::default_air(), rules.breath.max_air);
+        assert_eq!(crate::storage::LOWEST_AIR, rules.breath.drown_at + 1);
     }
 }

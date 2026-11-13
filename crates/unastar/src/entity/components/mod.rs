@@ -8,6 +8,7 @@ pub mod network;
 pub mod physics;
 pub mod player;
 pub mod projectile;
+pub mod tags;
 pub mod transform;
 
 pub use inventory::*;
@@ -18,4 +19,5 @@ pub use network::*;
 pub use physics::*;
 pub use player::*;
 pub use projectile::*;
+pub use tags::*;
 pub use transform::*;

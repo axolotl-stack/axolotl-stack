@@ -1,0 +1,31 @@
+# The elytra, second part: the jump flags a vanilla client sends with
+# StartGliding. Arena as in elytra.txt.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule falldamage false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+40 /replaceitem entity @s slot.armor.chest 0 elytra
+# a. StartGliding with the jump pressed (one input).
+50 /tp @s 0.5 40 0.5 -90 0
+60 flags Startgliding,Jumpdown,Jumppressedraw,Jumpcurrentraw
+200 /tp @s 0.5 -60 0.5 -90 0
+# b. The jump pressed alone, then held, while falling.
+210 /tp @s 0.5 40 0.5 -90 0
+220 flags Jumpdown,Jumppressedraw,Jumpcurrentraw
+225 held-flags Jumping,Jumpcurrentraw
+240 held-flags none
+360 /tp @s 0.5 -60 0.5 -90 0
+# c. StartGliding with Jumping held.
+370 /tp @s 0.5 40 0.5 -90 0
+380 held-flags Jumping,Jumpcurrentraw
+381 flags Startgliding,Jumpdown,Jumppressedraw
+400 held-flags none
+520 /tp @s 0.5 -60 0.5 -90 0
+530 exit

@@ -122,6 +122,17 @@ pub struct PlayerData {
     pub exhaustion: f32,
     #[serde(default)]
     pub experience_progress: f32,
+    /// The player's own respawn point (`/spawnpoint`) in the `Position`
+    /// convention (eyes above the feet). Missing: the world spawn.
+    #[serde(default)]
+    pub spawn_point: Option<[f64; 3]>,
+    /// `/tag` tags, in the order they were added.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Unlocked recipe ids (`/recipe`). Missing on records saved before
+    /// recipes were stored: the initial recipes.
+    #[serde(default)]
+    pub unlocked_recipes: Option<Vec<String>>,
     /// Air supply in ticks (below zero while drowning, down to
     /// [`LOWEST_AIR`]). BDS 1.26.51 keeps it across a rejoin; records saved
     /// before it have full air.
@@ -150,6 +161,9 @@ impl Default for PlayerData {
             saturation: default_saturation(),
             exhaustion: 0.0,
             experience_progress: 0.0,
+            spawn_point: None,
+            tags: Vec::new(),
+            unlocked_recipes: None,
             air: default_air(),
         }
     }
@@ -189,7 +203,7 @@ impl From<&crate::item::ItemStack> for StoredItemStack {
             runtime_id: item.runtime_id,
             count: item.count,
             damage: item.damage,
-            nbt: item.nbt.as_ref().map(|data| data.to_vec()),
+            nbt: item.nbt().map(|data| data.to_vec()),
         }
     }
 }
@@ -242,6 +256,9 @@ impl PlayerData {
             || !self.saturation.is_finite()
             || !self.exhaustion.is_finite()
             || !(0.0..=1.0).contains(&self.experience_progress)
+            || self
+                .spawn_point
+                .is_some_and(|point| !point.iter().all(|n| n.is_finite()))
             || !(LOWEST_AIR..=default_air()).contains(&self.air)
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
@@ -262,9 +279,6 @@ pub trait PlayerProvider: Send + Sync + 'static {
 
     /// Save player data.
     async fn save(&self, uuid: Uuid, data: &PlayerData) -> StorageResult<()>;
-
-    /// Delete player data.
-    async fn delete(&self, uuid: Uuid) -> StorageResult<()>;
 
     /// Close the provider.
     async fn close(&self) -> StorageResult<()>;

@@ -84,11 +84,12 @@ pub enum GameRule {
     DoImmediateRespawn,
     ShowDeathMessages,
     FreezeDamage,
+    Pvp,
 }
 
 impl GameRule {
     /// Every rule, in the order BDS lists them in `GameRulesChanged`.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::DoDaylightCycle,
         Self::DoMobLoot,
         Self::DoMobSpawning,
@@ -101,6 +102,7 @@ impl GameRule {
         Self::DoImmediateRespawn,
         Self::ShowDeathMessages,
         Self::FreezeDamage,
+        Self::Pvp,
     ];
 
     /// The rule's name as BDS sends it (`GameRulesChanged` at join).
@@ -118,6 +120,7 @@ impl GameRule {
             Self::DoImmediateRespawn => "doImmediateRespawn",
             Self::ShowDeathMessages => "showDeathMessages",
             Self::FreezeDamage => "freezeDamage",
+            Self::Pvp => "pvp",
         }
     }
 
@@ -147,6 +150,8 @@ pub struct GameRules {
     pub fire_damage: bool,
     pub drowning_damage: bool,
     pub freeze_damage: bool,
+    /// Players can hurt each other with melee hits (`player_life::pvp`).
+    pub pvp: bool,
     /// Captured rules without a typed field that were changed from BDS's default.
     other: Vec<(&'static str, GameRuleValue)>,
 }
@@ -166,6 +171,7 @@ impl Default for GameRules {
             fire_damage: true,
             drowning_damage: true,
             freeze_damage: true,
+            pvp: true,
             other: Vec::new(),
         };
         // The captured defaults are the source of truth for typed rules too.
@@ -195,6 +201,7 @@ impl GameRules {
             GameRule::DoImmediateRespawn => &mut self.do_immediate_respawn,
             GameRule::ShowDeathMessages => &mut self.show_death_messages,
             GameRule::FreezeDamage => &mut self.freeze_damage,
+            GameRule::Pvp => &mut self.pvp,
         }
     }
 
@@ -212,6 +219,7 @@ impl GameRules {
             GameRule::DoImmediateRespawn => self.do_immediate_respawn,
             GameRule::ShowDeathMessages => self.show_death_messages,
             GameRule::FreezeDamage => self.freeze_damage,
+            GameRule::Pvp => self.pvp,
         }
     }
 
@@ -301,16 +309,21 @@ fn wire_rule(rule: &GameRuleDefault, value: GameRuleValue) -> WireGameRule {
 /// BDS keeps the clock in an `i32`: it never exceeds [`WorldTime::MAX`].
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct WorldTime {
-    pub ticks: u64,
+    /// Signed like BDS's: `/time set -5` keeps a clock of -5.
+    pub ticks: i64,
 }
 
 impl WorldTime {
-    pub const DAY_TICKS: u64 = 24_000;
+    pub const DAY_TICKS: i64 = 24_000;
     /// The largest clock value; the next tick restarts the clock at 1.
-    pub const MAX: u64 = i32::MAX as u64;
+    pub const MAX: i64 = i32::MAX as i64;
+    /// The smallest clock value (`/time set` takes any `i32`).
+    pub const MIN: i64 = i32::MIN as i64;
 
-    pub const fn time_of_day(self) -> u64 {
-        self.ticks % Self::DAY_TICKS
+    /// The tick of the day, `0..24000` also for a negative clock (measured:
+    /// a clock of -5 reads daytime 23995).
+    pub const fn time_of_day(self) -> i64 {
+        self.ticks.rem_euclid(Self::DAY_TICKS)
     }
 
     /// One tick of the daylight cycle (BDS wraps the clock at `i32::MAX`
@@ -324,7 +337,7 @@ impl WorldTime {
 
     /// The clock as the wire carries it.
     pub fn wire(self) -> i32 {
-        i32::try_from(self.ticks).expect("the world clock never exceeds i32::MAX")
+        i32::try_from(self.ticks).expect("the world clock stays within i32")
     }
 }
 
@@ -354,7 +367,9 @@ impl StartGameWorldState {
     /// Write the clock, difficulty and game rules into a player's StartGame.
     pub fn apply(&self, start: &mut StartGamePacket) {
         let snapshot = self.0.lock();
-        start.level_current_time = snapshot.time.ticks;
+        // [INFERENCE] a negative clock keeps its two's-complement bits in
+        // StartGame's unsigned field (not captured).
+        start.level_current_time = snapshot.time.ticks as u64;
         start.settings.game_difficulty = snapshot.difficulty.legacy();
         start.settings.rule_data = snapshot.rules.packet_data();
     }

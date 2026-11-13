@@ -1,0 +1,5 @@
+# The second player of breaking-2.txt (`script.py --observer`): stands 3
+# blocks west of BDSSweep, facing east, and records what it is sent of the
+# other player's breaks. Its ticks are its own input ticks.
+40 /tp @s -2.5 -60 0.5 -90 0
+1200 exit

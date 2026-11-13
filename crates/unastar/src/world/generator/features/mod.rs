@@ -446,6 +446,8 @@ mod state_identity_tests {
         BlockEntityData {
             loot: None,
             spawner_entity: None,
+            bees: None,
+            gateway_exit: None,
             template_nbt: Some(TemplateActor {
                 id: "minecraft:barrel",
                 source: &CAPTURE.0,

@@ -4,15 +4,23 @@
 //! replacing the legacy Server struct.
 
 pub mod attributes;
+pub(crate) mod block_actors;
 mod block_drops;
+pub(crate) mod block_update;
+mod block_use;
 pub(crate) mod blocks;
+#[cfg(test)]
+pub(crate) mod capture_replay;
 mod chunks;
+#[cfg(test)]
+mod command_order_tests;
 #[cfg(test)]
 mod command_tests;
 mod commands;
 mod containers;
 pub mod durability;
 pub mod effects;
+pub mod elytra;
 mod falling;
 pub mod hunger;
 mod inventory;
@@ -20,20 +28,27 @@ pub mod item_use;
 mod items;
 pub(crate) mod join;
 mod join_data;
+pub mod jukebox;
 mod loot;
 mod mining;
 mod movement;
 mod packet_domains;
 pub(crate) mod packet_queues;
 mod packets;
+mod place_sounds;
 mod placement;
+#[cfg(test)]
+mod placement_capture_tests;
 mod plugins;
+pub(crate) mod roster;
+pub(crate) mod signs;
 pub mod types;
 
 use bevy_ecs::prelude::*;
-pub(crate) use block_drops::{drop_block_items, loot_stacks};
+pub(crate) use block_drops::{block_drops, drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
+pub use containers::{command_container_slots, command_set_container_slot};
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
@@ -44,7 +59,7 @@ use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
 pub(crate) use packet_queues::MovementEvents;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::ecs::{
     CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
@@ -65,8 +80,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, cleanup_despawned_entities,
-    sync_actor_viewers, sync_spatial_chunks, tick_block_breaking,
+    EntityGrid, broadcast_block_updates, cleanup_despawned_entities, sync_actor_viewers,
+    sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
@@ -89,6 +104,44 @@ pub use types::{
 /// All game state lives inside the World as Resources.
 pub struct GameServer {
     pub ecs: UnastarEcs,
+}
+
+/// How many records a bulk save wrote and how many it failed to write.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SaveCounts {
+    pub saved: usize,
+    pub failed: usize,
+}
+
+/// What [`GameServer::save_and_close_storage`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StorageShutdown {
+    pub players_saved: usize,
+    /// Players a configured store refused to save; their latest state is lost.
+    pub players_failed: usize,
+    pub chunks_saved: usize,
+    /// Chunks with something to write that storage refused; their unsaved
+    /// edits are lost when the process exits.
+    pub chunks_failed: usize,
+    /// Every attached provider closed (and so flushed) without error.
+    pub closed: bool,
+}
+
+impl StorageShutdown {
+    /// Every save succeeded and every provider closed.
+    pub fn is_clean(&self) -> bool {
+        self.players_failed == 0 && self.chunks_failed == 0 && self.closed
+    }
+}
+
+/// Result of saving one player record to every configured store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlayerSave {
+    Saved,
+    /// At least one configured store failed.
+    Failed,
+    /// No player store is configured.
+    NoStore,
 }
 
 fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
@@ -142,6 +195,16 @@ pub(crate) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            spawn_point: world
+                .get::<crate::entity::player_life::respawn::PlayerSpawnPoint>(entity)
+                .map(|point| point.0.to_array()),
+            tags: world
+                .get::<crate::entity::components::Tags>(entity)
+                .map(|tags| tags.0.clone())
+                .unwrap_or_default(),
+            unlocked_recipes: world
+                .get::<crate::command::exec::UnlockedRecipes>(entity)
+                .map(|recipes| recipes.0.clone()),
             air: world
                 .get::<crate::entity::player_life::breath::PlayerBreath>(entity)
                 .filter(|_| !dead)
@@ -340,6 +403,7 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
         ecs.world_mut().init_resource::<commands::PendingCommands>();
+        ecs.world_mut().init_resource::<commands::CommandOrder>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -405,6 +469,8 @@ impl GameServer {
         ecs.world_mut()
             .add_observer(containers::register_chunk_tickers);
         ecs.world_mut().add_observer(containers::forget_replaced);
+        ecs.world_mut()
+            .add_observer(jukebox::drop_record_when_replaced);
         register_chunk_systems(ecs.schedule_mut());
 
         // Domain systems in PacketApplySet (movement, inventory, chunks run parallel)
@@ -416,6 +482,21 @@ impl GameServer {
                 commands::apply_chat_and_commands,
             )
                 .in_set(PacketApplySet),
+        );
+        // Gliding needs a usable elytra and wears it, right after the input
+        // that started or continued the glide.
+        ecs.schedule_mut().add_systems(
+            elytra::tick_gliding
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement),
+        );
+        // Command requests that arrived ahead of their player's inputs run
+        // before every input system, like BDS (`commands::CommandOrder`).
+        ecs.schedule_mut().add_systems(
+            commands::run_early_commands
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement)
+                .before(inventory::apply_inventory),
         );
         // Exclusive block system runs after movement (which forwards block actions)
         ecs.schedule_mut().add_systems(
@@ -558,6 +639,16 @@ impl GameServer {
                 .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
+        // Jukeboxes: ticks playing and the actor data changed last tick.
+        ecs.schedule_mut()
+            .add_systems(jukebox::tick_jukeboxes.in_set(EntityLogicSet));
+        // Pressed buttons popping back up (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            block_use::tick_scheduled_blocks
+                .in_set(EntityLogicSet)
+                .after(containers::tick_block_containers)
+                .before(tick_block_breaking),
+        );
         // Mob fall damage, condition damage, daylight burning and fire, death,
         // then experience orbs. After the entity chain so deaths from
         // fire/effects are caught the same tick.
@@ -615,6 +706,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 effects::sync_player_effects,
+                effects::sync_visible_effects,
                 crate::entity::player_life::actor_data::sync_players,
                 attributes::sync_player_attributes,
             )
@@ -643,21 +735,28 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Environment sensors, then timers. Their group changes apply at the
-        // next tick's definition barrier (`PhysicsSet`).
+        // Environment sensors, timers, then anger. Their group changes apply
+        // at the next tick's definition barrier (`PhysicsSet`), which is when
+        // anger that spread this tick starts on its receivers.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::sensors::tick_environment_sensors,
                 crate::entity::mob::life::sensors::tick_timers,
+                crate::entity::mob::life::anger::tick_anger,
             )
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Natural despawning of mobs far from every player.
+        // Natural despawning of mobs far from every player, then by
+        // despawn filters.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::life::despawn::despawn_mobs
+            (
+                crate::entity::mob::life::despawn::despawn_mobs,
+                crate::entity::mob::life::despawn::despawn_mobs_by_filters,
+            )
+                .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead),
         );
@@ -665,7 +764,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             crate::entity::spawning::natural_spawning
                 .in_set(EntityLogicSet)
-                .after(crate::entity::mob::life::despawn::despawn_mobs),
+                .after(crate::entity::mob::life::despawn::despawn_mobs_by_filters),
         );
         // The world clock advances before anything reads the time of day.
         ecs.schedule_mut().add_systems(
@@ -678,9 +777,9 @@ impl GameServer {
             (
                 sync_spatial_chunks,
                 crate::server::player_view::sync_player_viewers,
-                broadcast_despawn_system,
                 broadcast_block_updates,
                 sync_actor_viewers,
+                crate::entity::mob::net::sound::flush_synced_sounds,
                 crate::entity::mob::net::network::sync_mob_viewers,
             )
                 .chain()
@@ -705,7 +804,7 @@ impl GameServer {
         Self { ecs }
     }
 
-    pub async fn save_all_players(&mut self) -> usize {
+    pub async fn save_all_players(&mut self) -> SaveCounts {
         let records = {
             let world = self.ecs.world_mut();
             let mut query = world.query_filtered::<Entity, With<PlayerUuid>>();
@@ -714,16 +813,18 @@ impl GameServer {
                 .filter_map(|entity| player_record(world, entity))
                 .collect::<Vec<_>>()
         };
-        let mut saved = 0;
+        let mut counts = SaveCounts::default();
         for (uuid, data) in records {
-            if self.save_player_record(uuid, &data).await {
-                saved += 1;
+            match self.save_player_record(uuid, &data).await {
+                PlayerSave::Saved => counts.saved += 1,
+                PlayerSave::Failed => counts.failed += 1,
+                PlayerSave::NoStore => {}
             }
         }
-        saved
+        counts
     }
 
-    pub async fn save_all_chunks(&mut self) -> usize {
+    pub async fn save_all_chunks(&mut self) -> SaveCounts {
         let Some((provider, dimension)) =
             self.ecs
                 .world()
@@ -734,7 +835,7 @@ impl GameServer {
                         .map(|provider| (provider, manager.dimension()))
                 })
         else {
-            return 0;
+            return SaveCounts::default();
         };
 
         // Every chunk with something to write: dirty terrain, mobs standing in
@@ -746,21 +847,64 @@ impl GameServer {
             crate::entity::mob::persistence::snapshot_chunks(world, &chunks, false)
         };
 
-        let mut saved = 0;
+        let mut counts = SaveCounts::default();
         for snapshot in snapshots {
             let Some(column) = &snapshot.column else {
                 continue;
             };
             match provider.save_column(snapshot.pos, dimension, column).await {
                 Ok(()) => {
-                    saved += 1;
+                    counts.saved += 1;
                     crate::entity::mob::persistence::mark_saved(self.ecs.world_mut(), &snapshot);
                 }
-                Err(e) => warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk"),
+                Err(e) => {
+                    counts.failed += 1;
+                    warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk");
+                }
             }
         }
 
-        saved
+        counts
+    }
+
+    /// Shutdown persistence, in this order: every player, every loaded chunk
+    /// with something to write, then the world provider and the player
+    /// provider are closed so queued writes (BlazeDB's background writer) reach
+    /// disk before the process exits. Failed saves and a failed close are
+    /// logged and counted; see [`StorageShutdown::is_clean`].
+    pub async fn save_and_close_storage(&mut self) -> StorageShutdown {
+        let players = self.save_all_players().await;
+        let chunks = self.save_all_chunks().await;
+        let mut closed = true;
+        let world_provider = self
+            .ecs
+            .world()
+            .get_resource::<ChunkManager>()
+            .and_then(ChunkManager::provider);
+        if let Some(provider) = world_provider
+            && let Err(error) = provider.close().await
+        {
+            error!(%error, "Failed to close world storage; recent chunk saves may be lost");
+            closed = false;
+        }
+        let player_provider = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .map(|r| r.0.clone());
+        if let Some(provider) = player_provider
+            && let Err(error) = provider.close().await
+        {
+            error!(%error, "Failed to close player storage");
+            closed = false;
+        }
+        StorageShutdown {
+            players_saved: players.saved,
+            players_failed: players.failed,
+            chunks_saved: chunks.saved,
+            chunks_failed: chunks.failed,
+            closed,
+        }
     }
 
     pub async fn save_player(&mut self, session_id: SessionId) -> bool {
@@ -774,10 +918,10 @@ impl GameServer {
         let Some((uuid, data)) = record else {
             return false;
         };
-        self.save_player_record(uuid, &data).await
+        self.save_player_record(uuid, &data).await == PlayerSave::Saved
     }
 
-    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
+    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> PlayerSave {
         let provider = self
             .ecs
             .world()
@@ -788,12 +932,15 @@ impl GameServer {
             .world()
             .get_resource::<types::PlayerDataStoreResource>()
             .map(|r| r.0.clone());
-        let mut saved = provider.is_some() || positions.is_some();
+        if provider.is_none() && positions.is_none() {
+            return PlayerSave::NoStore;
+        }
+        let mut saved = PlayerSave::Saved;
         if let Some(provider) = provider
             && let Err(error) = provider.save(uuid, data).await
         {
             warn!(%uuid, %error, "Failed to save player data");
-            saved = false;
+            saved = PlayerSave::Failed;
         }
         if let Some(positions) = positions {
             let last = crate::config::PlayerLastPosition {
@@ -808,19 +955,32 @@ impl GameServer {
             };
             if let Err(error) = positions.save_last_position(&uuid.to_string(), &last).await {
                 warn!(%uuid, %error, "Failed to save last player position");
-                saved = false;
+                saved = PlayerSave::Failed;
             }
         }
         saved
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
+        self.spawn_player_with_login(data, None)
+    }
+
+    /// [`Self::spawn_player`] with the player's validated login client data,
+    /// which its player-list entry (skin, platform) is built from; without
+    /// it the entry carries an empty skin.
+    pub fn spawn_player_with_login(
+        &mut self,
+        data: PlayerSpawnData,
+        client_data: Option<&jolyne::auth::ClientData>,
+    ) -> crate::storage::StorageResult<Entity> {
         let player_uuid = data
             .uuid
             .as_ref()
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         let player_name = data.display_name.clone();
+        let player_name_for_roster = player_name.clone();
+        let player_xuid = data.xuid.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
         let chunk_x = (position.0.x / 16.0).floor() as i32;
@@ -866,6 +1026,16 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
+        let (spawn_point, tags, unlocked_recipes) = saved_data
+            .as_mut()
+            .map(|saved| {
+                (
+                    saved.spawn_point,
+                    std::mem::take(&mut saved.tags),
+                    saved.unlocked_recipes.take(),
+                )
+            })
+            .unwrap_or_default();
         let mut air = None;
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
@@ -956,6 +1126,7 @@ impl GameServer {
             crate::entity::player_life::environment::PlayerFall::default(),
             crate::entity::player_life::motion::PlayerMoves::default(),
             crate::entity::player_life::authority::PlayerMotion::spawned(data.position),
+            crate::entity::player_life::pvp::InputStart::default(),
         ));
         if explicit_game_mode {
             self.ecs
@@ -974,6 +1145,7 @@ impl GameServer {
             attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
             crate::entity::components::Effects::default(),
             effects::SentEffects::default(),
+            effects::SentVisibleEffects::default(),
         ));
         if operator {
             self.ecs
@@ -981,10 +1153,43 @@ impl GameServer {
                 .entity_mut(entity)
                 .insert(crate::command::Operator);
         }
+        // The `/spawnpoint`, `/tag` and `/recipe` state saved with the player.
+        let mut player = self.ecs.world_mut().entity_mut(entity);
+        if let Some(point) = spawn_point {
+            player.insert(crate::entity::player_life::respawn::PlayerSpawnPoint(
+                glam::DVec3::from_array(point),
+            ));
+        }
+        if !tags.is_empty() {
+            player.insert(crate::entity::components::Tags(tags));
+        }
+        if let Some(recipes) = unlocked_recipes {
+            player.insert(crate::command::exec::UnlockedRecipes(recipes));
+        }
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
         }
+        // Plugins see the join (`on-player-join`) once the client has spawned:
+        // `send_spawn_status` queues it when it clears `AwaitingSpawnStatus`.
+
+        let roster_entry = {
+            let world = self.ecs.world_mut();
+            let taken: Vec<u32> = world
+                .query::<&roster::RosterEntry>()
+                .iter(world)
+                .map(roster::RosterEntry::colour)
+                .collect();
+            roster::RosterEntry::new(
+                player_uuid,
+                runtime_id,
+                &player_name_for_roster,
+                player_xuid.as_deref(),
+                client_data.unwrap_or(&jolyne::auth::ClientData::default()),
+                roster::free_colour(taken),
+            )
+        };
+        self.ecs.world_mut().entity_mut(entity).insert(roster_entry);
 
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
             entity,
@@ -992,8 +1197,25 @@ impl GameServer {
             runtime_id,
         });
         self.send_join_packets(entity);
+        self.announce_join(entity);
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         Ok(entity)
+    }
+
+    /// Queue a plugin `PlayerQuit` for every online player, for shutdown. The
+    /// players stay spawned so they can still be saved afterwards.
+    pub fn queue_quit_for_online_players(&mut self) -> usize {
+        let world = self.ecs.world_mut();
+        let entities: Vec<Entity> = world
+            .get_resource::<SessionEntityMap>()
+            .map(|sessions| sessions.iter().map(|(_, entity)| entity).collect())
+            .unwrap_or_default();
+        if let Some(mut events) = world.get_resource_mut::<crate::ecs::events::EventBuffer>() {
+            for &entity in &entities {
+                events.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
+        }
+        entities.len()
     }
 
     pub fn despawn_player(&mut self, session_id: SessionId) {
@@ -1005,6 +1227,16 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
+            self.announce_leave(entity);
+            // Every leave path (disconnect packet, network drop) ends here, so
+            // plugins see exactly one `on-player-quit` per online player.
+            if let Some(mut events) = self
+                .ecs
+                .world_mut()
+                .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                events.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
             self.ecs.world_mut().despawn(entity);
             info!(session_id, "Player despawned");
         }
@@ -1057,10 +1289,24 @@ impl GameServer {
                     };
                     let item_network_id = item_entry.network_id();
 
-                    let block_runtime_id =
-                        blocks.get_by_name(creative_item.item_id()).map_or(0, |b| {
-                            block_ids.item_block_to_wire(item_network_id, b.default_state_id) as i32
-                        });
+                    // The entry's own state where it names one (a creative
+                    // piston faces up, a given one down), else the item's.
+                    let block = match creative_item
+                        .block_states()
+                        .and_then(unastar_data::item_blocks::creative_block_states)
+                    {
+                        Some(states) => crate::registry::item::block_state_with(
+                            blocks,
+                            creative_item.item_id(),
+                            states,
+                        ),
+                        None => {
+                            crate::registry::item::item_block_state(blocks, creative_item.item_id())
+                        }
+                    };
+                    let block_runtime_id = block.map_or(0, |state| {
+                        block_ids.item_block_to_wire(item_network_id, state) as i32
+                    });
 
                     items_list.push(CreativeItemEntryPayload {
                         creative_net_id: TypedServerNetIdstructCreativeItemNetIdTag {
@@ -1187,6 +1433,286 @@ mod tests {
     }
 
     /// A server over a void world: no generation pool, so no tokio runtime needed.
+    /// Storage calls in the order they happened.
+    type CallLog = Arc<std::sync::Mutex<Vec<&'static str>>>;
+
+    struct RecordingWorld(CallLog);
+
+    /// Storage that refuses every write but closes cleanly.
+    struct RefusingWorld;
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for RefusingWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Ok(None)
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            Err(crate::storage::StorageError::Database("disk full".into()))
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// Storage whose every read fails.
+    struct UnreadableWorld;
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for UnreadableWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Err(crate::storage::StorageError::Database(
+                "unreadable column".into(),
+            ))
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            panic!("a failed read must never produce terrain to save")
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// The synchronous chunk-load system drops a request whose storage read
+    /// fails: the tick doesn't panic, no chunk entity is created, the chunk
+    /// isn't marked loaded for the player and no `LevelChunk` is sent.
+    #[test]
+    fn a_storage_read_error_on_the_sync_load_path_drops_the_request() {
+        let mut server = void_server();
+        assert!(
+            !server
+                .ecs
+                .world()
+                .resource::<ChunkManager>()
+                .has_async_generation(),
+            "the void world loads chunks on the synchronous path"
+        );
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(UnreadableWorld));
+        let (outbound_tx, mut rx) = tokio::sync::mpsc::channel(1 << 16);
+        let player = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+        assert!(
+            server
+                .ecs
+                .world()
+                .get::<ChunkLoader>(player)
+                .unwrap()
+                .has_pending(),
+            "the player starts with chunks to load"
+        );
+
+        for _ in 0..3 {
+            server.tick();
+        }
+
+        let world = server.ecs.world_mut();
+        assert!(world.resource::<ChunkManager>().is_empty());
+        assert_eq!(
+            world
+                .query::<&crate::world::ecs::ChunkData>()
+                .iter(world)
+                .count(),
+            0
+        );
+        let loader = world.get::<ChunkLoader>(player).unwrap();
+        assert_eq!(loader.loaded_count(), 0);
+        assert!(!loader.is_loaded(0, 0));
+        let mut level_chunks = 0;
+        while let Ok(packet) = rx.try_recv() {
+            if packet.data.packet_id() == McpePacketName::LevelChunkPacket {
+                level_chunks += 1;
+            }
+        }
+        assert_eq!(level_chunks, 0);
+    }
+
+    struct RefusingPlayers;
+
+    #[async_trait::async_trait]
+    impl crate::storage::PlayerProvider for RefusingPlayers {
+        async fn load(&self, _: uuid::Uuid) -> crate::storage::StorageResult<Option<PlayerData>> {
+            Ok(None)
+        }
+        async fn save(&self, _: uuid::Uuid, _: &PlayerData) -> crate::storage::StorageResult<()> {
+            Err(crate::storage::StorageError::Database("disk full".into()))
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            Ok(())
+        }
+    }
+
+    /// Saves that fail at shutdown are counted, so the shutdown is not clean
+    /// even though every provider closed.
+    #[tokio::test]
+    async fn failed_shutdown_saves_make_the_shutdown_unclean() {
+        use crate::world::ecs::ChunkManagerWorldExt;
+        let mut server = void_server();
+        let world = server.ecs.world_mut();
+        world
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(RefusingWorld));
+        world.insert_resource(types::PlayerProviderResource(Arc::new(RefusingPlayers)));
+        world.get_or_create_chunk(0, 0).unwrap();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+
+        let result = server.save_and_close_storage().await;
+        assert_eq!(
+            result,
+            StorageShutdown {
+                players_saved: 0,
+                players_failed: 1,
+                chunks_saved: 0,
+                chunks_failed: 1,
+                closed: true,
+            }
+        );
+        assert!(!result.is_clean());
+    }
+
+    #[async_trait::async_trait]
+    impl crate::storage::WorldProvider for RecordingWorld {
+        async fn load_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+        ) -> crate::storage::StorageResult<Option<crate::storage::ChunkColumn>> {
+            Ok(None)
+        }
+        async fn save_column(
+            &self,
+            _: crate::world::ChunkPos,
+            _: i32,
+            _: &crate::storage::ChunkColumn,
+        ) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("save chunk");
+            Ok(())
+        }
+        async fn flush(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("flush world");
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("close world");
+            Ok(())
+        }
+    }
+
+    struct RecordingPlayers(CallLog);
+
+    #[async_trait::async_trait]
+    impl crate::storage::PlayerProvider for RecordingPlayers {
+        async fn load(&self, _: uuid::Uuid) -> crate::storage::StorageResult<Option<PlayerData>> {
+            Ok(None)
+        }
+        async fn save(&self, _: uuid::Uuid, _: &PlayerData) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("save player");
+            Ok(())
+        }
+        async fn close(&self) -> crate::storage::StorageResult<()> {
+            self.0.lock().unwrap().push("close players");
+            Ok(())
+        }
+    }
+
+    /// Shutdown saves players, then chunks, then closes the world store (so a
+    /// queued BlazeDB write reaches disk) and the player store.
+    #[tokio::test]
+    async fn shutdown_saves_players_then_chunks_then_closes_storage() {
+        use crate::world::ecs::ChunkManagerWorldExt;
+        let log = CallLog::default();
+        let mut server = void_server();
+        let world = server.ecs.world_mut();
+        world
+            .resource_mut::<ChunkManager>()
+            .set_provider(Arc::new(RecordingWorld(log.clone())));
+        world.insert_resource(types::PlayerProviderResource(Arc::new(RecordingPlayers(
+            log.clone(),
+        ))));
+        // A generated chunk is dirty, so it has something to save.
+        world.get_or_create_chunk(0, 0).unwrap();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id: 1,
+                display_name: "Steve".into(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+                runtime_id: 1,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .unwrap();
+
+        let result = server.save_and_close_storage().await;
+        assert_eq!(
+            result,
+            StorageShutdown {
+                players_saved: 1,
+                players_failed: 0,
+                chunks_saved: 1,
+                chunks_failed: 0,
+                closed: true,
+            }
+        );
+        assert_eq!(
+            *log.lock().unwrap(),
+            ["save player", "save chunk", "close world", "close players"]
+        );
+    }
+
     fn void_server() -> GameServer {
         GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
@@ -1267,6 +1793,53 @@ mod tests {
         }
     }
 
+    /// Every item unastar's creative inventory shares with the BDS 1.26.51
+    /// join capture describes the block BDS shows for it (the creative
+    /// entries' own states: a creative piston faces up, a given one down).
+    /// The lists themselves differ (order, a few entries); that is not
+    /// compared here.
+    #[test]
+    fn creative_items_describe_the_blocks_bds_shows() {
+        use jolyne::valentine::bedrock::codec::{BedrockCodec, VarUInt};
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../bds-extractor/captures/1.26.51/member/join/00047-CreativeContentPacket.bin");
+        let bytes = std::fs::read(path).unwrap();
+        let mut input = bytes.as_slice();
+        let _header = VarUInt::decode(&mut input, ()).unwrap();
+        let bds = jolyne::valentine::CreativeContentPacket::decode(&mut input, ()).unwrap();
+        let mut items = ItemRegistry::new();
+        items.load_vanilla();
+        let mut blocks = BlockRegistry::new();
+        blocks.load_vanilla();
+        let ours = GameServer::build_creative_content(
+            &items,
+            &blocks,
+            crate::registry::block::BlockNetworkIds::Hashed,
+        );
+        let mut shown = std::collections::HashMap::<_, Vec<i32>>::new();
+        for entry in &bds.entries {
+            let item = &entry.item_instance;
+            shown
+                .entry((item.id, item.auxvalue))
+                .or_default()
+                .push(item.block_runtime_id);
+        }
+        let mut compared = 0;
+        let mut wrong = Vec::new();
+        for entry in &ours.entries {
+            let item = &entry.item_instance;
+            let Some(blocks) = shown.get(&(item.id, item.auxvalue)) else {
+                continue;
+            };
+            compared += 1;
+            if !blocks.contains(&item.block_runtime_id) {
+                wrong.push((item.id, item.block_runtime_id, blocks.clone()));
+            }
+        }
+        assert!(wrong.is_empty(), "{} items differ: {wrong:?}", wrong.len());
+        assert!(compared >= 1800, "{compared} items compared");
+    }
+
     #[test]
     fn game_tick_runs_entity_lifecycle_systems() {
         let mut server = void_server();
@@ -1319,6 +1892,170 @@ mod tests {
         assert!(!join(4, "MobBot2", None));
     }
 
+    fn join_for_events(server: &mut GameServer, session_id: u64) -> Entity {
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id,
+                display_name: format!("Player{session_id}"),
+                xuid: None,
+                uuid: None,
+                runtime_id: session_id as i64,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("fresh player spawns without saved data")
+    }
+
+    fn drain_events(server: &mut GameServer) -> Vec<crate::ecs::events::ServerEvent> {
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<crate::ecs::events::EventBuffer>()
+            .drain()
+    }
+
+    fn quits(events: &[crate::ecs::events::ServerEvent]) -> Vec<Entity> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                crate::ecs::events::ServerEvent::PlayerQuit { entity } => Some(*entity),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn shutdown_queues_one_quit_per_online_player_and_keeps_them_spawned() {
+        let mut server = void_server();
+        let first = join_for_events(&mut server, 5);
+        let second = join_for_events(&mut server, 6);
+        drain_events(&mut server);
+        assert_eq!(server.queue_quit_for_online_players(), 2);
+        let mut quit = quits(&drain_events(&mut server));
+        quit.sort();
+        let mut expected = vec![first, second];
+        expected.sort();
+        assert_eq!(quit, expected);
+        assert!(server.ecs.world().get_entity(first).is_ok());
+        assert!(server.ecs.world().get_entity(second).is_ok());
+    }
+
+    #[test]
+    fn every_despawn_queues_exactly_one_plugin_quit() {
+        use bytes::BytesMut;
+        use jolyne::valentine::{
+            BorrowedMcpePacket, DisconnectPacket, DisconnectPacketMessages,
+            DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
+            McpePacketArgs,
+        };
+        let mut server = void_server();
+        let dropped = join_for_events(&mut server, 5);
+        let leaving = join_for_events(&mut server, 6);
+        drain_events(&mut server);
+
+        // A network-level drop despawns without any client packet.
+        server.despawn_player(5);
+        assert_eq!(quits(&drain_events(&mut server)), [dropped]);
+        server.despawn_player(5);
+        assert!(drain_events(&mut server).is_empty(), "already gone");
+
+        // A client disconnect packet keeps the player for the leave path's save, so it
+        // queues nothing itself; the leave path's despawn then queues exactly one quit.
+        let packet = McpePacket::from(DisconnectPacket {
+            reason: EnumsConnectionDisconnectFailReason::Disconnected,
+            messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                DisconnectPacketMessages {
+                    message: "bye".into(),
+                    filtered_message: "bye".into(),
+                },
+            ),
+        });
+        let mut buf = BytesMut::new();
+        packet.data.encode_inner(&mut buf, 0, 0).unwrap();
+        let borrowed = BorrowedMcpePacket::decode_inner(&mut buf.freeze()).unwrap();
+        server.route_packet(6, McpePacketArgs, borrowed);
+        assert!(
+            quits(&drain_events(&mut server)).is_empty(),
+            "the player stays until the leave path saves it"
+        );
+        server.despawn_player(6);
+        assert_eq!(quits(&drain_events(&mut server)), [leaving]);
+    }
+
+    #[test]
+    fn plugin_join_fires_once_after_the_client_has_spawned() {
+        use crate::ecs::events::ServerEvent;
+        let joins = |events: &[ServerEvent]| -> Vec<(Entity, String, String)> {
+            events
+                .iter()
+                .filter_map(|event| match event {
+                    ServerEvent::PlayerJoin {
+                        entity,
+                        player_id,
+                        username,
+                    } => Some((*entity, player_id.clone(), username.clone())),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut server = void_server();
+        let (outbound_tx, _rx) = tokio::sync::mpsc::channel(4096);
+        let entity = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 5,
+                display_name: "Joiner".to_string(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000005".to_string()),
+                runtime_id: 5,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("fresh player spawns without saved data");
+        assert!(
+            joins(&drain_events(&mut server)).is_empty(),
+            "no join while the client is still loading"
+        );
+        let mut seen = Vec::new();
+        for _ in 0..20 {
+            let awaiting = server
+                .ecs
+                .world()
+                .get::<AwaitingSpawnStatus>(entity)
+                .is_some();
+            server.tick();
+            let tick_joins = joins(&drain_events(&mut server));
+            if !tick_joins.is_empty() {
+                assert!(
+                    awaiting,
+                    "join is queued on the tick the spawn status goes out"
+                );
+                assert!(
+                    server
+                        .ecs
+                        .world()
+                        .get::<AwaitingSpawnStatus>(entity)
+                        .is_none(),
+                    "join is queued only once the client has spawned"
+                );
+            }
+            seen.extend(tick_joins);
+        }
+        assert_eq!(
+            seen,
+            [(
+                entity,
+                "00000000-0000-0000-0000-000000000005".to_string(),
+                "Joiner".to_string()
+            )],
+            "exactly one join"
+        );
+    }
+
     #[test]
     fn player_spawn_sets_join_chunk_gate_without_network_io() {
         let mut server = GameServer::with_config(ServerConfig {
@@ -1327,7 +2064,8 @@ mod tests {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
         });
-        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
+        // Room for the whole join (about 40 packets) so none is dropped.
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(64);
 
         let entity = server
             .spawn_player(PlayerSpawnData {
@@ -1503,5 +2241,93 @@ mod saved_inventory_validation_tests {
             outbound_rx.try_recv().is_err(),
             "invalid saved state must not emit a successful join"
         );
+        for _ in 0..3 {
+            server.tick();
+        }
+        assert!(
+            !server
+                .ecs
+                .world_mut()
+                .resource_mut::<crate::ecs::events::EventBuffer>()
+                .drain()
+                .iter()
+                .any(|event| matches!(event, crate::ecs::events::ServerEvent::PlayerJoin { .. })),
+            "a refused join never reaches plugins"
+        );
+    }
+    /// `/spawnpoint`, `/tag` and `/recipe` state goes through the stored
+    /// record (JSON, as the player store writes it) into the next join.
+    #[test]
+    fn spawn_point_tags_and_recipes_round_trip_through_the_player_record() {
+        use crate::command::exec::UnlockedRecipes;
+        use crate::entity::components::Tags;
+        use crate::entity::player_life::respawn::PlayerSpawnPoint;
+
+        let uuid = uuid::Uuid::from_u128(43);
+        let join = |saved: Option<PlayerData>| {
+            let mut server = GameServer::with_config(ServerConfig {
+                world: crate::world::WorldConfig::void_spawn_platform(1),
+                ..ServerConfig::default()
+            });
+            let (outbound_tx, outbound_rx) = tokio::sync::mpsc::channel(1024);
+            let entity = server
+                .spawn_player(PlayerSpawnData {
+                    session_id: 43,
+                    display_name: "saved-state".into(),
+                    xuid: None,
+                    uuid: Some(uuid.to_string()),
+                    runtime_id: 8,
+                    position: glam::DVec3::new(0.5, 17.0, 0.5),
+                    outbound_tx,
+                    saved_data: saved,
+                    chunk_radius: 0,
+                })
+                .expect("valid player spawn");
+            (server, entity, outbound_rx)
+        };
+
+        let (mut server, entity, _rx) = join(None);
+        let world = server.ecs.world_mut();
+        let recipes = vec!["minecraft:crafting_table".to_owned()];
+        world.entity_mut(entity).insert((
+            PlayerSpawnPoint(glam::DVec3::new(3.5, 71.62, -2.5)),
+            Tags(vec!["second".into(), "first".into()]),
+            UnlockedRecipes(recipes.clone()),
+        ));
+        let (saved_uuid, record) = player_record(world, entity).expect("a player record");
+        assert_eq!(saved_uuid, uuid);
+        let stored = serde_json::to_vec(&record).unwrap();
+        let loaded: PlayerData = serde_json::from_slice(&stored).unwrap();
+
+        let (server, entity, _rx) = join(Some(loaded));
+        let world = server.ecs.world();
+        assert_eq!(
+            world.get::<PlayerSpawnPoint>(entity),
+            Some(&PlayerSpawnPoint(glam::DVec3::new(3.5, 71.62, -2.5)))
+        );
+        assert_eq!(
+            world.get::<Tags>(entity).map(|t| t.0.clone()),
+            Some(vec!["second".to_owned(), "first".to_owned()])
+        );
+        assert_eq!(
+            world.get::<UnlockedRecipes>(entity).map(|r| r.0.clone()),
+            Some(recipes)
+        );
+
+        // A record from before these fields joins with none of them.
+        let mut old: serde_json::Value = serde_json::from_slice(&stored).unwrap();
+        for field in ["spawn_point", "tags", "unlocked_recipes"] {
+            old.as_object_mut().unwrap().remove(field);
+        }
+        let (server, entity, _rx) = join(Some(serde_json::from_value(old).unwrap()));
+        let world = server.ecs.world();
+        assert!(world.get::<PlayerSpawnPoint>(entity).is_none());
+        assert!(world.get::<Tags>(entity).is_none());
+        assert!(world.get::<UnlockedRecipes>(entity).is_none());
+
+        // A spawn point that is not a position is refused like the rest.
+        let mut bad = record.clone();
+        bad.spawn_point = Some([f64::NAN, 70.0, 0.0]);
+        assert!(bad.validate(uuid).is_err());
     }
 }

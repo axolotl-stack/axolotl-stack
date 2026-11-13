@@ -11,7 +11,8 @@ behaviour is **BDS 1.26.51, protocol 2193**. Product overview: [README.md](READM
    Use the `parity-update` skill. Details: [docs/parity/README.md](docs/parity/README.md).
 2. **Provenance rule.** Never write Bedrock server or client internal class, function or symbol
    names, addresses or offsets in code, comments, docs, tests, fixtures or commit messages.
-   Black-box provenance ("matches the BDS 1.26.51 capture") is fine.
+   Black-box provenance ("matches the BDS 1.26.51 capture") is fine. Names BDS sends on the wire
+   are redacted from captures too; `bun tools/agents/check-redactions.ts` (CI) enforces the list.
 3. **Copy BDS exactly**, quirks included, and record every odd behaviour you copy in
    [docs/quirks/bds.md](docs/quirks/bds.md) (Java worldgen: [docs/quirks/java.md](docs/quirks/java.md)).
    Built-in facts BDS doesn't ship as data are measured from BDS, not taken from wikis.

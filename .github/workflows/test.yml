@@ -140,6 +140,9 @@ jobs:
       - name: Relative Markdown links resolve
         run: bun tools/agents/check-links.ts
 
+      - name: No redacted BDS-internal names in tracked files
+        run: bun tools/agents/check-redactions.ts
+
       - name: No references to the removed thoughts/ folder
         # Historical mentions are fine when the same line says the file was removed
         # (e.g. `origin: thoughts/... (removed; see git history)`).

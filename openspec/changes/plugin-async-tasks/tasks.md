@@ -2,7 +2,7 @@
 
 ## 1. Timers
 
-- [ ] 1.1 Fix timer dispatch to deliver only to the owning plugin (test: two plugins subscribed to `timer`, one sets a timer, only it receives `on-timer`)
+- [x] 1.1 Fix timer dispatch to deliver only to the owning plugin (test: two plugins subscribed to `timer`, one sets a timer, only it receives `on-timer`)
 - [ ] 1.2 Add the `set-timer(delay-ticks) -> u64` import to `crates/unastar-api/wit/host.wit` and implement it over `TimerManager::set_timer`
 - [ ] 1.3 Example plugin uses `set-timer` and subscribes to `timer`
 

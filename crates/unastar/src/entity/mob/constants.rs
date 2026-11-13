@@ -23,7 +23,8 @@ pub const MOVE_ARRIVAL_FLOOR: f32 = 0.5;
 pub const MOVE_DESCEND_CAP: f32 = 0.25;
 /// The travel step's forward input is the move control's speed × this
 /// (BDS 1.26.51: a walking cow at speed `s` gains `0.98 s²` per tick on
-/// grass, through every step of its 10 %/tick speed ramp).
+/// grass, through every step of its 10 %/tick speed ramp). Measured on
+/// land and in the air only; it is applied in liquids too, unmeasured.
 pub const MOVE_INPUT_DECAY: f32 = 0.98;
 /// Vertical velocity of a living mob with gravity when it spawns or is born
 /// (80 of the 112 BDS 1.26.51 summon captures: every living actor with
@@ -234,6 +235,15 @@ pub const DAYLIGHT_BURN_TICKS: u64 = 160;
 /// (the check is confirmed; the block is provisional: Java Edition, where
 /// powder snow keeps undead from burning).
 pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
+/// The damage causes an actor with the `FIRE_IMMUNE` flag
+/// (`minecraft:fire_immune`) does not take (measured: `/damage` with these
+/// fails on the fire-immune zombie pigman and wither skeleton and succeeds on
+/// the zombie and skeleton; every other cause, campfire and soul campfire
+/// included, hurts all four; `testdata/bds-1.26.51-fire-immune-causes.json`).
+pub const FIRE_IMMUNE_CAUSES: &[unastar_data::actor_components::body::ActorDamageCause] = {
+    use unastar_data::actor_components::body::ActorDamageCause as Cause;
+    &[Cause::Fire, Cause::FireTick, Cause::Lava, Cause::Magma]
+};
 
 // --- Entity pushing ---------------------------------------------------------------
 
@@ -280,9 +290,10 @@ pub const XP_ORB_SIZES: [u32; 11] = [2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3
 /// (before the cap), so a grounded mob leaves at the 0.4 cap.
 pub const KNOCKBACK_VERTICAL_SCALE: f64 = 1.2;
 /// Farthest a player's eye may be from the nearest point of a mob's box to
-/// land a melee hit (provisional: the client reaches 3 blocks in survival
-/// and 5 in creative per the Minecraft Wiki "Reach" page; this bound adds
-/// latency tolerance on top).
+/// land a melee hit. BDS 1.26.51 landed a survival sword hit on a pig whose
+/// box was 5.55 blocks from the eye and refused one at 6.55 (spear capture,
+/// `docs/quirks/bds.md` Entities / melee); the exact limit between the two
+/// is not measured.
 pub const MELEE_REACH: f64 = 6.0;
 /// A mob counts as "last hit by a player" (loot `killed_by_player`,
 /// `query.last_hit_by_player`) for this many ticks after a player's hit
@@ -328,9 +339,20 @@ pub const PROJECTILE_ROTATION_SMOOTHING: f32 = 0.2;
 pub const PROJECTILE_HIT_INFLATE_DELAY: f64 = 2.0;
 pub const PROJECTILE_HIT_INFLATE_STEP: f64 = 0.05;
 pub const PROJECTILE_HIT_INFLATE_MAX: f64 = 0.3;
-/// A projectile is spawned invisible and becomes visible on this tick of
-/// its flight (the first being 1).
+/// A projectile is spawned invisible and becomes visible at the end of this
+/// tick of its flight (the first being 1).
 pub const PROJECTILE_VISIBLE_TICK: u64 = 2;
+/// Synchronised level sounds of an actor turning invisible and visible
+/// again, played at the centre of its box with data -1 (BDS 1.26.51 sends
+/// them for every projectile; only the wandering trader's sound set gives
+/// them a sound).
+pub const DISAPPEARED_SOUND: &str = "disappeared";
+pub const REAPPEARED_SOUND: &str = "reappeared";
+/// `grant_xp`: the potion-splash level event at the hit …
+pub const POTION_SPLASH_LEVEL_EVENT: i32 = 2002;
+/// … with the default potion colour (ARGB `0xFF385DC6`) as its data: BDS
+/// 1.26.51 sends data -13083194 where an xp bottle breaks.
+pub const DEFAULT_POTION_COLOUR_ARGB: i32 = 0xFF38_5DC6_u32 as i32;
 /// Level event of one `particle_on_hit` particle (data = the particle id).
 pub const PROJECTILE_PARTICLE_LEVEL_EVENT: i32 = 2009;
 /// Particle id of `iconcrack`; its level event data also carries the item's
@@ -413,10 +435,29 @@ pub const LEGACY_BUCKET_ITEMS: [(i16, &str); 11] = [
 /// regard to case, as item names are. Provisional: pmmp's
 /// BedrockItemUpgradeSchema, which agrees with the identity BDS reports for
 /// its own `muttonRaw` furnace recipe input.
-pub const LEGACY_ITEM_NAMES: [(&str, &str); 1] = [("minecraft:muttonRaw", "minecraft:mutton")];
+pub const LEGACY_ITEM_NAMES: [(&str, &str); 2] = [
+    ("minecraft:muttonRaw", "minecraft:mutton"),
+    // `entities/wither_boss` (measured: `/loot … loot "entities/wither_boss"`
+    // drops a nether star).
+    ("minecraft:netherStar", "minecraft:nether_star"),
+];
 /// The legacy loot item name that picks its wool item by data value
 /// (the palette colour): `minecraft:wool` with data 14 is red wool.
 pub const LEGACY_WOOL: &str = "minecraft:wool";
+/// The legacy loot item name that picks its head item by data value: the
+/// vanilla wither skeleton table drops `minecraft:skull` with data 1.
+pub const LEGACY_SKULL: &str = "minecraft:skull";
+/// Head item of each legacy skull data value. Provisional: pmmp's
+/// BedrockItemUpgradeSchema, as for [`LEGACY_ITEM_NAMES`].
+pub const SKULL_ITEMS: [&str; 7] = [
+    "minecraft:skeleton_skull",
+    "minecraft:wither_skeleton_skull",
+    "minecraft:zombie_head",
+    "minecraft:player_head",
+    "minecraft:creeper_head",
+    "minecraft:dragon_head",
+    "minecraft:piglin_head",
+];
 
 // --- Palette colours ------------------------------------------------------------
 
@@ -591,6 +632,14 @@ pub const MATERIAL_ICE: u8 = 13;
 /// Material ordinal of leaves: a spawn column whose top spawn block is
 /// leaves keeps its next spawn block below on the surface.
 pub const MATERIAL_LEAVES: u8 = 7;
+// --- Flee sun (`behavior.flee_sun`, confirmed) --------------------------------
+
+/// Candidate cover blocks drawn per attempt to start …
+pub const FLEE_SUN_ATTEMPTS: u32 = 10;
+/// … each `random(2 × range) - range` from the feet block on x/z and y.
+pub const FLEE_SUN_RANGE_XZ: i32 = 10;
+pub const FLEE_SUN_RANGE_Y: i32 = 3;
+
 /// The overworld brightness ramp: the brightness each raw light level
 /// `0..=15` stands for, `(1 - f) / (3f + 1)` with `f = 1 - level / 15`, as
 /// the f32 values the game stores (confirmed).
@@ -623,6 +672,10 @@ pub const ANIMAL_GRASS_WALK_TARGET: f32 = 10.0;
 /// An animal's walk-target value elsewhere is the brightness ramp at the
 /// block plus this (confirmed).
 pub const ANIMAL_WALK_TARGET_OFFSET: f32 = -0.5;
+/// An animal's or monster's walk-target value above a magma block, unless
+/// it is fire immune (a grass block below an animal wins; confirmed).
+pub const MAGMA_WALK_TARGET: f32 = -0.5;
+pub const MAGMA_BLOCK: &str = "minecraft:magma";
 /// A naturally spawned monster needs raw brightness below this at its feet
 /// (confirmed).
 pub const MONSTER_SPAWN_BRIGHTNESS_LIMIT: u8 = 8;
@@ -714,9 +767,6 @@ pub const GEAR_LOOTING_DROP_BONUS: f32 = 0.01;
 /// (`Damage`) `max_damage - r`, `r` uniform in `0..=k` with `k` uniform in
 /// `0..max(max_damage, this) - 3`, so it keeps `r` durability (confirmed).
 pub const GEAR_DROP_MIN_MAX_DAMAGE: i32 = 4;
-/// Bedrock's Curse of Binding enchantment id: armour carrying it is never
-/// swapped for a picked-up piece (confirmed).
-pub const BINDING_CURSE_ID: i16 = 27;
 /// `MobEquipment` container id of a mob's off hand in the inventory send
 /// (confirmed).
 pub const GEAR_OFFHAND_CONTAINER: u8 = 119;

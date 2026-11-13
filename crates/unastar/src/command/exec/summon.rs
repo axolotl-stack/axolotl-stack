@@ -110,6 +110,10 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SummonArgs) -> CommandResult {
     } else {
         SpawnCause::Spawned
     };
+    // Measured (`/execute in nether`): nothing spawns where nothing is loaded.
+    if ctx.source.dimension != crate::command::Dimension::Overworld {
+        return failure!("commands.summon.failed");
+    }
     let entity =
         spawn_mob(ctx.world, &identifier, position, yaw, cause).map_err(|error| match error {
             MobSpawnError::Unsupported { identifier, reason } => {
@@ -129,4 +133,16 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SummonArgs) -> CommandResult {
         *metadata = tagged;
     }
     success!("commands.summon.success")
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn summon_and_kill_match_the_bds_capture() {
+        Replay::new().assert_segment("summon", &[]);
+    }
 }

@@ -18,6 +18,8 @@ use tracing::warn;
 use unastar_rules::molang::eval::{MolangContext, Value as MolangValue, evaluate_num};
 use unastar_rules::molang::{BuiltinQuery, Expr, QueryId};
 
+use unastar_rules::ids::Enchantment;
+
 use crate::ecs::resources::TickCounter;
 use crate::entity::components::{Health, OnGround, Position};
 use crate::entity::definition::flags::ActorFlags;
@@ -28,7 +30,6 @@ use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
 use crate::entity::xp_orb::spawn_experience;
 use crate::entity::{EntityRandom, spawn_item_drop};
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::server::game::types::{ItemRegistryResource, RecipeRegistryResource};
 use crate::server::game::{LootContext, LootLevel, loot_stacks};
 
@@ -104,7 +105,7 @@ fn drop_loot(world: &mut World, mob: Entity) {
         killed_by_pet: false,
         looting: tool
             .as_ref()
-            .map_or(0, |tool| enchantment_level(tool, Enchantment::Looting)),
+            .map_or(0, |tool| tool.enchantment_level(Enchantment::Looting)),
         on_fire: Some(on_fire),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),

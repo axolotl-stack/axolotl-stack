@@ -5,7 +5,17 @@ use proc_macro2::Literal;
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
+#[path = "build/enchantments.rs"]
+mod enchantments;
+
 fn main() {
+    let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+    write_filter_subject(&out_dir);
+    enchantments::write(&out_dir);
+    write_rotation_sine_table(&out_dir);
+}
+
+fn write_filter_subject(out_dir: &Path) {
     let schema_path = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join(
         "../unastar-data/data/vanilla_bp/metadata/json_schemas/server/entity/1.21.120/FilterSubject.json",
     );
@@ -64,13 +74,11 @@ fn main() {
         }
     };
     let file: syn::File = syn::parse2(tokens).expect("generated subject Rust");
-    let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     std::fs::write(
         out_dir.join("filter_subject.rs"),
         prettyplease::unparse(&file),
     )
     .expect("writing filter subject schema");
-    write_rotation_sine_table(&out_dir);
 }
 
 fn write_rotation_sine_table(out_dir: &Path) {

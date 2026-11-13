@@ -153,10 +153,9 @@ fn breath_of(world: &World, player: Entity) -> Option<Breath> {
 /// The Respiration level of the helmet `player` wears.
 fn respiration(world: &World, player: Entity) -> u8 {
     world.get::<ArmourInventory>(player).map_or(0, |armour| {
-        crate::item::enchant::enchantment_level(
-            armour.helmet(),
-            crate::item::enchant::Enchantment::Respiration,
-        )
+        armour
+            .helmet()
+            .enchantment_level(unastar_rules::ids::Enchantment::Respiration)
     })
 }
 

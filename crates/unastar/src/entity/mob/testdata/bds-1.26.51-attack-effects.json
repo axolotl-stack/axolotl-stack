@@ -1,0 +1,68 @@
+{
+  "description": "MobEffect packets a survival player (BDSExtractor, runtime id 1) receives while a husk or wither skeleton hits it, per world difficulty. Every hit re-sends the effect with the same amplifier and full duration; `packets` counts the MobEffect packets of the segment (the wither skeleton sends two per hit, the husk one). Hard husk hits were not observed (the player died first).",
+  "server": "BDS 1.26.51 (plain bedrock_server, no Endstone), seed 12345 harness world",
+  "source": {
+    "tool": "tools/bds-sweep/capture.py --commands, 2026-11-10, operator-commands/command-outputs.json",
+    "captures": [
+      {
+        "capture": "ent-fire-immune-20261110",
+        "command_outputs_sha256": "7a84de9883300cca8f0db241679ec70fb85243318bce9a16211bad33f20a0ca4"
+      },
+      {
+        "capture": "ent-anger-20261110",
+        "command_outputs_sha256": "a9a28e2e4697b4ee07595d77895bf8430977ee48d74091928c6f85b944f63057"
+      },
+      {
+        "capture": "ent-anger2-20261110",
+        "command_outputs_sha256": "6df9d97761557576271c7a390416a4f7117e81e0dbdf1fe6abdb40de6a04b158"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "mob": "minecraft:husk",
+      "difficulty": "easy",
+      "effect": "hunger",
+      "effect_id": 17,
+      "amplifier": 0,
+      "duration_ticks": 600,
+      "packets": 5
+    },
+    {
+      "mob": "minecraft:husk",
+      "difficulty": "normal",
+      "effect": "hunger",
+      "effect_id": 17,
+      "amplifier": 0,
+      "duration_ticks": 600,
+      "packets": 2
+    },
+    {
+      "mob": "minecraft:wither_skeleton",
+      "difficulty": "easy",
+      "effect": "wither",
+      "effect_id": 20,
+      "amplifier": 0,
+      "duration_ticks": 200,
+      "packets": 10
+    },
+    {
+      "mob": "minecraft:wither_skeleton",
+      "difficulty": "normal",
+      "effect": "wither",
+      "effect_id": 20,
+      "amplifier": 0,
+      "duration_ticks": 200,
+      "packets": 4
+    },
+    {
+      "mob": "minecraft:wither_skeleton",
+      "difficulty": "hard",
+      "effect": "wither",
+      "effect_id": 20,
+      "amplifier": 0,
+      "duration_ticks": 200,
+      "packets": 4
+    }
+  ]
+}

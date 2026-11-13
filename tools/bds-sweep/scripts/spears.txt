@@ -1,0 +1,118 @@
+# Spears: plain hits and the attack cooldown, the jab (item use
+# `UseAsAttack`), missed swings, holding a spear, and a sword's melee reach.
+# For packet captures of the same scripted player against BDS and unastar:
+# `bds-sweep-client --script tools/bds-sweep/scripts/spears.txt --capture-dir DIR`
+# (the player must be an operator). Ticks are the client's input ticks; the
+# replay test (`crates/unastar/src/entity/mob/combat/hit/spear_tests.rs`)
+# sets up each numbered scenario the way the commands here do.
+#
+# Arena: a stone floor at y=-61 and a stone walk at y=-60 along x=1..9,
+# z=0..1, so pigs stand at y=-59 and the eye of the player (feet
+# (0.5,-60,0.5), facing east, level) passes through them. Pigs are summoned
+# as adults with a name tag, held still by Slowness 255, and removed between
+# scenarios. The hotbar holds an iron spear (0), a diamond spear (1) and an
+# iron sword (2); slot 3 is empty.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule domobloot false
+25 /time set 6000
+26 /fill -4 -61 -4 12 -61 4 stone
+27 /fill -4 -60 -4 12 -55 4 air
+28 /fill 1 -60 0 9 -60 1 stone
+29 /gamemode survival @s
+30 /clear @s
+31 /tp @s 0.5 -60 0.5 -90 0
+32 /kill @e[type=pig]
+34 /give @s iron_spear
+35 /give @s diamond_spear
+36 /give @s iron_sword
+
+# 1. A plain hit on a pig 2 blocks away; a pig 3 blocks away 7 inputs later
+#    (refused: the cooldown) and 25 inputs later; three attacks in one input
+#    on pigs 2, 3 and 4 blocks away (only the first lands); a pig 1 block
+#    away (inside the 2-block minimum reach of the jab).
+40 /summon pig 1.5 -59 0.5 0 0 minecraft:spawn_adult a1
+41 /summon pig 2.5 -59 0.5 0 0 minecraft:spawn_adult a2
+42 /summon pig 3.5 -59 0.5 0 0 minecraft:spawn_adult a3
+43 /summon pig 4.5 -59 0.5 0 0 minecraft:spawn_adult a4
+44 /effect @e[type=pig] slowness 200 255 true
+50 attack-named a2
+57 attack-named a3
+82 attack-named a3
+110 attack-named a2
+110 attack-named a3
+110 attack-named a4
+135 attack-named a1
+160 /kill @e[type=pig]
+
+# 2. The cooldown's last inputs: hits 18 and 19 inputs after a hit; then the
+#    diamond spear 2 inputs after an iron spear hit (one category), and the
+#    sword 2 inputs after a diamond spear hit (no cooldown of its own).
+170 /summon pig 2.5 -59 0.5 0 0 minecraft:spawn_adult b2
+171 /summon pig 3.5 -59 0.5 0 0 minecraft:spawn_adult b3
+172 /summon pig 4.5 -59 0.5 0 0 minecraft:spawn_adult b4
+173 /summon pig 2.5 -59 1.5 0 0 minecraft:spawn_adult b5
+174 /effect @e[type=pig] slowness 200 255 true
+180 attack-named b2
+198 attack-named b3
+199 attack-named b4
+225 attack-named b5
+227 select 1
+229 attack-named b3
+255 attack-named b3
+257 select 2
+259 attack-named b4
+270 select 0
+275 /kill @e[type=pig]
+
+# 3. The jab without a target: each spear (fresh in the main hand), the iron
+#    spear again inside its cooldown, the jab packed into PlayerAuthInput,
+#    and a jab with the sword. A pig 3 blocks away stays in the line.
+280 /summon pig 3.5 -59 0.5 0 0 minecraft:spawn_adult c3
+281 /effect @e[type=pig] slowness 400 255 true
+290 jab
+295 jab
+320 jab-input
+350 /replaceitem entity @s slot.weapon.mainhand 0 wooden_spear
+355 jab
+380 /replaceitem entity @s slot.weapon.mainhand 0 stone_spear
+385 jab
+410 /replaceitem entity @s slot.weapon.mainhand 0 copper_spear
+415 jab
+440 /replaceitem entity @s slot.weapon.mainhand 0 golden_spear
+445 jab
+470 /replaceitem entity @s slot.weapon.mainhand 0 netherite_spear
+475 jab
+500 select 2
+505 jab
+520 /kill @e[type=pig]
+
+# 4. Missed swings: the sword, the empty hand and the netherite spear (both
+#    halves of a swing, then each alone).
+530 swing
+540 select 3
+545 swing
+550 select 0
+555 swing
+565 animate
+575 missed-swing
+
+# 5. Holding the netherite spear 30 inputs, then letting go.
+590 use
+620 release-item
+
+# 6. A sword's reach: pigs whose centres are 5, 6, 7 and 8 blocks from the eye.
+630 select 2
+632 /summon pig 5.5 -59 0.5 0 0 minecraft:spawn_adult r5
+633 /summon pig 6.5 -59 0.5 0 0 minecraft:spawn_adult r6
+634 /summon pig 7.5 -59 0.5 0 0 minecraft:spawn_adult r7
+635 /summon pig 8.5 -59 0.5 0 0 minecraft:spawn_adult r8
+636 /effect @e[type=pig] slowness 200 255 true
+645 attack-named r5
+650 attack-named r6
+655 attack-named r7
+660 attack-named r8
+670 /kill @e[type=pig]
+680 exit

@@ -2,9 +2,9 @@
 
 **Observed 2026-10-21:** the unmodified pinned gophertunnel reference and jolyne both spawn on Mojang BDS **1.26.51.1**, Endstone **0.11.12**, protocol **2193**, `online-mode=false`, and complete **join-idle** and **join-chat**. Minecraft was not launched; no live Xbox account or credentials were used.
 
-## Root cause of `readNoHeader`
+## Root cause of the packet-reader rejection
 
-BDS rejects retired UWP **`DeviceOS: 7`** as an invalid connection request; `readNoHeader failed` is the enclosing packet-reader diagnostic, not evidence that the little-endian string lengths or JWT envelope failed to parse.
+BDS rejects retired UWP **`DeviceOS: 7`** as an invalid connection request; the packet reader's failure suffix in its `PacketViolationWarning` is the enclosing diagnostic, not evidence that the little-endian string lengths or JWT envelope failed to parse.
 
 Evidence:
 

@@ -43,10 +43,16 @@ documents and still appear in code comments and research docs; the table maps th
 | [0030](0030-use-26x-world-clocks.md) | Sync time with 26.x world clocks | 2026-10-24 | accepted | WD5 |
 | [0031](0031-parallel-chunk-generation-is-allowed.md) | Parallel chunk generation is allowed | 2026-10-24 | accepted | world §1.3 |
 | [0032](0032-two-worldgen-numeric-backends.md) | Two worldgen numeric backends | 2026-10-27 | accepted | |
-| [0033](0033-persist-block-states-by-name.md) | Save block states on disk by name and states | 2026-11-04 | proposed | |
+| [0033](0033-persist-block-states-by-name.md) | Save block states on disk by name and states | 2026-11-04 | accepted | |
 | [0034](0034-bound-the-java-native-session.md) | Bound the Java-style native session without changing its output | 2026-11-05 | proposed | |
 | [0035](0035-disable-a-plugin-after-it-traps.md) | Disable a plugin after it traps | 2026-11-05 | accepted | |
+| [0036](0036-run-a-command-before-its-players-later-inputs.md) | Run a command before the inputs its player sent after it | 2026-11-10 | accepted | |
+| [0039](0039-fail-the-column-on-damaged-sub-chunks.md) | Fail the column load on damaged sub-chunk data | 2026-11-10 | proposed | |
 | [0040](0040-judge-player-movement-with-a-shared-simulation.md) | Judge player movement with a simulation shared with the measuring client | 2026-11-11 | proposed | |
+| [0044](0044-send-pre-start-game-roster-packets-after-start-game.md) | Send the roster packets BDS sends before StartGame right after it | 2026-11-11 | proposed | |
+| [0046](0046-resolve-a-pvp-hit-with-the-attacker-state-passed-in.md) | Resolve a PvP hit with the attacker's state passed in, from before its first input of the tick | 2026-11-11 | proposed | |
+| [0052](0052-generate-one-enchantment-type.md) | Generate one canonical Enchantment type from source-attributed data | 2026-11-12 | accepted | |
+| [0053](0053-bedrock-terrain-uses-java-exact-noise.md) | Bedrock-style terrain uses the Java-exact noise backend | 2026-11-12 | proposed | |
 | [0054](0054-measure-bds-movement-through-a-far-reporting-client.md) | Measure BDS's own movement with a client that reports a far position | 2026-11-12 | proposed | |
 | [0060](0060-validate-the-movement-harness-against-bds-itself.md) | Validate the movement harness against BDS itself | 2026-11-12 | proposed | |
 

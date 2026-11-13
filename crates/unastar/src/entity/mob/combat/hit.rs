@@ -8,9 +8,10 @@
 //! timer; while it runs a new hit only deals what exceeds the damage that
 //! started it, and nothing when it does not exceed it (override and
 //! self-destruct damage ignore the timer). A full hit shows the hurt
-//! animation to viewers (`ActorEvent` hurt) and, when it has a source
-//! position, knocks the mob back. The changed `Health` reaches viewers as
-//! an `UpdateAttributes` through `derive_mob_state`.
+//! animation to viewers (`ActorEvent` hurt; a killing hit shows only the
+//! death) and, when it has a source position, knocks the mob back. The
+//! changed `Health` reaches viewers as an `UpdateAttributes` through
+//! `derive_mob_state`.
 
 use std::sync::Arc;
 
@@ -37,7 +38,9 @@ use crate::entity::mob::components::{
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
+use crate::item::ItemStack;
 use crate::registry::collision::Aabb;
+use unastar_rules::ids::Enchantment;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.
@@ -75,7 +78,9 @@ pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
 /// transaction are not trusted.
 ///
 /// Spectators, dead players and players whose eye is farther than
-/// [`constants::MELEE_REACH`] from the mob's box cannot hit. Creative
+/// [`constants::MELEE_REACH`] from the mob's box (or, with
+/// `minecraft:custom_hit_test`, from every one of its boxes) cannot hit, nor
+/// can an item whose attack cooldown runs (`crate::item::cooldown`). Creative
 /// players deal normal melee damage.
 pub fn player_attack(
     world: &mut World,
@@ -93,13 +98,37 @@ pub fn player_attack(
         return;
     };
     let mob_box = Aabb::from_feet(feet, body.width, body.height);
-    if eye.distance_squared(eye.clamp(mob_box.min, mob_box.max))
-        > constants::MELEE_REACH * constants::MELEE_REACH
-    {
+    let distance_sq = |aabb: &Aabb| eye.distance_squared(eye.clamp(aabb.min, aabb.max));
+    // `minecraft:custom_hit_test` boxes count as much as the collision box.
+    let nearest_sq = world
+        .get::<crate::entity::mob::components::stats::CustomHitTest>(target)
+        .map_or(distance_sq(&mob_box), |hit_test| {
+            hit_test
+                .0
+                .iter()
+                .map(|hitbox| distance_sq(&hitbox.at(feet)))
+                .fold(distance_sq(&mob_box), f64::min)
+        });
+    if nearest_sq > constants::MELEE_REACH * constants::MELEE_REACH {
         return;
     }
     let held = held_item(world, player).cloned();
-    let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
+    // An item with an attack cooldown (a spear) cannot hit while it runs,
+    // and a hit on a living mob starts it (`item::cooldown`).
+    let cooldown = held
+        .as_ref()
+        .and_then(ItemStack::item)
+        .and_then(crate::item::cooldown::cooldown)
+        .filter(|cooldown| cooldown.attack);
+    if cooldown
+        .as_ref()
+        .is_some_and(|cooldown| crate::item::cooldown::cooling(world, player, &cooldown.category))
+    {
+        return;
+    }
+    let alive = world.get::<Dead>(target).is_none()
+        && world.get::<Health>(target).is_some_and(|h| !h.is_dead());
+    let damage = melee_damage(held.as_ref());
     let applied = hurt_mob(
         world,
         target,
@@ -112,6 +141,9 @@ pub fn player_attack(
             knockback_power: KnockbackPower::DEFAULT,
         },
     );
+    if let Some(cooldown) = cooldown.filter(|_| alive) {
+        crate::item::cooldown::start(world, player, &cooldown);
+    }
     // The attacker pays food and, for a hit that landed, weapon durability.
     crate::server::game::hunger::exhaust_player(world, player, |values| values.attack);
     if applied > 0.0
@@ -120,6 +152,15 @@ pub fn player_attack(
         let wear = crate::server::game::durability::attack_wear(entry);
         crate::server::game::durability::wear_held(world, player, wear);
     }
+}
+
+/// Damage of a player's melee hit with `held` (`None`: empty hand), on a mob
+/// or a player: the item's measured BDS damage plus Sharpness
+/// ([`unastar_rules::melee::melee_damage`]; `docs/quirks/bds.md`).
+pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
+    let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
+    let sharpness = held.map_or(0, |stack| stack.enchantment_level(Enchantment::Sharpness));
+    unastar_rules::melee::melee_damage(base, sharpness)
 }
 
 /// The eye position of a player that may attack this tick.
@@ -138,11 +179,16 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// returns the health actually removed (0 when the hit was ignored). A hit
 /// that empties the mob's health starts its death. Zero damage still counts
 /// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
+/// A fire-immune mob ignores the [`constants::FIRE_IMMUNE_CAUSES`] before
+/// anything else looks at the hit.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
+        return 0.0;
+    }
+    if constants::FIRE_IMMUNE_CAUSES.contains(&hit.cause) && fire_immune(world, target) {
         return 0.0;
     }
     let (hit, sensor_trigger) = match damage_sensor::sense(world, target, hit) {
@@ -186,7 +232,11 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         health.is_dead()
     };
     if full {
-        send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
+        // A killing hit shows only the death (`ActorEvent` death from
+        // `begin_death`), still with its knockback (BDS 1.26.51 spear capture).
+        if !dead {
+            send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
+        }
         if let Some(from) = hit.knockback_from {
             apply_knockback(world, target, from, hit.knockback_power);
         }
@@ -205,6 +255,17 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         death::begin_death(world, target);
     }
     applied
+}
+
+/// Whether `entity` carries the `FIRE_IMMUNE` flag (`minecraft:fire_immune`).
+pub fn fire_immune(world: &World, entity: Entity) -> bool {
+    world
+        .get::<crate::entity::definition::flags::ActorFlags>(entity)
+        .is_some_and(|flags| {
+            flags
+                .get(jolyne::valentine::actor_flags::FIRE_IMMUNE)
+                .unwrap_or(false)
+        })
 }
 
 /// Push `target` away from `from` (horizontally).
@@ -304,6 +365,12 @@ pub fn hurt_on_condition(
         }
     }
 }
+
+#[cfg(test)]
+mod measured_tests;
+
+#[cfg(test)]
+mod spear_tests;
 
 #[cfg(test)]
 mod tests;
