@@ -53,6 +53,7 @@ const PARCHED: &str = "minecraft:parched";
 const ZOMBIE_VILLAGER: &str = "minecraft:zombie_villager_v2";
 const SILVERFISH: &str = "minecraft:silverfish";
 const SPIDER: &str = "minecraft:spider";
+const ENDERMAN: &str = "minecraft:enderman";
 const CAVE_SPIDER: &str = "minecraft:cave_spider";
 
 pub(super) fn block(name: &str) -> u32 {
@@ -553,6 +554,7 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
         SILVERFISH,
         SPIDER,
         CAVE_SPIDER,
+        ENDERMAN,
     ] {
         let mut a = floor(15, Difficulty::Normal, GameMode::Creative);
         let near = a.adult(identifier, DVec3::new(0.5, SURFACE, 0.5));
@@ -570,7 +572,7 @@ fn listed_mobs_despawn_far_from_players_and_stay_near_them() {
 /// definition gives it, and not for a family it lacks.
 #[test]
 fn listed_mobs_belong_to_their_authored_families() {
-    let cases: [(&str, &[&str], &str); 13] = [
+    let cases: [(&str, &[&str], &str); 14] = [
         (SKELETON, &["skeleton", "undead", "monster", "mob"], "stray"),
         (
             STRAY,
@@ -623,6 +625,7 @@ fn listed_mobs_belong_to_their_authored_families() {
             "undead",
         ),
         (SPIDER, &["spider", "monster", "mob", "arthropod"], "undead"),
+        (ENDERMAN, &["enderman", "monster", "mob"], "undead"),
         (
             CAVE_SPIDER,
             &["cavespider", "monster", "arthropod", "mob"],
@@ -655,7 +658,7 @@ fn listed_mobs_belong_to_their_authored_families() {
 fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
     // The stray, bogged and parched also drop a tipped arrow on a player
     // kill (`set_potion`), which loot does not implement.
-    let cases: [(&str, &[&str], Option<&str>, u32); 10] = [
+    let cases: [(&str, &[&str], Option<&str>, u32); 11] = [
         (
             SKELETON,
             &["minecraft:arrow", "minecraft:bone"],
@@ -701,6 +704,12 @@ fn listed_mobs_drop_their_loot_and_experience_when_killed_by_a_player() {
             5,
         ),
         (ENDERMITE, &[], None, 3),
+        (
+            ENDERMAN,
+            &["minecraft:ender_pearl"],
+            Some("minecraft:ender_pearl"),
+            5,
+        ),
         (SILVERFISH, &[], None, 5),
         (
             SPIDER,

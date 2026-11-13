@@ -247,14 +247,35 @@ pub fn domain_slots(domain: &str) -> Option<&'static [GearSlot]> {
     })
 }
 
-/// The `has_equipment` test on a mob: whether an item `want` matches is in
-/// one of `slots`.
-pub fn has_equipment(world: &World, mob: Entity, slots: &[GearSlot], want: &ItemMatcher) -> bool {
-    world.get::<MobEquipment>(mob).is_some_and(|equipment| {
-        slots.iter().any(|&slot| {
-            let stack = equipment.get(slot);
-            !stack.is_empty() && want.matches(stack.item_id(), stack.damage)
-        })
+/// The `has_equipment` test on a mob or a player: whether an item `want`
+/// matches is in one of `slots` (a player's hands are its held and off-hand
+/// items, its armour slots its armour inventory).
+pub fn has_equipment(world: &World, actor: Entity, slots: &[GearSlot], want: &ItemMatcher) -> bool {
+    let matches = |stack: &crate::item::ItemStack| {
+        !stack.is_empty() && want.matches(stack.item_id(), stack.damage)
+    };
+    if let Some(equipment) = world.get::<MobEquipment>(actor) {
+        return slots.iter().any(|&slot| matches(equipment.get(slot)));
+    }
+    if world
+        .get::<crate::entity::components::Player>(actor)
+        .is_none()
+    {
+        return false;
+    }
+    let armour = world.get::<crate::entity::components::ArmourInventory>(actor);
+    slots.iter().any(|&slot| {
+        let stack = match slot {
+            GearSlot::Mainhand => crate::entity::mob::events::held_item(world, actor),
+            GearSlot::Offhand => world
+                .get::<crate::entity::components::OffhandSlot>(actor)
+                .map(|offhand| &offhand.0),
+            GearSlot::Head => armour.map(|a| a.helmet()),
+            GearSlot::Chest => armour.map(|a| a.chestplate()),
+            GearSlot::Legs => armour.map(|a| a.leggings()),
+            GearSlot::Feet => armour.map(|a| a.boots()),
+        };
+        stack.is_some_and(matches)
     })
 }
 

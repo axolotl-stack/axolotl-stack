@@ -21,8 +21,8 @@ use crate::entity::mob::components::{
     AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
     FloatGoal, FollowParentGoal, HurtByTargetGoal, LeapAtTargetGoal, LookAtPlayerGoal,
     MeleeBoxAttackGoal, MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal,
-    PickupItemsGoal, RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal,
-    TemptGoal, WakeUpFriendsGoal, WalkNavigationConfig,
+    PickupItemsGoal, PlaceBlockGoal, RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal,
+    SwellGoal, TakeBlockGoal, TemptGoal, WakeUpFriendsGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -63,10 +63,12 @@ pub enum Goal {
     WakeUpFriends,
     Swell,
     LeapAtTarget,
+    TakeBlock,
+    PlaceBlock,
 }
 
 impl Goal {
-    const ALL: [Goal; 21] = [
+    const ALL: [Goal; 23] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -88,6 +90,8 @@ impl Goal {
         Goal::WakeUpFriends,
         Goal::Swell,
         Goal::LeapAtTarget,
+        Goal::TakeBlock,
+        Goal::PlaceBlock,
     ];
 
     pub fn id(self) -> GoalId {
@@ -117,7 +121,7 @@ impl Goal {
             Goal::EquipItem => GoalControls::NONE,
             Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
             Goal::AvoidMobType | Goal::MergeWithStone | Goal::Swell => GoalControls::MOVE,
-            Goal::WakeUpFriends => GoalControls::NONE,
+            Goal::WakeUpFriends | Goal::TakeBlock | Goal::PlaceBlock => GoalControls::NONE,
             Goal::LeapAtTarget => GoalControls::MOVE | GoalControls::JUMP,
         }
     }
@@ -258,6 +262,22 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    if let Some(goal) = entity.get::<TakeBlockGoal>() {
+        out.push(GoalSpec {
+            id: Goal::TakeBlock.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: Goal::TakeBlock.controls(),
+        });
+    }
+    if let Some(goal) = entity.get::<PlaceBlockGoal>() {
+        out.push(GoalSpec {
+            id: Goal::PlaceBlock.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: Goal::PlaceBlock.controls(),
+        });
+    }
     if let Some(goal) = entity.get::<LeapAtTargetGoal>() {
         out.push(GoalSpec {
             id: Goal::LeapAtTarget.id(),
@@ -299,6 +319,8 @@ pub struct Effects {
     pub gear: super::pickup::GearWork,
     /// A silverfish merging into a block or waking its friends.
     pub silverfish: Option<super::silverfish::SilverfishWork>,
+    /// A block taken or put down.
+    pub carry: Option<super::carry::CarryWork>,
     /// The swell goal started: the mob hisses (`fuse`).
     pub swell_started: bool,
     /// The leap goal started: the mob's velocity after this tick's travel.
@@ -385,7 +407,7 @@ impl<'a> GoalContext<'a> {
         self.world.get::<T>(self.entity)
     }
 
-    fn eye(&self) -> DVec3 {
+    pub(super) fn eye(&self) -> DVec3 {
         self.body.feet + DVec3::Y * self.body.height
     }
 
@@ -756,6 +778,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::WakeUpFriends => self.wake_can_start(),
             Goal::Swell => self.config::<SwellGoal>().is_some() && self.lit(),
             Goal::LeapAtTarget => self.leap_can_start(),
+            Goal::TakeBlock => self.take_can_start(),
+            Goal::PlaceBlock => self.place_can_start(),
         }
     }
 
@@ -768,6 +792,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::WakeUpFriends => self.config::<WakeUpFriendsGoal>().is_some(),
             Goal::Swell => self.lit(),
             Goal::LeapAtTarget => !self.body.on_ground,
+            // Taking and placing are done the tick they start.
+            Goal::TakeBlock | Goal::PlaceBlock => false,
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -904,6 +930,7 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.effects.swell_started = true;
             }
             Goal::LeapAtTarget => self.leap_start(),
+            Goal::TakeBlock | Goal::PlaceBlock => {}
         }
     }
 
@@ -913,7 +940,11 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::Panic | Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone => {
                 self.nav.stop(self.movement)
             }
-            Goal::WakeUpFriends | Goal::Swell | Goal::LeapAtTarget => {}
+            Goal::WakeUpFriends
+            | Goal::Swell
+            | Goal::LeapAtTarget
+            | Goal::TakeBlock
+            | Goal::PlaceBlock => {}
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -967,7 +998,12 @@ impl GoalCallbacks for GoalContext<'_> {
                     }
                 }
             }
-            Goal::RandomStroll | Goal::FleeSun | Goal::MergeWithStone | Goal::LeapAtTarget => {}
+            Goal::RandomStroll
+            | Goal::FleeSun
+            | Goal::MergeWithStone
+            | Goal::LeapAtTarget
+            | Goal::TakeBlock
+            | Goal::PlaceBlock => {}
             Goal::WakeUpFriends => self.wake_tick(),
             Goal::Swell => self.nav.stop(self.movement),
             Goal::EatBlock => {

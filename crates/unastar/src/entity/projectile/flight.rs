@@ -168,6 +168,12 @@ fn step(
 
     let mut removed = false;
     for &(t, target) in hits.iter() {
+        // A mob that teleports from projectiles dodges this one: it flies on.
+        if let Target::Actor(actor) = target
+            && crate::entity::mob::life::teleport::dodge_projectile(world, actor)
+        {
+            continue;
+        }
         // The effects happen where the segment meets the target: BDS
         // 1.26.51 sends an xp bottle's splash event, orbs and hit sound at
         // the top of the block it fell on.

@@ -1519,6 +1519,188 @@ defaults! {
     target_nearby_outside_range -> f32 = p::TARGET_NEARBY_OUTSIDE_RANGE;
 }
 
+/// How `minecraft:looked_at` sets the actors looking at its owner as
+/// targets: authored as `false` (never) or a mode name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LookedAtSetTarget {
+    /// Events only (`"never"` or `false`).
+    Never,
+    /// The first looking actor becomes the target; scanning stops while the
+    /// owner has a target.
+    OnceAndStopScanning,
+    /// The first looking actor becomes the target; scanning goes on.
+    OnceAndKeepScanning,
+}
+
+impl<'de> Deserialize<'de> for LookedAtSetTarget {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            Flag(bool),
+            Mode(String),
+        }
+        match Raw::deserialize(deserializer)? {
+            Raw::Flag(false) => Ok(Self::Never),
+            Raw::Mode(mode) => match mode.as_str() {
+                "never" => Ok(Self::Never),
+                "once_and_stop_scanning" => Ok(Self::OnceAndStopScanning),
+                "once_and_keep_scanning" => Ok(Self::OnceAndKeepScanning),
+                other => Err(serde::de::Error::custom(format!(
+                    "unknown looked_at set_target {other:?}"
+                ))),
+            },
+            Raw::Flag(true) => Err(serde::de::Error::custom(
+                "looked_at set_target true names no mode",
+            )),
+        }
+    }
+}
+
+/// A point on the owner a `minecraft:looked_at` sight line aims at.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookAtLocation {
+    /// `head`, `body` or `feet`.
+    pub location: LookAtAnchor,
+    #[serde(default)]
+    pub vertical_offset: f32,
+}
+
+/// Where on the owner a [`LookAtLocation`] sits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LookAtAnchor {
+    Head,
+    Body,
+    Feet,
+}
+
+/// The block shape a `minecraft:looked_at` sight line is blocked by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LineOfSightObstruction {
+    Outline,
+    Collision,
+    CollisionForCamera,
+}
+
+/// A `minecraft:looked_at` event: a trigger, plus the `filter` field the
+/// vanilla creaking authors (`"self"`) beside the usual ones.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookedAtEvent {
+    pub event: String,
+    #[serde(default)]
+    pub filters: Option<FilterJson>,
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub filter: Option<String>,
+}
+
+/// `minecraft:looked_at`: notices actors looking at the owner (the
+/// enderman's stare, the creaking).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookedAt {
+    /// Degrees; at one block when `scale_fov_by_distance`.
+    #[serde(default = "looked_at_field_of_view")]
+    pub field_of_view: f32,
+    #[serde(default)]
+    pub filters: Option<FilterJson>,
+    #[serde(default)]
+    pub find_players_only: bool,
+    #[serde(default = "looked_at_obstruction")]
+    pub line_of_sight_obstruction_type: LineOfSightObstruction,
+    #[serde(default)]
+    pub look_at_locations: Option<Vec<LookAtLocation>>,
+    /// Seconds before scanning again after a detection.
+    #[serde(default)]
+    pub looked_at_cooldown: Option<ValueOrRange<f32>>,
+    #[serde(default)]
+    pub looked_at_event: Option<LookedAtEvent>,
+    /// Seconds an actor must look without a break.
+    #[serde(default = "looked_at_min_duration")]
+    pub min_looked_at_duration: f32,
+    #[serde(default)]
+    pub not_looked_at_event: Option<LookedAtEvent>,
+    #[serde(default = "looked_at_scale_fov")]
+    pub scale_fov_by_distance: bool,
+    #[serde(default = "looked_at_search_radius")]
+    pub search_radius: f32,
+    #[serde(default = "looked_at_set_target")]
+    pub set_target: LookedAtSetTarget,
+}
+
+defaults! {
+    looked_at_field_of_view -> f32 = p::LOOKED_AT_FIELD_OF_VIEW;
+    looked_at_obstruction -> LineOfSightObstruction = LineOfSightObstruction::Collision;
+    looked_at_min_duration -> f32 = p::LOOKED_AT_MIN_DURATION;
+    looked_at_scale_fov -> bool = p::LOOKED_AT_SCALE_FOV_BY_DISTANCE;
+    looked_at_search_radius -> f32 = p::LOOKED_AT_SEARCH_RADIUS;
+    looked_at_set_target -> LookedAtSetTarget = LookedAtSetTarget::Never;
+}
+
+/// `minecraft:teleport`: random teleports, and teleports toward a target.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Teleport {
+    #[serde(default = "teleport_dark_chance")]
+    pub dark_teleport_chance: f32,
+    #[serde(default = "teleport_light_chance")]
+    pub light_teleport_chance: f32,
+    /// Seconds.
+    #[serde(default = "teleport_max_time")]
+    pub max_random_teleport_time: f32,
+    /// Seconds.
+    #[serde(default = "teleport_min_time")]
+    pub min_random_teleport_time: f32,
+    #[serde(default = "teleport_cube")]
+    pub random_teleport_cube: Vec3,
+    #[serde(default = "teleport_random")]
+    pub random_teleports: bool,
+    #[serde(default = "teleport_target_distance")]
+    pub target_distance: f32,
+    #[serde(default = "teleport_target_chance")]
+    pub target_teleport_chance: f32,
+    /// Vanilla authors it on the enderman; not in the published form.
+    #[serde(default)]
+    pub teleports_on_projectile_hit: bool,
+}
+
+defaults! {
+    teleport_dark_chance -> f32 = p::TELEPORT_DARK_CHANCE;
+    teleport_light_chance -> f32 = p::TELEPORT_LIGHT_CHANCE;
+    teleport_max_time -> f32 = p::TELEPORT_MAX_RANDOM_TIME;
+    teleport_min_time -> f32 = p::TELEPORT_MIN_RANDOM_TIME;
+    teleport_cube -> Vec3 = p::TELEPORT_RANDOM_CUBE;
+    teleport_random -> bool = p::TELEPORT_RANDOM_TELEPORTS;
+    teleport_target_distance -> f32 = p::TELEPORT_TARGET_DISTANCE;
+    teleport_target_chance -> f32 = p::TELEPORT_TARGET_CHANCE;
+}
+
+/// `minecraft:variable_max_auto_step`: how high the mob steps up without
+/// jumping.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VariableMaxAutoStep {
+    #[serde(default = "auto_step_base")]
+    pub base_value: f32,
+    /// While a player controls the mob.
+    #[serde(default = "auto_step_controlled")]
+    pub controlled_value: f32,
+    /// On a block that prevents jumping.
+    #[serde(default = "auto_step_jump_prevented")]
+    pub jump_prevented_value: f32,
+}
+
+defaults! {
+    auto_step_base -> f32 = p::VARIABLE_MAX_AUTO_STEP_BASE;
+    auto_step_controlled -> f32 = p::VARIABLE_MAX_AUTO_STEP_CONTROLLED;
+    auto_step_jump_prevented -> f32 = p::VARIABLE_MAX_AUTO_STEP_JUMP_PREVENTED;
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1571,6 +1753,7 @@ dynamic_bodies!(
     Leashable,
     LeashableTo,
     Loot,
+    LookedAt,
     MarkVariant,
     MobEffectImmunity,
     Movement,
@@ -1589,8 +1772,10 @@ dynamic_bodies!(
     SpawnEntity,
     SpellEffects,
     TargetNearbySensor,
+    Teleport,
     Transformation,
     Timer,
     TypeFamily,
+    VariableMaxAutoStep,
     Variant,
 );

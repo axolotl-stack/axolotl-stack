@@ -17,6 +17,7 @@ pub mod angry;
 pub mod bandwidth;
 pub mod body;
 pub mod breeding;
+pub mod carry;
 pub mod color;
 pub mod common;
 pub mod damage_sensor;
@@ -29,6 +30,7 @@ pub mod hurt_on_condition;
 pub mod interact;
 pub mod knockback;
 pub mod leap;
+pub mod looked_at;
 pub mod loot;
 pub mod movement;
 pub mod ranged;
@@ -38,6 +40,7 @@ pub mod silverfish;
 pub mod spawn_entity;
 pub mod stats;
 pub mod target_triggers;
+pub mod teleport;
 pub mod transformation;
 pub mod variant;
 
@@ -49,6 +52,7 @@ pub use ambient::AmbientSoundConfig;
 pub use bandwidth::{BandwidthOptimization, BandwidthValues};
 pub use body::{BreathableConfig, NameableConfig, Pushable};
 pub use breeding::{AgeableConfig, BreedableConfig, FeedEntry, OffspringConfig};
+pub use carry::{CarryBlocks, OffsetRange, PlaceBlockGoal, TakeBlockGoal};
 pub use color::{ActorColor, DyeableConfig};
 pub use common::{ItemMatcher, SelfEvent, insert, insert_infallible};
 pub use damage_sensor::{DamageSensorConfig, DealsDamageRule, SensorTrigger};
@@ -70,13 +74,15 @@ pub use interact::{
 };
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use leap::LeapAtTargetGoal;
+pub use looked_at::LookedAtConfig;
 pub use loot::{ExperienceRewardConfig, LootConfig};
-pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
+pub use movement::{AutoStepConfig, BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use ranged::{AvoidEntry, AvoidMobTypeGoal, RangedAttackGoal, ShooterConfig};
 pub use sensors::{EnvironmentSensorConfig, TargetNearbySensorConfig, TargetZone, Timer};
 pub use silverfish::{InfestedBlocks, MergeWithStoneGoal, WakeUpFriendsGoal};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
+pub use teleport::TeleportConfig;
 pub use transformation::TransformationConfig;
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
@@ -233,5 +239,8 @@ pub fn register_component_kinds(
     variant::register_component_kinds(builder)?;
     target_triggers::register_component_kinds(builder)?;
     stats::register_component_kinds(builder)?;
+    teleport::register_component_kinds(builder)?;
+    looked_at::register_component_kinds(builder)?;
+    carry::register_component_kinds(builder)?;
     angry::register_component_kinds(builder)
 }

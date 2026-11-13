@@ -161,13 +161,9 @@ impl GoalContext<'_> {
             .unwrap_or_default()
     }
 
-    /// A player the native rules never target: invulnerable (creative,
-    /// spectator) or the world is peaceful.
+    /// See [`untargetable_player`].
     fn untargetable_player(&self, player: Entity) -> bool {
-        matches!(
-            self.world.get::<GameMode>(player),
-            Some(GameMode::Creative | GameMode::Spectator)
-        ) || self.difficulty() == Difficulty::Peaceful
+        untargetable_player(self.world, player)
     }
 
     /// A target no target goal holds (one the mob was provoked into) is
@@ -702,4 +698,17 @@ impl TargetStates {
             ..Self::default()
         };
     }
+}
+
+/// A player the native rules never target: invulnerable (creative,
+/// spectator) or the world is peaceful.
+pub(crate) fn untargetable_player(world: &World, player: Entity) -> bool {
+    matches!(
+        world.get::<GameMode>(player),
+        Some(GameMode::Creative | GameMode::Spectator)
+    ) || world
+        .get_resource::<Difficulty>()
+        .copied()
+        .unwrap_or_default()
+        == Difficulty::Peaceful
 }

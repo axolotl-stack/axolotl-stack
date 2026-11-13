@@ -5,7 +5,9 @@
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::types::Vec3;
-use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket, McpePacket};
+use jolyne::valentine::{
+    LevelEventGenericPacket, LevelEventPacket, LevelSoundEventPacket, McpePacket,
+};
 
 use crate::entity::components::{Player, PlayerSession, RuntimeEntityId, RuntimeId};
 use crate::entity::definition::flags::ActorFlags;
@@ -151,6 +153,34 @@ pub fn level_event(world: &World, position: DVec3, event_id: i32, data: i32) {
     });
     send_to_viewers(world, position, &packet);
 }
+
+/// Broadcast `LevelEventGeneric(event_id)` at `position` whose payload is
+/// the children of `fields` (a network little-endian NBT compound body).
+pub fn level_event_generic(
+    world: &World,
+    position: DVec3,
+    event_id: i32,
+    fields: zuri_nbt::tag::Compound,
+) {
+    let mut bytes = Vec::new();
+    if let Err(error) = zuri_nbt::NBTTag::Compound(fields)
+        .write(&mut bytes, zuri_nbt::encoding::NetworkLittleEndian)
+    {
+        tracing::warn!(%error, event_id, "a generic level event did not encode");
+        return;
+    }
+    // The packet carries the children only: drop the root's tag id and its
+    // empty name.
+    let body = bytes.split_off(ROOT_HEADER.min(bytes.len()));
+    let packet = McpePacket::from(LevelEventGenericPacket {
+        event_id,
+        __ctd__: jolyne::valentine::bedrock::codec::NbtCompoundBody(body.into()),
+    });
+    send_to_viewers(world, position, &packet);
+}
+
+/// A network NBT root compound's header: its tag id and an empty name.
+const ROOT_HEADER: usize = 2;
 
 /// The middle of an actor's body (its feet plus half its box height).
 pub fn body_centre(world: &World, actor: Entity) -> Option<DVec3> {

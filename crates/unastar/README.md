@@ -531,6 +531,18 @@ The creeper's fuse (`sweep.py creeper`, distilled by
 creeper spawns once `minecraft:explode` (blocks round 4) and
 `behavior.melee_attack` exist.
 
+The enderman (`sweep.py enderman --client-capture`, three rounds, distilled
+by `tools/bds-sweep/mob_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-enderman.json`;
+`docs/research/enderman-bds-1.26.51.md`) is replayed by
+`src/entity/mob/tests/enderman.rs`: its summon, the stare cone, aim point,
+timing and exemptions (`minecraft:looked_at`), teleports by distribution
+over seeded runs (the spawn-tick attempt, landings, the random rate in light,
+dark and shade, two attempts per hurt, arrow dodges, far targets, water) and
+on the wire, which blocks it takes and how often, the carried block as its
+main-hand item (decision 0066) and putting it down, and its 1.0625-block
+step.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

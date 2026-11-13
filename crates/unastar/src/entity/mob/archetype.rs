@@ -130,7 +130,9 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::IsUnderground
         | BuiltinTest::IsBrightness
         | BuiltinTest::IsDaytime
-        | BuiltinTest::IsSnowCovered => subject == Subject::Self_,
+        | BuiltinTest::IsSnowCovered
+        | BuiltinTest::InContactWithWater
+        | BuiltinTest::IsRiding => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
         BuiltinTest::IsFamily
         | BuiltinTest::HasComponent

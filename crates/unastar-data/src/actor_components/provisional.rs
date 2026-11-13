@@ -481,3 +481,42 @@ pub const SHOOTER_AUX_VAL: i32 = -1;
 pub const TARGET_NEARBY_INSIDE_RANGE: f32 = 1.0;
 /// `outside_range` 5 blocks.
 pub const TARGET_NEARBY_OUTSIDE_RANGE: f32 = 5.0;
+
+// minecraft:looked_at (Mojang form `minecraft_looked_at.form.json`)
+
+/// `field_of_view` 26 degrees.
+pub const LOOKED_AT_FIELD_OF_VIEW: f32 = 26.0;
+/// `min_looked_at_duration` 0 seconds.
+pub const LOOKED_AT_MIN_DURATION: f32 = 0.0;
+/// `scale_fov_by_distance` true.
+pub const LOOKED_AT_SCALE_FOV_BY_DISTANCE: bool = true;
+/// `search_radius` 10 blocks.
+pub const LOOKED_AT_SEARCH_RADIUS: f32 = 10.0;
+
+// minecraft:teleport (Mojang form `minecraft_teleport.form.json`)
+
+/// `dark_teleport_chance` 0.01.
+pub const TELEPORT_DARK_CHANCE: f32 = 0.01;
+/// `light_teleport_chance` 0.01.
+pub const TELEPORT_LIGHT_CHANCE: f32 = 0.01;
+/// `max_random_teleport_time` 20 seconds.
+pub const TELEPORT_MAX_RANDOM_TIME: f32 = 20.0;
+/// `min_random_teleport_time` 0 seconds.
+pub const TELEPORT_MIN_RANDOM_TIME: f32 = 0.0;
+/// `random_teleport_cube` [32, 16, 32].
+pub const TELEPORT_RANDOM_CUBE: Vec3 = Vec3::Array([32.0, 16.0, 32.0]);
+/// `random_teleports` true.
+pub const TELEPORT_RANDOM_TELEPORTS: bool = true;
+/// `target_distance` 16 blocks.
+pub const TELEPORT_TARGET_DISTANCE: f32 = 16.0;
+/// `target_teleport_chance` 1.
+pub const TELEPORT_TARGET_CHANCE: f32 = 1.0;
+
+// minecraft:variable_max_auto_step (Mojang form `minecraft_variable_max_auto_step.form.json`)
+
+/// `base_value` 0.5625 blocks.
+pub const VARIABLE_MAX_AUTO_STEP_BASE: f32 = 0.5625;
+/// `controlled_value` 0.5625 blocks.
+pub const VARIABLE_MAX_AUTO_STEP_CONTROLLED: f32 = 0.5625;
+/// `jump_prevented_value` 0.5625 blocks.
+pub const VARIABLE_MAX_AUTO_STEP_JUMP_PREVENTED: f32 = 0.5625;

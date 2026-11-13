@@ -1,6 +1,6 @@
 //! The structured mob fixtures `tools/bds-sweep/mob_fixture.py` distils from
-//! `sweep.py spider` (and `sweep.py enderman`) runs, as the replays read
-//! them. Fields the replays do not read yet are skipped.
+//! `sweep.py spider` and `sweep.py enderman` runs, as the replays read them.
+//! Fields the replays do not read yet are skipped.
 
 use serde::Deserialize;
 
@@ -16,9 +16,33 @@ pub(super) struct Item {
     pub key: String,
     /// Where the mob spawned: x, y, z and yaw.
     pub at: [f64; 4],
+    /// How many ticks the item ran.
+    pub ticks: u32,
     /// `(t, x, y, z, on_ground)` on every tick the mob moved.
     pub moves: Vec<(u32, f64, f64, f64, bool)>,
+    /// Every timed `tp` of the player.
+    #[serde(default)]
+    pub player_turns: Vec<Turn>,
+    /// The damage the sweep job recorded.
+    #[serde(default)]
+    pub damage: Vec<Damage>,
     pub events: Vec<Event>,
+}
+
+/// One damage event: the tick and the cause.
+#[derive(Debug, Clone, Deserialize)]
+pub(super) struct Damage {
+    pub t: u32,
+    pub cause: String,
+}
+
+/// Where a timed `tp` put the player (its feet) and where it looked.
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub(super) struct Turn {
+    pub t: u32,
+    pub feet: [f64; 3],
+    pub yaw: f32,
+    pub pitch: f32,
 }
 
 /// An observed packet about the mob or the player, on the tick of the
@@ -36,7 +60,25 @@ pub(super) enum Event {
         op: EffectOp,
         duration: i32,
     },
-    /// Every other observation (sounds, actor events, blocks, items, ...).
+    /// A sound the mob played.
+    Sound { t: u32, sound: String },
+    /// A level event (1018: a teleport's ends).
+    #[serde(rename = "level_event")]
+    Level { t: u32, id: i32, at: [f64; 3] },
+    /// A generic level event (2023: a teleport's trail) and its fields.
+    #[serde(rename = "level_event_generic")]
+    LevelGeneric {
+        t: u32,
+        id: i32,
+        data: serde_json::Map<String, serde_json::Value>,
+    },
+    /// A `MoveActorDelta` with `force_move` about the mob (a teleport).
+    ForcedMove { t: u32, ticks: u32 },
+    /// The mob's `MobEquipment`: its carried block (`item` 0: none).
+    Equipment { t: u32, item: i32 },
+    /// The mob's `RemoveActor` (the item's end, or a despawn).
+    Removed { t: u32 },
+    /// Every other observation (blocks, actor events, items, arrows, ...).
     #[serde(other)]
     Other,
 }
@@ -79,6 +121,17 @@ impl Item {
             .last()
             .expect("a move at t = 0");
         [x, y, z]
+    }
+
+    /// The ticks the mob was there: until its `RemoveActor`.
+    pub fn observed_ticks(&self) -> u32 {
+        self.events
+            .iter()
+            .find_map(|e| match *e {
+                Event::Removed { t } => Some(t),
+                _ => None,
+            })
+            .unwrap_or(self.ticks)
     }
 
     /// Ticks at which flag `bit` was set (`true`) or cleared.

@@ -914,3 +914,48 @@ pub const LEAP_CHANCE: u32 = 5;
 /// from a standing start; what a moving spider keeps of its own velocity is
 /// not measured).
 pub const LEAP_HORIZONTAL_SPEED: f64 = 0.4;
+
+// --- Teleporting (`minecraft:teleport`, `mob::life::teleport`) ---------------------
+
+/// The level event a teleport sends at the old and at the new feet, data 0
+/// (BDS 1.26.51: every enderman teleport of `sweep.py enderman`).
+pub const TELEPORT_LEVEL_EVENT: i32 = 1018;
+/// The generic level event of a teleport's trail particles (BDS 1.26.51).
+pub const TELEPORT_TRAIL_EVENT: i32 = 2023;
+/// The trail's particle `Count` (BDS 1.26.51).
+pub const TELEPORT_TRAIL_COUNT: i32 = 128;
+/// The trail's `DirScale` (BDS 1.26.51).
+pub const TELEPORT_TRAIL_SCALE: f32 = 0.2;
+/// The light teleport chance applies at a feet sky brightness of at least
+/// this, the dark chance below it; provisional, unmeasured threshold: the
+/// daylight-burning brightness (above 0.5 on the ramp). BDS 1.26.51's rates
+/// on the platform at noon (light) and under a roof or at midnight (dark)
+/// fit either side of it.
+pub const TELEPORT_LIGHT_BRIGHTNESS: u8 = 12;
+
+// --- Looked at (`minecraft:looked_at`, `mob::life::looked_at`) ----------------------
+
+/// A looking player's sight line aims this far up the mob's box, as a
+/// fraction of its height (BDS 1.26.51, `sweep.py enderman --items look`:
+/// 2.545 to 2.6 above the 2.9-tall enderman's feet fit every look, not its
+/// 2.465 eye; 2.55, Java Edition's enderman eye height, is the value chosen
+/// inside that range).
+pub const LOOKED_AT_POINT_RATIO: f64 = 2.55 / 2.9;
+
+/// A hurt makes this many teleport attempts in its tick (BDS 1.26.51,
+/// `sweep.py enderman --items hurtnear`: 64, 120 and 54 of 240 hurts on the
+/// superflat moved the enderman 0, 1 and 2 times, where half the targets
+/// fail).
+pub const HURT_TELEPORT_ATTEMPTS: u32 = 2;
+
+/// A projectile about to hit a mob with `teleports_on_projectile_hit` makes
+/// it try this many teleports; provisional: Java Edition's count. BDS
+/// 1.26.51 dodged 13 of 13 dispensed arrows on the superflat, where one
+/// attempt in two fails (so at least about 5), and none in the sealed room
+/// of `sweep.py enderman --items dodgesealed`.
+pub const PROJECTILE_DODGE_ATTEMPTS: u32 = 64;
+
+/// A teleport toward a far target lands up to this far off its aim on each
+/// axis; provisional: Java Edition's enderman (4, 8 and 4). BDS 1.26.51
+/// landed its six aimed teleports within 3.4 blocks of the aim sideways.
+pub const TELEPORT_TOWARD_JITTER: glam::DVec3 = glam::DVec3::new(4.0, 8.0, 4.0);
