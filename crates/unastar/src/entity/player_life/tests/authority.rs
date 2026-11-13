@@ -643,10 +643,11 @@ fn near_trusts_do_not_reach_far() {
 /// Give `h`'s player a riptide trident in hand and still water beside it.
 fn riptide_by_water(h: &mut Harness) {
     use crate::entity::components::{HeldSlot, MainInventory};
-    use crate::item::enchant::{Enchantment, with_enchantments};
+    use crate::item::enchant::with_enchantments;
     use crate::item::test_support::stack;
+    use unastar_rules::ids::Enchantment;
     let player = h.player;
-    let trident = with_enchantments(&stack("minecraft:trident", 1), &[(Enchantment::Riptide, 3)]);
+    let trident = with_enchantments(&stack("minecraft:trident", 1), [(Enchantment::Riptide, 3)]);
     let slot = h.world().get::<HeldSlot>(player).unwrap().0;
     *h.world()
         .get_mut::<MainInventory>(player)
@@ -692,12 +693,13 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
     use crate::entity::components::{
         ArmourInventory, EffectType, Effects, HeldSlot, MainInventory,
     };
-    use crate::item::enchant::{Enchantment, with_enchantments};
+    use crate::item::enchant::with_enchantments;
     use crate::item::test_support::stack;
+    use unastar_rules::ids::Enchantment;
 
     fn wear(h: &mut Harness, item: &str, enchantment: Enchantment) {
         let player = h.player;
-        let stack = with_enchantments(&stack(item, 1), &[(enchantment, 3)]);
+        let stack = with_enchantments(&stack(item, 1), [(enchantment, 3)]);
         let mut armour = h.world().get_mut::<ArmourInventory>(player).unwrap();
         if item.ends_with("leggings") {
             armour.set_leggings(stack).unwrap();

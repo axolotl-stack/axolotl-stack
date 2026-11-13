@@ -53,11 +53,11 @@ use crate::entity::components::{ArmourInventory, EffectType, Effects};
 use crate::entity::systems::physics::collect_block_boxes;
 use crate::entity::systems::{BlockSource, LayeredBlocks, chunk_layer};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::BlockRegistry;
 use crate::registry::collision;
 use crate::world::ChunkManager;
 use crate::world::ecs::{ChunkData, world_to_chunk_coords};
+use unastar_rules::ids::Enchantment;
 
 /// The loaded chunks' blocks, for the movement system.
 pub struct LoadedBlocks<'a, 'w, 's> {
@@ -421,7 +421,7 @@ pub fn movement_gear_of(
     hand: Option<&ItemStack>,
 ) -> MovementGear {
     let worn = |slot: fn(&ArmourInventory) -> &ItemStack, enchantment| {
-        armour.is_some_and(|armour| enchantment_level(slot(armour), enchantment) > 0)
+        armour.is_some_and(|armour| slot(armour).enchantment_level(enchantment) > 0)
     };
     MovementGear {
         depth_strider: worn(ArmourInventory::boots, Enchantment::DepthStrider),
@@ -429,7 +429,7 @@ pub fn movement_gear_of(
         swift_sneak: worn(ArmourInventory::leggings, Enchantment::SwiftSneak),
         riptide: hand.is_some_and(|stack| {
             stack.item_id() == "minecraft:trident"
-                && enchantment_level(stack, Enchantment::Riptide) > 0
+                && stack.enchantment_level(Enchantment::Riptide) > 0
         }),
     }
 }
