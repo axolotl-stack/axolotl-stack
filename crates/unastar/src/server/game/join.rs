@@ -172,6 +172,12 @@ impl GameServer {
             rule_data: world.resource::<GameRules>().packet_data(),
         }));
 
+        // BDS sends its camera presets (and splines) after the fog stack,
+        // before the attributes.
+        let (camera_presets, camera_splines) = crate::command::exec::camera_join_packets();
+        let _ = session.send(McpePacket::from(camera_presets));
+        let _ = session.send(McpePacket::from(camera_splines));
+
         let health = world.get::<Health>(entity).cloned().unwrap_or_default();
         let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
         let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
@@ -222,6 +228,14 @@ impl GameServer {
             .packet()
             .clone();
         let _ = session.send(McpePacket::from(commands));
+        // BDS lists the player's unlocked recipes (right after PlayerSpawn).
+        let unlocked = world
+            .get::<crate::command::exec::UnlockedRecipes>(entity)
+            .cloned()
+            .unwrap_or_default();
+        let _ = session.send(McpePacket::from(crate::command::exec::recipes_join_packet(
+            &unlocked,
+        )));
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.

@@ -432,16 +432,20 @@ fn change(
 ) -> CommandResult {
     let objective = existing(ctx, objective)?;
     let holders = holders(ctx, holder)?;
+    let several = holders.len() > 1;
     let mut output = CommandOutput::default();
-    for holder in holders {
-        let current = board(ctx).score(&holder, &objective).unwrap_or(0);
+    for holder in &holders {
+        let current = board(ctx).score(holder, &objective).unwrap_or(0);
         let value = match action {
             NumAction::Set => count,
             NumAction::Add => current.wrapping_add(count),
             NumAction::Remove => current.wrapping_sub(count),
         };
-        set_score(ctx, &holder, &objective, value);
-        let name = holder_name(ctx, &holder);
+        set_score(ctx, holder, &objective, value);
+        if several {
+            continue;
+        }
+        let name = holder_name(ctx, holder);
         match action {
             NumAction::Set => output.add_success(
                 "commands.scoreboard.players.set.success",
@@ -466,6 +470,26 @@ fn change(
                 ],
             ),
         }
+    }
+    if several {
+        // Measured (`set`): one line for every holder, counted once;
+        // [INFERENCE] `add` and `remove` use their `multiple` lines alike.
+        let n = holders.len().to_string();
+        let output = match action {
+            NumAction::Set => CommandOutput::success(
+                "commands.scoreboard.players.set.multiple.success",
+                vec![objective.clone(), n, count.to_string()],
+            ),
+            NumAction::Add => CommandOutput::success(
+                "commands.scoreboard.players.add.multiple.success",
+                vec![count.to_string(), objective.clone(), n],
+            ),
+            NumAction::Remove => CommandOutput::success(
+                "commands.scoreboard.players.remove.multiple.success",
+                vec![count.to_string(), objective.clone(), n],
+            ),
+        };
+        return Ok(output);
     }
     Ok(output)
 }
@@ -748,9 +772,8 @@ mod bds_capture {
     use jolyne::valentine::McpePacketData;
     use jolyne::valentine::types::SetScorePacketScoreInfoItem;
 
-    /// The capture's unique ids: the player, then the cow the segment scores.
+    /// The capture's unique id of the player.
     const BDS_PLAYER: i64 = -4_294_967_295;
-    const BDS_COW: i64 = -4_294_967_276;
 
     /// A `SetScore` with unique ids replaced through `ids`.
     fn mapped(packet: &McpePacketData, ids: &[(i64, i64)]) -> McpePacketData {
@@ -789,15 +812,22 @@ mod bds_capture {
         ];
         let mut replay = Replay::new();
         let steps = replay.assert_segment("scoreboard", &cow_lines);
-        // unastar's name for the cow: the holder its score was set for.
-        let cow: i64 = steps
+        // Each server's name for the cow: the holder its score was set for.
+        let holder = |output: &crate::command::CommandOutput| -> i64 {
+            output
+                .messages
+                .first()
+                .and_then(|m| m.params.get(1))
+                .and_then(|id| id.parse().ok())
+                .expect("the cow's score was set")
+        };
+        let set = steps
             .iter()
             .find(|s| s.captured.command == cow_lines[0])
-            .and_then(|s| s.ours.messages.first())
-            .and_then(|m| m.params.get(1))
-            .and_then(|id| id.parse().ok())
-            .expect("the cow's score was set");
-        // That name must be the cow's own id, not one the answer made up.
+            .expect("the cow line");
+        let cow = holder(&set.ours);
+        let bds_cow = holder(&set.captured.output().expect("an answer"));
+        // unastar's name must be the cow's own id, not one the answer made up.
         let world = replay.h.world();
         let actors: Vec<bevy_ecs::entity::Entity> = world
             .query_filtered::<bevy_ecs::entity::Entity, bevy_ecs::query::Without<crate::entity::components::Player>>()
@@ -808,7 +838,7 @@ mod bds_capture {
             .filter_map(|entity| crate::command::exec::visuals::runtime_id(world, entity))
             .collect();
         assert!(cows.contains(&cow), "{cow} is no actor's id ({cows:?})");
-        let ids = [(BDS_PLAYER, 1), (BDS_COW, cow)];
+        let ids = [(BDS_PLAYER, 1), (bds_cow, cow)];
         for step in steps
             .iter()
             .filter(|s| cow_lines.contains(&s.captured.command.as_str()))
@@ -816,7 +846,7 @@ mod bds_capture {
             let mut theirs = step.captured.output().expect("an answer");
             for message in &mut theirs.messages {
                 for param in &mut message.params {
-                    if *param == BDS_COW.to_string() {
+                    if *param == bds_cow.to_string() {
                         *param = cow.to_string();
                     }
                 }

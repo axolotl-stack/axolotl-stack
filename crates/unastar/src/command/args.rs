@@ -76,6 +76,13 @@ impl Args {
     pub fn has(&self, name: &str) -> bool {
         self.raw(name).is_some()
     }
+
+    /// The typed value of the first parameter with this name, if the line
+    /// supplied it (for commands whose many overloads share parameter names,
+    /// such as `/camera`, read by name instead of by declared variant).
+    pub fn get<T: FromArg>(&self, name: &str) -> Option<T> {
+        self.raw(name).and_then(T::from_arg)
+    }
 }
 
 /// Conversion from one parsed argument.

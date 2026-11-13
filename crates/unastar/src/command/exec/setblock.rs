@@ -7,10 +7,10 @@
 //! `commands.setblock.noChange`.
 //!
 //! Legacy block names BDS still accepts with old states
-//! (`wool ["color"="red"]` is `minecraft:red_wool` on BDS) need BDS's legacy
-//! block-state upgrade table, which unastar does not have: such names answer
-//! a literal "not implemented" failure. Current identifiers with their
-//! current states work.
+//! (`wool ["color"="red"]` is `minecraft:red_wool` on BDS) resolve through
+//! [`crate::command::legacy`] for the colour families; other legacy names
+//! answer a literal "not implemented" failure. Current identifiers with
+//! their current states work.
 
 use crate::command::parser::StateLiteral;
 use crate::command::prelude::*;
@@ -60,12 +60,13 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SetBlockArgs) -> CommandResult {
     };
     let block = BlockSpec::resolve(&tile_name, states.as_ref())?.state();
     let pos = ctx.block_position(Some(position));
-    // Measured: a position below the world answers `noChange`; [INFERENCE]
-    // above it too, and an unloaded chunk is out of the world.
+    // Measured: a position below the world answers `noChange` ([INFERENCE]
+    // above it too); where nothing is loaded (`/execute in nether`) it is
+    // out of the world.
     if !in_height(pos.y) {
         return failure!("commands.setblock.noChange");
     }
-    let Some(old) = block_at(ctx.world, (pos.x, pos.y, pos.z)) else {
+    let Some(old) = ctx.block_at(pos) else {
         return failure!("commands.setblock.outOfWorld");
     };
     let mode = mode.unwrap_or(SetBlockMode::Replace);
@@ -103,7 +104,12 @@ impl BlockSpec {
         };
         let Some(entry) = BlockRegistry::vanilla().get_by_name(&identifier) else {
             // Every captured `Block` value that is not a current identifier
-            // is a legacy alias resolved through the upgrade table.
+            // is a legacy alias: the mapped families resolve to the current
+            // block, the rest are not implemented.
+            let old = states.map_or(&[][..], |s| s.0.as_slice());
+            if let Some((current, rest)) = crate::command::legacy::block(tile_name, old) {
+                return Self::resolve(&current, Some(&BlockStates(rest)));
+            }
             return Err(CommandOutput::failure(
                 format!("Legacy block name '{tile_name}' is not implemented in unastar yet"),
                 vec![],
@@ -207,7 +213,7 @@ pub(super) fn in_height(y: i32) -> bool {
 
 /// Whether every block of the box `min..=max` is inside the world height and
 /// in a loaded chunk.
-pub(super) fn box_loaded(world: &World, min: IVec3, max: IVec3) -> bool {
+pub(crate) fn box_loaded(world: &World, min: IVec3, max: IVec3) -> bool {
     use crate::world::ecs::{ChunkManager, world_to_chunk_coords};
     let bottom = crate::world::chunk::MIN_Y;
     let top = bottom + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16;
@@ -343,7 +349,18 @@ pub(super) mod tests {
     fn legacy_names_and_unloaded_blocks_fail() {
         let mut h = Harness::new();
         let op = h.player("Op", true);
-        let legacy = h.run(op, r#"/setblock ~1 ~ ~ minecraft:wool ["color"="red"]"#);
+        // A colour family resolves to the flattened block.
+        assert!(
+            h.run(op, r#"/setblock ~1 ~ ~ minecraft:wool ["color"="silver"]"#)
+                .is_success()
+        );
+        assert_eq!(block(&mut h, 4, 64, 3), state("minecraft:light_gray_wool"));
+        h.run(op, "/setblock ~1 ~ ~ air");
+        // Other legacy names are not mapped.
+        let legacy = h.run(
+            op,
+            r#"/setblock ~1 ~ ~ minecraft:log ["old_log_type"="birch"]"#,
+        );
         assert!(!legacy.is_success());
         assert!(
             legacy.messages[0]

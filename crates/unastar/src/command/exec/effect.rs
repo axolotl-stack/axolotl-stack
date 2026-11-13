@@ -168,6 +168,14 @@ impl EffectName {
 }
 
 pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
+    let result = apply(ctx, args);
+    // Measured: BDS follows the `MobEffect` packets with the visible-effects
+    // actor data when it changed.
+    crate::server::game::effects::sync_visible_effects(ctx.world);
+    result
+}
+
+fn apply(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
     match args {
         EffectArgs::Clear { player, effect, .. } => clear(ctx, &player, effect),
         EffectArgs::Give {
@@ -466,6 +474,25 @@ fn clear(
                 output.add_success("commands.effect.success.removed.all", vec![name]);
             }
         }
+    }
+    // Measured: clearing every effect of several players is one message
+    // naming them all (`/effect @a clear`), counting each.
+    let all_cleared = output.messages.len() > 1
+        && output
+            .messages
+            .iter()
+            .all(|m| m.success && m.key == "commands.effect.success.removed.all");
+    if all_cleared {
+        let names: Vec<String> = output
+            .messages
+            .iter()
+            .map(|m| m.params[0].clone())
+            .collect();
+        return Ok(CommandOutput::success(
+            "commands.effect.success.removed.all",
+            vec![names.join(", ")],
+        )
+        .with_count(names.len()));
     }
     if output.is_success() {
         Ok(output)
@@ -846,12 +873,39 @@ mod tests {
 #[cfg(test)]
 mod bds_capture {
     use crate::command::exec::evidence::{Replay, assert_same_packets};
+    use jolyne::valentine::McpePacketData;
 
-    /// Visible-effect actor data and movement attributes are not compared:
-    /// unastar sends neither (see the parity row's gaps).
+    /// Every answer and `MobEffect`, and the visible-effects actor data BDS
+    /// follows them with (`SetActorData` row 131, sent when it changes).
+    /// Movement attributes are not compared: unastar sends none (see the
+    /// parity row's gaps).
     #[test]
     fn effect_matches_the_bds_capture() {
         let steps = Replay::new().assert_segment("effect", &[]);
         assert_same_packets(&steps, &["MobEffectPacket"], &[]);
+        let visible = |packets: Vec<&McpePacketData>| -> Vec<String> {
+            packets
+                .into_iter()
+                .filter_map(|p| match p {
+                    McpePacketData::SetActorDataPacket(p) => Some(p),
+                    _ => None,
+                })
+                .flat_map(|p| p.actor_data.data.iter())
+                .filter(|row| row.id == 131)
+                .map(|row| format!("{:?}", row.payload))
+                .collect()
+        };
+        let mut compared = 0;
+        for step in &steps {
+            let theirs = visible(step.captured.named("SetActorDataPacket"));
+            compared += theirs.len();
+            assert_eq!(
+                visible(step.sent_named("SetActorDataPacket")),
+                theirs,
+                "{}",
+                step.captured.command
+            );
+        }
+        assert_eq!(compared, 4, "the capture's visible-effects updates");
     }
 }

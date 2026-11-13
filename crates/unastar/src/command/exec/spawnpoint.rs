@@ -9,8 +9,8 @@
 //!
 //! The world spawn is the [`WorldSpawn`] players respawn at; a player's spawn
 //! point is its [`PlayerSpawnPoint`]. Both stand the player in the middle of
-//! the block. Joining players keep the configured spawn rules, and spawn
-//! points are not saved with the player.
+//! the block. Joining players keep the configured spawn rules and the world
+//! spawn is not saved; a player's spawn point is saved with its player record.
 
 use crate::command::prelude::*;
 use crate::entity::PLAYER_EYE_HEIGHT;

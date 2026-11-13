@@ -110,6 +110,10 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SummonArgs) -> CommandResult {
     } else {
         SpawnCause::Spawned
     };
+    // Measured (`/execute in nether`): nothing spawns where nothing is loaded.
+    if ctx.source.dimension != crate::command::Dimension::Overworld {
+        return failure!("commands.summon.failed");
+    }
     let entity =
         spawn_mob(ctx.world, &identifier, position, yaw, cause).map_err(|error| match error {
             MobSpawnError::Unsupported { identifier, reason } => {

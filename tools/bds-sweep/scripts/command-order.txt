@@ -1,0 +1,53 @@
+# Does a block command sent right before an input take effect for that input?
+# Played by `bds-sweep-client --script` (one line per client tick: a command
+# is sent before that tick's PlayerAuthInput). The arena: a stone floor at
+# y=-61, the player at (0.5,-60,0.5) facing east at the west face (4) of
+# (1,-59,0). Cut into the unastar fixture by command_order_fixture.py.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+
+# A. setblock, then (same tick, after it) the input that starts breaking.
+40 /setblock 1 -59 0 dirt
+40 mine 1 -59 0 4 0
+45 stop
+46 /setblock 1 -59 0 air
+
+# B. setblock, the start on the next input.
+60 /setblock 1 -59 0 dirt
+61 mine 1 -59 0 4 0
+66 stop
+67 /setblock 1 -59 0 air
+
+# C. fill, then the start in the same tick.
+80 /fill 1 -59 0 1 -59 0 dirt
+80 mine 1 -59 0 4 0
+85 stop
+86 /setblock 1 -59 0 air
+
+# D. clone (dirt from 3 -59 3), then the start in the same tick.
+100 /setblock 3 -59 3 dirt
+110 /clone 3 -59 3 3 -59 3 1 -59 0
+110 mine 1 -59 0 4 0
+115 stop
+116 /setblock 1 -59 0 air
+117 /setblock 3 -59 3 air
+
+# E. control: the start on air (nothing set).
+130 mine 1 -59 0 4 0
+135 stop
+
+# F. mining dirt, then setblock stone mid-break before an input.
+150 /setblock 1 -59 0 dirt
+160 mine 1 -59 0 4 0
+163 /setblock 1 -59 0 stone
+168 stop
+169 /setblock 1 -59 0 air
+180 exit

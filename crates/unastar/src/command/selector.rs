@@ -89,6 +89,19 @@ impl Selector {
         self.kind.unwrap_or(SelectorKind::AllEntities)
     }
 
+    /// True when the selector picks actors by where they are (`x`/`y`/`z`,
+    /// `dx`/`dy`/`dz`, `r`, `rm`).
+    pub fn positional(&self) -> bool {
+        self.x.is_some()
+            || self.y.is_some()
+            || self.z.is_some()
+            || self.dx.is_some()
+            || self.dy.is_some()
+            || self.dz.is_some()
+            || self.r.is_some()
+            || self.rm.is_some()
+    }
+
     /// True when only players can match (`@a`, `@p`, `@r` without a non-player `type`).
     pub fn players_only(&self) -> bool {
         match self.kind() {

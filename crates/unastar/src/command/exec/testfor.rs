@@ -53,9 +53,9 @@ pub fn run_testforblock(ctx: &mut CommandContext<'_>, args: TestForBlockArgs) ->
     let spec = BlockSpec::resolve(&tile_name, block_states.as_ref())?;
     let pos = ctx.block_position(Some(position));
     // Measured: below the world is air (`8 -100 8` is not out of the world);
-    // [INFERENCE] an unloaded chunk is.
+    // where nothing is loaded (`/execute in nether`) it is out of the world.
     let found = if in_height(pos.y) {
-        let Some(found) = block_at(ctx.world, (pos.x, pos.y, pos.z)) else {
+        let Some(found) = ctx.block_at(pos) else {
             return failure!("commands.testforblock.outOfWorld");
         };
         found

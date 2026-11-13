@@ -20,7 +20,7 @@ overloads! {
 }
 
 /// The time of day a lock holds.
-const NOON: u64 = 6_000;
+const NOON: i64 = 6_000;
 
 pub fn run(ctx: &mut CommandContext<'_>, args: DayLockArgs) -> CommandResult {
     let DayLockArgs::Lock { lock } = args;

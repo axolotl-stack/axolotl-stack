@@ -47,6 +47,44 @@ impl Lang {
         self.entries.get(key).copied()
     }
 
+    /// Formats a command message the way BDS prints it on its console: a
+    /// key like [`Self::format`]; any other text is literal, with each
+    /// `%key` reference to a known key translated (BDS's `/tickingarea list`
+    /// line `- a: 0 0 0 %commands.tickingarea-list.to 15 0 15` prints
+    /// `- a: 0 0 0 to 15 0 15`).
+    pub fn format_message(&self, text: &str, params: &[String]) -> String {
+        if self.get(text).is_some() {
+            return self.format(text, params);
+        }
+        let mut out = String::with_capacity(text.len());
+        let mut rest = text;
+        while let Some(index) = rest.find('%') {
+            out.push_str(&rest[..index]);
+            let after = &rest[index + 1..];
+            let length = after
+                .bytes()
+                .take_while(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+                .count();
+            // The longest key the reference starts with (a sentence may end
+            // right after it with a period).
+            let found = (1..=length)
+                .rev()
+                .find_map(|end| self.get(&after[..end]).map(|value| (end, value)));
+            match found {
+                Some((end, value)) => {
+                    out.push_str(value);
+                    rest = &after[end..];
+                }
+                None => {
+                    out.push('%');
+                    rest = after;
+                }
+            }
+        }
+        out.push_str(rest);
+        out
+    }
+
     /// Formats `key` with printf-style parameters the way the client does
     /// (`%s`, `%d`, `%1$s`, `%2$d`, `%.2f`, `%%`). A parameter that starts with
     /// `%` is itself a key and is translated first. Unknown keys are returned
@@ -122,6 +160,30 @@ mod tests {
 
     fn params(values: &[&str]) -> Vec<String> {
         values.iter().map(|v| v.to_string()).collect()
+    }
+
+    #[test]
+    fn literal_messages_translate_their_key_references() {
+        let lang = en_us();
+        assert_eq!(
+            lang.format_message(
+                "- a: 0 0 0 %commands.tickingarea-list.to 15 0 15 %commands.tickingarea-list.preload",
+                &[]
+            ),
+            "- a: 0 0 0 to 15 0 15 Preload"
+        );
+        assert_eq!(
+            lang.format_message("%dimension.dimensionName0: \n- x", &[]),
+            "Overworld: \n- x"
+        );
+        assert_eq!(
+            lang.format_message("100% %nosuch.key", &[]),
+            "100% %nosuch.key"
+        );
+        assert_eq!(
+            lang.format_message("commands.time.set", &params(&["5"])),
+            "Set the time to 5"
+        );
     }
 
     #[test]

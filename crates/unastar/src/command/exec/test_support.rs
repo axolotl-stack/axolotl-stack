@@ -1,6 +1,6 @@
 //! A headless game server with players for executor tests.
 
-use crate::command::{CommandOutput, CommandSource, Operator, execute};
+use crate::command::{CommandOutput, Operator};
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
@@ -87,11 +87,10 @@ impl Harness {
         entity
     }
 
-    /// Runs a command as `player`.
+    /// Runs a command as `player`, as the server does for a typed command
+    /// (with the operators' broadcast).
     pub fn run(&mut self, player: Entity, line: &str) -> CommandOutput {
-        let world = self.world();
-        let source = CommandSource::player(world, player).expect("a player");
-        execute(world, source, line)
+        crate::command::run_as_player(self.world(), player, line).expect("a player")
     }
 
     /// Everything sent to `player` so far.

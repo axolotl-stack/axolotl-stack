@@ -36,6 +36,17 @@ pub enum SourceKind {
     Server,
 }
 
+/// The dimension a command runs in (`/execute in`). unastar runs only the
+/// overworld; in the others nothing is loaded and no actor lives, which is
+/// how BDS answers in a dimension where nothing is loaded.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Dimension {
+    #[default]
+    Overworld,
+    Nether,
+    TheEnd,
+}
+
 /// The executing source: identity, permission and position.
 #[derive(Debug, Clone)]
 pub struct CommandSource {
@@ -52,6 +63,7 @@ pub struct CommandSource {
     /// Height above `position` that local (`^`) coordinates start from: 0
     /// (the feet) unless `/execute anchored eyes` moved it to the eyes.
     pub anchor: f64,
+    pub dimension: Dimension,
 }
 
 impl CommandSource {
@@ -77,6 +89,7 @@ impl CommandSource {
             pitch: rotation.pitch,
             name,
             anchor: 0.0,
+            dimension: Dimension::Overworld,
         })
     }
 
@@ -89,6 +102,7 @@ impl CommandSource {
             pitch: 0.0,
             name: "Server".into(),
             anchor: 0.0,
+            dimension: Dimension::Overworld,
         }
     }
 
@@ -199,6 +213,13 @@ impl<'w> CommandContext<'w> {
             .world
             .get_resource_or_insert_with(EntityRandom::default);
         let mut pick = |bound: usize| random.0.gen_range(0..bound);
+        // Outside the overworld a selector that looks at positions finds no
+        // actor; `@s` and plain `@a` still find the overworld's players.
+        let candidates = if self.source.dimension != Dimension::Overworld && selector.positional() {
+            &[]
+        } else {
+            candidates
+        };
         selector
             .resolve(
                 candidates,
@@ -221,6 +242,22 @@ impl<'w> CommandContext<'w> {
             };
             p.resolve(origin, self.source.yaw, self.source.pitch)
         })
+    }
+
+    /// The block at `pos` in the source's dimension; `None` where nothing is
+    /// loaded (every position outside the overworld).
+    pub fn block_at(&self, pos: IVec3) -> Option<u32> {
+        if self.source.dimension != Dimension::Overworld {
+            return None;
+        }
+        crate::server::game::blocks::block_at(self.world, (pos.x, pos.y, pos.z))
+    }
+
+    /// Whether every chunk of the box `min..=max` is loaded in the source's
+    /// dimension, inside the world's height.
+    pub fn box_loaded(&self, min: IVec3, max: IVec3) -> bool {
+        self.source.dimension == Dimension::Overworld
+            && super::exec::box_loaded(self.world, min, max)
     }
 
     /// A block position parameter resolved against the source and floored;
@@ -256,6 +293,18 @@ impl<'w> CommandContext<'w> {
     /// (`gameMode.changed`, `commands.give.successRecipient`, …).
     pub fn notify(&self, entity: Entity, key: &str, params: Vec<String>) {
         self.send(entity, super::output::translation_text(key, &params));
+    }
+
+    /// Prints a line on the server console besides the command's answer
+    /// (see [`ConsoleNote`](super::output::ConsoleNote)).
+    pub fn console_note(&mut self, error: bool, text: impl Into<String>) {
+        self.world
+            .get_resource_or_insert_with(super::output::ConsoleNotes::default)
+            .0
+            .push(super::output::ConsoleNote {
+                error,
+                text: text.into(),
+            });
     }
 
     /// Sends a packet to a player (no-op for other entities).

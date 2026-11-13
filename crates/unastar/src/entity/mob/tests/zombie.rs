@@ -34,8 +34,8 @@ use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkViewers};
 use crate::world::rules::Difficulty;
 
 /// Noon and midnight on the world clock.
-const NOON: u64 = 6_000;
-const MIDNIGHT: u64 = 18_000;
+const NOON: i64 = 6_000;
+const MIDNIGHT: i64 = 18_000;
 
 struct Harness {
     server: GameServer,
@@ -45,7 +45,7 @@ struct Harness {
 
 /// A grass floor at y = 63 over chunks -1..=1 × -1..=1 at `time`, viewed by
 /// one player in `mode` standing on it at (8.5, 64, 0.5).
-fn harness(seed: u64, difficulty: Difficulty, time: u64, mode: GameMode) -> Harness {
+fn harness(seed: u64, difficulty: Difficulty, time: i64, mode: GameMode) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()

@@ -5,8 +5,11 @@
 //! mob that has the event and `commands.event.error.failed [event, type]`
 //! for one that has not, naming the target by its type identifier.
 //!
-//! Players have no actor definition in unastar, so an event never runs on a
-//! player.
+//! A player answers like BDS for the events of the vanilla `player.json`
+//! (`minecraft:gain_raid_omen`, `minecraft:trigger_raid`, …): measured, they
+//! succeed and change nothing a client sees (the raid omen spell effect of
+//! `gain_raid_omen` is not applied, `/effect @s clear` right after finds no
+//! effect), so unastar answers them without running the component groups.
 
 use crate::command::context::actor_type;
 use crate::command::prelude::*;
@@ -28,11 +31,15 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EventArgs) -> CommandResult {
     let mut fired = Vec::new();
     let mut failed = Vec::new();
     for target in targets {
-        let handle = ctx
-            .world
-            .get::<MobKind>(target)
-            .and_then(|kind| kind.0.events.event(&event_name));
-        let ok = handle.is_some_and(|event| fire_event(ctx.world, target, &event, None).is_ok());
+        let ok = if ctx.world.get::<Player>(target).is_some() {
+            player_has_event(&event_name)
+        } else {
+            let handle = ctx
+                .world
+                .get::<MobKind>(target)
+                .and_then(|kind| kind.0.events.event(&event_name));
+            handle.is_some_and(|event| fire_event(ctx.world, target, &event, None).is_ok())
+        };
         let kind = type_identifier(ctx.world, target);
         if ok {
             fired.push(kind);
@@ -69,6 +76,12 @@ pub fn run(ctx: &mut CommandContext<'_>, args: EventArgs) -> CommandResult {
         return Err(output);
     }
     Ok(output)
+}
+
+/// Whether the vanilla player definition has the event.
+fn player_has_event(name: &str) -> bool {
+    unastar_data::actor_definitions::get("minecraft:player")
+        .is_some_and(|definition| definition.events.contains_key(name))
 }
 
 fn type_identifier(world: &World, entity: Entity) -> String {

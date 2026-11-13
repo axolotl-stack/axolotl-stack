@@ -56,19 +56,26 @@ plus `--settle` seconds. With `--summon` (operator only) it then runs
 summonable, keeps the first AddActor/AddPainting after each command and clears
 the world between summons (mob spawning, mob loot and entity drops off; two
 `kill` passes so slime/sulfur cube splits are not mistaken for the next actor).
-With `--commands FILE` it then runs each command of FILE (one per line, leading
+With `--commands FILE` it then runs each step of FILE (one per line, leading
 `/` optional, blank lines and `#` comments skipped) as a player-origin
 CommandRequest, exactly like the summons, waiting `--command-wait`
 milliseconds (default 1500) after each so every server packet is attributable
-to the command before it.
+to the step before it. Three directives are steps too: `!console COMMAND`
+prints `@@console@@ COMMAND` for the harness that owns BDS's stdin
+(`capture.py` types it on the server console and records what BDS prints),
+and `!join NAME` / `!leave NAME` log a second client in and out (it answers
+latency probes and records its own packets to `clients/NAME.jsonl` on the
+session's clock). Every step prints `@@step@@ INDEX` first and is listed in
+`steps.json` (index, kind, line, start `seq` and time).
 
 From the recording it writes `join-sequence.json` (server packets of the join
 phase, in order), `join/<seq>-<Packet>.{bin,json}` (every non-chunk join
 packet), `commands/<permission>.{bin,json}` (each AvailableCommands, named by the
 preceding UpdateAbilities permission), `summons/<identifier>.{bin,json}`,
-`command-outputs.json` (with `--commands`: per command, its text, request
-`seq` and every server packet up to the next request as `{seq, t_ms, packet,
-data}`, `data` being the JSON form below; LevelChunk, SubChunk,
+`command-outputs.json` (with `--commands`: per step, its text, kind, request
+`seq` and every server packet up to the next step as `{seq, t_ms, packet,
+data}`, `data` being the JSON form below; a second client's packets go to
+`clients/NAME-outputs.json` the same way; LevelChunk, SubChunk,
 NetworkChunkPublisherUpdate, NetworkStackLatency and movement of actors other
 than the player are only counted, under `excluded`) and
 `manifest.json` (size and SHA-256 of every file, phases, per-summon actor type
@@ -116,9 +123,11 @@ payload or per-tick actor traffic, at most 128 KiB each) and every
 `operator-commands/session.json`, the script (`commands.txt`) and
 `feedback.json`: per scripted command, its segment and the bytes (hex) of the
 packets that answer it (`CommandOutput` and the feedback/effect packets,
-without the running world's traffic), plus the SHA-256 of the session's
-`command-outputs.json` and `packets.jsonl`; unastar's command tests replay the
-script's segments against it (`unastar::command::exec::evidence`).
+without the running world's traffic), what BDS printed for a `!console`
+step and the packets a second client kept, plus the SHA-256 of the session's
+`command-outputs.json`, `packets.jsonl`, `console-outputs.json` and client
+recordings; unastar's command tests replay the script's segments against it
+(`unastar::command::exec::evidence`).
 CraftingData (1.0 MB), AvailableCommands (396 KB),
 JigsawStructureData (209 KB), `packets.jsonl` and the JSON forms stay in the
 cache; tests that need them read the cache and check the SHA-256 the committed

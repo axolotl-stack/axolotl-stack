@@ -92,8 +92,39 @@ impl UnastarServer {
             .resource_mut::<crate::world::ecs::ChunkManager>()
             .set_provider(provider);
 
-        // Server key for encryption
-        let server_key = SecretKey::random(&mut thread_rng());
+        // BDS keeps its server files (allowlist, permissions, identity key)
+        // next to the executable; unastar keeps them in its working directory.
+        let files = crate::command::exec::ServerFiles(std::env::current_dir().ok());
+        {
+            let world = server.ecs.world_mut();
+            world
+                .resource_mut::<crate::command::exec::OperatorList>()
+                .load_permissions(&files)?;
+            world.insert_resource(crate::command::exec::Allowlist {
+                enabled: config.server.allow_list,
+                entries: crate::command::exec::Allowlist::load(&files)?,
+            });
+            world.insert_resource(crate::command::exec::WorldFiles {
+                root: std::path::PathBuf::from("worlds"),
+                world: std::path::PathBuf::from("worlds").join("default"),
+            });
+            // `/function` files of the world's behaviour packs (BDS's layout).
+            world.insert_resource(crate::command::exec::FunctionRegistry::load(
+                &std::path::Path::new("worlds")
+                    .join("default")
+                    .join("behavior_packs"),
+            ));
+            world.insert_resource(files.clone());
+        }
+
+        // The server identity key (also the encryption key): the saved one
+        // in `keys/server_identity_key.pem` when present, as BDS does.
+        let server_key = crate::command::exec::load_identity(&files)
+            .unwrap_or_else(|| SecretKey::random(&mut thread_rng()));
+        server
+            .ecs
+            .world_mut()
+            .insert_resource(crate::command::exec::ServerIdentity(server_key.clone()));
 
         // Initialize Plugin Manager
         let mut plugin_manager = PluginManager::new()
@@ -203,6 +234,11 @@ impl UnastarServer {
         let connection_gate = Arc::new(Semaphore::new(
             self.config.server.max_players.max(1) as usize
         ));
+        // `/setmaxplayers` resizes the gate.
+        self.server
+            .ecs
+            .world_mut()
+            .insert_resource(crate::command::exec::PlayerLimit(connection_gate.clone()));
 
         // Spawn accept loop
         spawn_accept_loop(
@@ -470,6 +506,10 @@ async fn network_tick(
     events_processed
 }
 
+/// Message of the `Disconnect` sent to a player the allowlist does not list
+/// (the client's `disconnectionScreen.notAllowed` text).
+const NOT_ALLOWED_MESSAGE: &str = "You're not invited to play on this server.";
+
 /// Message of the `Disconnect` sent to a player whose saved data cannot be restored.
 const UNRESTORABLE_PLAYER_MESSAGE: &str = "Unable to restore player inventory.";
 
@@ -483,6 +523,25 @@ fn spawn_or_reject(server: &mut GameServer, data: PlayerSpawnData) -> bool {
     };
     let session_id = data.session_id;
     let reject_tx = data.outbound_tx.clone();
+    // The allowlist, while it is on, admits only the players it lists.
+    let admitted = server
+        .ecs
+        .world()
+        .get_resource::<crate::command::exec::Allowlist>()
+        .is_none_or(|list| list.admits(&data.display_name, data.xuid.as_deref()));
+    if !admitted {
+        warn!(session_id, name = %data.display_name, "Rejecting player not on the allowlist");
+        let _ = reject_tx.try_send(McpePacket::from(DisconnectPacket {
+            reason: EnumsConnectionDisconnectFailReason::Notallowed,
+            messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                DisconnectPacketMessages {
+                    message: NOT_ALLOWED_MESSAGE.into(),
+                    filtered_message: NOT_ALLOWED_MESSAGE.into(),
+                },
+            ),
+        }));
+        return false;
+    }
     let Err(error) = server.spawn_player(data) else {
         return true;
     };

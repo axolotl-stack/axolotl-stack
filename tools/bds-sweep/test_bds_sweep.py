@@ -147,7 +147,34 @@ class CommandFeedback(unittest.TestCase):
         self.assertTrue(relevance.keep('/execute align xyz run summon pig ~ ~ ~', 'AddActorPacket', added, 50))
         self.assertTrue(relevance.keep('/damage @e 1', 'SetActorDataPacket', other, 30))
         self.assertFalse(relevance.keep('/damage @e 1', 'SetActorDataPacket', other, 400))
-        self.assertFalse(relevance.keep('/say hi', 'UnlockedRecipesPacket', {}, 30))
+        self.assertFalse(relevance.keep('/say hi', 'NetworkChunkPublisherUpdatePacket', {}, 30))
+        # A second client's own actor packets are kept from its point of view.
+        alice = {'target_runtime_id': {'actor_runtime_id': 2}}
+        self.assertFalse(relevance.keep('/effect @a speed', 'MobEffectPacket', alice, 400))
+        self.assertTrue(relevance.keep('/effect @a speed', 'MobEffectPacket', alice, 400, viewer=2))
+        self.assertTrue(relevance.keep('/effect @a speed', 'MobEffectPacket',
+                                       {'runtime_entity_id': {'actor_runtime_id': 1}}, 30, viewer=2))
+
+    def test_console_lines_become_records_without_timestamps(self):
+        lines = ['[2026-11-10 16:24:48:388 INFO] §aList of all ticking areas in current dimension',
+                 '- area1: 0 0 0 to 15 0 15', '1/10 ticking areas in use.',
+                 ' [2026-11-10 16:24:32:789 ERROR] Syntax error: Unexpected "x": at "y"',
+                 '[2026-11-10 16:24:34:382 INFO] There are 0/2 players online:', '']
+        self.assertEqual(commit_fixtures.console_records(['stray line'] + lines), [
+            {'level': 'INFO', 'text': '§aList of all ticking areas in current dimension\n'
+                                      '- area1: 0 0 0 to 15 0 15\n1/10 ticking areas in use.'},
+            {'level': 'ERROR', 'text': 'Syntax error: Unexpected "x": at "y"'},
+            {'level': 'INFO', 'text': 'There are 0/2 players online:\n'},
+        ])
+
+    def test_directives_are_steps_of_their_segment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / 'commands.txt'
+            lines = ['# segment: two', '!join Alice', '/tp Alice 8 200 8', '!console kick Alice', '!leave Alice']
+            script.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+            self.assertEqual([c for _, c in commit_fixtures.script_segments(script)], lines[1:])
+
+
 class HeldAndEffectVariants(unittest.TestCase):
     def args(self, **overrides):
         import argparse
