@@ -17,8 +17,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Blocks](#blocks) | 1477 | 0 | 510 | 503 | 297 | 167 | 61.1% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
-| [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
-| [Protocol](#protocol) | 231 | 137 | 21 | 44 | 14 | 15 | 26.9% |
+| [Commands](#commands) | 82 | 29 | 24 | 3 | 25 | 1 | 34.6% |
+| [Protocol](#protocol) | 231 | 136 | 22 | 42 | 16 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -71,17 +71,17 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Item use | lane ITEMS | 2026-10-29 | 950 |
 
-**Commands**: 0 open rows free, 43 claimed.
+**Commands**: 0 open rows free, 53 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Commands | lane COMMANDS | 2026-10-29 | 43 |
+| Commands | lane COMMANDS | 2026-10-29 | 53 |
 
 **Protocol**: 158 open rows free, 0 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 96 | 88 | 8 |
+| clientbound | 96 | 87 | 9 |
 | bidirectional | 57 | 44 | 13 |
 | serverbound | 5 | 5 | 0 |
 
@@ -554,18 +554,18 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| admin | 7 | 3 | 1 | 1 | 2 | 0 | 42.9% |
+| admin | 7 | 5 | 2 | 0 | 0 | 0 | 0.0% |
 | any | 4 | 1 | 0 | 0 | 3 | 0 | 75.0% |
-| gamedirectors | 60 | 2 | 31 | 0 | 27 | 0 | 45.0% |
-| host | 1 | 0 | 1 | 0 | 0 | 0 | 0.0% |
-| owner | 10 | 2 | 2 | 1 | 4 | 1 | 55.6% |
+| gamedirectors | 60 | 14 | 22 | 2 | 22 | 0 | 40.0% |
+| host | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
+| owner | 10 | 8 | 0 | 1 | 0 | 1 | 11.1% |
 
 ### Commands gaps
 
 **admin**
 
-- `permission`: visitor is applied as member (no visitor abilities); with an XUID the answer of set is not measured (unastar prints nothing, as BDS does without one)
-- missing: `place`, `script`, `wsserver`
+- `deop`, `op`: changes last until the server restarts: they are not written to the config or a permissions file
+- missing: `permission`, `place`, `reload`, `script`, `wsserver`
 
 **any**
 
@@ -573,23 +573,21 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 **gamedirectors**
 
-- `aimassist`: set never applies aim assist: BDS checks the camera type the client reports and unastar learns none, so it always answers unsupportedCameraType (as BDS did for the capture's client); the join does not send BDS's aim assist definitions
-- `camera`: no camera splines exist (play_spline always fails, as on BDS without any); BDS's join also sends its aim assist definitions, which unastar does not
 - `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
 - `damage`: the hurt ActorEvent carries no damage cause (BDS sends the cause id, -1 for none)
-- `dialogue`: no actor has the NPC component and no dialogue scenes are loaded, so open and change always answer noNpcComponent (or noTargetMatch and npcNotFound without a target)
-- 26 more partial rows with other gaps (see [commands.toml](commands.toml))
-- missing: `locate`, `ride`
+- `effect`: speed and slowness do not change movement and no visible-effect actor data is sent: BDS follows an effect with SetActorData and movement UpdateAttributes (no attribute-modifier system)
+- `event`: players have no actor definition in unastar, so every event on a player is refused (BDS refused the one captured)
+- `execute`: in nether and in the_end answer a not-implemented failure (unastar runs one dimension per world)
+- 17 more partial rows with other gaps (see [commands.toml](commands.toml))
+- missing: `aimassist`, `camera`, `controlscheme`, `dialogue`, `function`, `gametest`, `locate`, `loot`, `recipe`, `ride`, `schedule`, `spreadplayers` and 2 more
 
 **host**
 
-- `setmaxplayers`: the server list status keeps advertising the configured maximum
+- missing: `setmaxplayers`
 
 **owner**
 
-- `changesetting`: the settings are only stored: BDS sends nothing when they change and their effect on the running world is not measured
-- `save`: hold does not pause the world's writes, and query lists unastar's own world files (worlds/default)
-- missing: `reloadconfig`, `reloadpacketlimitconfig`
+- missing: `allowlist`, `changesetting`, `reloadconfig`, `reloadpacketlimitconfig`, `save`, `sendshowstoreoffer`, `serveridentity`, `transfer`
 
 ## Protocol
 
@@ -597,8 +595,8 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| bidirectional | 80 | 44 | 13 | 16 | 1 | 6 | 23.0% |
-| clientbound | 146 | 88 | 8 | 28 | 13 | 9 | 29.9% |
+| bidirectional | 80 | 44 | 13 | 15 | 2 | 6 | 23.0% |
+| clientbound | 146 | 87 | 9 | 27 | 14 | 9 | 29.9% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
@@ -615,13 +613,13 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 **clientbound**
 
-- `AddPlayerPacket`: sent to other players on join and chunk view, but untested and not preceded by a PlayerList entry (no skin)
+- `AddPlayerPacket`: sent to the players in send range like BDS (when and to whom are verified) with the feet position, game type and actor data of the BDS player-data capture; not preceded by a PlayerList entry (no skin)
 - `BlockEventPacket`: chest lid open/close only; note blocks, pistons, bells and other block events missing
 - `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
 - `LevelEventPacket`: block cracking/destroy, door breaking, egg and grazing particles only; most vanilla level events (weather, sleeping, redstone, portals, ...) never sent
-- 3 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 76 more
+- 4 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 75 more
 
 **serverbound**
 
@@ -763,7 +761,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **crafting**
 
 - `crafting.crafting_grid`: shaped and shapeless 2x2/3x3 recipes work; recipe-book auto-craft, ingredient remainders (buckets, bottles) and special/multi recipes (repair, dyeing, fireworks) are rejected
-- `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking and infinity act; damage (sharpness, smite, bane of arthropods), protection, knockback, fire aspect, mending, power, punch, flame and the other armour, trident and crossbow enchantments have no effect
+- `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking, infinity and feather falling (fall damage, as in the BDS movement capture) act; damage (sharpness, smite, bane of arthropods), protection, knockback, fire aspect, mending, power, punch, flame and the other armour, trident and crossbow enchantments have no effect
 - `crafting.loot_tables`: block, mob and generated-chest tables roll; missing functions enchant_randomly, enchant_with_levels, enchant_book_for_trading, exploration_map, random_aux_value, set_armor_trim, set_banner_details, set_damage, set_ominous_bottle_amplifier, set_potion, set_stew_effect, specific_enchants and conditions biome_has_tag, bool_property, damaged_by_entity, entity_killed, entity_properties, has_mark_variant, has_variant, killed_by_entity fail the roll; no fishing loot
 - `crafting.smelting`: furnace, blast furnace and smoker smelt with fuel, XP and hoppers; campfire and soul campfire cooking missing
 - missing: `crafting.anvil`, `crafting.brewing`, `crafting.enchanting`, `crafting.grindstone`, `crafting.recipe_book`, `crafting.smithing`, `crafting.stonecutter_loom_cartography`, `crafting.trading`
@@ -797,7 +795,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 - `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); no ore experience; what other players see of a break and creative breaking are not compared against BDS yet
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
 - `player.combat`: melee against mobs and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no player-versus-player damage, melee critical hits, shields or thrown tridents
-- `player.damage_sources`: fall, lava, fire blocks, burning, void, mob attacks and drowning (air supply, BREATHING flag, a 2-damage hit every 20 ticks without air, the refill, Respiration, bubble columns and the air saved across a rejoin match the BDS breath and player-data captures); a killing hit sends only the death event and other hits knock back before the hurt event; the damage game rules gate their causes from every source; no suffocation, freezing, cactus, starvation, magic, lightning or explosion damage, and standing in fire hurts as fire (6) every 10 ticks where BDS takes fire_tick (7) after the first hit; block identities resolved by name string for fall damage
+- `player.damage_sources`: falls (3 to 12.5 blocks, into water, onto hay, slime, a bed, into powder snow, a glide that slowed down and Feather Falling boots), a fire block and the burning after it (a 1-point burn 20, 40, ... ticks before the fire runs out) match the BDS movement capture; lava, void, mob attacks and drowning (air supply, BREATHING flag, a 2-damage hit every 20 ticks without air, the refill, Respiration, bubble columns and the air saved across a rejoin) match the BDS breath and player-data captures; a killing hit sends only the death event and other hits knock back before the hurt event; the damage game rules gate their causes from every source; no suffocation, freezing, cactus, starvation, magic, lightning or explosion damage, and no protection enchantment but Feather Falling; in a fire block BDS's hurts alternate between fire (6) and fire_tick (7) with its input timing where unastar's are fire; how long lava sets a player alight (15 s) and the descent under which a glide restarts the fall (0.5 a tick) are unmeasured; block identities resolved by name string for fall damage
 - 6 more partial rows with other gaps (see [systems.toml](systems.toml))
 - missing: `player.achievements`, `player.books`, `player.fishing`, `player.maps`, `player.sleeping`
 

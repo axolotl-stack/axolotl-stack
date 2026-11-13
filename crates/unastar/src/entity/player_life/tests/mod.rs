@@ -9,6 +9,7 @@ mod death;
 mod environment;
 mod hurt;
 mod input_tick;
+mod movement;
 mod respawn;
 mod rules;
 

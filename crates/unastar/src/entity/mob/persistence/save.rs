@@ -16,9 +16,12 @@ use crate::entity::mob::life::ageing::BabyAge;
 use crate::entity::mob::state::{BreedCooldown, InLove, Persistent};
 
 use super::{
-    HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, SPAWN_BONUS_MODIFIER, SPAWN_BONUS_UUID,
+    FOLLOW_RANGE_ATTRIBUTE, HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, SPAWN_BONUS_MODIFIER,
+    SPAWN_BONUS_UUID,
 };
 use crate::entity::mob::combat::knockback::KnockbackResistance;
+use crate::entity::mob::constants::DEFAULT_FOLLOW_RANGE;
+use crate::entity::mob::spawn_bonus::FollowRangeBonus;
 
 pub(super) fn list<T: Into<NBTTag>>(values: impl IntoIterator<Item = T>) -> NBTTag {
     NBTTag::List(tag::List(values.into_iter().map(Into::into).collect()))
@@ -92,6 +95,13 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     }
     if let Some(resistance) = world.get::<KnockbackResistance>(mob) {
         attributes.push(spawn_bonus_resistance(resistance.0 as f32));
+    }
+    // The classes that roll a follow-range bonus save their follow range,
+    // with the bonus when they rolled one.
+    if archetype.native.follow_range_bonus {
+        attributes.push(follow_range(
+            world.get::<FollowRangeBonus>(mob).map(|bonus| bonus.0),
+        ));
     }
     if !attributes.is_empty() {
         put("Attributes", list(attributes));
@@ -181,6 +191,34 @@ pub(super) fn spawn_bonus_resistance(amount: f32) -> tag::Compound {
         .with_float("DefaultMin", -2.0)
         .with_list("Modifiers", tag::List(vec![NBTTag::Compound(modifier)]))
         .build()
+}
+
+/// A zombie class's follow range as BDS 1.26.51 saves it: base 16 (the
+/// default; these classes set none), and with a spawn bonus one
+/// `RandomSpawnBonus` multiplier (`Operation` 2: base × (1 + amount)) with
+/// the spawn-bonus modifier id.
+pub(super) fn follow_range(bonus: Option<f32>) -> tag::Compound {
+    let base = DEFAULT_FOLLOW_RANGE;
+    let mut attribute = tag::Compound::builder()
+        .with_string("Name", FOLLOW_RANGE_ATTRIBUTE)
+        .with_float("Base", base)
+        .with_float("Current", base * (1.0 + bonus.unwrap_or(0.0)))
+        .with_float("Max", 2048.0)
+        .with_float("Min", 0.0)
+        .with_float("DefaultMax", 2048.0)
+        .with_float("DefaultMin", 0.0);
+    if let Some(amount) = bonus {
+        let modifier = tag::Compound::builder()
+            .with_string("Name", SPAWN_BONUS_MODIFIER)
+            .with_float("Amount", amount)
+            .with_int("Operation", 2)
+            .with_int("Operand", 2)
+            .with_long("UUIDMost", SPAWN_BONUS_UUID.0)
+            .with_long("UUIDLeast", SPAWN_BONUS_UUID.1)
+            .build();
+        attribute = attribute.with_list("Modifiers", tag::List(vec![NBTTag::Compound(modifier)]));
+    }
+    attribute.build()
 }
 
 pub(super) fn current_tick(world: &World) -> u64 {

@@ -148,6 +148,7 @@ fn assert_add_actor_matches(world: &World, identifier: &str, mob: Entity, native
         world.get::<Position>(mob).unwrap().0,
         DVec3::new(0.0, f64::from(native.velocity.y), 0.0),
         world.get::<Rotation>(mob).unwrap(),
+        true,
         world.get::<EntityMetadata>(mob).unwrap(),
         world.get::<ActorProperties>(mob).unwrap(),
         world.get::<ActorAttributes>(mob).unwrap(),

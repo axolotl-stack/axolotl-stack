@@ -29,7 +29,7 @@ mod loot;
 mod mining;
 mod movement;
 mod packet_domains;
-mod packet_queues;
+pub(crate) mod packet_queues;
 mod packets;
 mod place_sounds;
 mod placement;
@@ -52,6 +52,7 @@ use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
+pub(crate) use packet_queues::MovementEvents;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
@@ -61,9 +62,10 @@ use crate::ecs::{
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, ContainerWindows, EnderChestInventory, GameMode,
-    HeldSlot, Inventory, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
-    PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid, RuntimeEntityId, SpatialChunk,
+    ActorViewers, ArmourInventory, BreakingState, ChunkRadius, ContainerWindows,
+    EnderChestInventory, GameMode, HeldSlot, Inventory, LastBroadcastPosition, MainInventory,
+    OffhandSlot, Player, PlayerInput, PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid,
+    RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
     apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
@@ -73,9 +75,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
-    tick_block_breaking,
+    EntityGrid, broadcast_block_updates, cleanup_despawned_entities, sync_actor_viewers,
+    sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
@@ -437,6 +438,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<packet_queues::MovementEvents>();
         ecs.world_mut()
+            .init_resource::<crate::server::player_view::RelayedMoves>();
+        ecs.world_mut()
             .init_resource::<packet_queues::InventoryEvents>();
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
         ecs.world_mut()
@@ -525,6 +528,21 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(chunks::apply_chunk_requests)
                 .after(commands::apply_chat_and_commands),
+        );
+        // The state a player joining this tick finds the others in.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::actor_data::announce_players
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement),
+        );
+        // What this tick's movement inputs ask for beyond the position
+        // (sprint, swim and glide, `MOVING`, exhaustion), with the world at
+        // hand; their plugin events join this tick's.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::motion::settle_moves
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement)
+                .before(packet_queues::consolidate_domain_events),
         );
         // Respawn requests from dead players, after the movement system has
         // applied this tick's input.
@@ -635,11 +653,16 @@ impl GameServer {
         // Player landings, then lava, fire, burning and the void, then the
         // air supply and drowning: the player tick, whose deaths reach the
         // clients with the tick's actor-data update.
+        // Between the world's damage and the breath, the tick's attribute
+        // changes go out (BDS sends them before the breath's actor data);
+        // the breath's update follows at once, `MOVING` at the end of the tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::player_life::environment::land_players,
                 crate::entity::player_life::environment::hurt_players_by_environment,
+                attributes::sync_player_attributes,
                 crate::entity::player_life::breath::breathe,
+                crate::entity::player_life::actor_data::sync_breath,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -661,7 +684,8 @@ impl GameServer {
                 .after(crate::entity::player_life::breath::breathe)
                 .before(tick_block_breaking),
         );
-        // What changed for each player's client this tick.
+        // What else changed for each player this tick, to it and its
+        // viewers.
         ecs.schedule_mut().add_systems(
             (
                 effects::sync_player_effects,
@@ -735,9 +759,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 sync_spatial_chunks,
-                broadcast_spawn_system,
-                broadcast_movement_system,
-                broadcast_despawn_system,
+                crate::server::player_view::sync_player_viewers,
                 broadcast_block_updates,
                 sync_actor_viewers,
                 crate::entity::mob::net::sound::flush_synced_sounds,
@@ -1032,6 +1054,7 @@ impl GameServer {
                     yaw: rotation.yaw,
                     pitch: rotation.pitch,
                 },
+                viewers: ActorViewers::default(),
                 chunk_loader,
                 last_publisher_state: LastPublisherState::default(),
                 main_inventory,
@@ -1067,6 +1090,7 @@ impl GameServer {
         self.ecs.world_mut().entity_mut(entity).insert((
             actor_data,
             crate::entity::player_life::environment::PlayerFall::default(),
+            crate::entity::player_life::motion::PlayerMoves::default(),
         ));
         if explicit_game_mode {
             self.ecs

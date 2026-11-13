@@ -75,6 +75,7 @@ fn summoned_xp_bottle_add_actor_matches_native_summon() {
         world.get::<Position>(bottle).unwrap().0,
         world.get::<Velocity>(bottle).unwrap().0,
         world.get::<Rotation>(bottle).unwrap(),
+        false,
         world.get::<EntityMetadata>(bottle).unwrap(),
         world.get::<ActorProperties>(bottle).unwrap(),
         world.get::<ActorAttributes>(bottle).unwrap(),

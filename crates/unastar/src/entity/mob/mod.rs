@@ -34,6 +34,7 @@ pub mod life;
 pub mod native;
 pub mod net;
 pub mod persistence;
+pub mod spawn_bonus;
 pub mod state;
 
 #[cfg(test)]
@@ -130,7 +131,8 @@ pub fn spawn_mob(
         world
             .entity_mut(entity)
             .insert(persistence::Restoring)
-            .remove::<combat::knockback::KnockbackResistance>();
+            .remove::<combat::knockback::KnockbackResistance>()
+            .remove::<spawn_bonus::FollowRangeBonus>();
     }
     attach_definition(world, entity, Arc::clone(&archetype.definition))
         .expect("a freshly spawned mob exists and has no definition stack");
@@ -191,6 +193,11 @@ fn spawn_unattached(
         .native
         .knockback_resistance_bonus
         .map(|max| combat::knockback::KnockbackResistance::roll(&mut molang.0, max));
+    let follow_range_bonus = if archetype.native.follow_range_bonus {
+        spawn_bonus::FollowRangeBonus::roll(&mut molang.0)
+    } else {
+        None
+    };
     let attributes = ActorAttributes::new(
         Arc::clone(&archetype.attributes),
         archetype.attribute_seed.clone(),
@@ -264,6 +271,9 @@ fn spawn_unattached(
         ));
         if let Some(resistance) = knockback_resistance {
             entity.insert(resistance);
+        }
+        if let Some(bonus) = follow_range_bonus {
+            entity.insert(bonus);
         }
     }
     Ok(entity.id())

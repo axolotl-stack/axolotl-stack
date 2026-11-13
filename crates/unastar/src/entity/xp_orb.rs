@@ -8,9 +8,14 @@
 //! the player's [`Experience`] and sends the player its new level and
 //! progress attributes.
 //!
-//! Viewers see an orb through `server::broadcast::sync_actor_viewers`
-//! (`AddActor` built by [`add_actor_packet`], then absolute moves and
-//! motion like other non-living actors).
+//! Viewers see an orb through `server::broadcast::sync_actor_viewers`:
+//! its `AddActor` ([`add_actor_packet`]) shows it as it spawned, with its
+//! random yaw cut to whole rotation bytes, and it then moves like a mob
+//! (`MoveActorDelta` measured against one shared last-sent state, at the
+//! cadence of the vanilla `xp_orb` definition's
+//! `conditional_bandwidth_optimization`, 10 ticks over 80 blocks; BDS
+//! 1.26.51 replication captures). A new orb counts as on the ground until
+//! its first move, like on BDS.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -31,7 +36,9 @@ use crate::entity::components::{
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::item_drop::{EntityRandom, PLAYER_EYE_HEIGHT, next_actor_id};
+use crate::entity::mob::components::BandwidthOptimization;
 use crate::entity::mob::constants;
+use crate::entity::mob::net::network::{MobNetState, quantized_degrees};
 use crate::registry::collision::Aabb;
 use crate::server::game::{PICKUP_REACH, player_box};
 
@@ -81,31 +88,59 @@ pub fn spawn_experience(world: &mut World, position: DVec3, amount: u32) {
     }
 }
 
-/// Spawn one orb worth `value` with a random scatter velocity.
+/// The vanilla orb's `conditional_bandwidth_optimization`, compiled once.
+fn orb_bandwidth() -> Option<BandwidthOptimization> {
+    static BANDWIDTH: std::sync::OnceLock<Option<BandwidthOptimization>> =
+        std::sync::OnceLock::new();
+    BANDWIDTH
+        .get_or_init(|| {
+            let definition = unastar_data::actor_definitions::get("minecraft:xp_orb")?;
+            let body = definition
+                .components
+                .get("minecraft:conditional_bandwidth_optimization")?;
+            let body = serde_json::from_value(body.clone())
+                .expect("the vanilla orb's bandwidth component is typed data");
+            Some(
+                BandwidthOptimization::compile(body)
+                    .expect("the vanilla orb's bandwidth values compile"),
+            )
+        })
+        .clone()
+}
+
+/// Spawn one orb worth `value` with a random scatter velocity and a random
+/// yaw.
 pub fn spawn_orb(world: &mut World, position: DVec3, value: u32) -> Entity {
-    let velocity = {
+    let (velocity, yaw) = {
         let rng = &mut world.get_resource_or_init::<EntityRandom>().0;
         let horizontal = constants::XP_ORB_SPAWN_HORIZONTAL;
-        DVec3::new(
+        let velocity = DVec3::new(
             rng.gen_range(-horizontal..horizontal),
             rng.gen_range(0.0..constants::XP_ORB_SPAWN_VERTICAL),
             rng.gen_range(-horizontal..horizontal),
-        )
+        );
+        (velocity, rng.gen_range(0.0f32..360.0))
     };
     let runtime_id = next_actor_id(world);
-    world
-        .spawn((
-            XpOrb { value },
-            Position(position),
-            Velocity(velocity),
-            Rotation::default(),
-            OnGround(false),
-            XP_ORB_BODY,
-            RuntimeId(runtime_id),
-            Age(0),
-            ActorViewers::default(),
-        ))
-        .id()
+    let rotation = Rotation::new(yaw, 0.0);
+    let mut orb = world.spawn((
+        XpOrb { value },
+        Position(position),
+        Velocity(velocity),
+        rotation,
+        OnGround(false),
+        XP_ORB_BODY,
+        RuntimeId(runtime_id),
+        Age(0),
+        ActorViewers::default(),
+        // On the ground until its first move, as BDS reports a new orb, and
+        // its scatter velocity never counted as sent motion.
+        MobNetState::spawned(position, velocity, rotation, true).motion_unsent(),
+    ));
+    if let Some(bandwidth) = orb_bandwidth() {
+        orb.insert(bandwidth);
+    }
+    orb.id()
 }
 
 /// Actor data of an orb: the rows BDS 1.26.51 sends for a summoned orb
@@ -146,11 +181,14 @@ pub fn xp_orb_metadata(value: u32) -> EntityMetadata {
     metadata
 }
 
-/// The `AddActor` a new viewer of an orb receives.
+/// The `AddActor` a new viewer of an orb receives: its pitch and yaw cut
+/// to whole rotation bytes, head and body yaw 0 (BDS 1.26.51: an orb whose
+/// yaw was 150.938 was sent with 150.46875).
 pub fn add_actor_packet(
     runtime_id: i64,
     position: DVec3,
     velocity: DVec3,
+    rotation: &Rotation,
     orb: &XpOrb,
 ) -> AddActorPacket {
     let wire = |v: DVec3| Vec3 {
@@ -168,7 +206,10 @@ pub fn add_actor_packet(
         actor_type: "minecraft:xp_orb".into(),
         position: wire(position),
         velocity: wire(velocity),
-        rotation: Vec2 { x: 0.0, y: 0.0 },
+        rotation: Vec2 {
+            x: quantized_degrees(rotation.pitch),
+            y: quantized_degrees(rotation.yaw),
+        },
         y_head_rotation: 0.0,
         y_body_rotation: 0.0,
         attributes_list: Vec::new(),
@@ -370,6 +411,7 @@ mod tests {
             7,
             DVec3::new(105.5, 136.0, -25.5),
             DVec3::ZERO,
+            &Rotation::default(),
             &XpOrb { value: 1 },
         );
         assert_eq!(ours.actor_type, native.actor_type);

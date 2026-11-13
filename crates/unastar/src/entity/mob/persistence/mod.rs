@@ -12,7 +12,7 @@
 //! | `Motion` | List of 3 Float | velocity, blocks per tick |
 //! | `OnGround` | Byte | |
 //! | `definitions` | List of String | `+<identifier>`, then every component group added (`+group`) or removed (`-group`) in order of its latest change |
-//! | `Attributes` | List of Compound | `minecraft:health` with `Base`, `Current`, `Max`, `Min`, `DefaultMax`, `DefaultMin`; for a mob with a spawn knockback resistance (the zombie) also `minecraft:knockback_resistance` as BDS saves it: `Base` 0, `Current` the resistance, `Min` -2, `Max` 1 (and the same defaults), `Modifiers` holding one `RandomSpawnBonus` (`Amount` the resistance, `Operation` 0, `Operand` 2, fixed `UUIDMost`/`UUIDLeast`) |
+//! | `Attributes` | List of Compound | `minecraft:health` with `Base`, `Current`, `Max`, `Min`, `DefaultMax`, `DefaultMin`; for a mob with a spawn knockback resistance (the zombie) also `minecraft:knockback_resistance` as BDS saves it: `Base` 0, `Current` the resistance, `Min` -2, `Max` 1 (and the same defaults), `Modifiers` holding one `RandomSpawnBonus` (`Amount` the resistance, `Operation` 0, `Operand` 2, fixed `UUIDMost`/`UUIDLeast`); for the zombie classes also `minecraft:follow_range` at `Base` 16 (`Max` 2048, `Min` 0, the same defaults), with a rolled follow-range bonus as one `RandomSpawnBonus` multiplier (`Amount` the bonus, `Operation` 2, `Operand` 2, the same id) and `Current` base × (1 + bonus) |
 //! | `properties` | Compound | actor properties by name; enums by value name |
 //! | `Persistent` | Byte | never despawns |
 //! | `InLove` | Int | remaining love ticks, when in love |
@@ -61,6 +61,7 @@ use crate::world::ecs::{
 
 pub(super) const HEALTH_ATTRIBUTE: &str = "minecraft:health";
 pub(super) const KNOCKBACK_RESISTANCE_ATTRIBUTE: &str = "minecraft:knockback_resistance";
+pub(super) const FOLLOW_RANGE_ATTRIBUTE: &str = "minecraft:follow_range";
 /// The attribute modifier a zombie's random knockback resistance is saved
 /// as, with the modifier id BDS 1.26.51 writes for it (the same for every
 /// zombie, and for its follow-range bonus:

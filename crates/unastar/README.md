@@ -103,10 +103,17 @@ generated (8 chunks per player per tick bound the generated case).
 A player's actor data follows BDS 1.26.51 (`entity/player_life/actor_data.rs`):
 its own join `SetActorData` and the `AddPlayer` other players get carry every
 row BDS sends (72 and 79), from the state the player's viewers last received;
-`AddPlayer` names game type `default` until the player's mode is set. Changes
-(breath, game mode, sneak, crawl pose, burning, effects, death) reach the
-player and its viewers as BDS groups them; the evidence and tests are in
-`entity/player_life/testdata/` and `entity/player_life/tests/`.
+`AddPlayer` names game type `default` until the player's mode is set and carries
+the feet position (the eyes are 1.62 higher). Changes (breath, game mode, sneak,
+sprint, swim, glide, crawl pose, `MOVING`, burning, effects, death) reach the
+player and its viewers as BDS groups them, and so do its attribute updates. The
+viewers are the players in BDS's send range (`entity/send_range.rs`:
+Δx² + Δz² ≤ 17 chunks). The sprint, swim and glide toggles a client asks for
+are accepted or refused with BDS's rules, and each move's food exhaustion is
+charged as BDS charges it (`entity/player_life/motion.rs`); falls (landing
+blocks, powder snow, a slowed glide, Feather Falling) and burning follow the
+BDS movement capture. The evidence and tests are in `entity/player_life/testdata/`
+and `entity/player_life/tests/`.
 
 ## World Generation
 
@@ -644,19 +651,37 @@ of the complete timing/motion matrix.
 
 ### Mob movement replication
 
-Mobs and projectiles replicate like BDS 1.26.51 (`src/entity/mob/net/network.rs`):
-a `MoveActorDelta` is measured against one shared "last sent" movement state, and
-each viewer gets it only as often as the actor's
-`minecraft:conditional_bandwidth_optimization` allows for that viewer's distance
-(every ⌊min(d, D) / D × M⌋ ticks, `ticks` set to that number; the empty component
-is 10 ticks over 80 blocks, so every tick within 8 blocks). A viewer's first
-update and a change of ground contact go at once with `ticks` 0, and the shared
-state moves on only when some viewer got the update, so far viewers can keep a
-stale axis, as on BDS. A newly spawned mob's `AddActor` shows it as it spawned.
-`src/entity/mob/net/bds_replication.rs` replays two-client BDS captures
+**Who sees what.** Every actor, players included, is sent to the players in its
+send range (`src/entity/send_range.rs`): the viewer's chunk within Δx² + Δz² ≤ 17
+chunks of the actor's, whatever the view or simulation distance. An actor is
+added in the tick a viewer comes into range and removed one tick after it
+leaves. `src/entity/bds_send_range.rs` replays BDS's add and remove steps for
+the sweep player, a cow, an item, an arrow and an orb along every walk of
+`tools/bds-sweep/sweep.py range` (three view / simulation distances).
+
+**Mobs, projectiles and experience orbs** replicate like BDS 1.26.51
+(`src/entity/mob/net/network.rs`): a `MoveActorDelta` is measured against one
+shared "last sent" movement state, and each viewer gets it only as often as the
+actor's `minecraft:conditional_bandwidth_optimization` allows for that viewer's
+distance (every ⌊min(d, D) / D × M⌋ ticks, `ticks` set to that number; the empty
+component is 10 ticks over 80 blocks, so every tick within 8 blocks). Conditional
+values apply while their filter holds: the vehicles' `is_moving` (0 / 0) is
+answered by whether the actor moved in the tick before. A viewer's first update
+and a change of ground contact go at once with `ticks` 0, and the shared state
+moves on only when some viewer got the update, so far viewers can keep a stale
+axis, as on BDS. A newly spawned actor's `AddActor` shows it as it spawned, its
+rotation cut to whole rotation bytes; actors that are not living have head and
+body yaw 0. A projectile that sticks in a block stops where its flight entered
+it. `src/entity/mob/net/bds_replication.rs` replays two-client BDS captures
 (`testdata/bds-1.26.51-replication.json`, from `tools/bds-sweep/sweep.py knockback
---items cadence|cadence2 --observer`) packet for packet; `docs/quirks/bds.md`
+--items cadence|cadence2|cadence3 --observer`) packet for packet; `docs/quirks/bds.md`
 lists the copied oddities.
+
+**Other players** (`src/server/player_view.rs`): every input a player sends is
+relayed to its viewers as one `MovePlayer` with the position, ground contact and
+head yaw after the input, the input's tick, and the pitch and yaw before it, as
+BDS does; `src/server/bds_player_relay.rs` replays 411 inputs of
+`tools/bds-sweep/sweep.py walk`.
 
 ## Commands
 
@@ -912,8 +937,8 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Suspicious stew effects (data 0-9) | done | BDS capture table |
 | Chorus fruit teleport | done | `on_use_range` from pack data; 16 tries and the landing search are public references |
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
-| Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
-| Attribute sync (health, absorption, hunger, saturation, exhaustion) | done, changed values once | BDS join ranges; BDS also repeats some attributes, not copied |
+| Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; movement exhaustion matches the BDS movement capture tick by tick (`entity/player_life/tests/movement.rs`) |
+| Attribute sync (health, absorption, hunger, saturation, exhaustion, movement with the sprint modifier) to the player and its viewers | done, changed values once | BDS join ranges and movement capture; BDS also repeats some attributes, not copied |
 | Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
 | Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
 | Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
@@ -1029,9 +1054,11 @@ enabled, saves also update the per-player TOML position used by spawn rules.
 Spawn rules retain their ordering and only use saved positions in the current
 dimension.
 
-Mobs are saved as Bedrock actor records with their chunk (`src/entity/mob/persistence`); a zombie's random
-spawn knockback resistance is saved the way BDS saves it (a `RandomSpawnBonus` modifier of
-`minecraft:knockback_resistance`) and restored on load instead of being rolled again.
+Mobs are saved as Bedrock actor records with their chunk (`src/entity/mob/persistence`); the zombie
+classes' random spawn bonuses (a knockback resistance, and for about a third of them a raised follow
+range) are saved the way BDS saves them (`RandomSpawnBonus` modifiers of
+`minecraft:knockback_resistance` and `minecraft:follow_range`) and restored on load instead of being
+rolled again.
 
 Regression coverage: `cargo test -p unastar --test persistence` exercises both
 world providers, stored-column preservation through asynchronous loading and
