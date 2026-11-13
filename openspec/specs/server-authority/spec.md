@@ -246,3 +246,34 @@ The server SHALL keep each player's item cooldowns by category, from the held it
 - **THEN** only the first pig is hurt and one cooldown starts
 
 Evidence: crates/unastar/src/item/cooldown.rs (`cooldown`, `cooling`, `start`, test `spear_cooldowns_come_from_the_item_documents`), crates/unastar/src/entity/mob/combat/hit.rs (`player_attack`), crates/unastar/src/server/game/item_use/mod.rs (`attack_air`), crates/unastar/src/entity/mob/combat/hit/spear_tests.rs (`spear_hits_jabs_and_swings_answer_like_bds`, replaying `testdata/bds-spears.jsonl`), [docs/quirks/bds.md](../../../docs/quirks/bds.md) (Items / spears)
+Evidence: crates/unastar/src/server/game/chunks.rs (`handle_chunk_radius_request`)
+
+### Requirement: Attacks on players are checked against server state
+An attack aimed at another player SHALL be applied only when the attacker is alive and not a spectator, the victim is a live player that can take damage, the `pvp` game rule is on, the transaction names the held hotbar slot and its item, its claimed position is within 6 blocks of the attacker's tracked position, and the two tracked positions are within 6.7 blocks (12 in creative). A refused attack MUST change nothing and send nothing.
+
+#### Scenario: Out of reach
+- **WHEN** a survival player attacks a player whose position is 6.8 blocks from its own
+- **THEN** the victim's health and velocity are unchanged and no packet is sent
+
+#### Scenario: Claimed position off by more than 6 blocks
+- **WHEN** the transaction's claimed position is 6.1 blocks from the attacker's tracked position
+- **THEN** the attack is refused
+
+#### Scenario: Spectator attacker
+- **WHEN** a spectator sends an attack on a survival player within reach
+- **THEN** the attack is refused
+
+Evidence: crates/unastar/src/entity/player_life/pvp.rs (`check`, `Refusal`), crates/unastar/src/entity/player_life/tests/pvp.rs (`reach_and_the_claimed_position_limit_hits_like_bds`, `game_modes_and_the_pvp_rule_decide_who_can_be_hit`, `a_spectator_cannot_hit`)
+
+### Requirement: A reported velocity is finite and bounded
+The velocity a `PlayerAuthInput` reports (`pos_delta`) MUST be finite, or the input is rejected whole, and is clamped on each axis to the per-input movement limit. The velocity a knockback keeps and the velocity it gives MUST be clamped on each axis to 3.92 blocks a tick (a living body's terminal fall speed), after every push of the tick.
+
+#### Scenario: Non-finite reported velocity
+- **WHEN** a `PlayerAuthInput` reports a NaN or infinite `pos_delta`
+- **THEN** the input is rejected whole, like a non-finite position
+
+#### Scenario: A crafted velocity before a knockback
+- **WHEN** a player whose last input reported a velocity of 64 blocks a tick on each axis is pushed eight times in one tick
+- **THEN** its velocity is at most 3.92 blocks a tick on every axis
+
+Evidence: crates/unastar/src/server/game/movement.rs (`auth_input_is_finite`, test `non_finite_positions_and_rotations_are_rejected`), crates/unastar/src/entity/player_life/hurt.rs (`bounded_knockback`, test `a_crafted_velocity_cannot_launch_a_knocked_back_player`)

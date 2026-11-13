@@ -11,20 +11,27 @@
 //!    peaceful none, easy `min(damage / 2 + 1, damage)`, normal as is, hard
 //!    × 1.5 (provisional: Minecraft Wiki "Difficulty", which gives the
 //!    zombie's 2.5 / 3 / 4.5). A hit scaled to nothing is ignored.
-//! 3. The hurt timer, shared with mobs (`mob::combat::HurtTimer`): for
-//!    [`HURT_TICKS`] after a full hit a new one only deals what exceeds the
-//!    damage that started the timer, and nothing when it does not exceed it
-//!    (override and self-destruct damage ignore the timer).
-//! 4. Armour: the summed defence and toughness of the worn pieces reduce
-//!    the damage of the causes armour stops (`unastar_data::armour`).
+//! 3. Armour: the summed defence and toughness of the worn pieces reduce
+//!    the damage of the causes armour stops (`unastar_data::armour`); for
+//!    melee, Protection (4 % a level) and Resistance (20 % a level) follow.
+//! 4. The hurt timer, shared with mobs (`mob::combat::HurtTimer`): for
+//!    [`HURT_TICKS`] after a hit a new one only deals what exceeds the
+//!    damage that started the timer, both after step 3, and nothing when it
+//!    does not exceed it; a hit that exceeds it restarts the timer (override
+//!    and self-destruct damage ignore the timer). A player's melee hit is
+//!    counted at the tick its packet arrived in (BDS 1.26.51 PvP sweep).
 //!
-//! A full hit that leaves the player alive knocks it back when the hit has
-//! a source position (the player moves itself, so the push goes to its own
-//! client as `SetActorMotion`), then sends `ActorEvent` hurt, its data the
-//! damage cause's ID, to the player and its viewers. A killing hit sends
-//! neither: the death event is all the clients see of it (BDS 1.26.51:
-//! the drowning death of `testdata/bds-1.26.51-breath.json` and the slime
-//! kill of `testdata/bds-1.26.51-player-data.json`).
+//! A hit that leaves the player alive, a hit that exceeds the hurt window
+//! included, knocks it back when the hit has a source position: half the
+//! player's velocity kept, scaled by its armour's knockback resistance, one
+//! `SetActorMotion` per push to the player and its viewers; then
+//! `ActorEvent` hurt, its data the damage cause's ID, to the player and its
+//! viewers. A killing hit sends neither: the death event is all the
+//! clients see of it (BDS 1.26.51: the drowning death of
+//! `testdata/bds-1.26.51-breath.json` and the slime kill of
+//! `testdata/bds-1.26.51-player-data.json`). A player's melee hit also sends
+//! `SetLastHurtBy` first and its particles last, a killing one too
+//! ([`super::pvp`]).
 //! The health change reaches the client through
 //! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
@@ -32,8 +39,12 @@
 //! [`HURT_TICKS`]: crate::entity::mob::constants::HURT_TICKS
 
 use glam::{DVec2, DVec3};
-use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, Vec3};
-use jolyne::valentine::{ActorEventPacket, McpePacket, SetActorMotionPacket};
+use jolyne::valentine::types::{
+    ActorRuntimeId, EnumsActorEvent, EnumsActorType, EnumsAnimatePacketPayloadAction, Vec3,
+};
+use jolyne::valentine::{
+    ActorEventPacket, AnimatePacket, McpePacket, SetActorMotionPacket, SetLastHurtByPacket,
+};
 use rand::Rng;
 use unastar_data::actor_components::body::ActorDamageCause;
 
@@ -44,18 +55,18 @@ use super::{Dead, send_to_player_and_viewers};
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    ArmourInventory, GameMode, Health, Player, PlayerSession, Position, RuntimeEntityId,
+    ArmourInventory, GameMode, Health, Player, PlayerInput, Position, RuntimeEntityId,
 };
 use crate::entity::mob::combat::{Hit, HurtTimer, knockback_velocity};
 use crate::entity::mob::components::KnockbackPower;
-use crate::entity::mob::constants::HURT_TICKS;
+use crate::entity::mob::constants::{HURT_TICKS, LIVING_GRAVITY, LIVING_VERTICAL_DRAG};
 use crate::entity::mob::state::LastHurt;
 use crate::world::rules::{Difficulty, GameRules};
 
 /// Apply `hit` to `player`; returns the health actually removed (0 when the
 /// hit was ignored).
 pub fn hurt_player(world: &mut World, player: Entity, hit: &Hit) -> f32 {
-    apply_hit(world, player, hit, None)
+    apply_player_hit(world, player, hit, PlayerHit::default())
 }
 
 /// [`hurt_player`] for a landing after falling `fall_distance` blocks (the
@@ -66,6 +77,45 @@ pub(super) fn apply_hit(
     hit: &Hit,
     fall_distance: Option<f64>,
 ) -> f32 {
+    apply_player_hit(
+        world,
+        player,
+        hit,
+        PlayerHit {
+            fall_distance,
+            ..PlayerHit::default()
+        },
+    )
+}
+
+/// What a hit carries beyond [`Hit`].
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct PlayerHit {
+    /// A second push after the native one (a player's sprint or Knockback
+    /// enchantment, `super::pvp`).
+    pub extra_knockback: Option<KnockbackPower>,
+    /// A player's critical hit.
+    pub critical: bool,
+    /// A player's hit with a weapon whose enchantment adds damage.
+    pub enchanted: bool,
+    /// The fall a landing ends (death messages).
+    pub fall_distance: Option<f64>,
+    /// A player's melee hit: the victim and its viewers get
+    /// `SetLastHurtBy` (player) before the push.
+    pub by_player_hit: bool,
+    /// The tick the hurt window counts this hit at (the tick its packet
+    /// arrived in); the current tick when `None`.
+    pub at_tick: Option<u64>,
+}
+
+/// [`hurt_player`] with the extras of `extras`.
+pub(super) fn apply_player_hit(
+    world: &mut World,
+    player: Entity,
+    hit: &Hit,
+    extras: PlayerHit,
+) -> f32 {
+    let fall_distance = extras.fall_distance;
     if hit.damage < 0.0
         || world.get::<Player>(player).is_none()
         || world.get::<Dead>(player).is_some()
@@ -101,22 +151,37 @@ pub(super) fn apply_hit(
         hit.cause,
         ActorDamageCause::Override | ActorDamageCause::SelfDestruct
     );
+    // Armour wears from the hit before armour reduces it.
+    let unreduced = damage;
+    // Armour, Protection and Resistance reduce the hit first; the hurt
+    // window then compares and subtracts what is left (BDS 1.26.51 PvP
+    // sweep: against four diamond pieces 4 leaves 0.96 and 7 leaves 1.89,
+    // and the 7 two ticks after the 4 deals 0.93).
+    let damage = if reduced_by_armour(hit.cause) {
+        let (defence, toughness) = worn_armour(world, player);
+        unastar_data::armour::damage_after_armour(damage, defence, toughness)
+    } else {
+        damage
+    };
+    let damage = if hit.cause == ActorDamageCause::EntityAttack {
+        after_resistance(world, player, after_protection(world, player, damage))
+    } else {
+        damage
+    };
     let now = world.resource::<TickCounter>().current;
-    let (dealt, until_tick, full) = match world.get::<HurtTimer>(player).copied() {
-        Some(timer) if now < timer.until_tick && !ignores_timer => {
+    let at = extras.at_tick.unwrap_or(now);
+    // A hit that exceeds the window restarts it (BDS 1.26.51 PvP sweep: 4,
+    // then 7 two ticks later, then 8 nine ticks after the 7 deals 1).
+    let dealt = match world.get::<HurtTimer>(player).copied() {
+        Some(timer) if at < timer.until_tick && !ignores_timer => {
             if damage <= timer.last_damage {
                 return 0.0;
             }
-            (damage - timer.last_damage, timer.until_tick, false)
+            damage - timer.last_damage
         }
-        _ => (damage, now + u64::from(HURT_TICKS), true),
+        _ => damage,
     };
-    let dealt = if reduced_by_armour(hit.cause) {
-        let (defence, toughness) = worn_armour(world, player);
-        unastar_data::armour::damage_after_armour(dealt, defence, toughness)
-    } else {
-        dealt
-    };
+    let until_tick = at + u64::from(HURT_TICKS);
 
     let (applied, dead) = {
         let mut entity = world.entity_mut(player);
@@ -137,15 +202,60 @@ pub(super) fn apply_hit(
         health.damage(dealt);
         (before - health.current, health.is_dead())
     };
-    if full && !dead {
+    // A hit inside the hurt window that exceeds it knocks back and shows
+    // the hurt like a full one (BDS 1.26.51 PvP sweep: 4 then 7 two ticks
+    // later pushes twice and sends two hurt events; a burst of rising hits
+    // pushes once per hit).
+    // A player's hit tells the victim and its viewers who hurt it, a
+    // killing one too (BDS 1.26.51 PvP sweep).
+    if extras.by_player_hit {
+        send_to_player_and_viewers(
+            world,
+            player,
+            &McpePacket::from(SetLastHurtByPacket {
+                last_hurt_by: EnumsActorType::Player,
+            }),
+        );
+    }
+    if !dead {
         if let Some(from) = hit.knockback_from {
-            knock_back(world, player, from, hit.knockback_power);
+            let pushes = [Some(hit.knockback_power), extras.extra_knockback];
+            knock_back(world, player, from, pushes.iter().flatten().copied());
         }
         send_hurt_event(world, player, hit.cause);
     }
+    {
+        // A weapon whose enchantment adds damage, then a critical hit, show
+        // their particles, a killing hit's too (BDS 1.26.51: Sharpness V and
+        // a crit send both, in that order).
+        for (shown, action, data) in [
+            (
+                extras.enchanted,
+                EnumsAnimatePacketPayloadAction::Magiccriticalhit,
+                15.0,
+            ),
+            (
+                extras.critical,
+                EnumsAnimatePacketPayloadAction::Criticalhit,
+                55.0,
+            ),
+        ] {
+            if let (true, Some(runtime_id)) = (shown, world.get::<RuntimeEntityId>(player)) {
+                let packet = McpePacket::from(AnimatePacket {
+                    action,
+                    target_actor_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: runtime_id.0 as u64,
+                    },
+                    data,
+                    swing_source: None,
+                });
+                send_to_player_and_viewers(world, player, &packet);
+            }
+        }
+    }
     // A hit that hurt wears the worn armour and costs the player food.
     if applied > 0.0 {
-        crate::server::game::durability::wear_armour(world, player, damage, hit.cause);
+        crate::server::game::durability::wear_armour(world, player, unreduced, hit.cause);
         if crate::server::game::durability::armour_wears_from(hit.cause) {
             crate::server::game::hunger::exhaust_player(world, player, |values| values.damage);
         }
@@ -217,6 +327,55 @@ fn reduced_by_armour(cause: ActorDamageCause) -> bool {
     )
 }
 
+/// `damage` after the Protection levels of the worn pieces: 4 % a level
+/// (BDS 1.26.51 PvP sweep: Protection I on four diamond pieces 2.24 ->
+/// 1.8816, IV 2.24 -> 0.8064; melee is the only cause measured).
+fn after_protection(world: &World, player: Entity, damage: f32) -> f32 {
+    let levels: u32 = world.get::<ArmourInventory>(player).map_or(0, |armour| {
+        armour
+            .slots()
+            .iter()
+            .filter(|stack| !stack.is_empty())
+            .map(|stack| {
+                u32::from(stack.enchantment_level(unastar_rules::ids::Enchantment::Protection))
+            })
+            .sum()
+    });
+    damage * (1.0 - (PROTECTION_PER_LEVEL * levels as f32).min(1.0))
+}
+
+/// Protection's share of the damage per level.
+const PROTECTION_PER_LEVEL: f32 = 0.04;
+/// Resistance's share of the damage per level (level V and up: none left).
+const RESISTANCE_PER_LEVEL: f32 = 0.2;
+
+/// `damage` under the Resistance effect: 20 % a level, none from level V
+/// (BDS 1.26.51 PvP sweep: a diamond sword's 8 -> 6.4, 4.8, 3.2, 1.6, 0).
+fn after_resistance(world: &World, player: Entity, damage: f32) -> f32 {
+    let Some(level) = world
+        .get::<crate::entity::components::Effects>(player)
+        .and_then(|effects| effects.get(crate::entity::components::EffectType::RESISTANCE))
+        .map(|effect| u32::from(effect.level) + 1)
+    else {
+        return damage;
+    };
+    damage * (1.0 - (RESISTANCE_PER_LEVEL * level as f32).min(1.0))
+}
+
+/// Summed knockback resistance of the pieces `player` wears (netherite: 0.1
+/// each).
+fn worn_knockback_resistance(world: &World, player: Entity) -> f64 {
+    world.get::<ArmourInventory>(player).map_or(0.0, |armour| {
+        armour
+            .slots()
+            .iter()
+            .filter(|stack| !stack.is_empty())
+            .filter_map(|stack| unastar_data::armour::armour_values(stack.item_id()))
+            .map(|values| f64::from(values.knockback_resistance))
+            .sum()
+    })
+}
+
 /// Summed defence and toughness of the pieces `player` wears.
 fn worn_armour(world: &World, player: Entity) -> (f32, f32) {
     world
@@ -283,11 +442,21 @@ fn cause_id(cause: ActorDamageCause) -> i32 {
     cause as i32 - 1
 }
 
-/// Push `player` away from `from` (horizontally) with the native knockback
-/// ([`knockback_velocity`]). The server does not track a player's own
-/// motion, so the push starts from rest; it is sent to the player's client
-/// and counts as the player's next move (`super::motion`).
-fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPower) {
+/// Push `player` away from `from` (horizontally) with each of `pushes` in
+/// turn, the native knockback ([`knockback_velocity`]) scaled by the
+/// knockback resistance of its armour. The push keeps half the player's velocity: the one its last
+/// input reported, which is what BDS simulates for it (at rest 0.0784
+/// down, so a netherite-clad victim leaves at 0.6 x 0.48 - 0.0392), or an
+/// earlier push of this tick. It goes to the player and its viewers as
+/// `SetActorMotion` and counts as the player's next move (`super::motion`).
+/// The velocity kept and the velocity given are bounded by
+/// [`bounded_knockback`].
+fn knock_back(
+    world: &mut World,
+    player: Entity,
+    from: DVec3,
+    pushes: impl Iterator<Item = KnockbackPower>,
+) {
     let Some(position) = world.get::<Position>(player).map(|p| p.0) else {
         return;
     };
@@ -299,17 +468,32 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
             .gen_range(0.0..std::f64::consts::TAU);
         away = DVec2::from_angle(angle);
     }
-    let velocity = knockback_velocity(DVec3::ZERO, away.normalize(), power);
+    let resistance = worn_knockback_resistance(world, player);
+    let mut velocity = bounded_knockback(
+        world
+            .get::<PlayerInput>(player)
+            .map_or(DVec3::ZERO, |input| input.velocity),
+    );
+    let mut count = 0;
+    for power in pushes {
+        let power = if resistance > 0.0 {
+            crate::entity::mob::combat::knockback::KnockbackResistance(resistance).resist(power)
+        } else {
+            power
+        };
+        velocity = bounded_knockback(knockback_velocity(velocity, away.normalize(), power));
+        count += 1;
+    }
+    if let Some(mut input) = world.get_mut::<PlayerInput>(player) {
+        input.velocity = velocity;
+    }
     if let Some(mut moves) = world.get_mut::<super::motion::PlayerMoves>(player) {
         moves.push(velocity);
     }
-    let (Some(session), Some(runtime_id)) = (
-        world.get::<PlayerSession>(player),
-        world.get::<RuntimeEntityId>(player),
-    ) else {
+    let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
         return;
     };
-    let _ = session.send(McpePacket::from(SetActorMotionPacket {
+    let packet = McpePacket::from(SetActorMotionPacket {
         target_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id.0 as u64,
         },
@@ -319,12 +503,56 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
             z: velocity.z as f32,
         },
         tick: crate::entity::components::input_tick_of(world, player),
-    }));
+    });
+    // One `SetActorMotion` per push, each with the velocity after all of
+    // them (BDS 1.26.51 PvP sweep: a sprint hit sends (0.6, 0.32) twice).
+    for _ in 0..count {
+        send_to_player_and_viewers(world, player, &packet);
+    }
+}
+
+/// The largest speed on any axis a knockback keeps or gives: a living body's
+/// terminal fall speed (0.08 x 0.98 / 0.02 = 3.92 blocks a tick). This is
+/// a server bound, not a BDS measurement: the velocity a knockback keeps is
+/// the client's reported `pos_delta`, so a crafted one (or pushes stacked in
+/// one tick) must not launch the player. Every push of the BDS 1.26.51 PvP
+/// sweep stays far below it.
+const MAX_KNOCKBACK_SPEED: f64 =
+    LIVING_GRAVITY * LIVING_VERTICAL_DRAG / (1.0 - LIVING_VERTICAL_DRAG);
+
+/// `velocity` clamped on each axis to [`MAX_KNOCKBACK_SPEED`].
+fn bounded_knockback(velocity: DVec3) -> DVec3 {
+    velocity.clamp(
+        DVec3::splat(-MAX_KNOCKBACK_SPEED),
+        DVec3::splat(MAX_KNOCKBACK_SPEED),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_crafted_velocity_cannot_launch_a_knocked_back_player() {
+        let mut world = World::new();
+        let player = world
+            .spawn((
+                Position(DVec3::ZERO),
+                PlayerInput {
+                    velocity: DVec3::new(64.0, 64.0, -64.0),
+                    ..Default::default()
+                },
+            ))
+            .id();
+        let pushes = std::iter::repeat_n(KnockbackPower::DEFAULT, 8);
+        knock_back(&mut world, player, DVec3::new(-1.0, 0.0, 0.0), pushes);
+        let velocity = world.get::<PlayerInput>(player).unwrap().velocity;
+        assert!(
+            velocity.abs().max_element() <= MAX_KNOCKBACK_SPEED,
+            "{velocity}"
+        );
+        assert!((MAX_KNOCKBACK_SPEED - 3.92).abs() < 1e-9);
+    }
 
     #[test]
     fn difficulty_scales_mob_damage() {

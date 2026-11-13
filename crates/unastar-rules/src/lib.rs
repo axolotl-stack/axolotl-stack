@@ -16,7 +16,7 @@
 //!   ahead-of-time worldgen compiler, with case-insensitive names and the
 //!   `q.`/`v.`/`t.`/`c.` aliases resolved at parse time.
 //!
-//! [`math`] also exposes calibrated scalar player-Drop direction math without
+//! [`melee`] is the melee damage rule (Sharpness), and [`math`] also exposes calibrated scalar player-Drop direction math without
 //! bringing ECS or vector-library dependencies into shared consumers.
 //!
 //! Parse rules follow the parser-fidelity requirement of the entities research
@@ -30,6 +30,7 @@ pub mod filter;
 pub mod ids;
 pub mod loot;
 pub mod math;
+pub mod melee;
 pub mod molang;
 
 use std::fmt;

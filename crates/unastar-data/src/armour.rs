@@ -28,11 +28,14 @@ pub enum ArmourSlot {
     Feet,
 }
 
-/// Defence points, toughness and slot of one worn item.
+/// Defence points, toughness, knockback resistance and slot of one worn
+/// item.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ArmourValues {
     pub defence: f32,
     pub toughness: f32,
+    /// The share of a knockback the piece takes away.
+    pub knockback_resistance: f32,
     pub slot: ArmourSlot,
 }
 
@@ -42,8 +45,15 @@ struct Measurement {
     slot: ArmourSlot,
 }
 
-/// Provisional toughness per item-name prefix (Minecraft Wiki "Armor").
+/// Toughness per item-name prefix (Minecraft Wiki "Armor"; a BDS 1.26.51
+/// diamond sword's 8 leaves 2.24 against four diamond pieces and 2.112
+/// against four netherite ones, which needs 2 and 3 a piece: the PvP sweep,
+/// `crates/unastar/src/entity/player_life/testdata/bds-1.26.51-pvp.json`).
 const TOUGHNESS: [(&str, f32); 2] = [("minecraft:diamond_", 2.0), ("minecraft:netherite_", 3.0)];
+/// Knockback resistance per item-name prefix (the same sweep: a netherite
+/// chestplate cuts a player's knockback push to 0.36, four netherite pieces
+/// to 0.24).
+const KNOCKBACK_RESISTANCE: [(&str, f32); 1] = [("minecraft:netherite_", 0.1)];
 
 static TABLE: LazyLock<HashMap<String, ArmourValues>> = LazyLock::new(|| {
     let rows: HashMap<String, Measurement> =
@@ -51,15 +61,20 @@ static TABLE: LazyLock<HashMap<String, ArmourValues>> = LazyLock::new(|| {
             .expect("measured armour values decode");
     rows.into_iter()
         .map(|(item, row)| {
-            let toughness = TOUGHNESS
-                .iter()
-                .find(|(prefix, _)| item.starts_with(prefix))
-                .map_or(0.0, |(_, toughness)| *toughness);
+            let by_prefix = |table: &[(&str, f32)]| {
+                table
+                    .iter()
+                    .find(|(prefix, _)| item.starts_with(prefix))
+                    .map_or(0.0, |(_, value)| *value)
+            };
+            let toughness = by_prefix(&TOUGHNESS);
+            let knockback_resistance = by_prefix(&KNOCKBACK_RESISTANCE);
             (
                 item,
                 ArmourValues {
                     defence: row.defense,
                     toughness,
+                    knockback_resistance,
                     slot: row.slot,
                 },
             )
@@ -110,6 +125,7 @@ mod tests {
             Some(ArmourValues {
                 defence: 8.0,
                 toughness: 2.0,
+                knockback_resistance: 0.0,
                 slot: ArmourSlot::Chest,
             })
         );
@@ -118,6 +134,7 @@ mod tests {
             Some(ArmourValues {
                 defence: 6.0,
                 toughness: 3.0,
+                knockback_resistance: 0.1,
                 slot: ArmourSlot::Legs,
             })
         );
