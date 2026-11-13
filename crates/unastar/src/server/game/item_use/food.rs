@@ -125,7 +125,9 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
                 if roll >= effect.chance {
                     continue;
                 }
-                let Some(effect_type) = crate::entity::components::EffectType::from_name(&effect.name) else {
+                let Some(effect_type) =
+                    crate::entity::components::EffectType::from_name(&effect.name)
+                else {
                     tracing::warn!(item = entry.identifier(), effect = %effect.name, "Food effect is not a known effect");
                     continue;
                 };

@@ -770,7 +770,11 @@ fn instant_health_from_item_use_heals_at_any_level() {
         assert_eq!(world.get::<Health>(player).unwrap().current, 5.0);
         server.tick();
         let world = server.ecs.world_mut();
-        assert_eq!(world.get::<Health>(player).unwrap().current, 20.0, "level {level}");
+        assert_eq!(
+            world.get::<Health>(player).unwrap().current,
+            20.0,
+            "level {level}"
+        );
     }
 }
 

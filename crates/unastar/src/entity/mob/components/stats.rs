@@ -162,8 +162,7 @@ pub fn register_component_kinds(
             .unwrap_or_default()
             .iter()
             .map(|name| {
-                EffectType::from_name(name)
-                    .ok_or_else(|| StatsError::UnknownEffect(name.clone()))
+                EffectType::from_name(name).ok_or_else(|| StatsError::UnknownEffect(name.clone()))
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok::<_, StatsError>(MobEffectImmunity(effects.into()))

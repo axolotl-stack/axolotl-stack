@@ -84,7 +84,10 @@ impl FromArg for EffectType {
 fn param(effect: EffectType) -> String {
     format!(
         "%{}",
-        effect.info().expect("a command effect is in the table").translation_key
+        effect
+            .info()
+            .expect("a command effect is in the table")
+            .translation_key
     )
 }
 
@@ -249,10 +252,7 @@ fn remove(ctx: &mut CommandContext<'_>, player: &Target, effect: EffectType) -> 
     for target in targets {
         crate::entity::effects::take(ctx.world, target, effect_type);
         let name = ctx.name(target);
-        output.add_success(
-            "commands.effect.success.removed",
-            vec![param(effect), name],
-        );
+        output.add_success("commands.effect.success.removed", vec![param(effect), name]);
     }
     Ok(output)
 }
@@ -286,10 +286,7 @@ fn clear(
                 output.add_failure("commands.effect.failure.notActive.all", vec![name]);
             }
             (Some(effect), false) => {
-                output.add_success(
-                    "commands.effect.success.removed",
-                    vec![param(effect), name],
-                );
+                output.add_success("commands.effect.success.removed", vec![param(effect), name]);
             }
             (None, false) => {
                 output.add_success("commands.effect.success.removed.all", vec![name]);
