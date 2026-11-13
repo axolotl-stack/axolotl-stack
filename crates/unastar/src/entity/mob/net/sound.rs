@@ -49,6 +49,18 @@ pub fn play_level_sound(
     sound: &str,
     data: i32,
 ) {
+    let packet = level_sound_packet(world, source, position, sound, data);
+    send_to_viewers(world, position, &packet);
+}
+
+/// The `LevelSoundEvent` packet of [`play_level_sound`].
+fn level_sound_packet(
+    world: &World,
+    source: Option<Entity>,
+    position: DVec3,
+    sound: &str,
+    data: i32,
+) -> McpePacket {
     let identifier = source.and_then(|actor| {
         world
             .get::<MobKind>(actor)
@@ -68,7 +80,7 @@ pub fn play_level_sound(
                 .get(jolyne::valentine::actor_flags::BABY)
                 .unwrap_or(false)
         });
-    let packet = McpePacket::from(LevelSoundEventPacket {
+    McpePacket::from(LevelSoundEventPacket {
         sound_event: sound.into(),
         position: wire(position),
         data,
@@ -77,8 +89,57 @@ pub fn play_level_sound(
         is_global: false,
         actor_unique_id: unique_id.unwrap_or(-1),
         fire_at_position: None,
+    })
+}
+
+/// Level sounds an actor makes as part of its own state change (a mob
+/// taking a target, an angry mob's sound, a projectile turning visible) or
+/// a projectile's hit sound: built when they happen, sent to the viewers on
+/// the next tick, before that tick's actor data. Measured: BDS 1.26.51
+/// sends `mob.warning` one batch after the `TARGET` actor data that caused
+/// it, an angry zoglin's `angry` one batch after its `ANGRY` flag, a
+/// projectile's `reappeared` one batch after its cleared `INVISIBLE` flag
+/// and an xp bottle's `glass` one batch after the splash level event of the
+/// same hit.
+#[derive(Resource, Default)]
+pub struct SyncedSounds(Vec<(u64, DVec3, McpePacket)>);
+
+/// Queue [`play_level_sound`]'s packet for the next tick (see
+/// [`SyncedSounds`]).
+pub fn queue_synced_sound(
+    world: &mut World,
+    source: Option<Entity>,
+    position: DVec3,
+    sound: &str,
+    data: i32,
+) {
+    let packet = level_sound_packet(world, source, position, sound, data);
+    let due = world.resource::<crate::ecs::TickCounter>().current + 1;
+    world
+        .get_resource_or_init::<SyncedSounds>()
+        .0
+        .push((due, position, packet));
+}
+
+/// System (`NetworkSendSet`, before actor data): send the queued sounds
+/// that are due.
+pub fn flush_synced_sounds(world: &mut World) {
+    let Some(mut queue) = world.get_resource_mut::<SyncedSounds>() else {
+        return;
+    };
+    if queue.0.is_empty() {
+        return;
+    }
+    let mut queued = std::mem::take(&mut queue.0);
+    let now = world.resource::<crate::ecs::TickCounter>().current;
+    queued.retain(|(due, position, packet)| {
+        if *due > now {
+            return true;
+        }
+        send_to_viewers(world, *position, packet);
+        false
     });
-    send_to_viewers(world, position, &packet);
+    world.resource_mut::<SyncedSounds>().0.append(&mut queued);
 }
 
 /// Broadcast `LevelEvent(event_id, data)` at `position`.

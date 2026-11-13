@@ -259,7 +259,7 @@ async fn run_client(addr: SocketAddr) {
     assert!(
         side.iter()
             .any(|p| matches!(p, McpePacketData::MovePlayerPacket(m)
-        if (m.position.x, m.position.y, m.position.z) == (0.5, 101.62, 0.5)))
+        if (m.position.x, m.position.y, m.position.z) == (0.5, 101.620_01, 0.5)))
     );
     assert!(
         texts(&side)

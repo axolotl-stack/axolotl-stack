@@ -183,7 +183,15 @@ defaults! {
     boost_duration -> f32 = p::BOOSTABLE_DURATION;
     boost_speed_multiplier -> f32 = p::BOOSTABLE_SPEED_MULTIPLIER;
     boost_item_damage -> i32 = p::BOOSTABLE_BOOST_ITEM_DAMAGE;
+    angry_duration -> i32 = p::ANGRY_DURATION;
+    angry_duration_delta -> i32 = p::ANGRY_DURATION_DELTA;
+    angry_broadcast_range -> i32 = p::ANGRY_BROADCAST_RANGE;
+    angry_broadcast_when_dying -> bool = p::ANGRY_BROADCAST_WHEN_DYING;
     color_value -> i32 = p::COLOR_VALUE;
+    color2_value -> i32 = p::COLOR2_VALUE;
+    mark_variant_value -> i32 = p::MARK_VARIANT_VALUE;
+    skin_id_value -> i32 = p::SKIN_ID_VALUE;
+    variant_value -> i32 = p::VARIANT_VALUE;
     dyeable_interact_text -> String = p::IS_DYEABLE_INTERACT_TEXT.to_owned();
     transformation_flag -> bool = p::TRANSFORMATION_FLAG;
     transformation_delay_value -> f32 = p::TRANSFORMATION_DELAY_VALUE;
@@ -1048,6 +1056,82 @@ pub struct Color {
     pub value: i32,
 }
 
+/// `minecraft:angry`: a timed angry state that may spread to nearby actors.
+/// Vanilla spells `broadcast_anger` and `broadcast_range` also as
+/// `broadcastAnger` and `broadcastRange` (bee, wandering trader).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Angry {
+    /// Sound event played every `sound_interval` while angry.
+    #[serde(default)]
+    pub angry_sound: Option<String>,
+    /// Seconds between two angry sounds.
+    #[serde(default)]
+    pub sound_interval: Option<ValueOrRange<f32>>,
+    /// Seconds the actor stays angry; -1 until an event calms it.
+    #[serde(default = "angry_duration")]
+    pub duration: i32,
+    /// Seconds added to `duration`, drawn from `[-delta, delta]`.
+    #[serde(default = "angry_duration_delta")]
+    pub duration_delta: i32,
+    /// Actors the angry actor does not attack.
+    #[serde(default)]
+    pub filters: Option<FilterJson>,
+    /// Other actors of the same definition within `broadcast_range` become
+    /// angry too.
+    #[serde(default, alias = "broadcastAnger")]
+    pub broadcast_anger: bool,
+    #[serde(default)]
+    pub broadcast_anger_on_attack: bool,
+    #[serde(default)]
+    pub broadcast_anger_on_being_attacked: bool,
+    #[serde(default = "angry_broadcast_when_dying")]
+    pub broadcast_anger_when_dying: bool,
+    #[serde(default = "angry_broadcast_range", alias = "broadcastRange")]
+    pub broadcast_range: i32,
+    /// Families the anger spreads to (instead of the same definition).
+    #[serde(default, deserialize_with = "super::de::optional_one_or_many")]
+    pub broadcast_targets: Option<Vec<String>>,
+    /// Conditions an actor must pass to receive the anger.
+    #[serde(default)]
+    pub broadcast_filters: Option<FilterJson>,
+    /// Fired when the anger ends.
+    #[serde(default)]
+    pub calm_event: Option<EventTrigger>,
+}
+
+/// `minecraft:color2`: the actor's second palette colour.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Color2 {
+    #[serde(default = "color2_value")]
+    pub value: i32,
+}
+
+/// `minecraft:variant`: a per-type visual form id (0 is the base entity).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Variant {
+    #[serde(default = "variant_value")]
+    pub value: i32,
+}
+
+/// `minecraft:mark_variant`: a second per-type visual form id.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MarkVariant {
+    #[serde(default = "mark_variant_value")]
+    pub value: i32,
+}
+
+/// `minecraft:skin_id`: a per-type skin id (villager base skins).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SkinId {
+    #[serde(default = "skin_id_value")]
+    pub value: i32,
+}
+
 /// `minecraft:is_dyeable`: dye items recolour the actor.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1290,6 +1374,91 @@ pub struct AnnotationBreakDoor {
     pub min_difficulty: Difficulty,
 }
 
+/// An attribute component body: the attribute's `value` and, optionally,
+/// its `max`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AttributeBody {
+    pub value: f32,
+    #[serde(default)]
+    pub max: Option<f32>,
+}
+
+/// `minecraft:follow_range`: how far a mob keeps track of its target (the
+/// follow range attribute). Vanilla authors `{"value": v, "max": m}`, and
+/// once a bare number.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum FollowRange {
+    Value(f32),
+    Attribute(AttributeBody),
+}
+
+/// `minecraft:knockback_resistance`: the knockback resistance attribute.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KnockbackResistance {
+    pub value: f32,
+    #[serde(default)]
+    pub max: Option<f32>,
+}
+
+/// One box of `minecraft:custom_hit_test`, centred on the actor's position
+/// plus `pivot`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Hitbox {
+    pub width: f32,
+    pub height: f32,
+    pub pivot: Vec3,
+}
+
+/// `minecraft:custom_hit_test`: boxes a player's hit on the actor may land
+/// on besides its collision box.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CustomHitTest {
+    #[serde(default)]
+    pub hitboxes: Vec<Hitbox>,
+}
+
+/// `minecraft:mob_effect_immunity`: effects that are never applied to the
+/// actor.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MobEffectImmunity {
+    #[serde(default, deserialize_with = "super::de::optional_one_or_many")]
+    pub mob_effects: Option<Vec<String>>,
+}
+
+/// One effect `minecraft:spell_effects` adds.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpellEffect {
+    pub effect: String,
+    /// Seconds.
+    pub duration: f32,
+    #[serde(default = "spell_effect_amplifier")]
+    pub amplifier: i32,
+    #[serde(default)]
+    pub display_on_screen_animation: bool,
+}
+
+/// `minecraft:spell_effects`: effects added to and removed from the actor
+/// when the component is applied.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpellEffects {
+    #[serde(default)]
+    pub add_effects: Option<Vec<SpellEffect>>,
+    #[serde(default, deserialize_with = "super::de::optional_one_or_many")]
+    pub remove_effects: Option<Vec<String>>,
+}
+
+defaults! {
+    spell_effect_amplifier -> i32 = p::SPELL_EFFECTS_AMPLIFIER;
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1314,6 +1483,7 @@ macro_rules! dynamic_bodies {
 
 dynamic_bodies!(
     Ageable,
+    Angry,
     AnnotationBreakDoor,
     AmbientSoundInterval,
     Attack,
@@ -1324,19 +1494,25 @@ dynamic_bodies!(
     Breathable,
     Breedable,
     Color,
+    Color2,
     ConditionalBandwidthOptimization,
+    CustomHitTest,
     DamageSensor,
     Despawn,
     EnvironmentSensor,
     EquipItem,
     Equipment,
+    FollowRange,
     Health,
     HurtOnCondition,
     IsDyeable,
     ItemControllable,
+    KnockbackResistance,
     Leashable,
     LeashableTo,
     Loot,
+    MarkVariant,
+    MobEffectImmunity,
     Movement,
     MovementBasic,
     Nameable,
@@ -1346,9 +1522,12 @@ dynamic_bodies!(
     Rideable,
     Scale,
     Shareables,
+    SkinId,
     SpawnEggInteraction,
     SpawnEntity,
+    SpellEffects,
     Transformation,
     Timer,
     TypeFamily,
+    Variant,
 );

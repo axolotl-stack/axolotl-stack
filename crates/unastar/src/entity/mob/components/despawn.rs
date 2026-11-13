@@ -1,24 +1,28 @@
 //! `minecraft:despawn`: the natural despawn rules (run by
 //! `mob::life::despawn`).
 
+use std::sync::Arc;
+
 use bevy_ecs::prelude::*;
 use thiserror::Error;
 use unastar_data::actor_components::body;
+use unastar_rules::filter::{BuiltinTest, Filter};
 
+use super::common::{FilterError, filter_with};
 use crate::entity::definition::{ComponentError, ComponentKindsBuilder, DefinitionError};
 use crate::entity::mob::life::despawn::Inactivity;
 
 /// Why a `minecraft:despawn` body cannot be compiled.
 #[derive(Debug, Error)]
 pub enum DespawnError {
-    #[error("despawn filters are not implemented")]
-    Filters,
+    #[error(transparent)]
+    Filter(#[from] FilterError),
 }
 
 impl ComponentError for DespawnError {}
 
 /// `minecraft:despawn`.
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct DespawnConfig {
     /// `(min_distance, max_distance)` blocks, when `despawn_from_distance` is present.
     pub from_distance: Option<(i32, i32)>,
@@ -28,18 +32,37 @@ pub struct DespawnConfig {
     pub inactivity_seconds: i32,
     /// 1-in-N chance per check once inactive.
     pub random_chance: i32,
+    /// `filters`: when present they replace every other rule; the mob
+    /// despawns on the tick they pass (with `random_chance` answered by the
+    /// despawn check itself).
+    pub filter: Option<Arc<Filter>>,
 }
 
-/// Register the `minecraft:despawn` component kind. The inactivity anchor
-/// comes and goes with the despawn rules.
+/// Register the `minecraft:despawn` component kind (the inactivity anchor
+/// comes and goes with the despawn rules) and `minecraft:persistent` (the
+/// mob never despawns while it has the component; removing the component
+/// removes the persistence, whatever gave it).
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
     builder.register(
+        |_: body::Persistent| Ok::<_, crate::entity::definition::ComponentCompileError>(()),
+        |_: &(), entity| {
+            entity.insert(crate::entity::mob::state::Persistent);
+        },
+        |entity| {
+            entity.remove::<crate::entity::mob::state::Persistent>();
+        },
+    )?;
+    builder.register(
         |b: body::Despawn| {
-            if b.filters.is_some() {
-                return Err(DespawnError::Filters.into());
-            }
+            let filter = b
+                .filters
+                .as_ref()
+                .map(|json| filter_with(json, &[BuiltinTest::RandomChance]))
+                .transpose()
+                .map_err(DespawnError::from)?
+                .map(Arc::new);
             Ok(DespawnConfig {
                 from_distance: b
                     .despawn_from_distance
@@ -48,11 +71,12 @@ pub fn register_component_kinds(
                 from_inactivity: b.despawn_from_inactivity,
                 inactivity_seconds: b.min_range_inactivity_timer,
                 random_chance: b.min_range_random_chance,
+                filter,
             })
         },
         |config: &DespawnConfig, entity| {
             let inactivity = Inactivity::starting_now(entity.world());
-            entity.insert((*config, inactivity));
+            entity.insert((config.clone(), inactivity));
         },
         |entity| {
             entity.remove::<(DespawnConfig, Inactivity)>();

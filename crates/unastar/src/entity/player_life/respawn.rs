@@ -6,9 +6,10 @@
 //! join: the player's eye position and runtime ID 0).
 //! The client answers with `Respawn` client-ready-to-spawn, which the server
 //! acknowledges with ready-to-spawn, and `PlayerAction` respawn; the first
-//! of them respawns the player ([`respawn`]): full health, fresh hunger, no
-//! fire or fall, back at the respawn position (`MovePlayer` in respawn mode)
-//! and `ActorEvent` spawn-alive.
+//! of them respawns the player ([`respawn`]): full health, fresh hunger,
+//! full air, no fire or fall, back at the respawn position (`MovePlayer` in
+//! respawn mode), `ActorEvent` spawn-alive and its living box again
+//! (`actor_data::respawned`).
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -16,7 +17,7 @@ use jolyne::valentine::types::{
     ActorRuntimeId, EnumsActorEvent, EnumsPlayerPositionModeComponentPositionMode,
     EnumsPlayerRespawnState, Vec2, Vec3,
 };
-use jolyne::valentine::{ActorEventPacket, McpePacket, MovePlayerPacket, RespawnPacket};
+use jolyne::valentine::{McpePacket, MovePlayerPacket, RespawnPacket};
 
 use super::environment::{Burning, PlayerFall};
 use super::{Dead, attributes};
@@ -57,15 +58,18 @@ pub enum RespawnRequest {
 #[derive(Resource, Debug, Default)]
 pub struct RespawnQueue(pub Vec<(Entity, RespawnRequest)>);
 
+/// A player position (eyes 1.62 above the feet) as BDS reports it: 1.62001
+/// above the feet ([`crate::entity::item_drop::PLAYER_REPORTED_EYE_HEIGHT`]).
 fn wire(position: DVec3) -> Vec3 {
+    use crate::entity::item_drop::{PLAYER_EYE_HEIGHT, PLAYER_REPORTED_EYE_HEIGHT};
     Vec3 {
         x: position.x as f32,
-        y: position.y as f32,
+        y: (position.y - PLAYER_EYE_HEIGHT + PLAYER_REPORTED_EYE_HEIGHT) as f32,
         z: position.z as f32,
     }
 }
 
-fn respawn_packet(spawn: DVec3, state: EnumsPlayerRespawnState) -> McpePacket {
+pub(super) fn respawn_packet(spawn: DVec3, state: EnumsPlayerRespawnState) -> McpePacket {
     McpePacket::from(RespawnPacket {
         position: wire(spawn),
         state,
@@ -131,6 +135,7 @@ pub fn respawn(world: &mut World, player: Entity) {
             position.0 = spawn;
         }
     }
+    super::breath::refill(world, player);
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player).map(|id| id.0 as u64),
@@ -156,14 +161,9 @@ pub fn respawn(world: &mut World, player: Entity) {
         teleport_data: None,
         tick: crate::entity::components::input_tick_of(world, player),
     }));
-    let _ = session.send(McpePacket::from(ActorEventPacket {
-        target_runtime_id: ActorRuntimeId {
-            actor_runtime_id: runtime_id,
-        },
-        event_id: EnumsActorEvent::SpawnAlive,
-        data: 0,
-        fire_at_position: None,
-    }));
+    // Viewers see the player come back too (BDS 1.26.51 player-data
+    // capture, `kill_on_land_viewer`).
+    super::hurt::send_player_event(world, player, EnumsActorEvent::SpawnAlive);
     let hunger = world.get::<Hunger>(player).cloned().unwrap_or_default();
     attributes::send_attributes(
         world,
@@ -174,4 +174,5 @@ pub fn respawn(world: &mut World, player: Entity) {
     {
         sent.respawned(&hunger);
     }
+    super::actor_data::respawned(world, player);
 }

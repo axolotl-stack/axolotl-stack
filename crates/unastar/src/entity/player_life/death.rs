@@ -13,7 +13,10 @@
 //!    player's `minecraft:experience_reward` (`min(level × 7, 100)` for
 //!    vanilla) drops as experience orbs and the player's experience is
 //!    cleared;
-//! 4. the respawn position goes to the client (`respawn::open_respawn_screen`)
+//! 4. the last death's block and dimension and the died flag change in the
+//!    player's actor data (`actor_data::died`: sent at once, or with the
+//!    tick's update and the dead box when the player tick killed it);
+//! 5. the respawn position goes to the client (`respawn::open_respawn_screen`)
 //!    and, with `do_immediate_respawn`, the player respawns at once (the
 //!    client skips its death screen by the same game rule).
 //!
@@ -125,6 +128,7 @@ pub(super) fn die(world: &mut World, player: Entity, cause: DeathCause) {
     if !rules.keep_inventory {
         drop_everything(world, player);
     }
+    super::actor_data::died(world, player);
     respawn::open_respawn_screen(world, player);
     if rules.do_immediate_respawn {
         respawn::respawn(world, player);

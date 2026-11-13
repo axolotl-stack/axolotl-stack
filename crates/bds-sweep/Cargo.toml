@@ -8,11 +8,20 @@ description = "Scripted player for the BDS sweep harness (tools/bds-sweep)"
 name = "bds-sweep-client"
 path = "src/main.rs"
 
+[[bin]]
+name = "bds-sweep-dump"
+path = "src/dump.rs"
+
 [dependencies]
 jolyne = { workspace = true, features = ["client", "raknet"] }
 client-diff = { path = "../client-diff" }
+unastar-data = { path = "../unastar-data" }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 clap.workspace = true
 anyhow.workspace = true
+uuid.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+hex.workspace = true

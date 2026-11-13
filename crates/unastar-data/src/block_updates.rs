@@ -24,6 +24,14 @@ pub struct ConnectionFaces {
     /// Blocks they always connect to, although the collision shape does not
     /// cover the face (honey, mud, soul sand, structure void).
     pub always: HashSet<String>,
+    /// Single states that never connect although their block's other states
+    /// follow the collision face: `[block, states]`.
+    #[serde(default)]
+    pub never_states: Vec<(String, serde_json::Map<String, serde_json::Value>)>,
+    /// Single states that always connect although their block's other states
+    /// follow the collision face (a full snow layer).
+    #[serde(default)]
+    pub always_states: Vec<(String, serde_json::Map<String, serde_json::Value>)>,
 }
 
 impl ConnectionFaces {
@@ -37,6 +45,20 @@ impl ConnectionFaces {
         } else {
             None
         }
+    }
+
+    /// The measured single-state overrides of `identifier`: each state's
+    /// properties and whether it connects.
+    pub fn state_verdicts<'a>(
+        &'a self,
+        identifier: &'a str,
+    ) -> impl Iterator<Item = (&'a serde_json::Map<String, serde_json::Value>, bool)> + 'a {
+        let listed = |list: &'a [(String, serde_json::Map<String, serde_json::Value>)], verdict| {
+            list.iter()
+                .filter(move |(block, _)| block == identifier)
+                .map(move |(_, states)| (states, verdict))
+        };
+        listed(&self.always_states, true).chain(listed(&self.never_states, false))
     }
 }
 
@@ -111,18 +133,62 @@ pub fn support_holders() -> &'static SupportHolders {
 #[derive(Deserialize)]
 struct PlantSoilsFile {
     plants: HashMap<String, HashSet<String>>,
+    #[serde(default)]
+    plant_states: HashMap<String, Vec<SoilState>>,
 }
 
-/// The blocks each swept plant stays on, keyed by plant identifier.
-pub fn plant_soils() -> &'static HashMap<String, HashSet<String>> {
-    static SOILS: LazyLock<HashMap<String, HashSet<String>>> = LazyLock::new(|| {
+/// A single soil state a plant stays on: `[block, states]`.
+pub type SoilState = (String, serde_json::Map<String, serde_json::Value>);
+
+fn plant_soils_file() -> &'static PlantSoilsFile {
+    static SOILS: LazyLock<PlantSoilsFile> = LazyLock::new(|| {
         serde_json::from_str::<PlantSoilsFile>(include_str!(
             "../data/measured/block_updates/plant_soils.json"
         ))
         .expect("embedded BDS plant-soil table decodes")
-        .plants
     });
     &SOILS
+}
+
+/// The blocks each swept plant stays on (every measured state of the soil),
+/// keyed by plant identifier.
+pub fn plant_soils() -> &'static HashMap<String, HashSet<String>> {
+    &plant_soils_file().plants
+}
+
+/// The single soil states a plant stays on where the soil's other measured
+/// states do not hold it (a lily pad on a water source, not on flowing
+/// water), keyed by plant identifier.
+pub fn plant_soil_states() -> &'static HashMap<String, Vec<SoilState>> {
+    &plant_soils_file().plant_states
+}
+
+#[derive(Deserialize)]
+struct BlockActorDefaultsFile {
+    actors: HashMap<String, String>,
+}
+
+/// The block actor BDS 1.26.51 announces when a player places each of these
+/// blocks (`block_actor_defaults.json`, measured from the placement
+/// captures), as network NBT; the position inside is the capture's.
+pub fn block_actor_default(identifier: &str) -> Option<&'static [u8]> {
+    static DEFAULTS: LazyLock<HashMap<String, Vec<u8>>> = LazyLock::new(|| {
+        serde_json::from_str::<BlockActorDefaultsFile>(include_str!(
+            "../data/measured/block_actor_defaults.json"
+        ))
+        .expect("embedded BDS block-actor defaults decode")
+        .actors
+        .into_iter()
+        .map(|(block, hex)| {
+            let bytes = (0..hex.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex"))
+                .collect();
+            (block, bytes)
+        })
+        .collect()
+    });
+    DEFAULTS.get(identifier).map(Vec::as_slice)
 }
 
 #[cfg(test)]

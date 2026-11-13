@@ -1,20 +1,26 @@
-//! Mining rules: harvestability, destroy speed and break time.
+//! Mining rules: harvestability, destroy speed, break time and wear.
 //!
-//! The vanilla break-time formula (the same one dragonfly implements in
-//! `block.BreakDuration` / `player.breakTime`; BDS sends no break times, so
-//! the timings below are to be confirmed by the planned BDS mining sweep):
+//! The break-time formula, checked cell by cell against the BDS 1.26.51
+//! mining sweep (`unastar-data/data/measured/mining_ticks.json`, ±1 tick;
+//! `mining/measured_tests.rs`):
 //!
 //! ```text
 //! speed  = item destroy speed on the block (tier speed for matching tools,
-//!          + efficiency^2 + 1 when that speed is above 1)
-//! speed *= 1 + 0.2 * max(haste, conduit power)        (effect levels)
-//! speed *= 0.3 ^ mining_fatigue
+//!          + efficiency^2 + 1 when that speed is above 1, except a sword's
+//!          cobweb speed)
+//! speed *= (1 + 0.2 * haste) * 1.2 ^ haste       (Haste level)
+//! speed *= 0.21 ^ mining_fatigue                  (0.3 ^ level * 0.7 ^ level)
 //! speed /= 5   when riding, or airborne and not flying
 //! speed /= 5   when the head is under water without aqua affinity
 //! progress per tick = speed / hardness / (harvestable ? 30 : 100)
 //! ```
 //!
-//! Hardness 0 breaks in one tick; negative hardness never breaks.
+//! Hardness 0 breaks in one tick; negative hardness never breaks. Measured:
+//! the empty hand, every tool tier, Efficiency I-V, Haste I-III, Mining
+//! Fatigue I-II and 110 non-tool items, on the ground. Not measured: higher
+//! effect levels, the airborne and riding divisors (the sweep player cannot
+//! stay airborne within reach) and the underwater divisor (the sweep's water
+//! ran off the player's head between trials).
 
 use unastar_rules::ids::Enchantment;
 
@@ -71,11 +77,15 @@ pub fn item_destroy_speed(tool: Option<&ItemStack>, block: &BlockEntry) -> f32 {
     let Some(tool) = tool.filter(|t| !t.is_empty()) else {
         return 1.0;
     };
-    let Some(info) = tool.item().map(|item| item.tool_info()) else {
+    let Some(item) = tool.item() else {
         return 1.0;
     };
+    let info = item.tool_info();
     let id = block.string_id.as_str();
     let base = match info.kind {
+        // The mace carries the sword tag but breaks vines and glow lichen
+        // like the hand, as the trident does (BDS mining sweep).
+        Some(ToolKind::Sword) if item.identifier() == "minecraft:mace" => 1.0,
         // Swords: cobweb 15, plant-like blocks 1.5.
         Some(ToolKind::Sword) => {
             if id == "minecraft:web" {
@@ -112,7 +122,12 @@ pub fn item_destroy_speed(tool: Option<&ItemStack>, block: &BlockEntry) -> f32 {
         Some(kind) if tool_matches(kind, block) => info.tier.map_or(1.0, ToolTier::speed),
         _ => 1.0,
     };
-    let efficiency = tool.enchantment_level(Enchantment::Efficiency);
+    // A sword's cobweb speed takes no Efficiency (BDS mining sweep: a
+    // diamond sword breaks cobweb in the same 7 ticks with Efficiency I-V).
+    let efficiency = match info.kind {
+        Some(ToolKind::Sword) => 0,
+        _ => tool.enchantment_level(Enchantment::Efficiency),
+    };
     if base > 1.0 && efficiency > 0 {
         base + f32::from(efficiency) * f32::from(efficiency) + 1.0
     } else {
@@ -154,20 +169,23 @@ pub fn destroy_progress(
     block: &BlockEntry,
     tool: Option<&ItemStack>,
     conditions: MiningConditions,
-) -> f32 {
-    let hardness = block.hardness;
+) -> f64 {
+    let hardness = f64::from(block.hardness);
     if hardness < 0.0 {
         return 0.0;
     }
     if hardness == 0.0 {
         return 1.0;
     }
-    let mut speed = item_destroy_speed(tool, block);
+    let mut speed = f64::from(item_destroy_speed(tool, block));
+    // Both effects compound: BDS 1.26.51 hand and tool breaks fit only these
+    // (Haste I-III x1.44, x2.016, x2.765; Mining Fatigue I-II x0.21, x0.0441).
     if conditions.haste > 0 {
-        speed *= f32::from(conditions.haste) * 0.2 + 1.0;
+        let level = i32::from(conditions.haste);
+        speed *= (1.0 + 0.2 * f64::from(level)) * 1.2f64.powi(level);
     }
     if conditions.mining_fatigue > 0 {
-        speed = (f64::from(speed) * 0.3f64.powi(i32::from(conditions.mining_fatigue))) as f32;
+        speed *= 0.21f64.powi(i32::from(conditions.mining_fatigue));
     }
     if conditions.riding || (!conditions.on_ground && !conditions.flying) {
         speed /= 5.0;
@@ -184,7 +202,10 @@ pub fn destroy_progress(
     speed / hardness / divisor
 }
 
-/// Ticks needed to break `block` (`u32::MAX` for unbreakable blocks).
+/// Ticks needed to break `block` (`u32::MAX` for unbreakable blocks). A
+/// progress that adds up to exactly 1 breaks on that tick (1/60 per tick
+/// breaks on the 60th: a copper pickaxe on diamond ore, BDS mining sweep);
+/// the tolerance absorbs the `f32` hardness (0.4 is stored as 0.4000000059).
 pub fn break_ticks(
     block: &BlockEntry,
     tool: Option<&ItemStack>,
@@ -197,36 +218,40 @@ pub fn break_ticks(
     if progress >= 1.0 {
         return 1;
     }
-    (1.0 / progress).ceil() as u32
+    let ticks = 1.0 / progress;
+    let nearest = ticks.round();
+    if (ticks - nearest).abs() < 1e-4 {
+        nearest as u32
+    } else {
+        ticks.ceil() as u32
+    }
 }
 
-/// Durability lost by `tool` when it breaks `block`: 1 for tools on blocks
-/// with hardness > 0, 2 for swords, 0 for hardness-0 blocks. Shears only wear
-/// on blocks they are made for.
+/// Durability lost by `tool` when it breaks `block`, as BDS 1.26.51 wears
+/// held items in the mining sweep: shears 1 on every block (instant-break
+/// short grass included); on blocks with hardness, 2 for a melee weapon
+/// (swords, the mace, which is tagged a sword, and the trident) and 1 for a
+/// digger; nothing for weapons and diggers on hardness-0 blocks, nor for any
+/// other item (armour, bows, spears, ...) even when it has durability.
 pub fn mining_wear(block: &BlockEntry, tool: &ItemStack) -> i32 {
-    let Some(info) = tool
+    let Some(entry) = tool
         .item()
         .filter(|item| super::durability::max_durability(item) > 0)
-        .map(|item| item.tool_info())
     else {
         return 0;
     };
-    match info.kind {
-        Some(ToolKind::Shears) => i32::from(
-            block.string_id == "minecraft:web"
-                || block.data.material == 7
-                || block.has_tag(ToolKind::Shears.destructible_tag())
-                || matches!(
-                    block.string_id.as_str(),
-                    "minecraft:vine" | "minecraft:glow_lichen"
-                ),
-        ),
-        Some(_) if block.hardness == 0.0 => 0,
+    match entry.tool_info().kind {
+        Some(ToolKind::Shears) => 1,
+        _ if block.hardness <= 0.0 => 0,
         Some(ToolKind::Sword) => 2,
         Some(_) => 1,
+        None if entry.has_tag("minecraft:is_trident") => 2,
         None => 0,
     }
 }
+
+#[cfg(test)]
+mod measured_tests;
 
 #[cfg(test)]
 mod tests {
@@ -301,18 +326,19 @@ mod tests {
         // (6 + 25 + 1) / 1.5 / 30 = 0.711 -> 2 ticks
         assert_eq!(break_ticks(stone, Some(&pick), GROUND), 2);
         let haste = MiningConditions { haste: 2, ..GROUND };
-        // 6 * 1.4 / 45 = 0.1867 -> 6 ticks
+        // 6 * (1.4 * 1.2^2) / 45 = 0.2688 -> 4 ticks
         assert_eq!(
             break_ticks(stone, Some(&tool("minecraft:iron_pickaxe")), haste),
-            6
+            4
         );
         let fatigue = MiningConditions {
             mining_fatigue: 1,
             ..GROUND
         };
+        // 6 * 0.21 / 45 = 0.028 -> 36 ticks
         assert_eq!(
             break_ticks(stone, Some(&tool("minecraft:iron_pickaxe")), fatigue),
-            25
+            36
         );
         let airborne = MiningConditions {
             on_ground: false,
@@ -397,11 +423,18 @@ mod tests {
             ),
             0
         );
-        assert_eq!(mining_wear(stone, &tool("minecraft:shears")), 0);
+        // BDS mining sweep: shears wear on any block with hardness, the
+        // trident and the mace (a sword by its tags) like swords, and
+        // non-tools with durability not at all.
+        assert_eq!(mining_wear(stone, &tool("minecraft:shears")), 1);
         assert_eq!(
             mining_wear(block("minecraft:oak_leaves"), &tool("minecraft:shears")),
             1
         );
+        assert_eq!(mining_wear(stone, &tool("minecraft:trident")), 2);
+        assert_eq!(mining_wear(stone, &tool("minecraft:mace")), 2);
+        assert_eq!(mining_wear(stone, &tool("minecraft:wooden_spear")), 0);
+        assert_eq!(mining_wear(stone, &tool("minecraft:bow")), 0);
         assert_eq!(mining_wear(stone, &tool("minecraft:dirt")), 0);
     }
 }

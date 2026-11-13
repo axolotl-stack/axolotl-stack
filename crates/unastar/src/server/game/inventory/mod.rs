@@ -315,18 +315,16 @@ fn handle_item_stack_request(
 /// BDS 1.26.51, entity-player-drop-20261026-v4 seq 468/471: positive ID 1
 /// receives this terminating warning, then RakNet closes. There is no
 /// Minecraft Disconnect packet. The network loop owns flushing the warning
-/// and closing the transport when it sees Terminatingconnection.
+/// and closing the transport when it sees Terminatingconnection. The message
+/// omits BDS's reader-failure suffix (`crate::network::violation`).
 fn invalid_request_warning() -> jolyne::valentine::PacketViolationWarningPacket {
-    use jolyne::valentine::{
-        EnumsPacketViolationSeverity, EnumsPacketViolationType, PacketViolationWarningPacket,
-    };
-    PacketViolationWarningPacket {
-        violation_type: EnumsPacketViolationType::Packetmalformed,
-        violation_severity: EnumsPacketViolationSeverity::Terminatingconnection,
-        violation_packet_id: 147,
-        violation_context:
-            "expected a valid ItemStackRequestId\nreadNoHeader failed! packetId: 147".into(),
-    }
+    use jolyne::valentine::{EnumsPacketViolationSeverity, EnumsPacketViolationType};
+    crate::network::violation::packet_violation(
+        EnumsPacketViolationType::Packetmalformed,
+        EnumsPacketViolationSeverity::Terminatingconnection,
+        147,
+        Some("expected a valid ItemStackRequestId"),
+    )
 }
 
 /// BDS follows a committed armour change with `InventorySlot` for the armour
@@ -1649,10 +1647,21 @@ mod drop_tests {
             panic!("captured request")
         };
         assert_eq!(request.requests[0].client_request_id.id, 1);
-        let McpePacketData::PacketViolationWarningPacket(warning) = &packets[1] else {
+        let McpePacketData::PacketViolationWarningPacket(captured) = &packets[1] else {
             panic!("captured terminating warning")
         };
-        assert_eq!(&invalid_request_warning(), warning);
+        let ours = invalid_request_warning();
+        assert!(!crate::network::violation::has_reader_failure(
+            &ours.violation_context
+        ));
+        let captured = jolyne::valentine::PacketViolationWarningPacket {
+            violation_context: crate::network::violation::redact_violation_message(
+                &captured.violation_context,
+            )
+            .into(),
+            ..captured.clone()
+        };
+        assert_eq!(ours, captured);
     }
 }
 

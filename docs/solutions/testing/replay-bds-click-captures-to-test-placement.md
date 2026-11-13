@@ -49,6 +49,9 @@ each survival click, both directions, and replay the same clicks into unastar.
 - `sweep.py` puts this checkout's plugin source first on `PYTHONPATH`, so a worktree's new job
   kinds run on a shared slot without reinstalling the shared venv.
 
+Round 2 added a second, watching client, multi-step cases and per-group fixtures:
+`docs/solutions/testing/watch-a-second-player-and-replay-click-timelines.md`.
+
 ## Where it lives
 
 - `tools/bds-sweep/placements.py`, `tools/bds-sweep/endstone-sweep/src/endstone_bds_sweep/jobs.py`

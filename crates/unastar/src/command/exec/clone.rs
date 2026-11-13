@@ -16,7 +16,7 @@
 //! Block entity data (container contents, sign text) is not cloned: only
 //! block states are.
 
-use super::setblock::{BlockSpec, box_loaded, volume};
+use super::setblock::{BlockSpec, volume};
 use crate::command::prelude::*;
 use crate::server::game::block_update::world_changed;
 use crate::server::game::blocks::{block_at, write_block};
@@ -116,7 +116,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: CloneArgs) -> CommandResult {
     if count > MAX_BLOCKS {
         return failure!("commands.clone.tooManyBlocks", count, MAX_BLOCKS);
     }
-    if !box_loaded(ctx.world, min, max) || !box_loaded(ctx.world, dest_min, dest_max) {
+    if !ctx.box_loaded(min, max) || !ctx.box_loaded(dest_min, dest_max) {
         return failure!("commands.generic.outOfWorld");
     }
     let overlap = min.cmple(dest_max).all() && dest_min.cmple(max).all();
@@ -305,5 +305,17 @@ mod tests {
             h.run(op, "/clone 3 63 3 4 63 4 15 63 15"),
             CommandOutput::failure("commands.generic.outOfWorld", vec![])
         );
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn clone_matches_the_bds_capture() {
+        Replay::new().assert_segment("clone", &[]);
     }
 }

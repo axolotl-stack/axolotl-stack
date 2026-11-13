@@ -1,9 +1,12 @@
 //! Server core - ECS-based game server.
 
+#[cfg(test)]
+mod bds_player_relay;
 pub mod broadcast;
 pub mod config;
 pub mod connect;
 pub mod game;
+pub mod player_view;
 pub mod runtime;
 pub mod timer;
 #[cfg(test)]

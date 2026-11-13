@@ -158,7 +158,14 @@ fn spawn_baby_from_egg(
     let Some(kind) = world.get::<MobKind>(target) else {
         return false;
     };
-    if kind.0.identifier.as_ref() != actor {
+    // The egg's actor as the registry resolves it: the zombie villager egg
+    // names `minecraft:zombie_villager`, a summon alias of the
+    // `zombie_villager_v2` it is used on.
+    let own_egg = world
+        .get_resource::<crate::entity::mob::MobRegistry>()
+        .and_then(|registry| registry.get(actor))
+        .is_some_and(|archetype| std::sync::Arc::ptr_eq(archetype, &kind.0));
+    if !own_egg {
         return false;
     }
     let identifier = std::sync::Arc::clone(&kind.0.identifier);

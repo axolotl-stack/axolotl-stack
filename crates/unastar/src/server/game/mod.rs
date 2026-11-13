@@ -4,10 +4,14 @@
 //! replacing the legacy Server struct.
 
 pub mod attributes;
+pub(crate) mod block_actors;
 mod block_drops;
 pub(crate) mod block_update;
+mod block_use;
 pub(crate) mod blocks;
 mod chunks;
+#[cfg(test)]
+mod command_order_tests;
 #[cfg(test)]
 mod command_tests;
 mod commands;
@@ -25,18 +29,22 @@ mod loot;
 mod mining;
 mod movement;
 mod packet_domains;
-mod packet_queues;
+pub(crate) mod packet_queues;
 mod packets;
+mod place_sounds;
 mod placement;
 #[cfg(test)]
 mod placement_capture_tests;
 mod plugins;
+pub(crate) mod roster;
+pub(crate) mod signs;
 pub mod types;
 
 use bevy_ecs::prelude::*;
-pub(crate) use block_drops::{drop_block_items, loot_stacks};
+pub(crate) use block_drops::{block_drops, drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
+pub use containers::{command_container_slots, command_set_container_slot};
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
@@ -45,6 +53,7 @@ use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
+pub(crate) use packet_queues::MovementEvents;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
@@ -54,9 +63,10 @@ use crate::ecs::{
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, ContainerWindows, EnderChestInventory, GameMode,
-    HeldSlot, Inventory, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
-    PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid, RuntimeEntityId, SpatialChunk,
+    ActorViewers, ArmourInventory, BreakingState, ChunkRadius, ContainerWindows,
+    EnderChestInventory, GameMode, HeldSlot, Inventory, LastBroadcastPosition, MainInventory,
+    OffhandSlot, Player, PlayerInput, PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid,
+    RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
     apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
@@ -66,9 +76,8 @@ use crate::entity::systems::{
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
-    tick_block_breaking,
+    EntityGrid, broadcast_block_updates, cleanup_despawned_entities, sync_actor_viewers,
+    sync_spatial_chunks, tick_block_breaking,
 };
 use crate::storage::PlayerData;
 use crate::world::ChunkManager;
@@ -141,9 +150,9 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 }
 
 /// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (respawn position, full health, fresh hunger), so it never
-/// reloads with zero health.
-fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+/// will respawn (respawn position, full health, fresh hunger, full air), so
+/// it never reloads with zero health.
+pub(crate) fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
     let dead = world
@@ -182,6 +191,20 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            spawn_point: world
+                .get::<crate::entity::player_life::respawn::PlayerSpawnPoint>(entity)
+                .map(|point| point.0.to_array()),
+            tags: world
+                .get::<crate::entity::components::Tags>(entity)
+                .map(|tags| tags.0.clone())
+                .unwrap_or_default(),
+            unlocked_recipes: world
+                .get::<crate::command::exec::UnlockedRecipes>(entity)
+                .map(|recipes| recipes.0.clone()),
+            air: world
+                .get::<crate::entity::player_life::breath::PlayerBreath>(entity)
+                .filter(|_| !dead)
+                .map_or(crate::storage::default_air(), |breath| breath.air),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -376,6 +399,7 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
         ecs.world_mut().init_resource::<commands::PendingCommands>();
+        ecs.world_mut().init_resource::<commands::CommandOrder>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -415,6 +439,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<packet_queues::MovementEvents>();
         ecs.world_mut()
+            .init_resource::<crate::server::player_view::RelayedMoves>();
+        ecs.world_mut()
             .init_resource::<packet_queues::InventoryEvents>();
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
         ecs.world_mut()
@@ -450,6 +476,14 @@ impl GameServer {
                 commands::apply_chat_and_commands,
             )
                 .in_set(PacketApplySet),
+        );
+        // Command requests that arrived ahead of their player's inputs run
+        // before every input system, like BDS (`commands::CommandOrder`).
+        ecs.schedule_mut().add_systems(
+            commands::run_early_commands
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement)
+                .before(inventory::apply_inventory),
         );
         // Exclusive block system runs after movement (which forwards block actions)
         ecs.schedule_mut().add_systems(
@@ -495,6 +529,21 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(chunks::apply_chunk_requests)
                 .after(commands::apply_chat_and_commands),
+        );
+        // The state a player joining this tick finds the others in.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::actor_data::announce_players
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement),
+        );
+        // What this tick's movement inputs ask for beyond the position
+        // (sprint, swim and glide, `MOVING`, exhaustion), with the world at
+        // hand; their plugin events join this tick's.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::motion::settle_moves
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement)
+                .before(packet_queues::consolidate_domain_events),
         );
         // Respawn requests from dead players, after the movement system has
         // applied this tick's input.
@@ -577,6 +626,13 @@ impl GameServer {
                 .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
+        // Pressed buttons popping back up (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            block_use::tick_scheduled_blocks
+                .in_set(EntityLogicSet)
+                .after(containers::tick_block_containers)
+                .before(tick_block_breaking),
+        );
         // Mob fall damage, condition damage, daylight burning and fire, death,
         // then experience orbs. After the entity chain so deaths from
         // fire/effects are caught the same tick.
@@ -595,11 +651,19 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Player landings, then lava, fire, burning and the void.
+        // Player landings, then lava, fire, burning and the void, then the
+        // air supply and drowning: the player tick, whose deaths reach the
+        // clients with the tick's actor-data update.
+        // Between the world's damage and the breath, the tick's attribute
+        // changes go out (BDS sends them before the breath's actor data);
+        // the breath's update follows at once, `MOVING` at the end of the tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::player_life::environment::land_players,
                 crate::entity::player_life::environment::hurt_players_by_environment,
+                attributes::sync_player_attributes,
+                crate::entity::player_life::breath::breathe,
+                crate::entity::player_life::actor_data::sync_breath,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -618,12 +682,16 @@ impl GameServer {
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(crate::entity::xp_orb::tick_xp_orbs)
+                .after(crate::entity::player_life::breath::breathe)
                 .before(tick_block_breaking),
         );
-        // What changed for each player's client this tick.
+        // What else changed for each player this tick, to it and its
+        // viewers.
         ecs.schedule_mut().add_systems(
             (
                 effects::sync_player_effects,
+                effects::sync_visible_effects,
+                crate::entity::player_life::actor_data::sync_players,
                 attributes::sync_player_attributes,
             )
                 .chain()
@@ -651,21 +719,28 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Environment sensors, then timers. Their group changes apply at the
-        // next tick's definition barrier (`PhysicsSet`).
+        // Environment sensors, timers, then anger. Their group changes apply
+        // at the next tick's definition barrier (`PhysicsSet`), which is when
+        // anger that spread this tick starts on its receivers.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::sensors::tick_environment_sensors,
                 crate::entity::mob::life::sensors::tick_timers,
+                crate::entity::mob::life::anger::tick_anger,
             )
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Natural despawning of mobs far from every player.
+        // Natural despawning of mobs far from every player, then by
+        // despawn filters.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::life::despawn::despawn_mobs
+            (
+                crate::entity::mob::life::despawn::despawn_mobs,
+                crate::entity::mob::life::despawn::despawn_mobs_by_filters,
+            )
+                .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead),
         );
@@ -673,7 +748,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             crate::entity::spawning::natural_spawning
                 .in_set(EntityLogicSet)
-                .after(crate::entity::mob::life::despawn::despawn_mobs),
+                .after(crate::entity::mob::life::despawn::despawn_mobs_by_filters),
         );
         // The world clock advances before anything reads the time of day.
         ecs.schedule_mut().add_systems(
@@ -685,11 +760,10 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 sync_spatial_chunks,
-                broadcast_spawn_system,
-                broadcast_movement_system,
-                broadcast_despawn_system,
+                crate::server::player_view::sync_player_viewers,
                 broadcast_block_updates,
                 sync_actor_viewers,
+                crate::entity::mob::net::sound::flush_synced_sounds,
                 crate::entity::mob::net::network::sync_mob_viewers,
             )
                 .chain()
@@ -868,12 +942,25 @@ impl GameServer {
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
+        self.spawn_player_with_login(data, None)
+    }
+
+    /// [`Self::spawn_player`] with the player's validated login client data,
+    /// which its player-list entry (skin, platform) is built from; without
+    /// it the entry carries an empty skin.
+    pub fn spawn_player_with_login(
+        &mut self,
+        data: PlayerSpawnData,
+        client_data: Option<&jolyne::auth::ClientData>,
+    ) -> crate::storage::StorageResult<Entity> {
         let player_uuid = data
             .uuid
             .as_ref()
             .and_then(|s| uuid::Uuid::parse_str(s).ok())
             .unwrap_or_else(uuid::Uuid::new_v4);
         let player_name = data.display_name.clone();
+        let player_name_for_roster = player_name.clone();
+        let player_xuid = data.xuid.clone();
         let position = Position(data.position);
         let runtime_id = data.runtime_id;
         let chunk_x = (position.0.x / 16.0).floor() as i32;
@@ -919,6 +1006,17 @@ impl GameServer {
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
+        let (spawn_point, tags, unlocked_recipes) = saved_data
+            .as_mut()
+            .map(|saved| {
+                (
+                    saved.spawn_point,
+                    std::mem::take(&mut saved.tags),
+                    saved.unlocked_recipes.take(),
+                )
+            })
+            .unwrap_or_default();
+        let mut air = None;
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -936,7 +1034,9 @@ impl GameServer {
             hunger.exhaustion = saved.exhaustion;
             experience.level = saved.experience;
             experience.progress = saved.experience_progress;
+            air = Some(saved.air);
         }
+        let explicit_game_mode = air.is_some() && game_mode != default_gamemode;
 
         let entity = self
             .ecs
@@ -968,6 +1068,7 @@ impl GameServer {
                     yaw: rotation.yaw,
                     pitch: rotation.pitch,
                 },
+                viewers: ActorViewers::default(),
                 chunk_loader,
                 last_publisher_state: LastPublisherState::default(),
                 main_inventory,
@@ -983,23 +1084,65 @@ impl GameServer {
         // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
         // systems send it after the player's first view and chunks.
         let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
+        let breath_rules = self
+            .ecs
+            .world()
+            .resource::<crate::entity::player_life::PlayerRules>()
+            .breath;
+        let breath = match air {
+            Some(air) => {
+                crate::entity::player_life::breath::PlayerBreath::restored(&breath_rules, air)
+            }
+            None => crate::entity::player_life::breath::PlayerBreath::joined(&breath_rules),
+        };
+        let index = crate::entity::player_life::actor_data::next_index(self.ecs.world_mut());
+        let actor_data = if air.is_some() {
+            crate::entity::player_life::actor_data::PlayerActorData::rejoined(index)
+        } else {
+            crate::entity::player_life::actor_data::PlayerActorData::joined(index)
+        };
+        self.ecs.world_mut().entity_mut(entity).insert((
+            actor_data,
+            crate::entity::player_life::environment::PlayerFall::default(),
+            crate::entity::player_life::motion::PlayerMoves::default(),
+        ));
+        if explicit_game_mode {
+            self.ecs
+                .world_mut()
+                .entity_mut(entity)
+                .insert(crate::entity::player_life::actor_data::ExplicitGameMode);
+        }
         self.ecs.world_mut().entity_mut(entity).insert((
             health,
             hunger,
             experience,
-            crate::entity::player_life::environment::PlayerFall::default(),
+            breath,
             AwaitingSpawnStatus,
             hunger::FoodTimer::default(),
             // Join sends these values in its first UpdateAttributes.
             attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
             crate::entity::components::Effects::default(),
             effects::SentEffects::default(),
+            effects::SentVisibleEffects::default(),
         ));
         if operator {
             self.ecs
                 .world_mut()
                 .entity_mut(entity)
                 .insert(crate::command::Operator);
+        }
+        // The `/spawnpoint`, `/tag` and `/recipe` state saved with the player.
+        let mut player = self.ecs.world_mut().entity_mut(entity);
+        if let Some(point) = spawn_point {
+            player.insert(crate::entity::player_life::respawn::PlayerSpawnPoint(
+                glam::DVec3::from_array(point),
+            ));
+        }
+        if !tags.is_empty() {
+            player.insert(crate::entity::components::Tags(tags));
+        }
+        if let Some(recipes) = unlocked_recipes {
+            player.insert(crate::command::exec::UnlockedRecipes(recipes));
         }
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
@@ -1008,12 +1151,31 @@ impl GameServer {
         // Plugins see the join (`on-player-join`) once the client has spawned:
         // `send_spawn_status` queues it when it clears `AwaitingSpawnStatus`.
 
+        let roster_entry = {
+            let world = self.ecs.world_mut();
+            let taken: Vec<u32> = world
+                .query::<&roster::RosterEntry>()
+                .iter(world)
+                .map(roster::RosterEntry::colour)
+                .collect();
+            roster::RosterEntry::new(
+                player_uuid,
+                runtime_id,
+                &player_name_for_roster,
+                player_xuid.as_deref(),
+                client_data.unwrap_or(&jolyne::auth::ClientData::default()),
+                roster::free_colour(taken),
+            )
+        };
+        self.ecs.world_mut().entity_mut(entity).insert(roster_entry);
+
         self.ecs.world_mut().write_message(PlayerSpawnedEvent {
             entity,
             position: data.position,
             runtime_id,
         });
         self.send_join_packets(entity);
+        self.announce_join(entity);
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         Ok(entity)
     }
@@ -1043,6 +1205,7 @@ impl GameServer {
             }
         };
         if let Some(entity) = entity {
+            self.announce_leave(entity);
             // Every leave path (disconnect packet, network drop) ends here, so
             // plugins see exactly one `on-player-quit` per online player.
             if let Some(mut events) = self
@@ -1879,7 +2042,8 @@ mod tests {
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
         });
-        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
+        // Room for the whole join (about 40 packets) so none is dropped.
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(64);
 
         let entity = server
             .spawn_player(PlayerSpawnData {
@@ -2068,5 +2232,80 @@ mod saved_inventory_validation_tests {
                 .any(|event| matches!(event, crate::ecs::events::ServerEvent::PlayerJoin { .. })),
             "a refused join never reaches plugins"
         );
+    }
+    /// `/spawnpoint`, `/tag` and `/recipe` state goes through the stored
+    /// record (JSON, as the player store writes it) into the next join.
+    #[test]
+    fn spawn_point_tags_and_recipes_round_trip_through_the_player_record() {
+        use crate::command::exec::UnlockedRecipes;
+        use crate::entity::components::Tags;
+        use crate::entity::player_life::respawn::PlayerSpawnPoint;
+
+        let uuid = uuid::Uuid::from_u128(43);
+        let join = |saved: Option<PlayerData>| {
+            let mut server = GameServer::with_config(ServerConfig {
+                world: crate::world::WorldConfig::void_spawn_platform(1),
+                ..ServerConfig::default()
+            });
+            let (outbound_tx, outbound_rx) = tokio::sync::mpsc::channel(1024);
+            let entity = server
+                .spawn_player(PlayerSpawnData {
+                    session_id: 43,
+                    display_name: "saved-state".into(),
+                    xuid: None,
+                    uuid: Some(uuid.to_string()),
+                    runtime_id: 8,
+                    position: glam::DVec3::new(0.5, 17.0, 0.5),
+                    outbound_tx,
+                    saved_data: saved,
+                    chunk_radius: 0,
+                })
+                .expect("valid player spawn");
+            (server, entity, outbound_rx)
+        };
+
+        let (mut server, entity, _rx) = join(None);
+        let world = server.ecs.world_mut();
+        let recipes = vec!["minecraft:crafting_table".to_owned()];
+        world.entity_mut(entity).insert((
+            PlayerSpawnPoint(glam::DVec3::new(3.5, 71.62, -2.5)),
+            Tags(vec!["second".into(), "first".into()]),
+            UnlockedRecipes(recipes.clone()),
+        ));
+        let (saved_uuid, record) = player_record(world, entity).expect("a player record");
+        assert_eq!(saved_uuid, uuid);
+        let stored = serde_json::to_vec(&record).unwrap();
+        let loaded: PlayerData = serde_json::from_slice(&stored).unwrap();
+
+        let (server, entity, _rx) = join(Some(loaded));
+        let world = server.ecs.world();
+        assert_eq!(
+            world.get::<PlayerSpawnPoint>(entity),
+            Some(&PlayerSpawnPoint(glam::DVec3::new(3.5, 71.62, -2.5)))
+        );
+        assert_eq!(
+            world.get::<Tags>(entity).map(|t| t.0.clone()),
+            Some(vec!["second".to_owned(), "first".to_owned()])
+        );
+        assert_eq!(
+            world.get::<UnlockedRecipes>(entity).map(|r| r.0.clone()),
+            Some(recipes)
+        );
+
+        // A record from before these fields joins with none of them.
+        let mut old: serde_json::Value = serde_json::from_slice(&stored).unwrap();
+        for field in ["spawn_point", "tags", "unlocked_recipes"] {
+            old.as_object_mut().unwrap().remove(field);
+        }
+        let (server, entity, _rx) = join(Some(serde_json::from_value(old).unwrap()));
+        let world = server.ecs.world();
+        assert!(world.get::<PlayerSpawnPoint>(entity).is_none());
+        assert!(world.get::<Tags>(entity).is_none());
+        assert!(world.get::<UnlockedRecipes>(entity).is_none());
+
+        // A spawn point that is not a position is refused like the rest.
+        let mut bad = record.clone();
+        bad.spawn_point = Some([f64::NAN, 70.0, 0.0]);
+        assert!(bad.validate(uuid).is_err());
     }
 }
