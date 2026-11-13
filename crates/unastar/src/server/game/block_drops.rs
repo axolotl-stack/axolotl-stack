@@ -203,8 +203,7 @@ pub(crate) fn experience_drop(
     tool: Option<&ItemStack>,
 ) -> Option<BlockExperience> {
     let experience = block_experience(&block.string_id)?;
-    let silk_touch =
-        tool.is_some_and(|tool| tool.enchantment_level(Enchantment::SilkTouch) > 0);
+    let silk_touch = tool.is_some_and(|tool| tool.enchantment_level(Enchantment::SilkTouch) > 0);
     let hoe = tool
         .and_then(ItemStack::item)
         .is_some_and(|entry| entry.has_tag("minecraft:is_hoe"));

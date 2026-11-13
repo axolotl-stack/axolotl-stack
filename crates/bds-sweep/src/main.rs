@@ -118,12 +118,13 @@ use jolyne::{
         EnumsNewInteractionModel, EnumsPlayerActionType,
         EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState, FullContainerName,
         InteractPacket, InventoryTransactionPacket, InventoryTransactionPacketTransaction,
-        ItemReleaseInventoryTransaction, ItemStackRequestCerealDropActionData, ItemStackRequestCerealPlaceActionData,
-        ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
-        ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
-        ItemUseInventoryTransaction, ItemUseOnActorInventoryTransaction, McpePacket,
-        McpePacketData, McpePacketName, MobEquipmentPacket,
-        PackedItemUseLegacyInventoryTransaction, PlayerActionPacket, PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick, RespawnPacket,
+        ItemReleaseInventoryTransaction, ItemStackRequestCerealDropActionData,
+        ItemStackRequestCerealPlaceActionData, ItemStackRequestCerealSlotInfoData,
+        ItemStackRequestPacket, ItemStackRequestPacketDataRequestData,
+        ItemStackRequestPacketDataRequestDataActionsItem, ItemUseInventoryTransaction,
+        ItemUseOnActorInventoryTransaction, McpePacket, McpePacketData, McpePacketName,
+        MobEquipmentPacket, PackedItemUseLegacyInventoryTransaction, PlayerActionPacket,
+        PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick, RespawnPacket,
         TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2, Vec3, actor_flags,
     },
 };
@@ -2797,7 +2798,10 @@ there"
             ("bds-sweep:missed-swing", Order::MissedSwing),
             (r#"{ message: "bds-sweep:use" }"#, Order::UseItem),
             ("bds-sweep:release-item", Order::ReleaseItem),
-            (r#"{ message: "bds-sweep:release-item" }"#, Order::ReleaseItem),
+            (
+                r#"{ message: "bds-sweep:release-item" }"#,
+                Order::ReleaseItem,
+            ),
             ("bds-sweep:consume", Order::Consume),
             ("bds-sweep:select 3", Order::Select(3)),
             (
@@ -2816,11 +2820,7 @@ there"
             ("bds-sweep:held-flags none", Order::HeldFlags(Vec::new())),
             (
                 "bds-sweep:action creative-destroy 1 -59 0 1",
-                Order::Action(
-                    EnumsPlayerActionType::Creativedestroyblock,
-                    [1, -59, 0],
-                    1,
-                ),
+                Order::Action(EnumsPlayerActionType::Creativedestroyblock, [1, -59, 0], 1),
             ),
             (
                 r#"{ message: "bds-sweep:attack-named front" }"#,

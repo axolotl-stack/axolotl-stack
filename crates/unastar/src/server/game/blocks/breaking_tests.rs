@@ -196,11 +196,9 @@ fn event(packet: &McpePacketData, tool: Option<i16>) -> Option<Event> {
             Some(Event::Sound(sound.sound_event.to_string()))
         }
         McpePacketData::TakeItemActorPacket(_) => Some(Event::Pickup),
-        McpePacketData::PacketViolationWarningPacket(warning) => {
-            Some(Event::Violation(
-                crate::network::violation::redact_violation_message(&warning.violation_context),
-            ))
-        }
+        McpePacketData::PacketViolationWarningPacket(warning) => Some(Event::Violation(
+            crate::network::violation::redact_violation_message(&warning.violation_context),
+        )),
         _ => None,
     }
 }

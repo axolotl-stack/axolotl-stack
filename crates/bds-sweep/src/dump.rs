@@ -62,10 +62,11 @@ fn main() -> Result<()> {
     let mut input_tick = 0u64;
     for line in std::io::BufReader::new(file).lines() {
         let record: Record = serde_json::from_str(&line?)?;
-        if args.input_tick && record.name == "PlayerAuthInputPacket" {
-            if let Ok(McpePacketData::PlayerAuthInputPacket(input)) = decode(&record.hex) {
-                input_tick = input.client_tick.inputtick;
-            }
+        if args.input_tick
+            && record.name == "PlayerAuthInputPacket"
+            && let Ok(McpePacketData::PlayerAuthInputPacket(input)) = decode(&record.hex)
+        {
+            input_tick = input.client_tick.inputtick;
         }
         if !names.is_empty()
             && !names
