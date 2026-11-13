@@ -59,7 +59,7 @@ use crate::entity::components::{
 };
 use crate::entity::mob::combat::{Hit, HurtTimer, knockback_velocity};
 use crate::entity::mob::components::KnockbackPower;
-use crate::entity::mob::constants::HURT_TICKS;
+use crate::entity::mob::constants::{HURT_TICKS, LIVING_GRAVITY, LIVING_VERTICAL_DRAG};
 use crate::entity::mob::state::LastHurt;
 use crate::world::rules::{Difficulty, GameRules};
 
@@ -449,6 +449,8 @@ fn cause_id(cause: ActorDamageCause) -> i32 {
 /// down, so a netherite-clad victim leaves at 0.6 x 0.48 - 0.0392), or an
 /// earlier push of this tick. It goes to the player and its viewers as
 /// `SetActorMotion` and counts as the player's next move (`super::motion`).
+/// The velocity kept and the velocity given are bounded by
+/// [`bounded_knockback`].
 fn knock_back(
     world: &mut World,
     player: Entity,
@@ -467,9 +469,11 @@ fn knock_back(
         away = DVec2::from_angle(angle);
     }
     let resistance = worn_knockback_resistance(world, player);
-    let mut velocity = world
-        .get::<PlayerInput>(player)
-        .map_or(DVec3::ZERO, |input| input.velocity);
+    let mut velocity = bounded_knockback(
+        world
+            .get::<PlayerInput>(player)
+            .map_or(DVec3::ZERO, |input| input.velocity),
+    );
     let mut count = 0;
     for power in pushes {
         let power = if resistance > 0.0 {
@@ -477,7 +481,7 @@ fn knock_back(
         } else {
             power
         };
-        velocity = knockback_velocity(velocity, away.normalize(), power);
+        velocity = bounded_knockback(knockback_velocity(velocity, away.normalize(), power));
         count += 1;
     }
     if let Some(mut input) = world.get_mut::<PlayerInput>(player) {
@@ -507,9 +511,48 @@ fn knock_back(
     }
 }
 
+/// The largest speed on any axis a knockback keeps or gives: a living body's
+/// terminal fall speed (0.08 x 0.98 / 0.02 = 3.92 blocks a tick). This is
+/// a server bound, not a BDS measurement: the velocity a knockback keeps is
+/// the client's reported `pos_delta`, so a crafted one (or pushes stacked in
+/// one tick) must not launch the player. Every push of the BDS 1.26.51 PvP
+/// sweep stays far below it.
+const MAX_KNOCKBACK_SPEED: f64 =
+    LIVING_GRAVITY * LIVING_VERTICAL_DRAG / (1.0 - LIVING_VERTICAL_DRAG);
+
+/// `velocity` clamped on each axis to [`MAX_KNOCKBACK_SPEED`].
+fn bounded_knockback(velocity: DVec3) -> DVec3 {
+    velocity.clamp(
+        DVec3::splat(-MAX_KNOCKBACK_SPEED),
+        DVec3::splat(MAX_KNOCKBACK_SPEED),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_crafted_velocity_cannot_launch_a_knocked_back_player() {
+        let mut world = World::new();
+        let player = world
+            .spawn((
+                Position(DVec3::ZERO),
+                PlayerInput {
+                    velocity: DVec3::new(64.0, 64.0, -64.0),
+                    ..Default::default()
+                },
+            ))
+            .id();
+        let pushes = std::iter::repeat_n(KnockbackPower::DEFAULT, 8);
+        knock_back(&mut world, player, DVec3::new(-1.0, 0.0, 0.0), pushes);
+        let velocity = world.get::<PlayerInput>(player).unwrap().velocity;
+        assert!(
+            velocity.abs().max_element() <= MAX_KNOCKBACK_SPEED,
+            "{velocity}"
+        );
+        assert!((MAX_KNOCKBACK_SPEED - 3.92).abs() < 1e-9);
+    }
 
     #[test]
     fn difficulty_scales_mob_damage() {

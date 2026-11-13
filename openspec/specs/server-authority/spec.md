@@ -266,10 +266,14 @@ An attack aimed at another player SHALL be applied only when the attacker is ali
 Evidence: crates/unastar/src/entity/player_life/pvp.rs (`check`, `Refusal`), crates/unastar/src/entity/player_life/tests/pvp.rs (`reach_and_the_claimed_position_limit_hits_like_bds`, `game_modes_and_the_pvp_rule_decide_who_can_be_hit`, `a_spectator_cannot_hit`)
 
 ### Requirement: A reported velocity is finite and bounded
-The velocity a `PlayerAuthInput` reports (`pos_delta`) MUST be finite, or the input is rejected whole. The velocity a knockback keeps from it MUST be clamped on each axis to the per-input movement limit.
+The velocity a `PlayerAuthInput` reports (`pos_delta`) MUST be finite, or the input is rejected whole, and is clamped on each axis to the per-input movement limit. The velocity a knockback keeps and the velocity it gives MUST be clamped on each axis to 3.92 blocks a tick (a living body's terminal fall speed), after every push of the tick.
 
 #### Scenario: Non-finite reported velocity
 - **WHEN** a `PlayerAuthInput` reports a NaN or infinite `pos_delta`
 - **THEN** the input is rejected whole, like a non-finite position
 
-Evidence: crates/unastar/src/server/game/movement.rs (`auth_input_is_finite`, test `non_finite_positions_and_rotations_are_rejected`)
+#### Scenario: A crafted velocity before a knockback
+- **WHEN** a player whose last input reported a velocity of 64 blocks a tick on each axis is pushed eight times in one tick
+- **THEN** its velocity is at most 3.92 blocks a tick on every axis
+
+Evidence: crates/unastar/src/server/game/movement.rs (`auth_input_is_finite`, test `non_finite_positions_and_rotations_are_rejected`), crates/unastar/src/entity/player_life/hurt.rs (`bounded_knockback`, test `a_crafted_velocity_cannot_launch_a_knocked_back_player`)
