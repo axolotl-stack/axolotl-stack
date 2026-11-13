@@ -552,7 +552,7 @@ fn world_spawn(h: &mut Harness) -> DVec3 {
 
 /// A player `Position` (eyes 1.62 above the feet) as packets report it:
 /// 1.62001 above the feet, through f32.
-fn reported(position: DVec3) -> DVec3 {
+fn reported_eyes(position: DVec3) -> DVec3 {
     let wire = |v: f64| f64::from(v as f32);
     DVec3::new(
         wire(position.x),

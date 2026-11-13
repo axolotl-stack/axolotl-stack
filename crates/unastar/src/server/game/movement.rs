@@ -136,7 +136,7 @@ pub fn apply_movement(
                     .map(|(_, rotation, ..)| (rotation.pitch, rotation.yaw));
                 // Combat: the attacker's state an attack of this tick sees
                 // (`player_life::pvp`).
-                if let (Ok(mut start), Ok((position, _, state, input, fall, _))) =
+                if let (Ok(mut start), Ok((position, _, state, input, fall, ..))) =
                     (starts.get_mut(entity), players.get(entity))
                     && start.tick != now
                 {

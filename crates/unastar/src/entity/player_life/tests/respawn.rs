@@ -66,7 +66,7 @@ fn assert_respawned(h: &mut Harness, packets: &[McpePacketData]) {
     assert_eq!(
         teleports(packets),
         [(
-            reported(spawn),
+            reported_eyes(spawn),
             EnumsPlayerPositionModeComponentPositionMode::Respawn
         )]
     );
@@ -108,7 +108,7 @@ fn the_client_ready_respawn_restores_the_player_at_the_world_spawn() {
         respawns(&packets),
         [(
             EnumsPlayerRespawnState::Readytospawn,
-            reported(world_spawn(&mut h))
+            reported_eyes(world_spawn(&mut h))
         )]
     );
     assert_respawned(&mut h, &packets);
