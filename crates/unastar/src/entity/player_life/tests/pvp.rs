@@ -17,10 +17,11 @@ use crate::entity::components::{
 };
 use crate::entity::player_life::pvp::{self, Swing};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, with_enchantments};
+use crate::item::enchant::with_enchantments;
 use crate::item::test_support::stack;
 use jolyne::valentine::types::ItemUseOnActorInventoryTransaction;
 use serde_json::Value;
+use unastar_rules::ids::Enchantment;
 
 fn fixture() -> &'static Value {
     static FIXTURE: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
@@ -78,8 +79,8 @@ fn stack_of(spec: &Value) -> ItemStack {
                 .iter()
                 .map(|(name, level)| {
                     (
-                        Enchantment::from_name(name)
-                            .unwrap_or_else(|| panic!("enchantment {name}")),
+                        name.parse::<Enchantment>()
+                            .unwrap_or_else(|error| panic!("enchantment {name}: {error}")),
                         level.as_u64().unwrap() as u8,
                     )
                 })
@@ -89,7 +90,7 @@ fn stack_of(spec: &Value) -> ItemStack {
     if levels.is_empty() {
         item
     } else {
-        with_enchantments(&item, &levels)
+        with_enchantments(&item, levels)
     }
 }
 

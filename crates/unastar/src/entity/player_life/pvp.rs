@@ -23,7 +23,7 @@
 //!    walls are not checked (BDS checks facing only with strict entity
 //!    interactions, which are off by default).
 //! 2. Damage: the held item's melee damage plus Sharpness
-//!    ([`crate::entity::mob::combat::weapon_damage`]); Strength and Weakness
+//!    ([`crate::entity::mob::combat::melee_damage`]); Strength and Weakness
 //!    as for mobs; then × 1.5 for a critical hit (falling, not on the
 //!    ground, no Blindness, no Slow Falling; sprinting allowed). Difficulty
 //!    does not scale it.
@@ -39,6 +39,7 @@ use glam::DVec3;
 use jolyne::valentine::types::{ItemUseOnActorInventoryTransaction, Vec3};
 use jolyne::valentine::{LevelSoundEventPacket, McpePacket};
 use unastar_data::actor_components::body::ActorDamageCause;
+use unastar_rules::ids::Enchantment;
 
 use super::hurt::{self, PlayerHit};
 use crate::ecs::resources::TickCounter;
@@ -53,7 +54,6 @@ use crate::entity::mob::constants::{
 };
 use crate::entity::mob::events::held_item;
 use crate::entity::mob::state::Dead;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::world::rules::GameRules;
 
 /// Farthest the position an attack claims may be from the attacker's
@@ -194,11 +194,11 @@ pub fn player_hits_player(
     let held = held_item(world, attacker).cloned();
     let sharpness = held
         .as_ref()
-        .map_or(0, |stack| enchantment_level(stack, Enchantment::Sharpness));
+        .map_or(0, |stack| stack.enchantment_level(Enchantment::Sharpness));
     let knockback_level = held
         .as_ref()
-        .map_or(0, |stack| enchantment_level(stack, Enchantment::Knockback));
-    let mut damage = crate::entity::mob::combat::weapon_damage(held.as_ref());
+        .map_or(0, |stack| stack.enchantment_level(Enchantment::Knockback));
+    let mut damage = crate::entity::mob::combat::melee_damage(held.as_ref());
     damage = with_effects(world, attacker, damage);
     if crit {
         damage *= CRITICAL_FACTOR;

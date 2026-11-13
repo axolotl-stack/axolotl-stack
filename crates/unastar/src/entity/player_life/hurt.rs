@@ -337,10 +337,7 @@ fn after_protection(world: &World, player: Entity, damage: f32) -> f32 {
             .iter()
             .filter(|stack| !stack.is_empty())
             .map(|stack| {
-                u32::from(crate::item::enchant::enchantment_level(
-                    stack,
-                    crate::item::enchant::Enchantment::Protection,
-                ))
+                u32::from(stack.enchantment_level(unastar_rules::ids::Enchantment::Protection))
             })
             .sum()
     });
