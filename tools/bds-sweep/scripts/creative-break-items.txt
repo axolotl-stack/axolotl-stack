@@ -1,0 +1,232 @@
+# Which held items break blocks in creative, against BDS:
+# `python tools/bds-sweep/script.py tools/bds-sweep/scripts/creative-break-items.txt --out DIR`.
+# For each item, from the tick listed: clear the inventory, give the item
+# (hotbar slot 0, held), put stone at (1,-59,0) and send StartDestroyBlock,
+# then PredictDestroyBlock on the next input (as breaking-2.txt's creative
+# scenarios). The start breaks the stone (destroy particles, LevelEvent
+# 2001) unless the item cannot break blocks in creative.
+#
+# Arena as in breaking.txt: a stone floor at y=-61, the player at
+# (0.5,-60,0.5) facing east (yaw -90) at the west face (4) of (1,-59,0).
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode creative @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+
+# wooden_sword
+60 /clear @s
+61 /give @s wooden_sword
+62 /setblock 1 -59 0 stone
+70 mine 1 -59 0 4 1
+74 stop
+
+# stone_sword
+80 /clear @s
+81 /give @s stone_sword
+82 /setblock 1 -59 0 stone
+90 mine 1 -59 0 4 1
+94 stop
+
+# copper_sword
+100 /clear @s
+101 /give @s copper_sword
+102 /setblock 1 -59 0 stone
+110 mine 1 -59 0 4 1
+114 stop
+
+# iron_sword
+120 /clear @s
+121 /give @s iron_sword
+122 /setblock 1 -59 0 stone
+130 mine 1 -59 0 4 1
+134 stop
+
+# golden_sword
+140 /clear @s
+141 /give @s golden_sword
+142 /setblock 1 -59 0 stone
+150 mine 1 -59 0 4 1
+154 stop
+
+# diamond_sword
+160 /clear @s
+161 /give @s diamond_sword
+162 /setblock 1 -59 0 stone
+170 mine 1 -59 0 4 1
+174 stop
+
+# netherite_sword
+180 /clear @s
+181 /give @s netherite_sword
+182 /setblock 1 -59 0 stone
+190 mine 1 -59 0 4 1
+194 stop
+
+# trident
+200 /clear @s
+201 /give @s trident
+202 /setblock 1 -59 0 stone
+210 mine 1 -59 0 4 1
+214 stop
+
+# mace
+220 /clear @s
+221 /give @s mace
+222 /setblock 1 -59 0 stone
+230 mine 1 -59 0 4 1
+234 stop
+
+# wooden_spear
+240 /clear @s
+241 /give @s wooden_spear
+242 /setblock 1 -59 0 stone
+250 mine 1 -59 0 4 1
+254 stop
+
+# stone_spear
+260 /clear @s
+261 /give @s stone_spear
+262 /setblock 1 -59 0 stone
+270 mine 1 -59 0 4 1
+274 stop
+
+# copper_spear
+280 /clear @s
+281 /give @s copper_spear
+282 /setblock 1 -59 0 stone
+290 mine 1 -59 0 4 1
+294 stop
+
+# iron_spear
+300 /clear @s
+301 /give @s iron_spear
+302 /setblock 1 -59 0 stone
+310 mine 1 -59 0 4 1
+314 stop
+
+# golden_spear
+320 /clear @s
+321 /give @s golden_spear
+322 /setblock 1 -59 0 stone
+330 mine 1 -59 0 4 1
+334 stop
+
+# diamond_spear
+340 /clear @s
+341 /give @s diamond_spear
+342 /setblock 1 -59 0 stone
+350 mine 1 -59 0 4 1
+354 stop
+
+# netherite_spear
+360 /clear @s
+361 /give @s netherite_spear
+362 /setblock 1 -59 0 stone
+370 mine 1 -59 0 4 1
+374 stop
+
+# diamond_pickaxe
+380 /clear @s
+381 /give @s diamond_pickaxe
+382 /setblock 1 -59 0 stone
+390 mine 1 -59 0 4 1
+394 stop
+
+# diamond_axe
+400 /clear @s
+401 /give @s diamond_axe
+402 /setblock 1 -59 0 stone
+410 mine 1 -59 0 4 1
+414 stop
+
+# diamond_shovel
+420 /clear @s
+421 /give @s diamond_shovel
+422 /setblock 1 -59 0 stone
+430 mine 1 -59 0 4 1
+434 stop
+
+# diamond_hoe
+440 /clear @s
+441 /give @s diamond_hoe
+442 /setblock 1 -59 0 stone
+450 mine 1 -59 0 4 1
+454 stop
+
+# shears
+460 /clear @s
+461 /give @s shears
+462 /setblock 1 -59 0 stone
+470 mine 1 -59 0 4 1
+474 stop
+
+# stick
+480 /clear @s
+481 /give @s stick
+482 /setblock 1 -59 0 stone
+490 mine 1 -59 0 4 1
+494 stop
+
+# bow
+500 /clear @s
+501 /give @s bow
+502 /setblock 1 -59 0 stone
+510 mine 1 -59 0 4 1
+514 stop
+
+# crossbow
+520 /clear @s
+521 /give @s crossbow
+522 /setblock 1 -59 0 stone
+530 mine 1 -59 0 4 1
+534 stop
+
+# brush
+540 /clear @s
+541 /give @s brush
+542 /setblock 1 -59 0 stone
+550 mine 1 -59 0 4 1
+554 stop
+
+# fishing_rod
+560 /clear @s
+561 /give @s fishing_rod
+562 /setblock 1 -59 0 stone
+570 mine 1 -59 0 4 1
+574 stop
+
+# shield
+580 /clear @s
+581 /give @s shield
+582 /setblock 1 -59 0 stone
+590 mine 1 -59 0 4 1
+594 stop
+
+# debug_stick
+600 /clear @s
+601 /give @s debug_stick
+602 /setblock 1 -59 0 stone
+610 mine 1 -59 0 4 1
+614 stop
+
+# wooden_axe
+620 /clear @s
+621 /give @s wooden_axe
+622 /setblock 1 -59 0 stone
+630 mine 1 -59 0 4 1
+634 stop
+
+# golden_hoe
+640 /clear @s
+641 /give @s golden_hoe
+642 /setblock 1 -59 0 stone
+650 mine 1 -59 0 4 1
+654 stop
+660 /setblock 1 -59 0 air
+670 exit

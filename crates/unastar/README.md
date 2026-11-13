@@ -836,6 +836,12 @@ Every non-air item the server sends carries Bedrock item user data
 eighteen for the shield). The client drops the connection with `BadPacket`
 right after spawning when creative items carry an empty buffer. Client user
 data is stored verbatim and compared decoded, so a default buffer equals none.
+Enchantments are the generated `unastar_rules::ids::Enchantment` (decision
+[0052](../../docs/decisions/0052-generate-one-enchantment-type.md)): a stack
+decodes its `ench` levels once when its user data is set, so
+`stack.enchantment_level(Enchantment::Sharpness)` is an array index, and
+`item::enchant::with_enchantments` writes them back. `ench` entries with ids
+that are not Bedrock enchantments stay in the buffer untouched.
 
 Block interaction requires Survival or Creative mode and server-position reach
 (five blocks in Survival, six in Creative, measured to the block's bounding box).
@@ -848,9 +854,14 @@ Survival breaking follows BDS input by input:
   the blocks back and the break goes on.
 - `StopDestroyBlock` does not end the break, and a completed break goes on at that position from
   zero.
-- Every input is answered with BDS's crack events, and no sound is sent for a break.
+- Every input is answered with BDS's crack events, and no sound is sent to the breaking client.
+  Other players near the block hear its hit sound every fifth input.
+- In creative, `StartDestroyBlock` breaks the block at once, except with a sword, the trident or
+  the mace. An input carrying `CreativeDestroyBlock` is refused as malformed and ends the session,
+  as on BDS.
 
-`server/game/blocks/breaking_tests.rs` replays a BDS capture of all of this.
+`server/game/blocks/breaking_tests.rs` replays BDS captures of all of this, one with a second
+player watching.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not
@@ -965,8 +976,8 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Behaviour | Status | Evidence |
 |---|---|---|
 | Eat/drink: start on air use, server finishes after the use duration, early consume finishes at once, release or slot switch cancels | done | BDS capture (timing, `CompletedUsingItem` 1 / -1, burp at eye - 0.1, using flag word to the user too) |
-| Food values, effects, removed effects, bowls/bottles, milk clears effects | done | pack data; golden apple, rotten flesh, honey, milk compared with the capture |
-| Suspicious stew effects (data 0-9) | done | BDS capture table |
+| Food values, effects (in document order), removed effects, bowls/bottles, the burp, milk clears effects | done | every vanilla food eaten against the BDS food captures (`server/game/item_use/food_tests.rs`) |
+| Suspicious stew effects (data 0-13), the Saturation effect (food level only), chorus fruit teleport (random x/z kept, teleport sounds) | done | BDS food captures |
 | Chorus fruit teleport | done | `on_use_range` from pack data; 16 tries and the landing search are public references |
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
 | Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; movement exhaustion matches the BDS movement capture tick by tick (`entity/player_life/tests/movement.rs`) |
@@ -975,16 +986,28 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
 | Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
 | Melee damage: measured per item, Sharpness +1.25 per level truncated to whole points | done | BDS attack sweep (`entity/mob/combat/hit/measured_tests.rs`); critical hits not done |
+| Melee reach (6 blocks from the eye to the mob's box) and a killing hit showing only the death | done | BDS spear capture (`entity/mob/combat/hit/spear_tests.rs`): a sword hit 5.55 blocks away lands, 6.55 does not |
+| Item cooldowns (`minecraft:cooldown`): a spear's attack cooldown starts on a hit and on a jab that hits nothing, `PlayerStartItemCooldown` with the category, every hit and jab of that category refused while it runs | done | BDS spear capture (`entity/mob/combat/hit/spear_tests.rs`); use cooldowns (wind charge) are not wired |
+| Spear jab (`UseAsAttack`, also packed into the input): the tier's miss sound and the cooldown, no damage; holding a spear sets the using flag | done | BDS spear capture; the charge (kinetic damage) and a jab that pierces several entities are not done |
+| Missed swing (`MissedSwing` input): the item's `swing_sounds` miss sound or `attack.nodamage` | done | BDS spear capture |
+| `/enchant` on spears | done | BDS command capture (`item/spear_enchant_tests.rs`) |
 | Armour wear when hurt (`max(1, floor(damage/4))` per piece with armour points; the elytra never) | done | BDS armour-wear sweep (`entity/player_life/tests/hurt.rs`) |
 | Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
-| Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |
+| Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, fire charges | done | public reference; sound names unmeasured |
+| Flint and steel: the click corrections, update, `ignite` position, relit campfire actor data and wear (no slot update) | done | BDS capture (`server/game/item_use/flint_tests.rs`) |
+| Placed containers announced with actor data: chests, ender chests and barrels, not furnaces or hoppers | done | BDS capture (`server/game/containers/tests.rs`) |
 | Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
 | Buckets: take and place water, lava, powder snow | done | public reference; liquids do not flow, fish/axolotl buckets not done |
 | Bow, crossbow, snowball, egg | done | capture (speeds 3.0/3.15/1.5, sounds); draw curve and spread are public references |
 | Stuck arrows: shake, pickup, despawn after 1200 ticks | done | capture (shake event); lifetime is a public reference |
 | Ender pearls | not done | needs `teleport_owner` and the endermite archetype (entity lane) |
 | Tridents | not done | `minecraft:thrown_trident` lacks a measured `AddActor` shape |
-| Potions, splash potions, tipped arrows | not done | potion effect table not measured |
+| Potions and ominous bottles: drinking (32 ticks), the effects of all 47 potion data values, instant health and damage, Bad Omen, sounds, glass bottle | done | BDS item-use capture (`server/game/item_use/drink_tests.rs`); splash and lingering potions and tipped arrows not done |
+| Effect pulses (poison, wither, regeneration on the duration before the tick), poison as a hurt, invisibility sounds, effect packet order | done | BDS item-use capture |
+| Goat horns (`horn_call<data>`, 140-tick cooldown, using flag) and the spyglass (using flag) | done | BDS item-use capture |
+| Jukeboxes: music discs in and out, popup, actor data, drops, breaking a playing jukebox | done | BDS jukebox capture (`server/game/jukebox/tests.rs`); no redstone signal |
+| Elytra: a glide needs one with more than 1 durability left, wears it every 20 ticks, ends at 1 left | done | BDS elytra captures (`server/game/elytra/tests.rs`); the glide's movement is the client's |
+| Experience from breaking ores, sculk blocks and the spawner (ranges, orb sizes, Silk Touch, harvesting tool, hoe for sculk) | done | BDS ore captures (`server/game/block_drops/experience_tests.rs`) |
 | Player death from starvation or arrows | not done | entity lane (player death and respawn) |
 
 The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone

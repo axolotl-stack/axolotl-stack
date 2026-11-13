@@ -1,0 +1,13 @@
+{
+ "source": "tools/bds-sweep/scripts/containers-flint.txt against BDS 1.26.51 (2026-11-11): the id in the BlockActorData BDS sent for each container a survival player placed, or null when it sent none",
+ "announced": {
+  "minecraft:chest": "Chest",
+  "minecraft:trapped_chest": "Chest",
+  "minecraft:ender_chest": "EnderChest",
+  "minecraft:barrel": "Barrel",
+  "minecraft:furnace": null,
+  "minecraft:blast_furnace": null,
+  "minecraft:smoker": null,
+  "minecraft:hopper": null
+ }
+}

@@ -515,13 +515,12 @@ fn compile_output(
     let aux = i32::from_le_bytes(wire.auxvalue.to_le_bytes());
     let damage = i16::try_from(aux)
         .map_err(|_| compile_error(id, "advertised output aux does not fit ItemStack"))?;
-    let mut stack = ItemStack::new(item, count)
+    let stack = ItemStack::new(item, count)
         .with_damage(damage)
         .with_runtime_id(wire.block_runtime_id);
     // Preserve the exact frozen buffer, including a noncanonical empty buffer.
     // with_nbt intentionally normalizes defaults and is unsuitable here.
-    stack.nbt = Some(wire.user_data_buffer.clone());
-    Ok(stack)
+    Ok(stack.with_raw_nbt(Some(wire.user_data_buffer.clone())))
 }
 
 fn compile_tag_expression(

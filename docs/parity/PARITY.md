@@ -15,10 +15,10 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Entities](#entities): actor rows (summon and replication) | 137 | 112 | 1 | 1 | 19 | 4 | 15.0% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 999 | 2648 | 328 | 61 | 46 | 9.6% |
 | [Blocks](#blocks) | 1477 | 0 | 510 | 503 | 297 | 167 | 61.1% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 812 | 627 | 630 | 177 | 57.9% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
-| [Protocol](#protocol) | 231 | 126 | 27 | 42 | 21 | 15 | 29.2% |
+| [Protocol](#protocol) | 231 | 125 | 28 | 42 | 21 | 15 | 29.2% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -65,11 +65,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 950 claimed.
+**Items**: 0 open rows free, 913 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 950 |
+| Item use | lane ITEMS | 2026-10-29 | 913 |
 
 **Commands**: 0 open rows free, 43 claimed.
 
@@ -81,7 +81,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 91 | 77 | 14 |
+| clientbound | 91 | 76 | 15 |
 | bidirectional | 57 | 44 | 13 |
 | serverbound | 5 | 5 | 0 |
 
@@ -431,20 +431,20 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| armour_wearables | 90 | 1 | 2 | 0 | 87 | 0 | 96.7% |
+| armour_wearables | 90 | 0 | 2 | 1 | 87 | 0 | 97.8% |
 | block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
 | buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
 | entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
-| food | 46 | 4 | 0 | 40 | 1 | 1 | 91.1% |
-| materials_misc | 40 | 2 | 0 | 0 | 38 | 0 | 95.0% |
+| food | 46 | 4 | 4 | 0 | 37 | 1 | 82.2% |
+| materials_misc | 40 | 0 | 0 | 0 | 40 | 0 | 100.0% |
 | melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
-| other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| potions_drinks | 3 | 2 | 0 | 0 | 0 | 1 | 0.0% |
+| other_tools | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
+| potions_drinks | 3 | 0 | 0 | 0 | 2 | 1 | 100.0% |
 | ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | throwables | 16 | 8 | 2 | 2 | 4 | 0 | 37.5% |
-| tools | 280 | 81 | 19 | 1 | 175 | 4 | 63.8% |
+| tools | 280 | 31 | 33 | 1 | 211 | 4 | 76.8% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
 
@@ -453,36 +453,35 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | block_placer | 1504 | 28 | 692 | 615 | 0 | 169 | 46.1% |
 | spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
-| record | 22 | 22 | 0 | 0 | 0 | 0 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 4 | 8 | 3 | 66 | 2 | 85.2% |
-| cooldown | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
-| enchantable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
-| kinetic_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
-| piercing_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
+| durability | 83 | 3 | 9 | 2 | 67 | 2 | 85.2% |
+| kinetic_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
+| piercing_weapon | 7 | 0 | 7 | 0 | 0 | 0 | 0.0% |
 | repairable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | bucket | 8 | 3 | 3 | 2 | 0 | 0 | 25.0% |
 | throwable | 8 | 5 | 1 | 2 | 0 | 0 | 25.0% |
-| drink | 5 | 4 | 0 | 0 | 0 | 1 | 0.0% |
+| food | 40 | 0 | 4 | 0 | 36 | 0 | 90.0% |
 | compostable | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
+| drink | 5 | 2 | 0 | 0 | 2 | 1 | 50.0% |
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
-| wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| instrument | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
+| cooldown | 8 | 1 | 0 | 0 | 7 | 0 | 87.5% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| spyglass | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
+| wearable | 30 | 0 | 1 | 1 | 28 | 0 | 96.7% |
 | digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
-| food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
+| enchantable | 7 | 0 | 0 | 0 | 7 | 0 | 100.0% |
 | fuel | 277 | 0 | 0 | 0 | 277 | 0 | 100.0% |
+| instrument | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
+| record | 22 | 0 | 0 | 0 | 22 | 0 | 100.0% |
+| spyglass | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 
 ### Items gaps
 
 **armour_wearables**
 
-- `minecraft:elytra/wearable`: equips to the chest slot; gliding is not implemented
+- `minecraft:elytra/durability`: the phase of the 20-tick wear is only matched within two ticks
 - `minecraft:turtle_helmet/wearable`: protection only: Water Breathing from the helmet is not applied
-- missing: `minecraft:elytra/durability`
 
 **block_items**
 
@@ -507,19 +506,13 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **food**
 
+- `minecraft:chicken/food`, `minecraft:poisonous_potato/food`, `minecraft:rotten_flesh/food`: the effect chance itself is not compared with BDS
+- `minecraft:chorus_fruit/food`: the teleport landing spot is not compared with BDS
 - missing: `minecraft:carrot/block_placer`, `minecraft:glow_berries/block_placer`, `minecraft:potato/block_placer`, `minecraft:sweet_berries/block_placer`
-
-**materials_misc**
-
-- missing: `minecraft:goat_horn/instrument`, `minecraft:spyglass/spyglass`
 
 **melee_weapons**
 
 - `minecraft:mace/weapon`: base damage only: the smash bonus from falling is not applied
-
-**potions_drinks**
-
-- missing: `minecraft:ominous_bottle/drink`, `minecraft:potion/drink`
 
 **ranged_weapons**
 
@@ -544,9 +537,11 @@ Sub-rows by facet, most incomplete first (25 of 25):
 **tools**
 
 - `minecraft:brewing_stand/block_placer`, `minecraft:cake/block_placer`, `minecraft:campfire/block_placer`, `minecraft:cauldron/block_placer`, `minecraft:flower_pot/block_placer`, `minecraft:kelp/block_placer`, `minecraft:nether_sprouts/block_placer`, `minecraft:red_shrub/block_placer`, `minecraft:shelf_mushroom/block_placer`, `minecraft:soul_campfire/block_placer`: non-cube block: support and attachment rules are not checked and its placement has no test
-- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the jab reach and the charge attack are not implemented, so only plain hits wear it
+- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the charge attack is not implemented; whether a jab that hits nothing wears the spear is not measured
+- `minecraft:copper_spear/kinetic_weapon`, `minecraft:diamond_spear/kinetic_weapon`, `minecraft:golden_spear/kinetic_weapon`, `minecraft:iron_spear/kinetic_weapon`, `minecraft:netherite_spear/kinetic_weapon`, `minecraft:stone_spear/kinetic_weapon`, `minecraft:wooden_spear/kinetic_weapon`: the charge is not implemented: no kinetic damage, knockback or dismount from the relative speed while the spear is held
+- `minecraft:copper_spear/piercing_weapon`, `minecraft:diamond_spear/piercing_weapon`, `minecraft:golden_spear/piercing_weapon`, `minecraft:iron_spear/piercing_weapon`, `minecraft:netherite_spear/piercing_weapon`, `minecraft:stone_spear/piercing_weapon`, `minecraft:wooden_spear/piercing_weapon`: a jab that hits several entities in a line is not implemented: BDS damaged only the hit target, never the entities behind it, in every form the scripted client sent a jab (UseAsAttack alone or packed into the input, a hit with the camera orientation, three hits in one input); what the vanilla client sends for a piercing jab is not captured
 - `minecraft:frame/block_placer`, `minecraft:glow_frame/block_placer`: facing_direction is not set from the click or look
-- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon`, `minecraft:copper_spear/repairable` and 69 more
+- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/repairable`, `minecraft:cyan_bundle/bundle`, `minecraft:diamond_spear/repairable`, `minecraft:golden_spear/repairable`, `minecraft:gray_bundle/bundle` and 19 more
 
 ## Commands
 
@@ -598,7 +593,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bidirectional | 80 | 44 | 13 | 15 | 2 | 6 | 23.0% |
-| clientbound | 146 | 77 | 14 | 27 | 19 | 9 | 33.6% |
+| clientbound | 146 | 76 | 15 | 27 | 19 | 9 | 33.6% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
@@ -607,7 +602,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 - `ActorEventPacket`: sent for hurt, death, respawn and mob events; client-sent actor events (eating particles, feeding) are ignored
 - `AnimatePacket`: client swings are relayed to nearby players; the server never originates animations (critical hits, wake up, rowing)
-- `BlockActorDataPacket`: sent for containers only (matches the BDS chest capture); client edits such as signs are not handled
+- `BlockActorDataPacket`: sent for containers and jukeboxes (matching the BDS chest and jukebox captures); client edits such as signs are not handled
 - `InteractPacket`: only open-inventory is handled; leave-vehicle, mouse-over and other actions are ignored
 - `InventoryTransactionPacket`: block clicks, use-on-actor and throwables handled; item use in the air (eating, bows) and release actions are ignored
 - 8 more partial rows with other gaps (see [protocol.toml](protocol.toml))
@@ -618,10 +613,10 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 - `SetCommandsEnabledPacket`, `SetHealthPacket`: the test compares a hand-built packet with the capture; the value and timing the server sends are not compared
 - `AddPlayerPacket`: sent to the players in send range like BDS (when and to whom are verified) with the feet position, game type and actor data of the BDS player-data capture; not preceded by a PlayerList entry (no skin)
 - `BlockEventPacket`: chest lid open/close only; note blocks, pistons, bells and other block events missing
-- `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
+- `CompletedUsingItemPacket`: sent when food is eaten, milk, potions and ominous bottles are drunk and a crossbow finishes loading; the honey bottle and the other consumables are not compared with BDS
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
-- 8 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 65 more
+- 9 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 64 more
 
 **serverbound**
 
@@ -794,7 +789,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **player**
 
 - `player.abilities_permissions`: abilities follow the game mode; configured operators get operator commands, member/operator command levels answer like BDS and /op, /deop change them until restart (not saved); no visitor or custom permission levels, RequestAbility/RequestPermissions or UpdateAdventureSettings
-- `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); no ore experience; what other players see of a break and creative breaking are not compared against BDS yet
+- `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); in creative, a PredictDestroyBlock without a StartDestroyBlock in its input is refused like one on air, which BDS was not seen doing; of the block action types BDS cannot read in an input only CreativeDestroyBlock was measured; this server sends the block changes of a tick after the next inputs' corrections, BDS before them
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
 - `player.combat`: melee against mobs and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no player-versus-player damage, melee critical hits, shields or thrown tridents
 - `player.damage_sources`: falls (3 to 12.5 blocks, into water, onto hay, slime, a bed, into powder snow, a glide that slowed down and Feather Falling boots), a fire block and the burning after it (a 1-point burn 20, 40, ... ticks before the fire runs out) match the BDS movement capture; lava, void, mob attacks and drowning (air supply, BREATHING flag, a 2-damage hit every 20 ticks without air, the refill, Respiration, bubble columns and the air saved across a rejoin) match the BDS breath and player-data captures; a killing hit sends only the death event and other hits knock back before the hurt event; the damage game rules gate their causes from every source; no suffocation, freezing, cactus, starvation, magic, lightning or explosion damage, and no protection enchantment but Feather Falling; in a fire block BDS's hurts alternate between fire (6) and fire_tick (7) with its input timing where unastar's are fire; how long lava sets a player alight (15 s) and the descent under which a glide restarts the fall (0.5 a tick) are unmeasured; block identities resolved by name string for fall damage

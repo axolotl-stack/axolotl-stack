@@ -9,8 +9,7 @@ use bevy_ecs::prelude::*;
 use crate::entity::components::{ActiveEffect, EffectType, Effects, RuntimeEntityId};
 
 /// Give `player` an effect (amplifier 0-based) through the shared effect
-/// system; instant ones (instant health, saturation) act on its next effect
-/// step like every other instant effect.
+/// system (see [`add_effect_with`]).
 pub fn add_effect(
     world: &mut World,
     player: Entity,
@@ -18,12 +17,20 @@ pub fn add_effect(
     amplifier: u8,
     duration_ticks: u32,
 ) {
-    crate::entity::effects::give(
+    add_effect_with(
         world,
         player,
         effect,
         ActiveEffect::new(amplifier, duration_ticks),
     );
+}
+
+/// [`add_effect`] with the effect's particle and ambient flags, through
+/// [`crate::entity::effects::give_from_item`]: instant health and instant
+/// damage act at once (BDS 1.26.51 potion capture), every other effect is
+/// given like `/effect` gives it.
+pub fn add_effect_with(world: &mut World, player: Entity, effect: EffectType, state: ActiveEffect) {
+    crate::entity::effects::give_from_item(world, player, effect, state);
 }
 
 /// Remove one effect from `player`.

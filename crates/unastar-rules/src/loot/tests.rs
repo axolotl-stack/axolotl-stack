@@ -14,7 +14,7 @@ impl LootContext for Context<'_> {
     fn tool_item(&self) -> Option<&str> {
         None
     }
-    fn enchantment_level(&self, _: i16) -> u8 {
+    fn enchantment_level(&self, _: crate::ids::Enchantment) -> u8 {
         0
     }
     fn block_state_matches(&self, _: &str, _: &LootStateValue) -> bool {
@@ -97,7 +97,7 @@ impl LootContext for Colored {
     fn tool_item(&self) -> Option<&str> {
         None
     }
-    fn enchantment_level(&self, _: i16) -> u8 {
+    fn enchantment_level(&self, _: crate::ids::Enchantment) -> u8 {
         0
     }
     fn block_state_matches(&self, _: &str, _: &LootStateValue) -> bool {
@@ -295,7 +295,7 @@ impl LootContext for Mob {
     fn tool_item(&self) -> Option<&str> {
         None
     }
-    fn enchantment_level(&self, _: i16) -> u8 {
+    fn enchantment_level(&self, _: crate::ids::Enchantment) -> u8 {
         0
     }
     fn block_state_matches(&self, _: &str, _: &LootStateValue) -> bool {
@@ -642,4 +642,82 @@ fn nested_pools_fail_past_the_depth_limit() {
         evaluate(&table, &Context::default()),
         Err(LootError::TooDeep)
     );
+}
+
+#[test]
+fn enchantment_names_are_typed_at_decode() {
+    use crate::ids::Enchantment;
+    let table = pool_table(json!({"rolls": 1, "entries": [{
+        "type": "item", "name": "minecraft:book",
+        "functions": [
+            {"function": "apply_bonus", "enchantment": "minecraft:fortune", "formula": "ore_drops"},
+            {"function": "specific_enchants", "enchants": [
+                {"id": "swift_sneak", "level": [1, 3]}, {"id": "protection", "level": 4}
+            ]}
+        ]
+    }]}));
+    let functions = &table.pools[0].entries[0].functions;
+    assert_eq!(
+        functions[0].kind,
+        LootFunctionKind::ApplyBonus {
+            enchantment: Enchantment::Fortune,
+            formula: BonusFormula::OreDrops
+        }
+    );
+    assert_eq!(
+        functions[1].kind,
+        LootFunctionKind::SpecificEnchants {
+            enchants: vec![
+                SpecificEnchant {
+                    enchantment: Enchantment::SwiftSneak,
+                    min_level: 1,
+                    max_level: 3
+                },
+                SpecificEnchant {
+                    enchantment: Enchantment::Protection,
+                    min_level: 4,
+                    max_level: 4
+                },
+            ]
+        }
+    );
+}
+
+#[test]
+fn an_unknown_enchantment_rejects_the_table_naming_it() {
+    for (function, name) in [
+        (
+            json!({"function": "apply_bonus", "enchantment": "speed", "formula": "ore_drops"}),
+            "speed",
+        ),
+        (
+            json!({"function": "specific_enchants", "enchants": [{"id": "foo:fortune"}]}),
+            "foo:fortune",
+        ),
+    ] {
+        let error = decode_table(
+            "blocks/addon_ore",
+            "addon pack",
+            &json!({"pools": [{"rolls": 1, "entries": [{
+                "type": "item", "name": "addon:gem", "functions": [function]
+            }]}]}),
+        )
+        .unwrap_err();
+        assert!(error.path.starts_with("blocks/addon_ore"), "{error}");
+        assert!(
+            error
+                .message
+                .contains(&format!("unknown enchantment \"{name}\"")),
+            "{error}"
+        );
+    }
+    let error = decode_table(
+        "blocks/addon_ore",
+        "addon pack",
+        &json!({"pools": [{"rolls": 1, "conditions": [
+            {"condition": "match_tool", "enchantments": [{"enchantment": "speed"}]}
+        ], "entries": []}]}),
+    )
+    .unwrap_err();
+    assert!(error.message.contains("unknown enchantment"), "{error}");
 }

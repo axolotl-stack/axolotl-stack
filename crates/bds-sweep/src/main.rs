@@ -39,8 +39,9 @@
 //! * `bds-sweep:hold FLAG...` / `bds-sweep:release FLAG...`: add them to
 //!   every input from the next one on, until released;
 //! * `bds-sweep:use`: use the held item in the air (`InventoryTransaction`
-//!   item use, hotbar slot as last synchronized); BDS rejects it for armour
-//!   and resends the whole inventory, which refreshes stack net IDs;
+//!   item use `Use`, hotbar slot as last synchronized), the next input
+//!   flagged `StartUsingItem`; BDS rejects it for armour and resends the
+//!   whole inventory, which refreshes stack net IDs;
 //! * `bds-sweep:quit`: close the connection and exit (BDS keeps the player
 //!   until the connection times out, about 10 s later);
 //! * `bds-sweep:equip-head SLOT` / `bds-sweep:equip-feet SLOT`: open the
@@ -56,6 +57,29 @@
 //!   for empty) the way a client submits an edit: the sign's block-actor
 //!   data as the server last sent it, with that side's `Text` replaced, in a
 //!   `BlockActorData` packet.
+//!
+//! Item-use orders, shaped like the vanilla client's packets (the held item is
+//! the selected hotbar slot as last sent by the server):
+//!
+//! * `attack-named NAME`: `attack` the actor whose `AddActor` carried the
+//!   name tag `NAME` (`/summon ... <nameTag>`);
+//! * `jab`: `InventoryTransaction` item use with the action `UseAsAttack`
+//!   (an attack made by the item itself, no target); `jab-input` packs the
+//!   same transaction into the next `PlayerAuthInput`
+//!   (`PerformItemInteraction`);
+//! * `swing`: an `Animate` arm swing (source `attack`) and the next input
+//!   flagged `MissedSwing`; `animate` and `missed-swing` send only one of
+//!   the two;
+//! * `use-on X Y Z FACE`: `use X Y Z ...` clicking the centre of the face,
+//!   with the block's network id as last sent by the server;
+//! * `release-item` / `consume`: item release `Release` / `Use`;
+//! * `select SLOT`: `MobEquipment` selecting hotbar index 0..8;
+//! * `flags A,B` / `held-flags A,B`: input flags by any name (`Jumpdown`,
+//!   `Startgliding`, ...) on the next input only (`press`), or on every
+//!   input, replacing the held set, until `held-flags none`;
+//! * `action NAME X Y Z FACE`: one raw block action with the next input
+//!   (`start`, `continue`, `crack`, `predict`, `abort`, `stop`,
+//!   `creative-destroy`); several on one tick share the input.
 //!
 //! `--script FILE` drives the client without the plugin, against any
 //! server: one `TICK ORDER` line per step, run when the client's input tick
@@ -82,11 +106,13 @@ use jolyne::{
     BedrockStream, Client, ClientConfig, GameData, JolyneError, Play,
     stream::{Handshake, transport::Transport},
     valentine::{
-        ActorRuntimeId, BlockActorDataPacket, BlockPos,
+        ActorRuntimeId, AnimatePacket, BlockActorDataPacket, BlockPos,
         CerealizerNetworkItemStackDescriptorSerializedData, CommandOriginDatajson,
-        CommandRequestPacket, ContainerClosePacket, DataItemEntryPayload, EnumsClientPlayMode,
-        EnumsContainerEnumName, EnumsInputMode, EnumsInteractPacketPayloadAction,
-        EnumsItemStackRequestActionType, EnumsItemUseInventoryTransactionActionType,
+        CommandRequestPacket, ContainerClosePacket, DataItemEntryPayload,
+        EnumsAnimatePacketPayloadAction, EnumsClientPlayMode, EnumsContainerEnumName,
+        EnumsHandSlot, EnumsInputMode, EnumsInteractPacketPayloadAction,
+        EnumsItemReleaseInventoryTransactionActionType, EnumsItemStackRequestActionType,
+        EnumsItemUseInventoryTransactionActionType,
         EnumsItemUseInventoryTransactionClientCooldownState,
         EnumsItemUseInventoryTransactionPredictedResult,
         EnumsItemUseInventoryTransactionTriggerType,
@@ -94,11 +120,12 @@ use jolyne::{
         EnumsNewInteractionModel, EnumsPlayerActionType,
         EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState, FullContainerName,
         InteractPacket, InventoryTransactionPacket, InventoryTransactionPacketTransaction,
-        ItemStackRequestCerealDropActionData, ItemStackRequestCerealPlaceActionData,
-        ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
-        ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
-        ItemUseInventoryTransaction, ItemUseOnActorInventoryTransaction, McpePacket,
-        McpePacketData, McpePacketName, MobEquipmentPacket, PlayerActionPacket,
+        ItemReleaseInventoryTransaction, ItemStackRequestCerealDropActionData,
+        ItemStackRequestCerealPlaceActionData, ItemStackRequestCerealSlotInfoData,
+        ItemStackRequestPacket, ItemStackRequestPacketDataRequestData,
+        ItemStackRequestPacketDataRequestDataActionsItem, ItemUseInventoryTransaction,
+        ItemUseOnActorInventoryTransaction, McpePacket, McpePacketData, McpePacketName,
+        MobEquipmentPacket, PackedItemUseLegacyInventoryTransaction, PlayerActionPacket,
         PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick, RespawnPacket,
         TypedClientNetIdstructItemStackRequestIdTagint32T0, Vec2, Vec3, actor_flags,
     },
@@ -165,8 +192,9 @@ struct UseOrder {
     face: u8,
     /// Click position within the block, in thousandths.
     click: [i32; 3],
-    /// Network id of the clicked block.
-    target: u32,
+    /// Network id of the clicked block; `None` for the one the server last
+    /// sent.
+    target: Option<u32>,
 }
 
 /// A sign text edit.
@@ -193,6 +221,32 @@ enum Order {
     Attack(u64),
     /// Interact with the actor with this runtime id using the held item.
     Interact(u64),
+    /// Attack the actor added with this name tag.
+    AttackNamed(String),
+    /// Item use `UseAsAttack`: the held item attacks by itself.
+    Jab,
+    /// [`Order::Jab`] packed into the next `PlayerAuthInput`
+    /// (`PerformItemInteraction`) instead of its own packet.
+    JabInput,
+    /// An arm swing that hit nothing: [`Order::Animate`] and
+    /// [`Order::MissedSwing`] together, as a vanilla client sends it.
+    Swing,
+    /// Only the `Animate` arm swing.
+    Animate,
+    /// Only the `MissedSwing` input flag.
+    MissedSwing,
+    /// Item release `Release`.
+    ReleaseItem,
+    /// Item release `Use` (finish eating or drinking).
+    Consume,
+    /// Select a hotbar index.
+    Select(u8),
+    /// Input flags for every input from now on, replacing the held set
+    /// (empty clears it).
+    HeldFlags(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
+    /// One raw block action with the next input (several on one tick go in
+    /// the same input, in script order).
+    Action(EnumsPlayerActionType, [i32; 3], i32),
     Drop(DropOrder),
     CloseInventory,
     Walk(Walk),
@@ -201,7 +255,8 @@ enum Order {
     /// Input flags for every `PlayerAuthInput` until released.
     Hold(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
     ReleaseFlags(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
-    /// Use the held item in the air.
+    /// Use the held item in the air (item use `Use`, the next input flagged
+    /// `StartUsingItem`).
     UseItem,
     /// Leave the server.
     Quit,
@@ -245,29 +300,77 @@ struct Walk {
     grounded: bool,
 }
 
-/// The input flags the `press`, `hold` and `release` orders can name.
+/// An input flag by its name, any case (`Jumpdown`, `startgliding`, ...),
+/// for the `press`, `hold`, `release`, `flags` and `held-flags` orders.
 fn input_flag(name: &str) -> Option<EnumsPlayerAuthInputPacketPayloadInputData> {
-    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
-    Some(match name {
-        "jumping" => Flag::Jumping,
-        "startjumping" => Flag::Startjumping,
-        "sneaking" => Flag::Sneaking,
-        "sneakdown" => Flag::Sneakdown,
-        "startsneaking" => Flag::Startsneaking,
-        "stopsneaking" => Flag::Stopsneaking,
-        "sprinting" => Flag::Sprinting,
-        "sprintdown" => Flag::Sprintdown,
-        "startsprinting" => Flag::Startsprinting,
-        "stopsprinting" => Flag::Stopsprinting,
-        "startswimming" => Flag::Startswimming,
-        "stopswimming" => Flag::Stopswimming,
-        "startcrawling" => Flag::Startcrawling,
-        "stopcrawling" => Flag::Stopcrawling,
-        "startgliding" => Flag::Startgliding,
-        "stopgliding" => Flag::Stopgliding,
-        "startflying" => Flag::Startflying,
-        "stopflying" => Flag::Stopflying,
-        "up" => Flag::Up,
+    use EnumsPlayerAuthInputPacketPayloadInputData::*;
+    Some(match name.to_ascii_lowercase().as_str() {
+        "ascend" => Ascend,
+        "descend" => Descend,
+        "northjump" => Northjump,
+        "jumpdown" => Jumpdown,
+        "sprintdown" => Sprintdown,
+        "changeheight" => Changeheight,
+        "jumping" => Jumping,
+        "autojumpinginwater" => Autojumpinginwater,
+        "sneaking" => Sneaking,
+        "sneakdown" => Sneakdown,
+        "up" => Up,
+        "down" => Down,
+        "left" => Left,
+        "right" => Right,
+        "upleft" => Upleft,
+        "upright" => Upright,
+        "wantup" => Wantup,
+        "wantdown" => Wantdown,
+        "wantdownslow" => Wantdownslow,
+        "wantupslow" => Wantupslow,
+        "sprinting" => Sprinting,
+        "ascendblock" => Ascendblock,
+        "descendblock" => Descendblock,
+        "sneaktoggledown" => Sneaktoggledown,
+        "persistsneak" => Persistsneak,
+        "startsprinting" => Startsprinting,
+        "stopsprinting" => Stopsprinting,
+        "startsneaking" => Startsneaking,
+        "stopsneaking" => Stopsneaking,
+        "startswimming" => Startswimming,
+        "stopswimming" => Stopswimming,
+        "startjumping" => Startjumping,
+        "startgliding" => Startgliding,
+        "stopgliding" => Stopgliding,
+        "performiteminteraction" => Performiteminteraction,
+        "performblockactions" => Performblockactions,
+        "performitemstackrequest" => Performitemstackrequest,
+        "handledteleport" => Handledteleport,
+        "emoting" => Emoting,
+        "missedswing" => Missedswing,
+        "startcrawling" => Startcrawling,
+        "stopcrawling" => Stopcrawling,
+        "startflying" => Startflying,
+        "stopflying" => Stopflying,
+        "clientackserverdata" => Clientackserverdata,
+        "isinclientpredictedvehicle" => Isinclientpredictedvehicle,
+        "paddlingleft" => Paddlingleft,
+        "paddlingright" => Paddlingright,
+        "blockbreakingdelayenabled" => Blockbreakingdelayenabled,
+        "horizontalcollision" => Horizontalcollision,
+        "verticalcollision" => Verticalcollision,
+        "downleft" => Downleft,
+        "downright" => Downright,
+        "startusingitem" => Startusingitem,
+        "iscamerarelativemovementenabled" => Iscamerarelativemovementenabled,
+        "isrotcontrolledbymovedirection" => Isrotcontrolledbymovedirection,
+        "startspinattack" => Startspinattack,
+        "stopspinattack" => Stopspinattack,
+        "ishotbaronlytouch" => Ishotbaronlytouch,
+        "jumpreleasedraw" => Jumpreleasedraw,
+        "jumppressedraw" => Jumppressedraw,
+        "jumpcurrentraw" => Jumpcurrentraw,
+        "sneakreleasedraw" => Sneakreleasedraw,
+        "sneakpressedraw" => Sneakpressedraw,
+        "sneakcurrentraw" => Sneakcurrentraw,
+        "internalupdate" => Internalupdate,
         _ => return None,
     })
 }
@@ -339,6 +442,19 @@ fn order_word(word: &str) -> &str {
     &word[..end]
 }
 
+/// The click position a vanilla client sends for a block face: the face's
+/// centre, in thousandths of a block.
+fn face_centre(face: u8) -> [i32; 3] {
+    match face {
+        0 => [500, 0, 500],
+        1 => [500, 1000, 500],
+        2 => [500, 500, 0],
+        3 => [500, 500, 1000],
+        4 => [0, 500, 500],
+        _ => [1000, 500, 500],
+    }
+}
+
 /// Parses a plugin order from a chat message (anywhere in the text).
 fn parse_order(text: &str) -> Option<Order> {
     let rest = &text[text.find("bds-sweep:")? + "bds-sweep:".len()..];
@@ -372,6 +488,72 @@ fn parse_order(text: &str) -> Option<Order> {
             return (ticks > 0).then_some(Order::Jump(ticks));
         }
         "glide" => return Some(Order::Glide),
+        "jab" => return Some(Order::Jab),
+        "jab-input" => return Some(Order::JabInput),
+        "swing" => return Some(Order::Swing),
+        "animate" => return Some(Order::Animate),
+        "missed-swing" => return Some(Order::MissedSwing),
+        "release-item" => return Some(Order::ReleaseItem),
+        "consume" => return Some(Order::Consume),
+        keyword @ ("flags" | "held-flags") => {
+            let flags = words
+                .next()
+                .map(|list| {
+                    list.trim_end_matches(|c: char| !c.is_ascii_alphanumeric())
+                        .split(',')
+                        .filter(|name| !name.is_empty() && *name != "none")
+                        .map(input_flag)
+                        .collect::<Option<Vec<_>>>()
+                })
+                .unwrap_or(Some(Vec::new()))?;
+            return Some(if keyword == "flags" {
+                Order::Press(flags)
+            } else {
+                Order::HeldFlags(flags)
+            });
+        }
+        "attack-named" => {
+            let name = words
+                .next()?
+                .trim_end_matches(|c: char| !(c.is_ascii_alphanumeric() || c == '_'));
+            return (!name.is_empty()).then(|| Order::AttackNamed(name.to_owned()));
+        }
+        "use-on" => {
+            let values = numbers(words, 4)?;
+            let face = u8::try_from(values[3]).ok().filter(|face| *face <= 5)?;
+            return Some(Order::Use(UseOrder {
+                pos: [values[0] as i32, values[1] as i32, values[2] as i32],
+                face,
+                click: face_centre(face),
+                target: None,
+            }));
+        }
+        "select" => {
+            return Some(Order::Select(
+                u8::try_from(numbers(words, 1)?[0])
+                    .ok()
+                    .filter(|slot| *slot < 9)?,
+            ));
+        }
+        "action" => {
+            use EnumsPlayerActionType::*;
+            let action = match words.next()? {
+                "start" => Startdestroyblock,
+                "continue" => Continuedestroyblock,
+                "crack" => Crackblock,
+                "predict" => Predictdestroyblock,
+                "abort" => Abortdestroyblock,
+                "stop" => Stopdestroyblock,
+                "creative-destroy" => Creativedestroyblock,
+                _ => return None,
+            };
+            let values = numbers(words, 4)?;
+            return Some(Order::Action(
+                action,
+                [values[0] as i32, values[1] as i32, values[2] as i32],
+                values[3] as i32,
+            ));
+        }
         _ => {}
     }
     match first {
@@ -444,7 +626,7 @@ fn parse_order(text: &str) -> Option<Order> {
                 pos: [x as i32, y as i32, z as i32],
                 face: u8::try_from(face).ok()?,
                 click: [cx as i32, cy as i32, cz as i32],
-                target: u32::try_from(target).ok()?,
+                target: Some(u32::try_from(target).ok()?),
             }))
         }
         "sign" => {
@@ -570,6 +752,8 @@ struct Player {
     mining: Option<Mining>,
     /// A block action to send with the next input (abort or release).
     pending: Option<PlayerBlockActionData>,
+    /// Raw block actions (`action` orders) for the next input.
+    queued_actions: Vec<PlayerBlockActionData>,
     /// Authoritative native main inventory, including hotbar indices 0..8.
     inventory: [Option<CerealizerNetworkItemStackDescriptorSerializedData>; 36],
     selected_slot: u8,
@@ -580,6 +764,10 @@ struct Player {
     walk: Option<Walk>,
     /// The block-actor data the server last sent per position.
     actors: HashMap<[i32; 3], Vec<u8>>,
+    /// Runtime ids of actors added with a name tag, by name.
+    named: HashMap<String, u64>,
+    /// An item use packed into the next input (`jab-input`).
+    packed_use: Option<ItemUseInventoryTransaction>,
     /// Input flags sent with every input (`hold`) and with the next one
     /// only (`press`).
     held: Vec<EnumsPlayerAuthInputPacketPayloadInputData>,
@@ -678,6 +866,7 @@ impl Player {
             burst: 0,
             mining: None,
             pending: None,
+            queued_actions: Vec::new(),
             inventory: std::array::from_fn(|_| None),
             selected_slot: 0,
             inventory_window: None,
@@ -685,6 +874,8 @@ impl Player {
             next_request_id: -1,
             walk: None,
             actors: HashMap::new(),
+            named: HashMap::new(),
+            packed_use: None,
             held: Vec::new(),
             pressed: Vec::new(),
             quit: false,
@@ -712,6 +903,7 @@ impl Player {
     /// The block actions of this tick's input, advancing the mining order.
     fn block_actions(&mut self) -> Vec<PlayerBlockActionData> {
         let mut actions: Vec<_> = self.pending.take().into_iter().collect();
+        actions.append(&mut self.queued_actions);
         if let Some(mining) = &mut self.mining {
             let action = if mining.elapsed == 0 {
                 EnumsPlayerActionType::Startdestroyblock
@@ -751,8 +943,68 @@ impl Player {
                 }
             }
             Order::Pause(ticks) => self.paused = ticks,
+            Order::Action(action, pos, face) => self.queued_actions.push(PlayerBlockActionData {
+                player_action_type: action,
+                position: BlockPos {
+                    x: pos[0],
+                    y: pos[1],
+                    z: pos[2],
+                },
+                facing: face,
+            }),
             Order::Burst(inputs) => self.burst = inputs,
-            Order::Use(order) => return Ok(vec![self.use_on_block(order)]),
+            Order::AttackNamed(name) => {
+                let target = *self
+                    .named
+                    .get(&name)
+                    .with_context(|| format!("no actor named {name} has been added"))?;
+                return Ok(vec![self.use_on_actor(
+                    target,
+                    EnumsItemUseOnActorInventoryTransactionActionType::Attack,
+                )]);
+            }
+            Order::Jab => {
+                return Ok(vec![self.use_item(
+                    EnumsItemUseInventoryTransactionActionType::Useasattack,
+                )]);
+            }
+            Order::JabInput => {
+                self.packed_use =
+                    Some(self.item_use(EnumsItemUseInventoryTransactionActionType::Useasattack));
+            }
+            Order::Swing => {
+                self.pressed
+                    .push(EnumsPlayerAuthInputPacketPayloadInputData::Missedswing);
+                return Ok(vec![self.animate_swing()]);
+            }
+            Order::Animate => return Ok(vec![self.animate_swing()]),
+            Order::MissedSwing => self
+                .pressed
+                .push(EnumsPlayerAuthInputPacketPayloadInputData::Missedswing),
+            Order::ReleaseItem => {
+                return Ok(vec![self.release_item(
+                    EnumsItemReleaseInventoryTransactionActionType::Release,
+                )]);
+            }
+            Order::Consume => {
+                return Ok(vec![self.release_item(
+                    EnumsItemReleaseInventoryTransactionActionType::Use,
+                )]);
+            }
+            Order::Select(slot) => {
+                self.selected_slot = slot;
+                return Ok(vec![McpePacket::from(MobEquipmentPacket {
+                    target_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: self.runtime_id,
+                    },
+                    item: self.held_stack(),
+                    slot,
+                    selected_slot: slot,
+                    container_id: 0,
+                })]);
+            }
+            Order::HeldFlags(flags) => self.held = flags,
+            Order::Use(order) => return Ok(vec![self.use_on_block(order)?]),
             Order::Sign(order) => return Ok(self.edit_sign(&order).into_iter().collect()),
             Order::Attack(target) => {
                 return Ok(vec![self.use_on_actor(
@@ -800,7 +1052,13 @@ impl Player {
                 self.jump_ticks = self.jump_ticks.max(1);
             }
             Order::ReleaseFlags(flags) => self.held.retain(|flag| !flags.contains(flag)),
-            Order::UseItem => return Ok(vec![self.use_item()]),
+            Order::UseItem => {
+                self.pressed
+                    .push(EnumsPlayerAuthInputPacketPayloadInputData::Startusingitem);
+                return Ok(vec![
+                    self.use_item(EnumsItemUseInventoryTransactionActionType::Use),
+                ]);
+            }
             Order::Quit => self.quit = true,
             Order::Equip { slot, armour } => {
                 if self.inventory_window.is_some() {
@@ -819,25 +1077,71 @@ impl Player {
         Ok(Vec::new())
     }
 
-    /// `InventoryTransaction` item use in the air with the held slot.
-    fn use_item(&self) -> McpePacket {
+    /// The stack in the selected hotbar slot, as the server last sent it.
+    fn held_stack(&self) -> CerealizerNetworkItemStackDescriptorSerializedData {
+        self.inventory[usize::from(self.selected_slot)]
+            .clone()
+            .unwrap_or_default()
+    }
+
+    /// `InventoryTransaction` item use in the air with the held stack
+    /// (`Use`, or `UseAsAttack` for a jab).
+    fn use_item(&self, action_type: EnumsItemUseInventoryTransactionActionType) -> McpePacket {
         McpePacket::from(InventoryTransactionPacket {
             transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
-                Box::new(ItemUseInventoryTransaction {
-                    action_type: EnumsItemUseInventoryTransactionActionType::Use,
-                    trigger_type: EnumsItemUseInventoryTransactionTriggerType::Playerinput,
-                    face: 255,
-                    slot: i32::from(self.selected_slot),
-                    item: self.inventory[usize::from(self.selected_slot)]
-                        .clone()
-                        .unwrap_or_default(),
-                    from_position: self.position(),
-                    client_interact_prediction:
-                        EnumsItemUseInventoryTransactionPredictedResult::Success,
-                    ..Default::default()
-                }),
+                Box::new(self.item_use(action_type)),
             ),
             ..Default::default()
+        })
+    }
+
+    /// The item-use transaction of [`Player::use_item`].
+    fn item_use(
+        &self,
+        action_type: EnumsItemUseInventoryTransactionActionType,
+    ) -> ItemUseInventoryTransaction {
+        ItemUseInventoryTransaction {
+            action_type,
+            trigger_type: EnumsItemUseInventoryTransactionTriggerType::Playerinput,
+            face: 255,
+            slot: i32::from(self.selected_slot),
+            hand: EnumsHandSlot::Mainhand,
+            item: self.held_stack(),
+            from_position: self.position(),
+            client_interact_prediction: EnumsItemUseInventoryTransactionPredictedResult::Success,
+            client_cooldown_state: EnumsItemUseInventoryTransactionClientCooldownState::Off,
+            ..Default::default()
+        }
+    }
+
+    /// `InventoryTransaction` item release with the held stack.
+    fn release_item(
+        &self,
+        action_type: EnumsItemReleaseInventoryTransactionActionType,
+    ) -> McpePacket {
+        McpePacket::from(InventoryTransactionPacket {
+            transaction: InventoryTransactionPacketTransaction::ItemReleaseInventoryTransaction(
+                ItemReleaseInventoryTransaction {
+                    actions: Default::default(),
+                    action_type,
+                    slot: i32::from(self.selected_slot),
+                    item: self.held_stack(),
+                    from_position: self.position(),
+                },
+            ),
+            ..Default::default()
+        })
+    }
+
+    /// The `Animate` arm swing of an attack.
+    fn animate_swing(&self) -> McpePacket {
+        McpePacket::from(AnimatePacket {
+            action: EnumsAnimatePacketPayloadAction::Swing,
+            target_actor_runtime_id: ActorRuntimeId {
+                actor_runtime_id: self.runtime_id,
+            },
+            data: 0.0,
+            swing_source: Some("attack".into()),
         })
     }
 
@@ -855,8 +1159,8 @@ impl Player {
                         actor_runtime_id: target,
                     },
                     action_type,
-                    slot: 0,
-                    item: self.inventory[0].clone().unwrap_or_default(),
+                    slot: i32::from(self.selected_slot),
+                    item: self.held_stack(),
                     from_position: self.position(),
                     ..Default::default()
                 },
@@ -867,9 +1171,17 @@ impl Player {
 
     /// `InventoryTransaction` item use `Place` with the selected hotbar
     /// stack, as a vanilla client sends when it places a block.
-    fn use_on_block(&self, order: UseOrder) -> McpePacket {
+    fn use_on_block(&self, order: UseOrder) -> Result<McpePacket> {
         let [cx, cy, cz] = order.click.map(|v| v as f32 / 1000.0);
-        McpePacket::from(InventoryTransactionPacket {
+        let target = match order.target {
+            Some(target) => target,
+            None => self
+                .world
+                .block(order.pos)
+                .with_context(|| format!("the block at {:?} has not been sent", order.pos))?
+                .network_hash(),
+        };
+        Ok(McpePacket::from(InventoryTransactionPacket {
             transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
                 Box::new(ItemUseInventoryTransaction {
                     action_type: EnumsItemUseInventoryTransactionActionType::Place,
@@ -881,17 +1193,15 @@ impl Player {
                     },
                     face: order.face,
                     slot: i32::from(self.selected_slot),
-                    hand: jolyne::valentine::EnumsHandSlot::Mainhand,
-                    item: self.inventory[usize::from(self.selected_slot)]
-                        .clone()
-                        .unwrap_or_default(),
+                    hand: EnumsHandSlot::Mainhand,
+                    item: self.held_stack(),
                     from_position: self.position(),
                     click_position: Vec3 {
                         x: cx,
                         y: cy,
                         z: cz,
                     },
-                    target_block_id: order.target,
+                    target_block_id: target,
                     client_interact_prediction:
                         EnumsItemUseInventoryTransactionPredictedResult::Success,
                     client_cooldown_state: EnumsItemUseInventoryTransactionClientCooldownState::Off,
@@ -899,7 +1209,7 @@ impl Player {
                 }),
             ),
             ..Default::default()
-        })
+        }))
     }
 
     /// The sign's block-actor data as the server last sent it, with the
@@ -1215,6 +1525,14 @@ impl Player {
             input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Performblockactions);
             Some(actions)
         };
+        let item_use_transaction = self.packed_use.take().map(|item_use_transaction| {
+            input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Performiteminteraction);
+            PackedItemUseLegacyInventoryTransaction {
+                legacy_request_id: Default::default(),
+                legacy_set_item_slots: None,
+                item_use_transaction,
+            }
+        });
         let rotation = Vec2 {
             x: controls.pitch,
             y: controls.yaw,
@@ -1256,6 +1574,7 @@ impl Player {
                 inputtick: self.tick,
             },
             player_block_actions,
+            item_use_transaction,
             ..Default::default()
         })];
         packets.extend(
@@ -1446,6 +1765,20 @@ impl Player {
                     .collect());
             }
             McpePacketData::SubChunkPacket(packet) => self.world.sub_chunk(&packet)?,
+            McpePacketData::AddActorPacket(actor) => {
+                let name = actor.actor_data.data.iter().find_map(|entry| {
+                    match (&entry.id, &entry.payload) {
+                        (4, DataItemEntryPayload::DataItemStringPayload(name)) => {
+                            Some(name.value.to_string())
+                        }
+                        _ => None,
+                    }
+                });
+                if let Some(name) = name.filter(|name| !name.is_empty()) {
+                    self.named
+                        .insert(name, actor.target_runtime_id.actor_runtime_id);
+                }
+            }
             McpePacketData::UpdateBlockPacket(packet) => {
                 let pos = &packet.block_position;
                 self.world.set_block(
@@ -1712,6 +2045,7 @@ async fn run_session<T: Transport>(
                             | McpePacketName::UpdateBlockPacket
                             | McpePacketName::UpdateSubChunkBlocksPacket
                             | McpePacketName::BlockActorDataPacket
+                            | McpePacketName::AddActorPacket
                     )
                 ) {
                     for reply in player.handle(packet.decode()?.data)? {
@@ -1820,7 +2154,7 @@ there"
                 pos: [3, -60, 0],
                 face: 1,
                 click: [500, 1000, 250],
-                target: 12345,
+                target: Some(12345),
             })
         );
         let mut player = player();
@@ -2467,6 +2801,114 @@ there"
             McpePacketData::PlayerAuthInputPacket(input) => *input,
             other => panic!("expected input, got {other:?}"),
         }
+    }
+
+    fn item_use(packet: &McpePacket) -> ItemUseInventoryTransaction {
+        let McpePacketData::InventoryTransactionPacket(packet) = &packet.data else {
+            panic!("inventory transaction");
+        };
+        let InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(item_use) =
+            &packet.transaction
+        else {
+            panic!("item use");
+        };
+        (**item_use).clone()
+    }
+
+    #[test]
+    fn item_use_orders_parse_from_scripts_and_chat() {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        for (text, order) in [
+            ("bds-sweep:jab", Order::Jab),
+            ("bds-sweep:jab-input", Order::JabInput),
+            ("bds-sweep:swing", Order::Swing),
+            ("bds-sweep:animate", Order::Animate),
+            ("bds-sweep:missed-swing", Order::MissedSwing),
+            (r#"{ message: "bds-sweep:use" }"#, Order::UseItem),
+            ("bds-sweep:release-item", Order::ReleaseItem),
+            (
+                r#"{ message: "bds-sweep:release-item" }"#,
+                Order::ReleaseItem,
+            ),
+            ("bds-sweep:consume", Order::Consume),
+            ("bds-sweep:select 3", Order::Select(3)),
+            (
+                "bds-sweep:use-on 1 -59 0 1",
+                Order::Use(UseOrder {
+                    pos: [1, -59, 0],
+                    face: 1,
+                    click: [500, 1000, 500],
+                    target: None,
+                }),
+            ),
+            (
+                "bds-sweep:flags startgliding,Jumpdown",
+                Order::Press(vec![Flag::Startgliding, Flag::Jumpdown]),
+            ),
+            ("bds-sweep:held-flags none", Order::HeldFlags(Vec::new())),
+            (
+                "bds-sweep:action creative-destroy 1 -59 0 1",
+                Order::Action(EnumsPlayerActionType::Creativedestroyblock, [1, -59, 0], 1),
+            ),
+            (
+                r#"{ message: "bds-sweep:attack-named front" }"#,
+                Order::AttackNamed("front".into()),
+            ),
+        ] {
+            assert_eq!(parse_order(text), Some(order), "{text}");
+        }
+        assert_eq!(parse_order("bds-sweep:select 9"), None);
+        assert_eq!(parse_order("bds-sweep:use-on 1 2 3 6"), None);
+    }
+
+    #[test]
+    fn item_use_orders_send_vanilla_shaped_transactions() {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        let mut p = standing_player();
+        synchronize(&mut p, 2, 1, Some(7));
+        p.order(Order::Select(2)).unwrap();
+        let jab = item_use(&p.order(Order::Jab).unwrap()[0]);
+        assert_eq!(
+            jab.action_type,
+            EnumsItemUseInventoryTransactionActionType::Useasattack
+        );
+        assert_eq!((jab.slot, jab.item.net_id_variant), (2, Some(7)));
+        let used = item_use(&p.order(Order::UseItem).unwrap()[0]);
+        assert_eq!(
+            used.action_type,
+            EnumsItemUseInventoryTransactionActionType::Use
+        );
+        assert!(
+            input(&mut p).input_data.contains(&Flag::Startusingitem),
+            "the next input starts using the item"
+        );
+        assert!(
+            !input(&mut p).input_data.contains(&Flag::Startusingitem),
+            "pressed flags last one input"
+        );
+        p.order(Order::JabInput).unwrap();
+        let packed = input(&mut p);
+        assert!(packed.input_data.contains(&Flag::Performiteminteraction));
+        assert_eq!(
+            packed
+                .item_use_transaction
+                .unwrap()
+                .item_use_transaction
+                .action_type,
+            EnumsItemUseInventoryTransactionActionType::Useasattack
+        );
+        let stone = world::tests_support::flat_stone_world()
+            .block([1, -61, 0])
+            .unwrap()
+            .network_hash();
+        let order = parse_order("bds-sweep:use-on 1 -61 0 1").unwrap();
+        let on = item_use(&p.order(order).unwrap()[0]);
+        assert_eq!(
+            on.action_type,
+            EnumsItemUseInventoryTransactionActionType::Place
+        );
+        assert_eq!((on.face, on.target_block_id), (1, stone));
+        assert_eq!(on.click_position.y, 1.0);
     }
 
     #[test]

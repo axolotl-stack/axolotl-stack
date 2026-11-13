@@ -203,7 +203,7 @@ impl From<&crate::item::ItemStack> for StoredItemStack {
             runtime_id: item.runtime_id,
             count: item.count,
             damage: item.damage,
-            nbt: item.nbt.as_ref().map(|data| data.to_vec()),
+            nbt: item.nbt().map(|data| data.to_vec()),
         }
     }
 }

@@ -7,6 +7,7 @@
 mod decode;
 mod evaluate;
 
+use crate::ids::Enchantment;
 pub use decode::decode_table;
 pub use evaluate::{LootContext, LootDrop, LootError, roll};
 use std::collections::BTreeMap;
@@ -39,11 +40,18 @@ pub enum LootNumber {
     Binomial { n: u32, p: f32 },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// A `match_tool` enchantment: the tool's level must lie in the range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnchantmentRequirement {
-    pub enchantment: String,
-    /// Resolved at decode, never name-looked-up while rolling.
-    pub id: Option<i16>,
+    pub enchantment: Enchantment,
+    pub min_level: u8,
+    pub max_level: u8,
+}
+
+/// One enchantment of `specific_enchants`, at a level in `min..=max`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpecificEnchant {
+    pub enchantment: Enchantment,
     pub min_level: u8,
     pub max_level: u8,
 }
@@ -78,8 +86,7 @@ pub enum LootCondition {
         enchantments: Vec<EnchantmentRequirement>,
     },
     TableBonus {
-        enchantment: String,
-        id: Option<i16>,
+        enchantment: Enchantment,
         chances: Vec<f32>,
     },
     BlockStateProperty {
@@ -136,8 +143,7 @@ pub enum LootFunctionKind {
         limit: u32,
     },
     ApplyBonus {
-        enchantment: String,
-        id: Option<i16>,
+        enchantment: Enchantment,
         formula: BonusFormula,
     },
     LimitCount {
@@ -153,6 +159,12 @@ pub enum LootFunctionKind {
     /// single item at level `5 + clamped regional difficulty × nextInt(18)`.
     EnchantRandomGear {
         chance: f32,
+    },
+    /// Put these enchantments on the item. Decoded so that every
+    /// enchantment name is checked at load; rolling it is not implemented
+    /// yet and fails as an unsupported feature.
+    SpecificEnchants {
+        enchants: Vec<SpecificEnchant>,
     },
     Other {
         name: String,

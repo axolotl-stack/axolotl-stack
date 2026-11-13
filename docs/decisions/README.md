@@ -50,6 +50,7 @@ documents and still appear in code comments and research docs; the table maps th
 | [0039](0039-fail-the-column-on-damaged-sub-chunks.md) | Fail the column load on damaged sub-chunk data | 2026-11-10 | proposed | |
 | [0042](0042-one-effect-system-for-mobs-and-players.md) | One status effect system for mobs and players | 2026-11-11 | accepted | |
 | [0044](0044-send-pre-start-game-roster-packets-after-start-game.md) | Send the roster packets BDS sends before StartGame right after it | 2026-11-11 | proposed | |
+| [0052](0052-generate-one-enchantment-type.md) | Generate one canonical Enchantment type from source-attributed data | 2026-11-12 | accepted | |
 | [0053](0053-bedrock-terrain-uses-java-exact-noise.md) | Bedrock-style terrain uses the Java-exact noise backend | 2026-11-12 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

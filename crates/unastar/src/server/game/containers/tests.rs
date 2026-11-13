@@ -918,6 +918,48 @@ fn generated_loot_unpacks_once_on_first_open() {
     });
 }
 
+/// `testdata/bds-container-placements.json`: BDS 1.26.51 announces a chest,
+/// trapped chest, ender chest or barrel a survival player placed with
+/// `BlockActorData` (its id), and a furnace, blast furnace, smoker or hopper
+/// with nothing (`tools/bds-sweep/scripts/containers-flint.txt`).
+#[test]
+fn placed_containers_are_announced_like_bds() {
+    #[derive(serde::Deserialize)]
+    struct Table {
+        announced: std::collections::BTreeMap<String, Option<String>>,
+    }
+    let table: Table =
+        serde_json::from_str(include_str!("testdata/bds-container-placements.json")).unwrap();
+    assert_eq!(table.announced.len(), 8);
+    with_world(GameMode::Survival, move |h| {
+        let mut wrong = Vec::new();
+        for (index, (block, bds)) in table.announced.iter().enumerate() {
+            let pos = IVec3::new(2 * index as i32, 64, 4);
+            h.packets();
+            h.place(pos, block, &[]);
+            let ours = h.packets().into_iter().find_map(|packet| match packet {
+                McpePacketData::BlockActorDataPacket(data)
+                    if data.block_position.x == pos.x && data.block_position.z == pos.z =>
+                {
+                    let compound = BlockEntity::from_network_nbt(data.actor_data_tags)
+                        .ok()?
+                        .bedrock_compound()?
+                        .ok()?;
+                    match compound.0.get("id") {
+                        Some(zuri_nbt::NBTTag::String(id)) => Some(id.0.clone()),
+                        _ => Some(String::new()),
+                    }
+                }
+                _ => None,
+            });
+            if ours != *bds {
+                wrong.push(format!("{block}: BDS {bds:?}, ours {ours:?}"));
+            }
+        }
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    });
+}
+
 /// BDS 1.26.51 announces a chest set with `/setblock ~2 ~ ~ chest` with a
 /// `BlockActorData` of its client-side state (client-diff `containers-dry`
 /// capture, seq 281; the bot stood at feet block (0, -60, 0)).

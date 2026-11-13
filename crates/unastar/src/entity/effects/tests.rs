@@ -751,9 +751,9 @@ fn pulse_intervals_halve_per_level() {
     );
 }
 
-/// Instant health from item use goes through the shared step: it heals on
-/// the player's next effect step, and a level of 30 or more heals (the
-/// amount saturates at `4 << 30`) instead of wrapping to nothing.
+/// Instant health from item use heals at once (BDS 1.26.51 potion capture),
+/// and a level of 30 or more heals (the amount saturates at `4 << 30`)
+/// instead of wrapping to nothing.
 #[test]
 fn instant_health_from_item_use_heals_at_any_level() {
     for level in [30, 31, 255] {
@@ -767,28 +767,31 @@ fn instant_health_from_item_use_heals_at_any_level() {
             level,
             1,
         );
-        assert_eq!(world.get::<Health>(player).unwrap().current, 5.0);
-        server.tick();
-        let world = server.ecs.world_mut();
         assert_eq!(
             world.get::<Health>(player).unwrap().current,
             20.0,
             "level {level}"
         );
+        assert!(
+            world
+                .get::<Effects>(player)
+                .is_none_or(|effects| !effects.has(EffectType::INSTANT_HEALTH)),
+            "an instant effect from an item is not listed"
+        );
     }
 }
 
-/// Saturation from item use is instant like `/effect saturation`: it feeds
-/// once, on the next step.
+/// Saturation from item use feeds `level + 1` food on every step it is
+/// listed (BDS 1.26.51 food capture: a suspicious stew's 6 ticks of it).
 #[test]
-fn saturation_from_item_use_feeds_once() {
+fn saturation_from_item_use_feeds_every_step() {
     let (mut server, player, _rx) = server(true);
     let world = server.ecs.world_mut();
     world.get_mut::<Hunger>(player).unwrap().food_level = 10;
-    crate::server::game::effects::add_effect(world, player, EffectType::SATURATION, 1, 6);
+    crate::server::game::effects::add_effect(world, player, EffectType::SATURATION, 0, 3);
     for _ in 0..6 {
         server.tick();
     }
     let world = server.ecs.world_mut();
-    assert_eq!(world.get::<Hunger>(player).unwrap().food_level, 12);
+    assert_eq!(world.get::<Hunger>(player).unwrap().food_level, 13);
 }

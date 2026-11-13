@@ -8,9 +8,10 @@
 //! timer; while it runs a new hit only deals what exceeds the damage that
 //! started it, and nothing when it does not exceed it (override and
 //! self-destruct damage ignore the timer). A full hit shows the hurt
-//! animation to viewers (`ActorEvent` hurt) and, when it has a source
-//! position, knocks the mob back. The changed `Health` reaches viewers as
-//! an `UpdateAttributes` through `derive_mob_state`.
+//! animation to viewers (`ActorEvent` hurt; a killing hit shows only the
+//! death) and, when it has a source position, knocks the mob back. The
+//! changed `Health` reaches viewers as an `UpdateAttributes` through
+//! `derive_mob_state`.
 
 use std::sync::Arc;
 
@@ -38,8 +39,8 @@ use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::collision::Aabb;
+use unastar_rules::ids::Enchantment;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.
@@ -78,8 +79,9 @@ pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
 ///
 /// Spectators, dead players and players whose eye is farther than
 /// [`constants::MELEE_REACH`] from the mob's box (or, with
-/// `minecraft:custom_hit_test`, from every one of its boxes) cannot hit.
-/// Creative players deal normal melee damage.
+/// `minecraft:custom_hit_test`, from every one of its boxes) cannot hit, nor
+/// can an item whose attack cooldown runs (`crate::item::cooldown`). Creative
+/// players deal normal melee damage.
 pub fn player_attack(
     world: &mut World,
     player: Entity,
@@ -111,6 +113,21 @@ pub fn player_attack(
         return;
     }
     let held = held_item(world, player).cloned();
+    // An item with an attack cooldown (a spear) cannot hit while it runs,
+    // and a hit on a living mob starts it (`item::cooldown`).
+    let cooldown = held
+        .as_ref()
+        .and_then(ItemStack::item)
+        .and_then(crate::item::cooldown::cooldown)
+        .filter(|cooldown| cooldown.attack);
+    if cooldown
+        .as_ref()
+        .is_some_and(|cooldown| crate::item::cooldown::cooling(world, player, &cooldown.category))
+    {
+        return;
+    }
+    let alive = world.get::<Dead>(target).is_none()
+        && world.get::<Health>(target).is_some_and(|h| !h.is_dead());
     let damage = melee_damage(held.as_ref());
     let applied = hurt_mob(
         world,
@@ -124,6 +141,9 @@ pub fn player_attack(
             knockback_power: KnockbackPower::DEFAULT,
         },
     );
+    if let Some(cooldown) = cooldown.filter(|_| alive) {
+        crate::item::cooldown::start(world, player, &cooldown);
+    }
     // The attacker pays food and, for a hit that landed, weapon durability.
     crate::server::game::hunger::exhaust_player(world, player, |values| values.attack);
     if applied > 0.0
@@ -140,7 +160,7 @@ pub fn player_attack(
 /// 9, 10, 11, 13 and 14, not 9.25 ... 14.25; `docs/quirks/bds.md`).
 pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
     let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
-    let sharpness = held.map_or(0, |stack| enchantment_level(stack, Enchantment::Sharpness));
+    let sharpness = held.map_or(0, |stack| stack.enchantment_level(Enchantment::Sharpness));
     (base + 1.25 * f32::from(sharpness)).floor()
 }
 
@@ -226,12 +246,16 @@ fn hurt_mob_with(world: &mut World, target: Entity, hit: Hit, animate: bool) -> 
         health.is_dead()
     };
     if full && animate {
-        send_actor_event(
-            world,
-            target,
-            EnumsActorEvent::Hurt,
-            crate::entity::effects::hurt_event_data(hit.cause),
-        );
+        // A killing hit shows only the death (`ActorEvent` death from
+        // `begin_death`), still with its knockback (BDS 1.26.51 spear capture).
+        if !dead {
+            send_actor_event(
+                world,
+                target,
+                EnumsActorEvent::Hurt,
+                crate::entity::effects::hurt_event_data(hit.cause),
+            );
+        }
         if let Some(from) = hit.knockback_from {
             apply_knockback(world, target, from, hit.knockback_power);
         }
@@ -369,6 +393,9 @@ pub fn hurt_on_condition(
 
 #[cfg(test)]
 mod measured_tests;
+
+#[cfg(test)]
+mod spear_tests;
 
 #[cfg(test)]
 mod tests;

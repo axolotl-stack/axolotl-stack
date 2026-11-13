@@ -1,0 +1,3214 @@
+# Experience from breaking ores, sculk blocks and the spawner: each block
+# broken 30 times (the ores without experience 3 times) with an Efficiency V
+# netherite pickaxe, then once each with Silk Touch; the orbs' AddActor
+# packets carry their values. For packet captures of the same scripted
+# player against BDS and unastar (`bds-sweep-client --script
+# tools/bds-sweep/scripts/ore-xp.txt --capture-dir DIR`, an operator).
+# The player (feet (0.5,-60,0.5), facing east) breaks the west face (4) of
+# (1,-59,0). Ticks are the client's input ticks.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+30 /give @s netherite_pickaxe
+32 /enchant @s efficiency 5
+# coal_ore
+40 /setblock 1 -59 0 coal_ore
+42 mine 1 -59 0 4 0
+54 stop
+55 /kill @e[type=xp_orb]
+56 /kill @e[type=item]
+58 /setblock 1 -59 0 coal_ore
+60 mine 1 -59 0 4 0
+72 stop
+73 /kill @e[type=xp_orb]
+74 /kill @e[type=item]
+76 /setblock 1 -59 0 coal_ore
+78 mine 1 -59 0 4 0
+90 stop
+91 /kill @e[type=xp_orb]
+92 /kill @e[type=item]
+94 /setblock 1 -59 0 coal_ore
+96 mine 1 -59 0 4 0
+108 stop
+109 /kill @e[type=xp_orb]
+110 /kill @e[type=item]
+112 /setblock 1 -59 0 coal_ore
+114 mine 1 -59 0 4 0
+126 stop
+127 /kill @e[type=xp_orb]
+128 /kill @e[type=item]
+130 /setblock 1 -59 0 coal_ore
+132 mine 1 -59 0 4 0
+144 stop
+145 /kill @e[type=xp_orb]
+146 /kill @e[type=item]
+148 /setblock 1 -59 0 coal_ore
+150 mine 1 -59 0 4 0
+162 stop
+163 /kill @e[type=xp_orb]
+164 /kill @e[type=item]
+166 /setblock 1 -59 0 coal_ore
+168 mine 1 -59 0 4 0
+180 stop
+181 /kill @e[type=xp_orb]
+182 /kill @e[type=item]
+184 /setblock 1 -59 0 coal_ore
+186 mine 1 -59 0 4 0
+198 stop
+199 /kill @e[type=xp_orb]
+200 /kill @e[type=item]
+202 /setblock 1 -59 0 coal_ore
+204 mine 1 -59 0 4 0
+216 stop
+217 /kill @e[type=xp_orb]
+218 /kill @e[type=item]
+220 /setblock 1 -59 0 coal_ore
+222 mine 1 -59 0 4 0
+234 stop
+235 /kill @e[type=xp_orb]
+236 /kill @e[type=item]
+238 /setblock 1 -59 0 coal_ore
+240 mine 1 -59 0 4 0
+252 stop
+253 /kill @e[type=xp_orb]
+254 /kill @e[type=item]
+256 /setblock 1 -59 0 coal_ore
+258 mine 1 -59 0 4 0
+270 stop
+271 /kill @e[type=xp_orb]
+272 /kill @e[type=item]
+274 /setblock 1 -59 0 coal_ore
+276 mine 1 -59 0 4 0
+288 stop
+289 /kill @e[type=xp_orb]
+290 /kill @e[type=item]
+292 /setblock 1 -59 0 coal_ore
+294 mine 1 -59 0 4 0
+306 stop
+307 /kill @e[type=xp_orb]
+308 /kill @e[type=item]
+310 /setblock 1 -59 0 coal_ore
+312 mine 1 -59 0 4 0
+324 stop
+325 /kill @e[type=xp_orb]
+326 /kill @e[type=item]
+328 /setblock 1 -59 0 coal_ore
+330 mine 1 -59 0 4 0
+342 stop
+343 /kill @e[type=xp_orb]
+344 /kill @e[type=item]
+346 /setblock 1 -59 0 coal_ore
+348 mine 1 -59 0 4 0
+360 stop
+361 /kill @e[type=xp_orb]
+362 /kill @e[type=item]
+364 /setblock 1 -59 0 coal_ore
+366 mine 1 -59 0 4 0
+378 stop
+379 /kill @e[type=xp_orb]
+380 /kill @e[type=item]
+382 /setblock 1 -59 0 coal_ore
+384 mine 1 -59 0 4 0
+396 stop
+397 /kill @e[type=xp_orb]
+398 /kill @e[type=item]
+400 /setblock 1 -59 0 coal_ore
+402 mine 1 -59 0 4 0
+414 stop
+415 /kill @e[type=xp_orb]
+416 /kill @e[type=item]
+418 /setblock 1 -59 0 coal_ore
+420 mine 1 -59 0 4 0
+432 stop
+433 /kill @e[type=xp_orb]
+434 /kill @e[type=item]
+436 /setblock 1 -59 0 coal_ore
+438 mine 1 -59 0 4 0
+450 stop
+451 /kill @e[type=xp_orb]
+452 /kill @e[type=item]
+454 /setblock 1 -59 0 coal_ore
+456 mine 1 -59 0 4 0
+468 stop
+469 /kill @e[type=xp_orb]
+470 /kill @e[type=item]
+472 /setblock 1 -59 0 coal_ore
+474 mine 1 -59 0 4 0
+486 stop
+487 /kill @e[type=xp_orb]
+488 /kill @e[type=item]
+490 /setblock 1 -59 0 coal_ore
+492 mine 1 -59 0 4 0
+504 stop
+505 /kill @e[type=xp_orb]
+506 /kill @e[type=item]
+508 /setblock 1 -59 0 coal_ore
+510 mine 1 -59 0 4 0
+522 stop
+523 /kill @e[type=xp_orb]
+524 /kill @e[type=item]
+526 /setblock 1 -59 0 coal_ore
+528 mine 1 -59 0 4 0
+540 stop
+541 /kill @e[type=xp_orb]
+542 /kill @e[type=item]
+544 /setblock 1 -59 0 coal_ore
+546 mine 1 -59 0 4 0
+558 stop
+559 /kill @e[type=xp_orb]
+560 /kill @e[type=item]
+562 /setblock 1 -59 0 coal_ore
+564 mine 1 -59 0 4 0
+576 stop
+577 /kill @e[type=xp_orb]
+578 /kill @e[type=item]
+# deepslate_coal_ore
+580 /setblock 1 -59 0 deepslate_coal_ore
+582 mine 1 -59 0 4 0
+594 stop
+595 /kill @e[type=xp_orb]
+596 /kill @e[type=item]
+598 /setblock 1 -59 0 deepslate_coal_ore
+600 mine 1 -59 0 4 0
+612 stop
+613 /kill @e[type=xp_orb]
+614 /kill @e[type=item]
+616 /setblock 1 -59 0 deepslate_coal_ore
+618 mine 1 -59 0 4 0
+630 stop
+631 /kill @e[type=xp_orb]
+632 /kill @e[type=item]
+634 /setblock 1 -59 0 deepslate_coal_ore
+636 mine 1 -59 0 4 0
+648 stop
+649 /kill @e[type=xp_orb]
+650 /kill @e[type=item]
+652 /setblock 1 -59 0 deepslate_coal_ore
+654 mine 1 -59 0 4 0
+666 stop
+667 /kill @e[type=xp_orb]
+668 /kill @e[type=item]
+670 /setblock 1 -59 0 deepslate_coal_ore
+672 mine 1 -59 0 4 0
+684 stop
+685 /kill @e[type=xp_orb]
+686 /kill @e[type=item]
+688 /setblock 1 -59 0 deepslate_coal_ore
+690 mine 1 -59 0 4 0
+702 stop
+703 /kill @e[type=xp_orb]
+704 /kill @e[type=item]
+706 /setblock 1 -59 0 deepslate_coal_ore
+708 mine 1 -59 0 4 0
+720 stop
+721 /kill @e[type=xp_orb]
+722 /kill @e[type=item]
+724 /setblock 1 -59 0 deepslate_coal_ore
+726 mine 1 -59 0 4 0
+738 stop
+739 /kill @e[type=xp_orb]
+740 /kill @e[type=item]
+742 /setblock 1 -59 0 deepslate_coal_ore
+744 mine 1 -59 0 4 0
+756 stop
+757 /kill @e[type=xp_orb]
+758 /kill @e[type=item]
+760 /setblock 1 -59 0 deepslate_coal_ore
+762 mine 1 -59 0 4 0
+774 stop
+775 /kill @e[type=xp_orb]
+776 /kill @e[type=item]
+778 /setblock 1 -59 0 deepslate_coal_ore
+780 mine 1 -59 0 4 0
+792 stop
+793 /kill @e[type=xp_orb]
+794 /kill @e[type=item]
+796 /setblock 1 -59 0 deepslate_coal_ore
+798 mine 1 -59 0 4 0
+810 stop
+811 /kill @e[type=xp_orb]
+812 /kill @e[type=item]
+814 /setblock 1 -59 0 deepslate_coal_ore
+816 mine 1 -59 0 4 0
+828 stop
+829 /kill @e[type=xp_orb]
+830 /kill @e[type=item]
+832 /setblock 1 -59 0 deepslate_coal_ore
+834 mine 1 -59 0 4 0
+846 stop
+847 /kill @e[type=xp_orb]
+848 /kill @e[type=item]
+850 /setblock 1 -59 0 deepslate_coal_ore
+852 mine 1 -59 0 4 0
+864 stop
+865 /kill @e[type=xp_orb]
+866 /kill @e[type=item]
+868 /setblock 1 -59 0 deepslate_coal_ore
+870 mine 1 -59 0 4 0
+882 stop
+883 /kill @e[type=xp_orb]
+884 /kill @e[type=item]
+886 /setblock 1 -59 0 deepslate_coal_ore
+888 mine 1 -59 0 4 0
+900 stop
+901 /kill @e[type=xp_orb]
+902 /kill @e[type=item]
+904 /setblock 1 -59 0 deepslate_coal_ore
+906 mine 1 -59 0 4 0
+918 stop
+919 /kill @e[type=xp_orb]
+920 /kill @e[type=item]
+922 /setblock 1 -59 0 deepslate_coal_ore
+924 mine 1 -59 0 4 0
+936 stop
+937 /kill @e[type=xp_orb]
+938 /kill @e[type=item]
+940 /setblock 1 -59 0 deepslate_coal_ore
+942 mine 1 -59 0 4 0
+954 stop
+955 /kill @e[type=xp_orb]
+956 /kill @e[type=item]
+958 /setblock 1 -59 0 deepslate_coal_ore
+960 mine 1 -59 0 4 0
+972 stop
+973 /kill @e[type=xp_orb]
+974 /kill @e[type=item]
+976 /setblock 1 -59 0 deepslate_coal_ore
+978 mine 1 -59 0 4 0
+990 stop
+991 /kill @e[type=xp_orb]
+992 /kill @e[type=item]
+994 /setblock 1 -59 0 deepslate_coal_ore
+996 mine 1 -59 0 4 0
+1008 stop
+1009 /kill @e[type=xp_orb]
+1010 /kill @e[type=item]
+1012 /setblock 1 -59 0 deepslate_coal_ore
+1014 mine 1 -59 0 4 0
+1026 stop
+1027 /kill @e[type=xp_orb]
+1028 /kill @e[type=item]
+1030 /setblock 1 -59 0 deepslate_coal_ore
+1032 mine 1 -59 0 4 0
+1044 stop
+1045 /kill @e[type=xp_orb]
+1046 /kill @e[type=item]
+1048 /setblock 1 -59 0 deepslate_coal_ore
+1050 mine 1 -59 0 4 0
+1062 stop
+1063 /kill @e[type=xp_orb]
+1064 /kill @e[type=item]
+1066 /setblock 1 -59 0 deepslate_coal_ore
+1068 mine 1 -59 0 4 0
+1080 stop
+1081 /kill @e[type=xp_orb]
+1082 /kill @e[type=item]
+1084 /setblock 1 -59 0 deepslate_coal_ore
+1086 mine 1 -59 0 4 0
+1098 stop
+1099 /kill @e[type=xp_orb]
+1100 /kill @e[type=item]
+1102 /setblock 1 -59 0 deepslate_coal_ore
+1104 mine 1 -59 0 4 0
+1116 stop
+1117 /kill @e[type=xp_orb]
+1118 /kill @e[type=item]
+# diamond_ore
+1120 /setblock 1 -59 0 diamond_ore
+1122 mine 1 -59 0 4 0
+1134 stop
+1135 /kill @e[type=xp_orb]
+1136 /kill @e[type=item]
+1138 /setblock 1 -59 0 diamond_ore
+1140 mine 1 -59 0 4 0
+1152 stop
+1153 /kill @e[type=xp_orb]
+1154 /kill @e[type=item]
+1156 /setblock 1 -59 0 diamond_ore
+1158 mine 1 -59 0 4 0
+1170 stop
+1171 /kill @e[type=xp_orb]
+1172 /kill @e[type=item]
+1174 /setblock 1 -59 0 diamond_ore
+1176 mine 1 -59 0 4 0
+1188 stop
+1189 /kill @e[type=xp_orb]
+1190 /kill @e[type=item]
+1192 /setblock 1 -59 0 diamond_ore
+1194 mine 1 -59 0 4 0
+1206 stop
+1207 /kill @e[type=xp_orb]
+1208 /kill @e[type=item]
+1210 /setblock 1 -59 0 diamond_ore
+1212 mine 1 -59 0 4 0
+1224 stop
+1225 /kill @e[type=xp_orb]
+1226 /kill @e[type=item]
+1228 /setblock 1 -59 0 diamond_ore
+1230 mine 1 -59 0 4 0
+1242 stop
+1243 /kill @e[type=xp_orb]
+1244 /kill @e[type=item]
+1246 /setblock 1 -59 0 diamond_ore
+1248 mine 1 -59 0 4 0
+1260 stop
+1261 /kill @e[type=xp_orb]
+1262 /kill @e[type=item]
+1264 /setblock 1 -59 0 diamond_ore
+1266 mine 1 -59 0 4 0
+1278 stop
+1279 /kill @e[type=xp_orb]
+1280 /kill @e[type=item]
+1282 /setblock 1 -59 0 diamond_ore
+1284 mine 1 -59 0 4 0
+1296 stop
+1297 /kill @e[type=xp_orb]
+1298 /kill @e[type=item]
+1300 /setblock 1 -59 0 diamond_ore
+1302 mine 1 -59 0 4 0
+1314 stop
+1315 /kill @e[type=xp_orb]
+1316 /kill @e[type=item]
+1318 /setblock 1 -59 0 diamond_ore
+1320 mine 1 -59 0 4 0
+1332 stop
+1333 /kill @e[type=xp_orb]
+1334 /kill @e[type=item]
+1336 /setblock 1 -59 0 diamond_ore
+1338 mine 1 -59 0 4 0
+1350 stop
+1351 /kill @e[type=xp_orb]
+1352 /kill @e[type=item]
+1354 /setblock 1 -59 0 diamond_ore
+1356 mine 1 -59 0 4 0
+1368 stop
+1369 /kill @e[type=xp_orb]
+1370 /kill @e[type=item]
+1372 /setblock 1 -59 0 diamond_ore
+1374 mine 1 -59 0 4 0
+1386 stop
+1387 /kill @e[type=xp_orb]
+1388 /kill @e[type=item]
+1390 /setblock 1 -59 0 diamond_ore
+1392 mine 1 -59 0 4 0
+1404 stop
+1405 /kill @e[type=xp_orb]
+1406 /kill @e[type=item]
+1408 /setblock 1 -59 0 diamond_ore
+1410 mine 1 -59 0 4 0
+1422 stop
+1423 /kill @e[type=xp_orb]
+1424 /kill @e[type=item]
+1426 /setblock 1 -59 0 diamond_ore
+1428 mine 1 -59 0 4 0
+1440 stop
+1441 /kill @e[type=xp_orb]
+1442 /kill @e[type=item]
+1444 /setblock 1 -59 0 diamond_ore
+1446 mine 1 -59 0 4 0
+1458 stop
+1459 /kill @e[type=xp_orb]
+1460 /kill @e[type=item]
+1462 /setblock 1 -59 0 diamond_ore
+1464 mine 1 -59 0 4 0
+1476 stop
+1477 /kill @e[type=xp_orb]
+1478 /kill @e[type=item]
+1480 /setblock 1 -59 0 diamond_ore
+1482 mine 1 -59 0 4 0
+1494 stop
+1495 /kill @e[type=xp_orb]
+1496 /kill @e[type=item]
+1498 /setblock 1 -59 0 diamond_ore
+1500 mine 1 -59 0 4 0
+1512 stop
+1513 /kill @e[type=xp_orb]
+1514 /kill @e[type=item]
+1516 /setblock 1 -59 0 diamond_ore
+1518 mine 1 -59 0 4 0
+1530 stop
+1531 /kill @e[type=xp_orb]
+1532 /kill @e[type=item]
+1534 /setblock 1 -59 0 diamond_ore
+1536 mine 1 -59 0 4 0
+1548 stop
+1549 /kill @e[type=xp_orb]
+1550 /kill @e[type=item]
+1552 /setblock 1 -59 0 diamond_ore
+1554 mine 1 -59 0 4 0
+1566 stop
+1567 /kill @e[type=xp_orb]
+1568 /kill @e[type=item]
+1570 /setblock 1 -59 0 diamond_ore
+1572 mine 1 -59 0 4 0
+1584 stop
+1585 /kill @e[type=xp_orb]
+1586 /kill @e[type=item]
+1588 /setblock 1 -59 0 diamond_ore
+1590 mine 1 -59 0 4 0
+1602 stop
+1603 /kill @e[type=xp_orb]
+1604 /kill @e[type=item]
+1606 /setblock 1 -59 0 diamond_ore
+1608 mine 1 -59 0 4 0
+1620 stop
+1621 /kill @e[type=xp_orb]
+1622 /kill @e[type=item]
+1624 /setblock 1 -59 0 diamond_ore
+1626 mine 1 -59 0 4 0
+1638 stop
+1639 /kill @e[type=xp_orb]
+1640 /kill @e[type=item]
+1642 /setblock 1 -59 0 diamond_ore
+1644 mine 1 -59 0 4 0
+1656 stop
+1657 /kill @e[type=xp_orb]
+1658 /kill @e[type=item]
+# deepslate_diamond_ore
+1660 /setblock 1 -59 0 deepslate_diamond_ore
+1662 mine 1 -59 0 4 0
+1674 stop
+1675 /kill @e[type=xp_orb]
+1676 /kill @e[type=item]
+1678 /setblock 1 -59 0 deepslate_diamond_ore
+1680 mine 1 -59 0 4 0
+1692 stop
+1693 /kill @e[type=xp_orb]
+1694 /kill @e[type=item]
+1696 /setblock 1 -59 0 deepslate_diamond_ore
+1698 mine 1 -59 0 4 0
+1710 stop
+1711 /kill @e[type=xp_orb]
+1712 /kill @e[type=item]
+1714 /setblock 1 -59 0 deepslate_diamond_ore
+1716 mine 1 -59 0 4 0
+1728 stop
+1729 /kill @e[type=xp_orb]
+1730 /kill @e[type=item]
+1732 /setblock 1 -59 0 deepslate_diamond_ore
+1734 mine 1 -59 0 4 0
+1746 stop
+1747 /kill @e[type=xp_orb]
+1748 /kill @e[type=item]
+1750 /setblock 1 -59 0 deepslate_diamond_ore
+1752 mine 1 -59 0 4 0
+1764 stop
+1765 /kill @e[type=xp_orb]
+1766 /kill @e[type=item]
+1768 /setblock 1 -59 0 deepslate_diamond_ore
+1770 mine 1 -59 0 4 0
+1782 stop
+1783 /kill @e[type=xp_orb]
+1784 /kill @e[type=item]
+1786 /setblock 1 -59 0 deepslate_diamond_ore
+1788 mine 1 -59 0 4 0
+1800 stop
+1801 /kill @e[type=xp_orb]
+1802 /kill @e[type=item]
+1804 /setblock 1 -59 0 deepslate_diamond_ore
+1806 mine 1 -59 0 4 0
+1818 stop
+1819 /kill @e[type=xp_orb]
+1820 /kill @e[type=item]
+1822 /setblock 1 -59 0 deepslate_diamond_ore
+1824 mine 1 -59 0 4 0
+1836 stop
+1837 /kill @e[type=xp_orb]
+1838 /kill @e[type=item]
+1840 /setblock 1 -59 0 deepslate_diamond_ore
+1842 mine 1 -59 0 4 0
+1854 stop
+1855 /kill @e[type=xp_orb]
+1856 /kill @e[type=item]
+1858 /setblock 1 -59 0 deepslate_diamond_ore
+1860 mine 1 -59 0 4 0
+1872 stop
+1873 /kill @e[type=xp_orb]
+1874 /kill @e[type=item]
+1876 /setblock 1 -59 0 deepslate_diamond_ore
+1878 mine 1 -59 0 4 0
+1890 stop
+1891 /kill @e[type=xp_orb]
+1892 /kill @e[type=item]
+1894 /setblock 1 -59 0 deepslate_diamond_ore
+1896 mine 1 -59 0 4 0
+1908 stop
+1909 /kill @e[type=xp_orb]
+1910 /kill @e[type=item]
+1912 /setblock 1 -59 0 deepslate_diamond_ore
+1914 mine 1 -59 0 4 0
+1926 stop
+1927 /kill @e[type=xp_orb]
+1928 /kill @e[type=item]
+1930 /setblock 1 -59 0 deepslate_diamond_ore
+1932 mine 1 -59 0 4 0
+1944 stop
+1945 /kill @e[type=xp_orb]
+1946 /kill @e[type=item]
+1948 /setblock 1 -59 0 deepslate_diamond_ore
+1950 mine 1 -59 0 4 0
+1962 stop
+1963 /kill @e[type=xp_orb]
+1964 /kill @e[type=item]
+1966 /setblock 1 -59 0 deepslate_diamond_ore
+1968 mine 1 -59 0 4 0
+1980 stop
+1981 /kill @e[type=xp_orb]
+1982 /kill @e[type=item]
+1984 /setblock 1 -59 0 deepslate_diamond_ore
+1986 mine 1 -59 0 4 0
+1998 stop
+1999 /kill @e[type=xp_orb]
+2000 /kill @e[type=item]
+2002 /setblock 1 -59 0 deepslate_diamond_ore
+2004 mine 1 -59 0 4 0
+2016 stop
+2017 /kill @e[type=xp_orb]
+2018 /kill @e[type=item]
+2020 /setblock 1 -59 0 deepslate_diamond_ore
+2022 mine 1 -59 0 4 0
+2034 stop
+2035 /kill @e[type=xp_orb]
+2036 /kill @e[type=item]
+2038 /setblock 1 -59 0 deepslate_diamond_ore
+2040 mine 1 -59 0 4 0
+2052 stop
+2053 /kill @e[type=xp_orb]
+2054 /kill @e[type=item]
+2056 /setblock 1 -59 0 deepslate_diamond_ore
+2058 mine 1 -59 0 4 0
+2070 stop
+2071 /kill @e[type=xp_orb]
+2072 /kill @e[type=item]
+2074 /setblock 1 -59 0 deepslate_diamond_ore
+2076 mine 1 -59 0 4 0
+2088 stop
+2089 /kill @e[type=xp_orb]
+2090 /kill @e[type=item]
+2092 /setblock 1 -59 0 deepslate_diamond_ore
+2094 mine 1 -59 0 4 0
+2106 stop
+2107 /kill @e[type=xp_orb]
+2108 /kill @e[type=item]
+2110 /setblock 1 -59 0 deepslate_diamond_ore
+2112 mine 1 -59 0 4 0
+2124 stop
+2125 /kill @e[type=xp_orb]
+2126 /kill @e[type=item]
+2128 /setblock 1 -59 0 deepslate_diamond_ore
+2130 mine 1 -59 0 4 0
+2142 stop
+2143 /kill @e[type=xp_orb]
+2144 /kill @e[type=item]
+2146 /setblock 1 -59 0 deepslate_diamond_ore
+2148 mine 1 -59 0 4 0
+2160 stop
+2161 /kill @e[type=xp_orb]
+2162 /kill @e[type=item]
+2164 /setblock 1 -59 0 deepslate_diamond_ore
+2166 mine 1 -59 0 4 0
+2178 stop
+2179 /kill @e[type=xp_orb]
+2180 /kill @e[type=item]
+2182 /setblock 1 -59 0 deepslate_diamond_ore
+2184 mine 1 -59 0 4 0
+2196 stop
+2197 /kill @e[type=xp_orb]
+2198 /kill @e[type=item]
+# emerald_ore
+2200 /setblock 1 -59 0 emerald_ore
+2202 mine 1 -59 0 4 0
+2214 stop
+2215 /kill @e[type=xp_orb]
+2216 /kill @e[type=item]
+2218 /setblock 1 -59 0 emerald_ore
+2220 mine 1 -59 0 4 0
+2232 stop
+2233 /kill @e[type=xp_orb]
+2234 /kill @e[type=item]
+2236 /setblock 1 -59 0 emerald_ore
+2238 mine 1 -59 0 4 0
+2250 stop
+2251 /kill @e[type=xp_orb]
+2252 /kill @e[type=item]
+2254 /setblock 1 -59 0 emerald_ore
+2256 mine 1 -59 0 4 0
+2268 stop
+2269 /kill @e[type=xp_orb]
+2270 /kill @e[type=item]
+2272 /setblock 1 -59 0 emerald_ore
+2274 mine 1 -59 0 4 0
+2286 stop
+2287 /kill @e[type=xp_orb]
+2288 /kill @e[type=item]
+2290 /setblock 1 -59 0 emerald_ore
+2292 mine 1 -59 0 4 0
+2304 stop
+2305 /kill @e[type=xp_orb]
+2306 /kill @e[type=item]
+2308 /setblock 1 -59 0 emerald_ore
+2310 mine 1 -59 0 4 0
+2322 stop
+2323 /kill @e[type=xp_orb]
+2324 /kill @e[type=item]
+2326 /setblock 1 -59 0 emerald_ore
+2328 mine 1 -59 0 4 0
+2340 stop
+2341 /kill @e[type=xp_orb]
+2342 /kill @e[type=item]
+2344 /setblock 1 -59 0 emerald_ore
+2346 mine 1 -59 0 4 0
+2358 stop
+2359 /kill @e[type=xp_orb]
+2360 /kill @e[type=item]
+2362 /setblock 1 -59 0 emerald_ore
+2364 mine 1 -59 0 4 0
+2376 stop
+2377 /kill @e[type=xp_orb]
+2378 /kill @e[type=item]
+2380 /setblock 1 -59 0 emerald_ore
+2382 mine 1 -59 0 4 0
+2394 stop
+2395 /kill @e[type=xp_orb]
+2396 /kill @e[type=item]
+2398 /setblock 1 -59 0 emerald_ore
+2400 mine 1 -59 0 4 0
+2412 stop
+2413 /kill @e[type=xp_orb]
+2414 /kill @e[type=item]
+2416 /setblock 1 -59 0 emerald_ore
+2418 mine 1 -59 0 4 0
+2430 stop
+2431 /kill @e[type=xp_orb]
+2432 /kill @e[type=item]
+2434 /setblock 1 -59 0 emerald_ore
+2436 mine 1 -59 0 4 0
+2448 stop
+2449 /kill @e[type=xp_orb]
+2450 /kill @e[type=item]
+2452 /setblock 1 -59 0 emerald_ore
+2454 mine 1 -59 0 4 0
+2466 stop
+2467 /kill @e[type=xp_orb]
+2468 /kill @e[type=item]
+2470 /setblock 1 -59 0 emerald_ore
+2472 mine 1 -59 0 4 0
+2484 stop
+2485 /kill @e[type=xp_orb]
+2486 /kill @e[type=item]
+2488 /setblock 1 -59 0 emerald_ore
+2490 mine 1 -59 0 4 0
+2502 stop
+2503 /kill @e[type=xp_orb]
+2504 /kill @e[type=item]
+2506 /setblock 1 -59 0 emerald_ore
+2508 mine 1 -59 0 4 0
+2520 stop
+2521 /kill @e[type=xp_orb]
+2522 /kill @e[type=item]
+2524 /setblock 1 -59 0 emerald_ore
+2526 mine 1 -59 0 4 0
+2538 stop
+2539 /kill @e[type=xp_orb]
+2540 /kill @e[type=item]
+2542 /setblock 1 -59 0 emerald_ore
+2544 mine 1 -59 0 4 0
+2556 stop
+2557 /kill @e[type=xp_orb]
+2558 /kill @e[type=item]
+2560 /setblock 1 -59 0 emerald_ore
+2562 mine 1 -59 0 4 0
+2574 stop
+2575 /kill @e[type=xp_orb]
+2576 /kill @e[type=item]
+2578 /setblock 1 -59 0 emerald_ore
+2580 mine 1 -59 0 4 0
+2592 stop
+2593 /kill @e[type=xp_orb]
+2594 /kill @e[type=item]
+2596 /setblock 1 -59 0 emerald_ore
+2598 mine 1 -59 0 4 0
+2610 stop
+2611 /kill @e[type=xp_orb]
+2612 /kill @e[type=item]
+2614 /setblock 1 -59 0 emerald_ore
+2616 mine 1 -59 0 4 0
+2628 stop
+2629 /kill @e[type=xp_orb]
+2630 /kill @e[type=item]
+2632 /setblock 1 -59 0 emerald_ore
+2634 mine 1 -59 0 4 0
+2646 stop
+2647 /kill @e[type=xp_orb]
+2648 /kill @e[type=item]
+2650 /setblock 1 -59 0 emerald_ore
+2652 mine 1 -59 0 4 0
+2664 stop
+2665 /kill @e[type=xp_orb]
+2666 /kill @e[type=item]
+2668 /setblock 1 -59 0 emerald_ore
+2670 mine 1 -59 0 4 0
+2682 stop
+2683 /kill @e[type=xp_orb]
+2684 /kill @e[type=item]
+2686 /setblock 1 -59 0 emerald_ore
+2688 mine 1 -59 0 4 0
+2700 stop
+2701 /kill @e[type=xp_orb]
+2702 /kill @e[type=item]
+2704 /setblock 1 -59 0 emerald_ore
+2706 mine 1 -59 0 4 0
+2718 stop
+2719 /kill @e[type=xp_orb]
+2720 /kill @e[type=item]
+2722 /setblock 1 -59 0 emerald_ore
+2724 mine 1 -59 0 4 0
+2736 stop
+2737 /kill @e[type=xp_orb]
+2738 /kill @e[type=item]
+# deepslate_emerald_ore
+2740 /setblock 1 -59 0 deepslate_emerald_ore
+2742 mine 1 -59 0 4 0
+2754 stop
+2755 /kill @e[type=xp_orb]
+2756 /kill @e[type=item]
+2758 /setblock 1 -59 0 deepslate_emerald_ore
+2760 mine 1 -59 0 4 0
+2772 stop
+2773 /kill @e[type=xp_orb]
+2774 /kill @e[type=item]
+2776 /setblock 1 -59 0 deepslate_emerald_ore
+2778 mine 1 -59 0 4 0
+2790 stop
+2791 /kill @e[type=xp_orb]
+2792 /kill @e[type=item]
+2794 /setblock 1 -59 0 deepslate_emerald_ore
+2796 mine 1 -59 0 4 0
+2808 stop
+2809 /kill @e[type=xp_orb]
+2810 /kill @e[type=item]
+2812 /setblock 1 -59 0 deepslate_emerald_ore
+2814 mine 1 -59 0 4 0
+2826 stop
+2827 /kill @e[type=xp_orb]
+2828 /kill @e[type=item]
+2830 /setblock 1 -59 0 deepslate_emerald_ore
+2832 mine 1 -59 0 4 0
+2844 stop
+2845 /kill @e[type=xp_orb]
+2846 /kill @e[type=item]
+2848 /setblock 1 -59 0 deepslate_emerald_ore
+2850 mine 1 -59 0 4 0
+2862 stop
+2863 /kill @e[type=xp_orb]
+2864 /kill @e[type=item]
+2866 /setblock 1 -59 0 deepslate_emerald_ore
+2868 mine 1 -59 0 4 0
+2880 stop
+2881 /kill @e[type=xp_orb]
+2882 /kill @e[type=item]
+2884 /setblock 1 -59 0 deepslate_emerald_ore
+2886 mine 1 -59 0 4 0
+2898 stop
+2899 /kill @e[type=xp_orb]
+2900 /kill @e[type=item]
+2902 /setblock 1 -59 0 deepslate_emerald_ore
+2904 mine 1 -59 0 4 0
+2916 stop
+2917 /kill @e[type=xp_orb]
+2918 /kill @e[type=item]
+2920 /setblock 1 -59 0 deepslate_emerald_ore
+2922 mine 1 -59 0 4 0
+2934 stop
+2935 /kill @e[type=xp_orb]
+2936 /kill @e[type=item]
+2938 /setblock 1 -59 0 deepslate_emerald_ore
+2940 mine 1 -59 0 4 0
+2952 stop
+2953 /kill @e[type=xp_orb]
+2954 /kill @e[type=item]
+2956 /setblock 1 -59 0 deepslate_emerald_ore
+2958 mine 1 -59 0 4 0
+2970 stop
+2971 /kill @e[type=xp_orb]
+2972 /kill @e[type=item]
+2974 /setblock 1 -59 0 deepslate_emerald_ore
+2976 mine 1 -59 0 4 0
+2988 stop
+2989 /kill @e[type=xp_orb]
+2990 /kill @e[type=item]
+2992 /setblock 1 -59 0 deepslate_emerald_ore
+2994 mine 1 -59 0 4 0
+3006 stop
+3007 /kill @e[type=xp_orb]
+3008 /kill @e[type=item]
+3010 /setblock 1 -59 0 deepslate_emerald_ore
+3012 mine 1 -59 0 4 0
+3024 stop
+3025 /kill @e[type=xp_orb]
+3026 /kill @e[type=item]
+3028 /setblock 1 -59 0 deepslate_emerald_ore
+3030 mine 1 -59 0 4 0
+3042 stop
+3043 /kill @e[type=xp_orb]
+3044 /kill @e[type=item]
+3046 /setblock 1 -59 0 deepslate_emerald_ore
+3048 mine 1 -59 0 4 0
+3060 stop
+3061 /kill @e[type=xp_orb]
+3062 /kill @e[type=item]
+3064 /setblock 1 -59 0 deepslate_emerald_ore
+3066 mine 1 -59 0 4 0
+3078 stop
+3079 /kill @e[type=xp_orb]
+3080 /kill @e[type=item]
+3082 /setblock 1 -59 0 deepslate_emerald_ore
+3084 mine 1 -59 0 4 0
+3096 stop
+3097 /kill @e[type=xp_orb]
+3098 /kill @e[type=item]
+3100 /setblock 1 -59 0 deepslate_emerald_ore
+3102 mine 1 -59 0 4 0
+3114 stop
+3115 /kill @e[type=xp_orb]
+3116 /kill @e[type=item]
+3118 /setblock 1 -59 0 deepslate_emerald_ore
+3120 mine 1 -59 0 4 0
+3132 stop
+3133 /kill @e[type=xp_orb]
+3134 /kill @e[type=item]
+3136 /setblock 1 -59 0 deepslate_emerald_ore
+3138 mine 1 -59 0 4 0
+3150 stop
+3151 /kill @e[type=xp_orb]
+3152 /kill @e[type=item]
+3154 /setblock 1 -59 0 deepslate_emerald_ore
+3156 mine 1 -59 0 4 0
+3168 stop
+3169 /kill @e[type=xp_orb]
+3170 /kill @e[type=item]
+3172 /setblock 1 -59 0 deepslate_emerald_ore
+3174 mine 1 -59 0 4 0
+3186 stop
+3187 /kill @e[type=xp_orb]
+3188 /kill @e[type=item]
+3190 /setblock 1 -59 0 deepslate_emerald_ore
+3192 mine 1 -59 0 4 0
+3204 stop
+3205 /kill @e[type=xp_orb]
+3206 /kill @e[type=item]
+3208 /setblock 1 -59 0 deepslate_emerald_ore
+3210 mine 1 -59 0 4 0
+3222 stop
+3223 /kill @e[type=xp_orb]
+3224 /kill @e[type=item]
+3226 /setblock 1 -59 0 deepslate_emerald_ore
+3228 mine 1 -59 0 4 0
+3240 stop
+3241 /kill @e[type=xp_orb]
+3242 /kill @e[type=item]
+3244 /setblock 1 -59 0 deepslate_emerald_ore
+3246 mine 1 -59 0 4 0
+3258 stop
+3259 /kill @e[type=xp_orb]
+3260 /kill @e[type=item]
+3262 /setblock 1 -59 0 deepslate_emerald_ore
+3264 mine 1 -59 0 4 0
+3276 stop
+3277 /kill @e[type=xp_orb]
+3278 /kill @e[type=item]
+# lapis_ore
+3280 /setblock 1 -59 0 lapis_ore
+3282 mine 1 -59 0 4 0
+3294 stop
+3295 /kill @e[type=xp_orb]
+3296 /kill @e[type=item]
+3298 /setblock 1 -59 0 lapis_ore
+3300 mine 1 -59 0 4 0
+3312 stop
+3313 /kill @e[type=xp_orb]
+3314 /kill @e[type=item]
+3316 /setblock 1 -59 0 lapis_ore
+3318 mine 1 -59 0 4 0
+3330 stop
+3331 /kill @e[type=xp_orb]
+3332 /kill @e[type=item]
+3334 /setblock 1 -59 0 lapis_ore
+3336 mine 1 -59 0 4 0
+3348 stop
+3349 /kill @e[type=xp_orb]
+3350 /kill @e[type=item]
+3352 /setblock 1 -59 0 lapis_ore
+3354 mine 1 -59 0 4 0
+3366 stop
+3367 /kill @e[type=xp_orb]
+3368 /kill @e[type=item]
+3370 /setblock 1 -59 0 lapis_ore
+3372 mine 1 -59 0 4 0
+3384 stop
+3385 /kill @e[type=xp_orb]
+3386 /kill @e[type=item]
+3388 /setblock 1 -59 0 lapis_ore
+3390 mine 1 -59 0 4 0
+3402 stop
+3403 /kill @e[type=xp_orb]
+3404 /kill @e[type=item]
+3406 /setblock 1 -59 0 lapis_ore
+3408 mine 1 -59 0 4 0
+3420 stop
+3421 /kill @e[type=xp_orb]
+3422 /kill @e[type=item]
+3424 /setblock 1 -59 0 lapis_ore
+3426 mine 1 -59 0 4 0
+3438 stop
+3439 /kill @e[type=xp_orb]
+3440 /kill @e[type=item]
+3442 /setblock 1 -59 0 lapis_ore
+3444 mine 1 -59 0 4 0
+3456 stop
+3457 /kill @e[type=xp_orb]
+3458 /kill @e[type=item]
+3460 /setblock 1 -59 0 lapis_ore
+3462 mine 1 -59 0 4 0
+3474 stop
+3475 /kill @e[type=xp_orb]
+3476 /kill @e[type=item]
+3478 /setblock 1 -59 0 lapis_ore
+3480 mine 1 -59 0 4 0
+3492 stop
+3493 /kill @e[type=xp_orb]
+3494 /kill @e[type=item]
+3496 /setblock 1 -59 0 lapis_ore
+3498 mine 1 -59 0 4 0
+3510 stop
+3511 /kill @e[type=xp_orb]
+3512 /kill @e[type=item]
+3514 /setblock 1 -59 0 lapis_ore
+3516 mine 1 -59 0 4 0
+3528 stop
+3529 /kill @e[type=xp_orb]
+3530 /kill @e[type=item]
+3532 /setblock 1 -59 0 lapis_ore
+3534 mine 1 -59 0 4 0
+3546 stop
+3547 /kill @e[type=xp_orb]
+3548 /kill @e[type=item]
+3550 /setblock 1 -59 0 lapis_ore
+3552 mine 1 -59 0 4 0
+3564 stop
+3565 /kill @e[type=xp_orb]
+3566 /kill @e[type=item]
+3568 /setblock 1 -59 0 lapis_ore
+3570 mine 1 -59 0 4 0
+3582 stop
+3583 /kill @e[type=xp_orb]
+3584 /kill @e[type=item]
+3586 /setblock 1 -59 0 lapis_ore
+3588 mine 1 -59 0 4 0
+3600 stop
+3601 /kill @e[type=xp_orb]
+3602 /kill @e[type=item]
+3604 /setblock 1 -59 0 lapis_ore
+3606 mine 1 -59 0 4 0
+3618 stop
+3619 /kill @e[type=xp_orb]
+3620 /kill @e[type=item]
+3622 /setblock 1 -59 0 lapis_ore
+3624 mine 1 -59 0 4 0
+3636 stop
+3637 /kill @e[type=xp_orb]
+3638 /kill @e[type=item]
+3640 /setblock 1 -59 0 lapis_ore
+3642 mine 1 -59 0 4 0
+3654 stop
+3655 /kill @e[type=xp_orb]
+3656 /kill @e[type=item]
+3658 /setblock 1 -59 0 lapis_ore
+3660 mine 1 -59 0 4 0
+3672 stop
+3673 /kill @e[type=xp_orb]
+3674 /kill @e[type=item]
+3676 /setblock 1 -59 0 lapis_ore
+3678 mine 1 -59 0 4 0
+3690 stop
+3691 /kill @e[type=xp_orb]
+3692 /kill @e[type=item]
+3694 /setblock 1 -59 0 lapis_ore
+3696 mine 1 -59 0 4 0
+3708 stop
+3709 /kill @e[type=xp_orb]
+3710 /kill @e[type=item]
+3712 /setblock 1 -59 0 lapis_ore
+3714 mine 1 -59 0 4 0
+3726 stop
+3727 /kill @e[type=xp_orb]
+3728 /kill @e[type=item]
+3730 /setblock 1 -59 0 lapis_ore
+3732 mine 1 -59 0 4 0
+3744 stop
+3745 /kill @e[type=xp_orb]
+3746 /kill @e[type=item]
+3748 /setblock 1 -59 0 lapis_ore
+3750 mine 1 -59 0 4 0
+3762 stop
+3763 /kill @e[type=xp_orb]
+3764 /kill @e[type=item]
+3766 /setblock 1 -59 0 lapis_ore
+3768 mine 1 -59 0 4 0
+3780 stop
+3781 /kill @e[type=xp_orb]
+3782 /kill @e[type=item]
+3784 /setblock 1 -59 0 lapis_ore
+3786 mine 1 -59 0 4 0
+3798 stop
+3799 /kill @e[type=xp_orb]
+3800 /kill @e[type=item]
+3802 /setblock 1 -59 0 lapis_ore
+3804 mine 1 -59 0 4 0
+3816 stop
+3817 /kill @e[type=xp_orb]
+3818 /kill @e[type=item]
+# deepslate_lapis_ore
+3820 /setblock 1 -59 0 deepslate_lapis_ore
+3822 mine 1 -59 0 4 0
+3834 stop
+3835 /kill @e[type=xp_orb]
+3836 /kill @e[type=item]
+3838 /setblock 1 -59 0 deepslate_lapis_ore
+3840 mine 1 -59 0 4 0
+3852 stop
+3853 /kill @e[type=xp_orb]
+3854 /kill @e[type=item]
+3856 /setblock 1 -59 0 deepslate_lapis_ore
+3858 mine 1 -59 0 4 0
+3870 stop
+3871 /kill @e[type=xp_orb]
+3872 /kill @e[type=item]
+3874 /setblock 1 -59 0 deepslate_lapis_ore
+3876 mine 1 -59 0 4 0
+3888 stop
+3889 /kill @e[type=xp_orb]
+3890 /kill @e[type=item]
+3892 /setblock 1 -59 0 deepslate_lapis_ore
+3894 mine 1 -59 0 4 0
+3906 stop
+3907 /kill @e[type=xp_orb]
+3908 /kill @e[type=item]
+3910 /setblock 1 -59 0 deepslate_lapis_ore
+3912 mine 1 -59 0 4 0
+3924 stop
+3925 /kill @e[type=xp_orb]
+3926 /kill @e[type=item]
+3928 /setblock 1 -59 0 deepslate_lapis_ore
+3930 mine 1 -59 0 4 0
+3942 stop
+3943 /kill @e[type=xp_orb]
+3944 /kill @e[type=item]
+3946 /setblock 1 -59 0 deepslate_lapis_ore
+3948 mine 1 -59 0 4 0
+3960 stop
+3961 /kill @e[type=xp_orb]
+3962 /kill @e[type=item]
+3964 /setblock 1 -59 0 deepslate_lapis_ore
+3966 mine 1 -59 0 4 0
+3978 stop
+3979 /kill @e[type=xp_orb]
+3980 /kill @e[type=item]
+3982 /setblock 1 -59 0 deepslate_lapis_ore
+3984 mine 1 -59 0 4 0
+3996 stop
+3997 /kill @e[type=xp_orb]
+3998 /kill @e[type=item]
+4000 /setblock 1 -59 0 deepslate_lapis_ore
+4002 mine 1 -59 0 4 0
+4014 stop
+4015 /kill @e[type=xp_orb]
+4016 /kill @e[type=item]
+4018 /setblock 1 -59 0 deepslate_lapis_ore
+4020 mine 1 -59 0 4 0
+4032 stop
+4033 /kill @e[type=xp_orb]
+4034 /kill @e[type=item]
+4036 /setblock 1 -59 0 deepslate_lapis_ore
+4038 mine 1 -59 0 4 0
+4050 stop
+4051 /kill @e[type=xp_orb]
+4052 /kill @e[type=item]
+4054 /setblock 1 -59 0 deepslate_lapis_ore
+4056 mine 1 -59 0 4 0
+4068 stop
+4069 /kill @e[type=xp_orb]
+4070 /kill @e[type=item]
+4072 /setblock 1 -59 0 deepslate_lapis_ore
+4074 mine 1 -59 0 4 0
+4086 stop
+4087 /kill @e[type=xp_orb]
+4088 /kill @e[type=item]
+4090 /setblock 1 -59 0 deepslate_lapis_ore
+4092 mine 1 -59 0 4 0
+4104 stop
+4105 /kill @e[type=xp_orb]
+4106 /kill @e[type=item]
+4108 /setblock 1 -59 0 deepslate_lapis_ore
+4110 mine 1 -59 0 4 0
+4122 stop
+4123 /kill @e[type=xp_orb]
+4124 /kill @e[type=item]
+4126 /setblock 1 -59 0 deepslate_lapis_ore
+4128 mine 1 -59 0 4 0
+4140 stop
+4141 /kill @e[type=xp_orb]
+4142 /kill @e[type=item]
+4144 /setblock 1 -59 0 deepslate_lapis_ore
+4146 mine 1 -59 0 4 0
+4158 stop
+4159 /kill @e[type=xp_orb]
+4160 /kill @e[type=item]
+4162 /setblock 1 -59 0 deepslate_lapis_ore
+4164 mine 1 -59 0 4 0
+4176 stop
+4177 /kill @e[type=xp_orb]
+4178 /kill @e[type=item]
+4180 /setblock 1 -59 0 deepslate_lapis_ore
+4182 mine 1 -59 0 4 0
+4194 stop
+4195 /kill @e[type=xp_orb]
+4196 /kill @e[type=item]
+4198 /setblock 1 -59 0 deepslate_lapis_ore
+4200 mine 1 -59 0 4 0
+4212 stop
+4213 /kill @e[type=xp_orb]
+4214 /kill @e[type=item]
+4216 /setblock 1 -59 0 deepslate_lapis_ore
+4218 mine 1 -59 0 4 0
+4230 stop
+4231 /kill @e[type=xp_orb]
+4232 /kill @e[type=item]
+4234 /setblock 1 -59 0 deepslate_lapis_ore
+4236 mine 1 -59 0 4 0
+4248 stop
+4249 /kill @e[type=xp_orb]
+4250 /kill @e[type=item]
+4252 /setblock 1 -59 0 deepslate_lapis_ore
+4254 mine 1 -59 0 4 0
+4266 stop
+4267 /kill @e[type=xp_orb]
+4268 /kill @e[type=item]
+4270 /setblock 1 -59 0 deepslate_lapis_ore
+4272 mine 1 -59 0 4 0
+4284 stop
+4285 /kill @e[type=xp_orb]
+4286 /kill @e[type=item]
+4288 /setblock 1 -59 0 deepslate_lapis_ore
+4290 mine 1 -59 0 4 0
+4302 stop
+4303 /kill @e[type=xp_orb]
+4304 /kill @e[type=item]
+4306 /setblock 1 -59 0 deepslate_lapis_ore
+4308 mine 1 -59 0 4 0
+4320 stop
+4321 /kill @e[type=xp_orb]
+4322 /kill @e[type=item]
+4324 /setblock 1 -59 0 deepslate_lapis_ore
+4326 mine 1 -59 0 4 0
+4338 stop
+4339 /kill @e[type=xp_orb]
+4340 /kill @e[type=item]
+4342 /setblock 1 -59 0 deepslate_lapis_ore
+4344 mine 1 -59 0 4 0
+4356 stop
+4357 /kill @e[type=xp_orb]
+4358 /kill @e[type=item]
+# redstone_ore
+4360 /setblock 1 -59 0 redstone_ore
+4362 mine 1 -59 0 4 0
+4374 stop
+4375 /kill @e[type=xp_orb]
+4376 /kill @e[type=item]
+4378 /setblock 1 -59 0 redstone_ore
+4380 mine 1 -59 0 4 0
+4392 stop
+4393 /kill @e[type=xp_orb]
+4394 /kill @e[type=item]
+4396 /setblock 1 -59 0 redstone_ore
+4398 mine 1 -59 0 4 0
+4410 stop
+4411 /kill @e[type=xp_orb]
+4412 /kill @e[type=item]
+4414 /setblock 1 -59 0 redstone_ore
+4416 mine 1 -59 0 4 0
+4428 stop
+4429 /kill @e[type=xp_orb]
+4430 /kill @e[type=item]
+4432 /setblock 1 -59 0 redstone_ore
+4434 mine 1 -59 0 4 0
+4446 stop
+4447 /kill @e[type=xp_orb]
+4448 /kill @e[type=item]
+4450 /setblock 1 -59 0 redstone_ore
+4452 mine 1 -59 0 4 0
+4464 stop
+4465 /kill @e[type=xp_orb]
+4466 /kill @e[type=item]
+4468 /setblock 1 -59 0 redstone_ore
+4470 mine 1 -59 0 4 0
+4482 stop
+4483 /kill @e[type=xp_orb]
+4484 /kill @e[type=item]
+4486 /setblock 1 -59 0 redstone_ore
+4488 mine 1 -59 0 4 0
+4500 stop
+4501 /kill @e[type=xp_orb]
+4502 /kill @e[type=item]
+4504 /setblock 1 -59 0 redstone_ore
+4506 mine 1 -59 0 4 0
+4518 stop
+4519 /kill @e[type=xp_orb]
+4520 /kill @e[type=item]
+4522 /setblock 1 -59 0 redstone_ore
+4524 mine 1 -59 0 4 0
+4536 stop
+4537 /kill @e[type=xp_orb]
+4538 /kill @e[type=item]
+4540 /setblock 1 -59 0 redstone_ore
+4542 mine 1 -59 0 4 0
+4554 stop
+4555 /kill @e[type=xp_orb]
+4556 /kill @e[type=item]
+4558 /setblock 1 -59 0 redstone_ore
+4560 mine 1 -59 0 4 0
+4572 stop
+4573 /kill @e[type=xp_orb]
+4574 /kill @e[type=item]
+4576 /setblock 1 -59 0 redstone_ore
+4578 mine 1 -59 0 4 0
+4590 stop
+4591 /kill @e[type=xp_orb]
+4592 /kill @e[type=item]
+4594 /setblock 1 -59 0 redstone_ore
+4596 mine 1 -59 0 4 0
+4608 stop
+4609 /kill @e[type=xp_orb]
+4610 /kill @e[type=item]
+4612 /setblock 1 -59 0 redstone_ore
+4614 mine 1 -59 0 4 0
+4626 stop
+4627 /kill @e[type=xp_orb]
+4628 /kill @e[type=item]
+4630 /setblock 1 -59 0 redstone_ore
+4632 mine 1 -59 0 4 0
+4644 stop
+4645 /kill @e[type=xp_orb]
+4646 /kill @e[type=item]
+4648 /setblock 1 -59 0 redstone_ore
+4650 mine 1 -59 0 4 0
+4662 stop
+4663 /kill @e[type=xp_orb]
+4664 /kill @e[type=item]
+4666 /setblock 1 -59 0 redstone_ore
+4668 mine 1 -59 0 4 0
+4680 stop
+4681 /kill @e[type=xp_orb]
+4682 /kill @e[type=item]
+4684 /setblock 1 -59 0 redstone_ore
+4686 mine 1 -59 0 4 0
+4698 stop
+4699 /kill @e[type=xp_orb]
+4700 /kill @e[type=item]
+4702 /setblock 1 -59 0 redstone_ore
+4704 mine 1 -59 0 4 0
+4716 stop
+4717 /kill @e[type=xp_orb]
+4718 /kill @e[type=item]
+4720 /setblock 1 -59 0 redstone_ore
+4722 mine 1 -59 0 4 0
+4734 stop
+4735 /kill @e[type=xp_orb]
+4736 /kill @e[type=item]
+4738 /setblock 1 -59 0 redstone_ore
+4740 mine 1 -59 0 4 0
+4752 stop
+4753 /kill @e[type=xp_orb]
+4754 /kill @e[type=item]
+4756 /setblock 1 -59 0 redstone_ore
+4758 mine 1 -59 0 4 0
+4770 stop
+4771 /kill @e[type=xp_orb]
+4772 /kill @e[type=item]
+4774 /setblock 1 -59 0 redstone_ore
+4776 mine 1 -59 0 4 0
+4788 stop
+4789 /kill @e[type=xp_orb]
+4790 /kill @e[type=item]
+4792 /setblock 1 -59 0 redstone_ore
+4794 mine 1 -59 0 4 0
+4806 stop
+4807 /kill @e[type=xp_orb]
+4808 /kill @e[type=item]
+4810 /setblock 1 -59 0 redstone_ore
+4812 mine 1 -59 0 4 0
+4824 stop
+4825 /kill @e[type=xp_orb]
+4826 /kill @e[type=item]
+4828 /setblock 1 -59 0 redstone_ore
+4830 mine 1 -59 0 4 0
+4842 stop
+4843 /kill @e[type=xp_orb]
+4844 /kill @e[type=item]
+4846 /setblock 1 -59 0 redstone_ore
+4848 mine 1 -59 0 4 0
+4860 stop
+4861 /kill @e[type=xp_orb]
+4862 /kill @e[type=item]
+4864 /setblock 1 -59 0 redstone_ore
+4866 mine 1 -59 0 4 0
+4878 stop
+4879 /kill @e[type=xp_orb]
+4880 /kill @e[type=item]
+4882 /setblock 1 -59 0 redstone_ore
+4884 mine 1 -59 0 4 0
+4896 stop
+4897 /kill @e[type=xp_orb]
+4898 /kill @e[type=item]
+# deepslate_redstone_ore
+4900 /setblock 1 -59 0 deepslate_redstone_ore
+4902 mine 1 -59 0 4 0
+4914 stop
+4915 /kill @e[type=xp_orb]
+4916 /kill @e[type=item]
+4918 /setblock 1 -59 0 deepslate_redstone_ore
+4920 mine 1 -59 0 4 0
+4932 stop
+4933 /kill @e[type=xp_orb]
+4934 /kill @e[type=item]
+4936 /setblock 1 -59 0 deepslate_redstone_ore
+4938 mine 1 -59 0 4 0
+4950 stop
+4951 /kill @e[type=xp_orb]
+4952 /kill @e[type=item]
+4954 /setblock 1 -59 0 deepslate_redstone_ore
+4956 mine 1 -59 0 4 0
+4968 stop
+4969 /kill @e[type=xp_orb]
+4970 /kill @e[type=item]
+4972 /setblock 1 -59 0 deepslate_redstone_ore
+4974 mine 1 -59 0 4 0
+4986 stop
+4987 /kill @e[type=xp_orb]
+4988 /kill @e[type=item]
+4990 /setblock 1 -59 0 deepslate_redstone_ore
+4992 mine 1 -59 0 4 0
+5004 stop
+5005 /kill @e[type=xp_orb]
+5006 /kill @e[type=item]
+5008 /setblock 1 -59 0 deepslate_redstone_ore
+5010 mine 1 -59 0 4 0
+5022 stop
+5023 /kill @e[type=xp_orb]
+5024 /kill @e[type=item]
+5026 /setblock 1 -59 0 deepslate_redstone_ore
+5028 mine 1 -59 0 4 0
+5040 stop
+5041 /kill @e[type=xp_orb]
+5042 /kill @e[type=item]
+5044 /setblock 1 -59 0 deepslate_redstone_ore
+5046 mine 1 -59 0 4 0
+5058 stop
+5059 /kill @e[type=xp_orb]
+5060 /kill @e[type=item]
+5062 /setblock 1 -59 0 deepslate_redstone_ore
+5064 mine 1 -59 0 4 0
+5076 stop
+5077 /kill @e[type=xp_orb]
+5078 /kill @e[type=item]
+5080 /setblock 1 -59 0 deepslate_redstone_ore
+5082 mine 1 -59 0 4 0
+5094 stop
+5095 /kill @e[type=xp_orb]
+5096 /kill @e[type=item]
+5098 /setblock 1 -59 0 deepslate_redstone_ore
+5100 mine 1 -59 0 4 0
+5112 stop
+5113 /kill @e[type=xp_orb]
+5114 /kill @e[type=item]
+5116 /setblock 1 -59 0 deepslate_redstone_ore
+5118 mine 1 -59 0 4 0
+5130 stop
+5131 /kill @e[type=xp_orb]
+5132 /kill @e[type=item]
+5134 /setblock 1 -59 0 deepslate_redstone_ore
+5136 mine 1 -59 0 4 0
+5148 stop
+5149 /kill @e[type=xp_orb]
+5150 /kill @e[type=item]
+5152 /setblock 1 -59 0 deepslate_redstone_ore
+5154 mine 1 -59 0 4 0
+5166 stop
+5167 /kill @e[type=xp_orb]
+5168 /kill @e[type=item]
+5170 /setblock 1 -59 0 deepslate_redstone_ore
+5172 mine 1 -59 0 4 0
+5184 stop
+5185 /kill @e[type=xp_orb]
+5186 /kill @e[type=item]
+5188 /setblock 1 -59 0 deepslate_redstone_ore
+5190 mine 1 -59 0 4 0
+5202 stop
+5203 /kill @e[type=xp_orb]
+5204 /kill @e[type=item]
+5206 /setblock 1 -59 0 deepslate_redstone_ore
+5208 mine 1 -59 0 4 0
+5220 stop
+5221 /kill @e[type=xp_orb]
+5222 /kill @e[type=item]
+5224 /setblock 1 -59 0 deepslate_redstone_ore
+5226 mine 1 -59 0 4 0
+5238 stop
+5239 /kill @e[type=xp_orb]
+5240 /kill @e[type=item]
+5242 /setblock 1 -59 0 deepslate_redstone_ore
+5244 mine 1 -59 0 4 0
+5256 stop
+5257 /kill @e[type=xp_orb]
+5258 /kill @e[type=item]
+5260 /setblock 1 -59 0 deepslate_redstone_ore
+5262 mine 1 -59 0 4 0
+5274 stop
+5275 /kill @e[type=xp_orb]
+5276 /kill @e[type=item]
+5278 /setblock 1 -59 0 deepslate_redstone_ore
+5280 mine 1 -59 0 4 0
+5292 stop
+5293 /kill @e[type=xp_orb]
+5294 /kill @e[type=item]
+5296 /setblock 1 -59 0 deepslate_redstone_ore
+5298 mine 1 -59 0 4 0
+5310 stop
+5311 /kill @e[type=xp_orb]
+5312 /kill @e[type=item]
+5314 /setblock 1 -59 0 deepslate_redstone_ore
+5316 mine 1 -59 0 4 0
+5328 stop
+5329 /kill @e[type=xp_orb]
+5330 /kill @e[type=item]
+5332 /setblock 1 -59 0 deepslate_redstone_ore
+5334 mine 1 -59 0 4 0
+5346 stop
+5347 /kill @e[type=xp_orb]
+5348 /kill @e[type=item]
+5350 /setblock 1 -59 0 deepslate_redstone_ore
+5352 mine 1 -59 0 4 0
+5364 stop
+5365 /kill @e[type=xp_orb]
+5366 /kill @e[type=item]
+5368 /setblock 1 -59 0 deepslate_redstone_ore
+5370 mine 1 -59 0 4 0
+5382 stop
+5383 /kill @e[type=xp_orb]
+5384 /kill @e[type=item]
+5386 /setblock 1 -59 0 deepslate_redstone_ore
+5388 mine 1 -59 0 4 0
+5400 stop
+5401 /kill @e[type=xp_orb]
+5402 /kill @e[type=item]
+5404 /setblock 1 -59 0 deepslate_redstone_ore
+5406 mine 1 -59 0 4 0
+5418 stop
+5419 /kill @e[type=xp_orb]
+5420 /kill @e[type=item]
+5422 /setblock 1 -59 0 deepslate_redstone_ore
+5424 mine 1 -59 0 4 0
+5436 stop
+5437 /kill @e[type=xp_orb]
+5438 /kill @e[type=item]
+# lit_redstone_ore
+5440 /setblock 1 -59 0 lit_redstone_ore
+5442 mine 1 -59 0 4 0
+5454 stop
+5455 /kill @e[type=xp_orb]
+5456 /kill @e[type=item]
+5458 /setblock 1 -59 0 lit_redstone_ore
+5460 mine 1 -59 0 4 0
+5472 stop
+5473 /kill @e[type=xp_orb]
+5474 /kill @e[type=item]
+5476 /setblock 1 -59 0 lit_redstone_ore
+5478 mine 1 -59 0 4 0
+5490 stop
+5491 /kill @e[type=xp_orb]
+5492 /kill @e[type=item]
+5494 /setblock 1 -59 0 lit_redstone_ore
+5496 mine 1 -59 0 4 0
+5508 stop
+5509 /kill @e[type=xp_orb]
+5510 /kill @e[type=item]
+5512 /setblock 1 -59 0 lit_redstone_ore
+5514 mine 1 -59 0 4 0
+5526 stop
+5527 /kill @e[type=xp_orb]
+5528 /kill @e[type=item]
+5530 /setblock 1 -59 0 lit_redstone_ore
+5532 mine 1 -59 0 4 0
+5544 stop
+5545 /kill @e[type=xp_orb]
+5546 /kill @e[type=item]
+5548 /setblock 1 -59 0 lit_redstone_ore
+5550 mine 1 -59 0 4 0
+5562 stop
+5563 /kill @e[type=xp_orb]
+5564 /kill @e[type=item]
+5566 /setblock 1 -59 0 lit_redstone_ore
+5568 mine 1 -59 0 4 0
+5580 stop
+5581 /kill @e[type=xp_orb]
+5582 /kill @e[type=item]
+5584 /setblock 1 -59 0 lit_redstone_ore
+5586 mine 1 -59 0 4 0
+5598 stop
+5599 /kill @e[type=xp_orb]
+5600 /kill @e[type=item]
+5602 /setblock 1 -59 0 lit_redstone_ore
+5604 mine 1 -59 0 4 0
+5616 stop
+5617 /kill @e[type=xp_orb]
+5618 /kill @e[type=item]
+5620 /setblock 1 -59 0 lit_redstone_ore
+5622 mine 1 -59 0 4 0
+5634 stop
+5635 /kill @e[type=xp_orb]
+5636 /kill @e[type=item]
+5638 /setblock 1 -59 0 lit_redstone_ore
+5640 mine 1 -59 0 4 0
+5652 stop
+5653 /kill @e[type=xp_orb]
+5654 /kill @e[type=item]
+5656 /setblock 1 -59 0 lit_redstone_ore
+5658 mine 1 -59 0 4 0
+5670 stop
+5671 /kill @e[type=xp_orb]
+5672 /kill @e[type=item]
+5674 /setblock 1 -59 0 lit_redstone_ore
+5676 mine 1 -59 0 4 0
+5688 stop
+5689 /kill @e[type=xp_orb]
+5690 /kill @e[type=item]
+5692 /setblock 1 -59 0 lit_redstone_ore
+5694 mine 1 -59 0 4 0
+5706 stop
+5707 /kill @e[type=xp_orb]
+5708 /kill @e[type=item]
+5710 /setblock 1 -59 0 lit_redstone_ore
+5712 mine 1 -59 0 4 0
+5724 stop
+5725 /kill @e[type=xp_orb]
+5726 /kill @e[type=item]
+5728 /setblock 1 -59 0 lit_redstone_ore
+5730 mine 1 -59 0 4 0
+5742 stop
+5743 /kill @e[type=xp_orb]
+5744 /kill @e[type=item]
+5746 /setblock 1 -59 0 lit_redstone_ore
+5748 mine 1 -59 0 4 0
+5760 stop
+5761 /kill @e[type=xp_orb]
+5762 /kill @e[type=item]
+5764 /setblock 1 -59 0 lit_redstone_ore
+5766 mine 1 -59 0 4 0
+5778 stop
+5779 /kill @e[type=xp_orb]
+5780 /kill @e[type=item]
+5782 /setblock 1 -59 0 lit_redstone_ore
+5784 mine 1 -59 0 4 0
+5796 stop
+5797 /kill @e[type=xp_orb]
+5798 /kill @e[type=item]
+5800 /setblock 1 -59 0 lit_redstone_ore
+5802 mine 1 -59 0 4 0
+5814 stop
+5815 /kill @e[type=xp_orb]
+5816 /kill @e[type=item]
+5818 /setblock 1 -59 0 lit_redstone_ore
+5820 mine 1 -59 0 4 0
+5832 stop
+5833 /kill @e[type=xp_orb]
+5834 /kill @e[type=item]
+5836 /setblock 1 -59 0 lit_redstone_ore
+5838 mine 1 -59 0 4 0
+5850 stop
+5851 /kill @e[type=xp_orb]
+5852 /kill @e[type=item]
+5854 /setblock 1 -59 0 lit_redstone_ore
+5856 mine 1 -59 0 4 0
+5868 stop
+5869 /kill @e[type=xp_orb]
+5870 /kill @e[type=item]
+5872 /setblock 1 -59 0 lit_redstone_ore
+5874 mine 1 -59 0 4 0
+5886 stop
+5887 /kill @e[type=xp_orb]
+5888 /kill @e[type=item]
+5890 /setblock 1 -59 0 lit_redstone_ore
+5892 mine 1 -59 0 4 0
+5904 stop
+5905 /kill @e[type=xp_orb]
+5906 /kill @e[type=item]
+5908 /setblock 1 -59 0 lit_redstone_ore
+5910 mine 1 -59 0 4 0
+5922 stop
+5923 /kill @e[type=xp_orb]
+5924 /kill @e[type=item]
+5926 /setblock 1 -59 0 lit_redstone_ore
+5928 mine 1 -59 0 4 0
+5940 stop
+5941 /kill @e[type=xp_orb]
+5942 /kill @e[type=item]
+5944 /setblock 1 -59 0 lit_redstone_ore
+5946 mine 1 -59 0 4 0
+5958 stop
+5959 /kill @e[type=xp_orb]
+5960 /kill @e[type=item]
+5962 /setblock 1 -59 0 lit_redstone_ore
+5964 mine 1 -59 0 4 0
+5976 stop
+5977 /kill @e[type=xp_orb]
+5978 /kill @e[type=item]
+# lit_deepslate_redstone_ore
+5980 /setblock 1 -59 0 lit_deepslate_redstone_ore
+5982 mine 1 -59 0 4 0
+5994 stop
+5995 /kill @e[type=xp_orb]
+5996 /kill @e[type=item]
+5998 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6000 mine 1 -59 0 4 0
+6012 stop
+6013 /kill @e[type=xp_orb]
+6014 /kill @e[type=item]
+6016 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6018 mine 1 -59 0 4 0
+6030 stop
+6031 /kill @e[type=xp_orb]
+6032 /kill @e[type=item]
+6034 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6036 mine 1 -59 0 4 0
+6048 stop
+6049 /kill @e[type=xp_orb]
+6050 /kill @e[type=item]
+6052 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6054 mine 1 -59 0 4 0
+6066 stop
+6067 /kill @e[type=xp_orb]
+6068 /kill @e[type=item]
+6070 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6072 mine 1 -59 0 4 0
+6084 stop
+6085 /kill @e[type=xp_orb]
+6086 /kill @e[type=item]
+6088 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6090 mine 1 -59 0 4 0
+6102 stop
+6103 /kill @e[type=xp_orb]
+6104 /kill @e[type=item]
+6106 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6108 mine 1 -59 0 4 0
+6120 stop
+6121 /kill @e[type=xp_orb]
+6122 /kill @e[type=item]
+6124 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6126 mine 1 -59 0 4 0
+6138 stop
+6139 /kill @e[type=xp_orb]
+6140 /kill @e[type=item]
+6142 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6144 mine 1 -59 0 4 0
+6156 stop
+6157 /kill @e[type=xp_orb]
+6158 /kill @e[type=item]
+6160 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6162 mine 1 -59 0 4 0
+6174 stop
+6175 /kill @e[type=xp_orb]
+6176 /kill @e[type=item]
+6178 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6180 mine 1 -59 0 4 0
+6192 stop
+6193 /kill @e[type=xp_orb]
+6194 /kill @e[type=item]
+6196 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6198 mine 1 -59 0 4 0
+6210 stop
+6211 /kill @e[type=xp_orb]
+6212 /kill @e[type=item]
+6214 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6216 mine 1 -59 0 4 0
+6228 stop
+6229 /kill @e[type=xp_orb]
+6230 /kill @e[type=item]
+6232 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6234 mine 1 -59 0 4 0
+6246 stop
+6247 /kill @e[type=xp_orb]
+6248 /kill @e[type=item]
+6250 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6252 mine 1 -59 0 4 0
+6264 stop
+6265 /kill @e[type=xp_orb]
+6266 /kill @e[type=item]
+6268 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6270 mine 1 -59 0 4 0
+6282 stop
+6283 /kill @e[type=xp_orb]
+6284 /kill @e[type=item]
+6286 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6288 mine 1 -59 0 4 0
+6300 stop
+6301 /kill @e[type=xp_orb]
+6302 /kill @e[type=item]
+6304 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6306 mine 1 -59 0 4 0
+6318 stop
+6319 /kill @e[type=xp_orb]
+6320 /kill @e[type=item]
+6322 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6324 mine 1 -59 0 4 0
+6336 stop
+6337 /kill @e[type=xp_orb]
+6338 /kill @e[type=item]
+6340 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6342 mine 1 -59 0 4 0
+6354 stop
+6355 /kill @e[type=xp_orb]
+6356 /kill @e[type=item]
+6358 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6360 mine 1 -59 0 4 0
+6372 stop
+6373 /kill @e[type=xp_orb]
+6374 /kill @e[type=item]
+6376 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6378 mine 1 -59 0 4 0
+6390 stop
+6391 /kill @e[type=xp_orb]
+6392 /kill @e[type=item]
+6394 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6396 mine 1 -59 0 4 0
+6408 stop
+6409 /kill @e[type=xp_orb]
+6410 /kill @e[type=item]
+6412 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6414 mine 1 -59 0 4 0
+6426 stop
+6427 /kill @e[type=xp_orb]
+6428 /kill @e[type=item]
+6430 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6432 mine 1 -59 0 4 0
+6444 stop
+6445 /kill @e[type=xp_orb]
+6446 /kill @e[type=item]
+6448 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6450 mine 1 -59 0 4 0
+6462 stop
+6463 /kill @e[type=xp_orb]
+6464 /kill @e[type=item]
+6466 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6468 mine 1 -59 0 4 0
+6480 stop
+6481 /kill @e[type=xp_orb]
+6482 /kill @e[type=item]
+6484 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6486 mine 1 -59 0 4 0
+6498 stop
+6499 /kill @e[type=xp_orb]
+6500 /kill @e[type=item]
+6502 /setblock 1 -59 0 lit_deepslate_redstone_ore
+6504 mine 1 -59 0 4 0
+6516 stop
+6517 /kill @e[type=xp_orb]
+6518 /kill @e[type=item]
+# nether_gold_ore
+6520 /setblock 1 -59 0 nether_gold_ore
+6522 mine 1 -59 0 4 0
+6534 stop
+6535 /kill @e[type=xp_orb]
+6536 /kill @e[type=item]
+6538 /setblock 1 -59 0 nether_gold_ore
+6540 mine 1 -59 0 4 0
+6552 stop
+6553 /kill @e[type=xp_orb]
+6554 /kill @e[type=item]
+6556 /setblock 1 -59 0 nether_gold_ore
+6558 mine 1 -59 0 4 0
+6570 stop
+6571 /kill @e[type=xp_orb]
+6572 /kill @e[type=item]
+6574 /setblock 1 -59 0 nether_gold_ore
+6576 mine 1 -59 0 4 0
+6588 stop
+6589 /kill @e[type=xp_orb]
+6590 /kill @e[type=item]
+6592 /setblock 1 -59 0 nether_gold_ore
+6594 mine 1 -59 0 4 0
+6606 stop
+6607 /kill @e[type=xp_orb]
+6608 /kill @e[type=item]
+6610 /setblock 1 -59 0 nether_gold_ore
+6612 mine 1 -59 0 4 0
+6624 stop
+6625 /kill @e[type=xp_orb]
+6626 /kill @e[type=item]
+6628 /setblock 1 -59 0 nether_gold_ore
+6630 mine 1 -59 0 4 0
+6642 stop
+6643 /kill @e[type=xp_orb]
+6644 /kill @e[type=item]
+6646 /setblock 1 -59 0 nether_gold_ore
+6648 mine 1 -59 0 4 0
+6660 stop
+6661 /kill @e[type=xp_orb]
+6662 /kill @e[type=item]
+6664 /setblock 1 -59 0 nether_gold_ore
+6666 mine 1 -59 0 4 0
+6678 stop
+6679 /kill @e[type=xp_orb]
+6680 /kill @e[type=item]
+6682 /setblock 1 -59 0 nether_gold_ore
+6684 mine 1 -59 0 4 0
+6696 stop
+6697 /kill @e[type=xp_orb]
+6698 /kill @e[type=item]
+6700 /setblock 1 -59 0 nether_gold_ore
+6702 mine 1 -59 0 4 0
+6714 stop
+6715 /kill @e[type=xp_orb]
+6716 /kill @e[type=item]
+6718 /setblock 1 -59 0 nether_gold_ore
+6720 mine 1 -59 0 4 0
+6732 stop
+6733 /kill @e[type=xp_orb]
+6734 /kill @e[type=item]
+6736 /setblock 1 -59 0 nether_gold_ore
+6738 mine 1 -59 0 4 0
+6750 stop
+6751 /kill @e[type=xp_orb]
+6752 /kill @e[type=item]
+6754 /setblock 1 -59 0 nether_gold_ore
+6756 mine 1 -59 0 4 0
+6768 stop
+6769 /kill @e[type=xp_orb]
+6770 /kill @e[type=item]
+6772 /setblock 1 -59 0 nether_gold_ore
+6774 mine 1 -59 0 4 0
+6786 stop
+6787 /kill @e[type=xp_orb]
+6788 /kill @e[type=item]
+6790 /setblock 1 -59 0 nether_gold_ore
+6792 mine 1 -59 0 4 0
+6804 stop
+6805 /kill @e[type=xp_orb]
+6806 /kill @e[type=item]
+6808 /setblock 1 -59 0 nether_gold_ore
+6810 mine 1 -59 0 4 0
+6822 stop
+6823 /kill @e[type=xp_orb]
+6824 /kill @e[type=item]
+6826 /setblock 1 -59 0 nether_gold_ore
+6828 mine 1 -59 0 4 0
+6840 stop
+6841 /kill @e[type=xp_orb]
+6842 /kill @e[type=item]
+6844 /setblock 1 -59 0 nether_gold_ore
+6846 mine 1 -59 0 4 0
+6858 stop
+6859 /kill @e[type=xp_orb]
+6860 /kill @e[type=item]
+6862 /setblock 1 -59 0 nether_gold_ore
+6864 mine 1 -59 0 4 0
+6876 stop
+6877 /kill @e[type=xp_orb]
+6878 /kill @e[type=item]
+6880 /setblock 1 -59 0 nether_gold_ore
+6882 mine 1 -59 0 4 0
+6894 stop
+6895 /kill @e[type=xp_orb]
+6896 /kill @e[type=item]
+6898 /setblock 1 -59 0 nether_gold_ore
+6900 mine 1 -59 0 4 0
+6912 stop
+6913 /kill @e[type=xp_orb]
+6914 /kill @e[type=item]
+6916 /setblock 1 -59 0 nether_gold_ore
+6918 mine 1 -59 0 4 0
+6930 stop
+6931 /kill @e[type=xp_orb]
+6932 /kill @e[type=item]
+6934 /setblock 1 -59 0 nether_gold_ore
+6936 mine 1 -59 0 4 0
+6948 stop
+6949 /kill @e[type=xp_orb]
+6950 /kill @e[type=item]
+6952 /setblock 1 -59 0 nether_gold_ore
+6954 mine 1 -59 0 4 0
+6966 stop
+6967 /kill @e[type=xp_orb]
+6968 /kill @e[type=item]
+6970 /setblock 1 -59 0 nether_gold_ore
+6972 mine 1 -59 0 4 0
+6984 stop
+6985 /kill @e[type=xp_orb]
+6986 /kill @e[type=item]
+6988 /setblock 1 -59 0 nether_gold_ore
+6990 mine 1 -59 0 4 0
+7002 stop
+7003 /kill @e[type=xp_orb]
+7004 /kill @e[type=item]
+7006 /setblock 1 -59 0 nether_gold_ore
+7008 mine 1 -59 0 4 0
+7020 stop
+7021 /kill @e[type=xp_orb]
+7022 /kill @e[type=item]
+7024 /setblock 1 -59 0 nether_gold_ore
+7026 mine 1 -59 0 4 0
+7038 stop
+7039 /kill @e[type=xp_orb]
+7040 /kill @e[type=item]
+7042 /setblock 1 -59 0 nether_gold_ore
+7044 mine 1 -59 0 4 0
+7056 stop
+7057 /kill @e[type=xp_orb]
+7058 /kill @e[type=item]
+# quartz_ore
+7060 /setblock 1 -59 0 quartz_ore
+7062 mine 1 -59 0 4 0
+7074 stop
+7075 /kill @e[type=xp_orb]
+7076 /kill @e[type=item]
+7078 /setblock 1 -59 0 quartz_ore
+7080 mine 1 -59 0 4 0
+7092 stop
+7093 /kill @e[type=xp_orb]
+7094 /kill @e[type=item]
+7096 /setblock 1 -59 0 quartz_ore
+7098 mine 1 -59 0 4 0
+7110 stop
+7111 /kill @e[type=xp_orb]
+7112 /kill @e[type=item]
+7114 /setblock 1 -59 0 quartz_ore
+7116 mine 1 -59 0 4 0
+7128 stop
+7129 /kill @e[type=xp_orb]
+7130 /kill @e[type=item]
+7132 /setblock 1 -59 0 quartz_ore
+7134 mine 1 -59 0 4 0
+7146 stop
+7147 /kill @e[type=xp_orb]
+7148 /kill @e[type=item]
+7150 /setblock 1 -59 0 quartz_ore
+7152 mine 1 -59 0 4 0
+7164 stop
+7165 /kill @e[type=xp_orb]
+7166 /kill @e[type=item]
+7168 /setblock 1 -59 0 quartz_ore
+7170 mine 1 -59 0 4 0
+7182 stop
+7183 /kill @e[type=xp_orb]
+7184 /kill @e[type=item]
+7186 /setblock 1 -59 0 quartz_ore
+7188 mine 1 -59 0 4 0
+7200 stop
+7201 /kill @e[type=xp_orb]
+7202 /kill @e[type=item]
+7204 /setblock 1 -59 0 quartz_ore
+7206 mine 1 -59 0 4 0
+7218 stop
+7219 /kill @e[type=xp_orb]
+7220 /kill @e[type=item]
+7222 /setblock 1 -59 0 quartz_ore
+7224 mine 1 -59 0 4 0
+7236 stop
+7237 /kill @e[type=xp_orb]
+7238 /kill @e[type=item]
+7240 /setblock 1 -59 0 quartz_ore
+7242 mine 1 -59 0 4 0
+7254 stop
+7255 /kill @e[type=xp_orb]
+7256 /kill @e[type=item]
+7258 /setblock 1 -59 0 quartz_ore
+7260 mine 1 -59 0 4 0
+7272 stop
+7273 /kill @e[type=xp_orb]
+7274 /kill @e[type=item]
+7276 /setblock 1 -59 0 quartz_ore
+7278 mine 1 -59 0 4 0
+7290 stop
+7291 /kill @e[type=xp_orb]
+7292 /kill @e[type=item]
+7294 /setblock 1 -59 0 quartz_ore
+7296 mine 1 -59 0 4 0
+7308 stop
+7309 /kill @e[type=xp_orb]
+7310 /kill @e[type=item]
+7312 /setblock 1 -59 0 quartz_ore
+7314 mine 1 -59 0 4 0
+7326 stop
+7327 /kill @e[type=xp_orb]
+7328 /kill @e[type=item]
+7330 /setblock 1 -59 0 quartz_ore
+7332 mine 1 -59 0 4 0
+7344 stop
+7345 /kill @e[type=xp_orb]
+7346 /kill @e[type=item]
+7348 /setblock 1 -59 0 quartz_ore
+7350 mine 1 -59 0 4 0
+7362 stop
+7363 /kill @e[type=xp_orb]
+7364 /kill @e[type=item]
+7366 /setblock 1 -59 0 quartz_ore
+7368 mine 1 -59 0 4 0
+7380 stop
+7381 /kill @e[type=xp_orb]
+7382 /kill @e[type=item]
+7384 /setblock 1 -59 0 quartz_ore
+7386 mine 1 -59 0 4 0
+7398 stop
+7399 /kill @e[type=xp_orb]
+7400 /kill @e[type=item]
+7402 /setblock 1 -59 0 quartz_ore
+7404 mine 1 -59 0 4 0
+7416 stop
+7417 /kill @e[type=xp_orb]
+7418 /kill @e[type=item]
+7420 /setblock 1 -59 0 quartz_ore
+7422 mine 1 -59 0 4 0
+7434 stop
+7435 /kill @e[type=xp_orb]
+7436 /kill @e[type=item]
+7438 /setblock 1 -59 0 quartz_ore
+7440 mine 1 -59 0 4 0
+7452 stop
+7453 /kill @e[type=xp_orb]
+7454 /kill @e[type=item]
+7456 /setblock 1 -59 0 quartz_ore
+7458 mine 1 -59 0 4 0
+7470 stop
+7471 /kill @e[type=xp_orb]
+7472 /kill @e[type=item]
+7474 /setblock 1 -59 0 quartz_ore
+7476 mine 1 -59 0 4 0
+7488 stop
+7489 /kill @e[type=xp_orb]
+7490 /kill @e[type=item]
+7492 /setblock 1 -59 0 quartz_ore
+7494 mine 1 -59 0 4 0
+7506 stop
+7507 /kill @e[type=xp_orb]
+7508 /kill @e[type=item]
+7510 /setblock 1 -59 0 quartz_ore
+7512 mine 1 -59 0 4 0
+7524 stop
+7525 /kill @e[type=xp_orb]
+7526 /kill @e[type=item]
+7528 /setblock 1 -59 0 quartz_ore
+7530 mine 1 -59 0 4 0
+7542 stop
+7543 /kill @e[type=xp_orb]
+7544 /kill @e[type=item]
+7546 /setblock 1 -59 0 quartz_ore
+7548 mine 1 -59 0 4 0
+7560 stop
+7561 /kill @e[type=xp_orb]
+7562 /kill @e[type=item]
+7564 /setblock 1 -59 0 quartz_ore
+7566 mine 1 -59 0 4 0
+7578 stop
+7579 /kill @e[type=xp_orb]
+7580 /kill @e[type=item]
+7582 /setblock 1 -59 0 quartz_ore
+7584 mine 1 -59 0 4 0
+7596 stop
+7597 /kill @e[type=xp_orb]
+7598 /kill @e[type=item]
+# sculk
+7600 /setblock 1 -59 0 sculk
+7602 mine 1 -59 0 4 0
+7614 stop
+7615 /kill @e[type=xp_orb]
+7616 /kill @e[type=item]
+7618 /setblock 1 -59 0 sculk
+7620 mine 1 -59 0 4 0
+7632 stop
+7633 /kill @e[type=xp_orb]
+7634 /kill @e[type=item]
+7636 /setblock 1 -59 0 sculk
+7638 mine 1 -59 0 4 0
+7650 stop
+7651 /kill @e[type=xp_orb]
+7652 /kill @e[type=item]
+7654 /setblock 1 -59 0 sculk
+7656 mine 1 -59 0 4 0
+7668 stop
+7669 /kill @e[type=xp_orb]
+7670 /kill @e[type=item]
+7672 /setblock 1 -59 0 sculk
+7674 mine 1 -59 0 4 0
+7686 stop
+7687 /kill @e[type=xp_orb]
+7688 /kill @e[type=item]
+7690 /setblock 1 -59 0 sculk
+7692 mine 1 -59 0 4 0
+7704 stop
+7705 /kill @e[type=xp_orb]
+7706 /kill @e[type=item]
+7708 /setblock 1 -59 0 sculk
+7710 mine 1 -59 0 4 0
+7722 stop
+7723 /kill @e[type=xp_orb]
+7724 /kill @e[type=item]
+7726 /setblock 1 -59 0 sculk
+7728 mine 1 -59 0 4 0
+7740 stop
+7741 /kill @e[type=xp_orb]
+7742 /kill @e[type=item]
+7744 /setblock 1 -59 0 sculk
+7746 mine 1 -59 0 4 0
+7758 stop
+7759 /kill @e[type=xp_orb]
+7760 /kill @e[type=item]
+7762 /setblock 1 -59 0 sculk
+7764 mine 1 -59 0 4 0
+7776 stop
+7777 /kill @e[type=xp_orb]
+7778 /kill @e[type=item]
+7780 /setblock 1 -59 0 sculk
+7782 mine 1 -59 0 4 0
+7794 stop
+7795 /kill @e[type=xp_orb]
+7796 /kill @e[type=item]
+7798 /setblock 1 -59 0 sculk
+7800 mine 1 -59 0 4 0
+7812 stop
+7813 /kill @e[type=xp_orb]
+7814 /kill @e[type=item]
+7816 /setblock 1 -59 0 sculk
+7818 mine 1 -59 0 4 0
+7830 stop
+7831 /kill @e[type=xp_orb]
+7832 /kill @e[type=item]
+7834 /setblock 1 -59 0 sculk
+7836 mine 1 -59 0 4 0
+7848 stop
+7849 /kill @e[type=xp_orb]
+7850 /kill @e[type=item]
+7852 /setblock 1 -59 0 sculk
+7854 mine 1 -59 0 4 0
+7866 stop
+7867 /kill @e[type=xp_orb]
+7868 /kill @e[type=item]
+7870 /setblock 1 -59 0 sculk
+7872 mine 1 -59 0 4 0
+7884 stop
+7885 /kill @e[type=xp_orb]
+7886 /kill @e[type=item]
+7888 /setblock 1 -59 0 sculk
+7890 mine 1 -59 0 4 0
+7902 stop
+7903 /kill @e[type=xp_orb]
+7904 /kill @e[type=item]
+7906 /setblock 1 -59 0 sculk
+7908 mine 1 -59 0 4 0
+7920 stop
+7921 /kill @e[type=xp_orb]
+7922 /kill @e[type=item]
+7924 /setblock 1 -59 0 sculk
+7926 mine 1 -59 0 4 0
+7938 stop
+7939 /kill @e[type=xp_orb]
+7940 /kill @e[type=item]
+7942 /setblock 1 -59 0 sculk
+7944 mine 1 -59 0 4 0
+7956 stop
+7957 /kill @e[type=xp_orb]
+7958 /kill @e[type=item]
+7960 /setblock 1 -59 0 sculk
+7962 mine 1 -59 0 4 0
+7974 stop
+7975 /kill @e[type=xp_orb]
+7976 /kill @e[type=item]
+7978 /setblock 1 -59 0 sculk
+7980 mine 1 -59 0 4 0
+7992 stop
+7993 /kill @e[type=xp_orb]
+7994 /kill @e[type=item]
+7996 /setblock 1 -59 0 sculk
+7998 mine 1 -59 0 4 0
+8010 stop
+8011 /kill @e[type=xp_orb]
+8012 /kill @e[type=item]
+8014 /setblock 1 -59 0 sculk
+8016 mine 1 -59 0 4 0
+8028 stop
+8029 /kill @e[type=xp_orb]
+8030 /kill @e[type=item]
+8032 /setblock 1 -59 0 sculk
+8034 mine 1 -59 0 4 0
+8046 stop
+8047 /kill @e[type=xp_orb]
+8048 /kill @e[type=item]
+8050 /setblock 1 -59 0 sculk
+8052 mine 1 -59 0 4 0
+8064 stop
+8065 /kill @e[type=xp_orb]
+8066 /kill @e[type=item]
+8068 /setblock 1 -59 0 sculk
+8070 mine 1 -59 0 4 0
+8082 stop
+8083 /kill @e[type=xp_orb]
+8084 /kill @e[type=item]
+8086 /setblock 1 -59 0 sculk
+8088 mine 1 -59 0 4 0
+8100 stop
+8101 /kill @e[type=xp_orb]
+8102 /kill @e[type=item]
+8104 /setblock 1 -59 0 sculk
+8106 mine 1 -59 0 4 0
+8118 stop
+8119 /kill @e[type=xp_orb]
+8120 /kill @e[type=item]
+8122 /setblock 1 -59 0 sculk
+8124 mine 1 -59 0 4 0
+8136 stop
+8137 /kill @e[type=xp_orb]
+8138 /kill @e[type=item]
+# sculk_catalyst
+8140 /setblock 1 -59 0 sculk_catalyst
+8142 mine 1 -59 0 4 0
+8154 stop
+8155 /kill @e[type=xp_orb]
+8156 /kill @e[type=item]
+8158 /setblock 1 -59 0 sculk_catalyst
+8160 mine 1 -59 0 4 0
+8172 stop
+8173 /kill @e[type=xp_orb]
+8174 /kill @e[type=item]
+8176 /setblock 1 -59 0 sculk_catalyst
+8178 mine 1 -59 0 4 0
+8190 stop
+8191 /kill @e[type=xp_orb]
+8192 /kill @e[type=item]
+8194 /setblock 1 -59 0 sculk_catalyst
+8196 mine 1 -59 0 4 0
+8208 stop
+8209 /kill @e[type=xp_orb]
+8210 /kill @e[type=item]
+8212 /setblock 1 -59 0 sculk_catalyst
+8214 mine 1 -59 0 4 0
+8226 stop
+8227 /kill @e[type=xp_orb]
+8228 /kill @e[type=item]
+8230 /setblock 1 -59 0 sculk_catalyst
+8232 mine 1 -59 0 4 0
+8244 stop
+8245 /kill @e[type=xp_orb]
+8246 /kill @e[type=item]
+8248 /setblock 1 -59 0 sculk_catalyst
+8250 mine 1 -59 0 4 0
+8262 stop
+8263 /kill @e[type=xp_orb]
+8264 /kill @e[type=item]
+8266 /setblock 1 -59 0 sculk_catalyst
+8268 mine 1 -59 0 4 0
+8280 stop
+8281 /kill @e[type=xp_orb]
+8282 /kill @e[type=item]
+8284 /setblock 1 -59 0 sculk_catalyst
+8286 mine 1 -59 0 4 0
+8298 stop
+8299 /kill @e[type=xp_orb]
+8300 /kill @e[type=item]
+8302 /setblock 1 -59 0 sculk_catalyst
+8304 mine 1 -59 0 4 0
+8316 stop
+8317 /kill @e[type=xp_orb]
+8318 /kill @e[type=item]
+8320 /setblock 1 -59 0 sculk_catalyst
+8322 mine 1 -59 0 4 0
+8334 stop
+8335 /kill @e[type=xp_orb]
+8336 /kill @e[type=item]
+8338 /setblock 1 -59 0 sculk_catalyst
+8340 mine 1 -59 0 4 0
+8352 stop
+8353 /kill @e[type=xp_orb]
+8354 /kill @e[type=item]
+8356 /setblock 1 -59 0 sculk_catalyst
+8358 mine 1 -59 0 4 0
+8370 stop
+8371 /kill @e[type=xp_orb]
+8372 /kill @e[type=item]
+8374 /setblock 1 -59 0 sculk_catalyst
+8376 mine 1 -59 0 4 0
+8388 stop
+8389 /kill @e[type=xp_orb]
+8390 /kill @e[type=item]
+8392 /setblock 1 -59 0 sculk_catalyst
+8394 mine 1 -59 0 4 0
+8406 stop
+8407 /kill @e[type=xp_orb]
+8408 /kill @e[type=item]
+8410 /setblock 1 -59 0 sculk_catalyst
+8412 mine 1 -59 0 4 0
+8424 stop
+8425 /kill @e[type=xp_orb]
+8426 /kill @e[type=item]
+8428 /setblock 1 -59 0 sculk_catalyst
+8430 mine 1 -59 0 4 0
+8442 stop
+8443 /kill @e[type=xp_orb]
+8444 /kill @e[type=item]
+8446 /setblock 1 -59 0 sculk_catalyst
+8448 mine 1 -59 0 4 0
+8460 stop
+8461 /kill @e[type=xp_orb]
+8462 /kill @e[type=item]
+8464 /setblock 1 -59 0 sculk_catalyst
+8466 mine 1 -59 0 4 0
+8478 stop
+8479 /kill @e[type=xp_orb]
+8480 /kill @e[type=item]
+8482 /setblock 1 -59 0 sculk_catalyst
+8484 mine 1 -59 0 4 0
+8496 stop
+8497 /kill @e[type=xp_orb]
+8498 /kill @e[type=item]
+8500 /setblock 1 -59 0 sculk_catalyst
+8502 mine 1 -59 0 4 0
+8514 stop
+8515 /kill @e[type=xp_orb]
+8516 /kill @e[type=item]
+8518 /setblock 1 -59 0 sculk_catalyst
+8520 mine 1 -59 0 4 0
+8532 stop
+8533 /kill @e[type=xp_orb]
+8534 /kill @e[type=item]
+8536 /setblock 1 -59 0 sculk_catalyst
+8538 mine 1 -59 0 4 0
+8550 stop
+8551 /kill @e[type=xp_orb]
+8552 /kill @e[type=item]
+8554 /setblock 1 -59 0 sculk_catalyst
+8556 mine 1 -59 0 4 0
+8568 stop
+8569 /kill @e[type=xp_orb]
+8570 /kill @e[type=item]
+8572 /setblock 1 -59 0 sculk_catalyst
+8574 mine 1 -59 0 4 0
+8586 stop
+8587 /kill @e[type=xp_orb]
+8588 /kill @e[type=item]
+8590 /setblock 1 -59 0 sculk_catalyst
+8592 mine 1 -59 0 4 0
+8604 stop
+8605 /kill @e[type=xp_orb]
+8606 /kill @e[type=item]
+8608 /setblock 1 -59 0 sculk_catalyst
+8610 mine 1 -59 0 4 0
+8622 stop
+8623 /kill @e[type=xp_orb]
+8624 /kill @e[type=item]
+8626 /setblock 1 -59 0 sculk_catalyst
+8628 mine 1 -59 0 4 0
+8640 stop
+8641 /kill @e[type=xp_orb]
+8642 /kill @e[type=item]
+8644 /setblock 1 -59 0 sculk_catalyst
+8646 mine 1 -59 0 4 0
+8658 stop
+8659 /kill @e[type=xp_orb]
+8660 /kill @e[type=item]
+8662 /setblock 1 -59 0 sculk_catalyst
+8664 mine 1 -59 0 4 0
+8676 stop
+8677 /kill @e[type=xp_orb]
+8678 /kill @e[type=item]
+# sculk_shrieker
+8680 /setblock 1 -59 0 sculk_shrieker
+8682 mine 1 -59 0 4 0
+8694 stop
+8695 /kill @e[type=xp_orb]
+8696 /kill @e[type=item]
+8698 /setblock 1 -59 0 sculk_shrieker
+8700 mine 1 -59 0 4 0
+8712 stop
+8713 /kill @e[type=xp_orb]
+8714 /kill @e[type=item]
+8716 /setblock 1 -59 0 sculk_shrieker
+8718 mine 1 -59 0 4 0
+8730 stop
+8731 /kill @e[type=xp_orb]
+8732 /kill @e[type=item]
+8734 /setblock 1 -59 0 sculk_shrieker
+8736 mine 1 -59 0 4 0
+8748 stop
+8749 /kill @e[type=xp_orb]
+8750 /kill @e[type=item]
+8752 /setblock 1 -59 0 sculk_shrieker
+8754 mine 1 -59 0 4 0
+8766 stop
+8767 /kill @e[type=xp_orb]
+8768 /kill @e[type=item]
+8770 /setblock 1 -59 0 sculk_shrieker
+8772 mine 1 -59 0 4 0
+8784 stop
+8785 /kill @e[type=xp_orb]
+8786 /kill @e[type=item]
+8788 /setblock 1 -59 0 sculk_shrieker
+8790 mine 1 -59 0 4 0
+8802 stop
+8803 /kill @e[type=xp_orb]
+8804 /kill @e[type=item]
+8806 /setblock 1 -59 0 sculk_shrieker
+8808 mine 1 -59 0 4 0
+8820 stop
+8821 /kill @e[type=xp_orb]
+8822 /kill @e[type=item]
+8824 /setblock 1 -59 0 sculk_shrieker
+8826 mine 1 -59 0 4 0
+8838 stop
+8839 /kill @e[type=xp_orb]
+8840 /kill @e[type=item]
+8842 /setblock 1 -59 0 sculk_shrieker
+8844 mine 1 -59 0 4 0
+8856 stop
+8857 /kill @e[type=xp_orb]
+8858 /kill @e[type=item]
+8860 /setblock 1 -59 0 sculk_shrieker
+8862 mine 1 -59 0 4 0
+8874 stop
+8875 /kill @e[type=xp_orb]
+8876 /kill @e[type=item]
+8878 /setblock 1 -59 0 sculk_shrieker
+8880 mine 1 -59 0 4 0
+8892 stop
+8893 /kill @e[type=xp_orb]
+8894 /kill @e[type=item]
+8896 /setblock 1 -59 0 sculk_shrieker
+8898 mine 1 -59 0 4 0
+8910 stop
+8911 /kill @e[type=xp_orb]
+8912 /kill @e[type=item]
+8914 /setblock 1 -59 0 sculk_shrieker
+8916 mine 1 -59 0 4 0
+8928 stop
+8929 /kill @e[type=xp_orb]
+8930 /kill @e[type=item]
+8932 /setblock 1 -59 0 sculk_shrieker
+8934 mine 1 -59 0 4 0
+8946 stop
+8947 /kill @e[type=xp_orb]
+8948 /kill @e[type=item]
+8950 /setblock 1 -59 0 sculk_shrieker
+8952 mine 1 -59 0 4 0
+8964 stop
+8965 /kill @e[type=xp_orb]
+8966 /kill @e[type=item]
+8968 /setblock 1 -59 0 sculk_shrieker
+8970 mine 1 -59 0 4 0
+8982 stop
+8983 /kill @e[type=xp_orb]
+8984 /kill @e[type=item]
+8986 /setblock 1 -59 0 sculk_shrieker
+8988 mine 1 -59 0 4 0
+9000 stop
+9001 /kill @e[type=xp_orb]
+9002 /kill @e[type=item]
+9004 /setblock 1 -59 0 sculk_shrieker
+9006 mine 1 -59 0 4 0
+9018 stop
+9019 /kill @e[type=xp_orb]
+9020 /kill @e[type=item]
+9022 /setblock 1 -59 0 sculk_shrieker
+9024 mine 1 -59 0 4 0
+9036 stop
+9037 /kill @e[type=xp_orb]
+9038 /kill @e[type=item]
+9040 /setblock 1 -59 0 sculk_shrieker
+9042 mine 1 -59 0 4 0
+9054 stop
+9055 /kill @e[type=xp_orb]
+9056 /kill @e[type=item]
+9058 /setblock 1 -59 0 sculk_shrieker
+9060 mine 1 -59 0 4 0
+9072 stop
+9073 /kill @e[type=xp_orb]
+9074 /kill @e[type=item]
+9076 /setblock 1 -59 0 sculk_shrieker
+9078 mine 1 -59 0 4 0
+9090 stop
+9091 /kill @e[type=xp_orb]
+9092 /kill @e[type=item]
+9094 /setblock 1 -59 0 sculk_shrieker
+9096 mine 1 -59 0 4 0
+9108 stop
+9109 /kill @e[type=xp_orb]
+9110 /kill @e[type=item]
+9112 /setblock 1 -59 0 sculk_shrieker
+9114 mine 1 -59 0 4 0
+9126 stop
+9127 /kill @e[type=xp_orb]
+9128 /kill @e[type=item]
+9130 /setblock 1 -59 0 sculk_shrieker
+9132 mine 1 -59 0 4 0
+9144 stop
+9145 /kill @e[type=xp_orb]
+9146 /kill @e[type=item]
+9148 /setblock 1 -59 0 sculk_shrieker
+9150 mine 1 -59 0 4 0
+9162 stop
+9163 /kill @e[type=xp_orb]
+9164 /kill @e[type=item]
+9166 /setblock 1 -59 0 sculk_shrieker
+9168 mine 1 -59 0 4 0
+9180 stop
+9181 /kill @e[type=xp_orb]
+9182 /kill @e[type=item]
+9184 /setblock 1 -59 0 sculk_shrieker
+9186 mine 1 -59 0 4 0
+9198 stop
+9199 /kill @e[type=xp_orb]
+9200 /kill @e[type=item]
+9202 /setblock 1 -59 0 sculk_shrieker
+9204 mine 1 -59 0 4 0
+9216 stop
+9217 /kill @e[type=xp_orb]
+9218 /kill @e[type=item]
+# sculk_sensor
+9220 /setblock 1 -59 0 sculk_sensor
+9222 mine 1 -59 0 4 0
+9234 stop
+9235 /kill @e[type=xp_orb]
+9236 /kill @e[type=item]
+9238 /setblock 1 -59 0 sculk_sensor
+9240 mine 1 -59 0 4 0
+9252 stop
+9253 /kill @e[type=xp_orb]
+9254 /kill @e[type=item]
+9256 /setblock 1 -59 0 sculk_sensor
+9258 mine 1 -59 0 4 0
+9270 stop
+9271 /kill @e[type=xp_orb]
+9272 /kill @e[type=item]
+9274 /setblock 1 -59 0 sculk_sensor
+9276 mine 1 -59 0 4 0
+9288 stop
+9289 /kill @e[type=xp_orb]
+9290 /kill @e[type=item]
+9292 /setblock 1 -59 0 sculk_sensor
+9294 mine 1 -59 0 4 0
+9306 stop
+9307 /kill @e[type=xp_orb]
+9308 /kill @e[type=item]
+9310 /setblock 1 -59 0 sculk_sensor
+9312 mine 1 -59 0 4 0
+9324 stop
+9325 /kill @e[type=xp_orb]
+9326 /kill @e[type=item]
+9328 /setblock 1 -59 0 sculk_sensor
+9330 mine 1 -59 0 4 0
+9342 stop
+9343 /kill @e[type=xp_orb]
+9344 /kill @e[type=item]
+9346 /setblock 1 -59 0 sculk_sensor
+9348 mine 1 -59 0 4 0
+9360 stop
+9361 /kill @e[type=xp_orb]
+9362 /kill @e[type=item]
+9364 /setblock 1 -59 0 sculk_sensor
+9366 mine 1 -59 0 4 0
+9378 stop
+9379 /kill @e[type=xp_orb]
+9380 /kill @e[type=item]
+9382 /setblock 1 -59 0 sculk_sensor
+9384 mine 1 -59 0 4 0
+9396 stop
+9397 /kill @e[type=xp_orb]
+9398 /kill @e[type=item]
+9400 /setblock 1 -59 0 sculk_sensor
+9402 mine 1 -59 0 4 0
+9414 stop
+9415 /kill @e[type=xp_orb]
+9416 /kill @e[type=item]
+9418 /setblock 1 -59 0 sculk_sensor
+9420 mine 1 -59 0 4 0
+9432 stop
+9433 /kill @e[type=xp_orb]
+9434 /kill @e[type=item]
+9436 /setblock 1 -59 0 sculk_sensor
+9438 mine 1 -59 0 4 0
+9450 stop
+9451 /kill @e[type=xp_orb]
+9452 /kill @e[type=item]
+9454 /setblock 1 -59 0 sculk_sensor
+9456 mine 1 -59 0 4 0
+9468 stop
+9469 /kill @e[type=xp_orb]
+9470 /kill @e[type=item]
+9472 /setblock 1 -59 0 sculk_sensor
+9474 mine 1 -59 0 4 0
+9486 stop
+9487 /kill @e[type=xp_orb]
+9488 /kill @e[type=item]
+9490 /setblock 1 -59 0 sculk_sensor
+9492 mine 1 -59 0 4 0
+9504 stop
+9505 /kill @e[type=xp_orb]
+9506 /kill @e[type=item]
+9508 /setblock 1 -59 0 sculk_sensor
+9510 mine 1 -59 0 4 0
+9522 stop
+9523 /kill @e[type=xp_orb]
+9524 /kill @e[type=item]
+9526 /setblock 1 -59 0 sculk_sensor
+9528 mine 1 -59 0 4 0
+9540 stop
+9541 /kill @e[type=xp_orb]
+9542 /kill @e[type=item]
+9544 /setblock 1 -59 0 sculk_sensor
+9546 mine 1 -59 0 4 0
+9558 stop
+9559 /kill @e[type=xp_orb]
+9560 /kill @e[type=item]
+9562 /setblock 1 -59 0 sculk_sensor
+9564 mine 1 -59 0 4 0
+9576 stop
+9577 /kill @e[type=xp_orb]
+9578 /kill @e[type=item]
+9580 /setblock 1 -59 0 sculk_sensor
+9582 mine 1 -59 0 4 0
+9594 stop
+9595 /kill @e[type=xp_orb]
+9596 /kill @e[type=item]
+9598 /setblock 1 -59 0 sculk_sensor
+9600 mine 1 -59 0 4 0
+9612 stop
+9613 /kill @e[type=xp_orb]
+9614 /kill @e[type=item]
+9616 /setblock 1 -59 0 sculk_sensor
+9618 mine 1 -59 0 4 0
+9630 stop
+9631 /kill @e[type=xp_orb]
+9632 /kill @e[type=item]
+9634 /setblock 1 -59 0 sculk_sensor
+9636 mine 1 -59 0 4 0
+9648 stop
+9649 /kill @e[type=xp_orb]
+9650 /kill @e[type=item]
+9652 /setblock 1 -59 0 sculk_sensor
+9654 mine 1 -59 0 4 0
+9666 stop
+9667 /kill @e[type=xp_orb]
+9668 /kill @e[type=item]
+9670 /setblock 1 -59 0 sculk_sensor
+9672 mine 1 -59 0 4 0
+9684 stop
+9685 /kill @e[type=xp_orb]
+9686 /kill @e[type=item]
+9688 /setblock 1 -59 0 sculk_sensor
+9690 mine 1 -59 0 4 0
+9702 stop
+9703 /kill @e[type=xp_orb]
+9704 /kill @e[type=item]
+9706 /setblock 1 -59 0 sculk_sensor
+9708 mine 1 -59 0 4 0
+9720 stop
+9721 /kill @e[type=xp_orb]
+9722 /kill @e[type=item]
+9724 /setblock 1 -59 0 sculk_sensor
+9726 mine 1 -59 0 4 0
+9738 stop
+9739 /kill @e[type=xp_orb]
+9740 /kill @e[type=item]
+9742 /setblock 1 -59 0 sculk_sensor
+9744 mine 1 -59 0 4 0
+9756 stop
+9757 /kill @e[type=xp_orb]
+9758 /kill @e[type=item]
+# calibrated_sculk_sensor
+9760 /setblock 1 -59 0 calibrated_sculk_sensor
+9762 mine 1 -59 0 4 0
+9774 stop
+9775 /kill @e[type=xp_orb]
+9776 /kill @e[type=item]
+9778 /setblock 1 -59 0 calibrated_sculk_sensor
+9780 mine 1 -59 0 4 0
+9792 stop
+9793 /kill @e[type=xp_orb]
+9794 /kill @e[type=item]
+9796 /setblock 1 -59 0 calibrated_sculk_sensor
+9798 mine 1 -59 0 4 0
+9810 stop
+9811 /kill @e[type=xp_orb]
+9812 /kill @e[type=item]
+9814 /setblock 1 -59 0 calibrated_sculk_sensor
+9816 mine 1 -59 0 4 0
+9828 stop
+9829 /kill @e[type=xp_orb]
+9830 /kill @e[type=item]
+9832 /setblock 1 -59 0 calibrated_sculk_sensor
+9834 mine 1 -59 0 4 0
+9846 stop
+9847 /kill @e[type=xp_orb]
+9848 /kill @e[type=item]
+9850 /setblock 1 -59 0 calibrated_sculk_sensor
+9852 mine 1 -59 0 4 0
+9864 stop
+9865 /kill @e[type=xp_orb]
+9866 /kill @e[type=item]
+9868 /setblock 1 -59 0 calibrated_sculk_sensor
+9870 mine 1 -59 0 4 0
+9882 stop
+9883 /kill @e[type=xp_orb]
+9884 /kill @e[type=item]
+9886 /setblock 1 -59 0 calibrated_sculk_sensor
+9888 mine 1 -59 0 4 0
+9900 stop
+9901 /kill @e[type=xp_orb]
+9902 /kill @e[type=item]
+9904 /setblock 1 -59 0 calibrated_sculk_sensor
+9906 mine 1 -59 0 4 0
+9918 stop
+9919 /kill @e[type=xp_orb]
+9920 /kill @e[type=item]
+9922 /setblock 1 -59 0 calibrated_sculk_sensor
+9924 mine 1 -59 0 4 0
+9936 stop
+9937 /kill @e[type=xp_orb]
+9938 /kill @e[type=item]
+9940 /setblock 1 -59 0 calibrated_sculk_sensor
+9942 mine 1 -59 0 4 0
+9954 stop
+9955 /kill @e[type=xp_orb]
+9956 /kill @e[type=item]
+9958 /setblock 1 -59 0 calibrated_sculk_sensor
+9960 mine 1 -59 0 4 0
+9972 stop
+9973 /kill @e[type=xp_orb]
+9974 /kill @e[type=item]
+9976 /setblock 1 -59 0 calibrated_sculk_sensor
+9978 mine 1 -59 0 4 0
+9990 stop
+9991 /kill @e[type=xp_orb]
+9992 /kill @e[type=item]
+9994 /setblock 1 -59 0 calibrated_sculk_sensor
+9996 mine 1 -59 0 4 0
+10008 stop
+10009 /kill @e[type=xp_orb]
+10010 /kill @e[type=item]
+10012 /setblock 1 -59 0 calibrated_sculk_sensor
+10014 mine 1 -59 0 4 0
+10026 stop
+10027 /kill @e[type=xp_orb]
+10028 /kill @e[type=item]
+10030 /setblock 1 -59 0 calibrated_sculk_sensor
+10032 mine 1 -59 0 4 0
+10044 stop
+10045 /kill @e[type=xp_orb]
+10046 /kill @e[type=item]
+10048 /setblock 1 -59 0 calibrated_sculk_sensor
+10050 mine 1 -59 0 4 0
+10062 stop
+10063 /kill @e[type=xp_orb]
+10064 /kill @e[type=item]
+10066 /setblock 1 -59 0 calibrated_sculk_sensor
+10068 mine 1 -59 0 4 0
+10080 stop
+10081 /kill @e[type=xp_orb]
+10082 /kill @e[type=item]
+10084 /setblock 1 -59 0 calibrated_sculk_sensor
+10086 mine 1 -59 0 4 0
+10098 stop
+10099 /kill @e[type=xp_orb]
+10100 /kill @e[type=item]
+10102 /setblock 1 -59 0 calibrated_sculk_sensor
+10104 mine 1 -59 0 4 0
+10116 stop
+10117 /kill @e[type=xp_orb]
+10118 /kill @e[type=item]
+10120 /setblock 1 -59 0 calibrated_sculk_sensor
+10122 mine 1 -59 0 4 0
+10134 stop
+10135 /kill @e[type=xp_orb]
+10136 /kill @e[type=item]
+10138 /setblock 1 -59 0 calibrated_sculk_sensor
+10140 mine 1 -59 0 4 0
+10152 stop
+10153 /kill @e[type=xp_orb]
+10154 /kill @e[type=item]
+10156 /setblock 1 -59 0 calibrated_sculk_sensor
+10158 mine 1 -59 0 4 0
+10170 stop
+10171 /kill @e[type=xp_orb]
+10172 /kill @e[type=item]
+10174 /setblock 1 -59 0 calibrated_sculk_sensor
+10176 mine 1 -59 0 4 0
+10188 stop
+10189 /kill @e[type=xp_orb]
+10190 /kill @e[type=item]
+10192 /setblock 1 -59 0 calibrated_sculk_sensor
+10194 mine 1 -59 0 4 0
+10206 stop
+10207 /kill @e[type=xp_orb]
+10208 /kill @e[type=item]
+10210 /setblock 1 -59 0 calibrated_sculk_sensor
+10212 mine 1 -59 0 4 0
+10224 stop
+10225 /kill @e[type=xp_orb]
+10226 /kill @e[type=item]
+10228 /setblock 1 -59 0 calibrated_sculk_sensor
+10230 mine 1 -59 0 4 0
+10242 stop
+10243 /kill @e[type=xp_orb]
+10244 /kill @e[type=item]
+10246 /setblock 1 -59 0 calibrated_sculk_sensor
+10248 mine 1 -59 0 4 0
+10260 stop
+10261 /kill @e[type=xp_orb]
+10262 /kill @e[type=item]
+10264 /setblock 1 -59 0 calibrated_sculk_sensor
+10266 mine 1 -59 0 4 0
+10278 stop
+10279 /kill @e[type=xp_orb]
+10280 /kill @e[type=item]
+10282 /setblock 1 -59 0 calibrated_sculk_sensor
+10284 mine 1 -59 0 4 0
+10296 stop
+10297 /kill @e[type=xp_orb]
+10298 /kill @e[type=item]
+# mob_spawner
+10300 /setblock 1 -59 0 mob_spawner
+10302 mine 1 -59 0 4 0
+10314 stop
+10315 /kill @e[type=xp_orb]
+10316 /kill @e[type=item]
+10318 /setblock 1 -59 0 mob_spawner
+10320 mine 1 -59 0 4 0
+10332 stop
+10333 /kill @e[type=xp_orb]
+10334 /kill @e[type=item]
+10336 /setblock 1 -59 0 mob_spawner
+10338 mine 1 -59 0 4 0
+10350 stop
+10351 /kill @e[type=xp_orb]
+10352 /kill @e[type=item]
+10354 /setblock 1 -59 0 mob_spawner
+10356 mine 1 -59 0 4 0
+10368 stop
+10369 /kill @e[type=xp_orb]
+10370 /kill @e[type=item]
+10372 /setblock 1 -59 0 mob_spawner
+10374 mine 1 -59 0 4 0
+10386 stop
+10387 /kill @e[type=xp_orb]
+10388 /kill @e[type=item]
+10390 /setblock 1 -59 0 mob_spawner
+10392 mine 1 -59 0 4 0
+10404 stop
+10405 /kill @e[type=xp_orb]
+10406 /kill @e[type=item]
+10408 /setblock 1 -59 0 mob_spawner
+10410 mine 1 -59 0 4 0
+10422 stop
+10423 /kill @e[type=xp_orb]
+10424 /kill @e[type=item]
+10426 /setblock 1 -59 0 mob_spawner
+10428 mine 1 -59 0 4 0
+10440 stop
+10441 /kill @e[type=xp_orb]
+10442 /kill @e[type=item]
+10444 /setblock 1 -59 0 mob_spawner
+10446 mine 1 -59 0 4 0
+10458 stop
+10459 /kill @e[type=xp_orb]
+10460 /kill @e[type=item]
+10462 /setblock 1 -59 0 mob_spawner
+10464 mine 1 -59 0 4 0
+10476 stop
+10477 /kill @e[type=xp_orb]
+10478 /kill @e[type=item]
+10480 /setblock 1 -59 0 mob_spawner
+10482 mine 1 -59 0 4 0
+10494 stop
+10495 /kill @e[type=xp_orb]
+10496 /kill @e[type=item]
+10498 /setblock 1 -59 0 mob_spawner
+10500 mine 1 -59 0 4 0
+10512 stop
+10513 /kill @e[type=xp_orb]
+10514 /kill @e[type=item]
+10516 /setblock 1 -59 0 mob_spawner
+10518 mine 1 -59 0 4 0
+10530 stop
+10531 /kill @e[type=xp_orb]
+10532 /kill @e[type=item]
+10534 /setblock 1 -59 0 mob_spawner
+10536 mine 1 -59 0 4 0
+10548 stop
+10549 /kill @e[type=xp_orb]
+10550 /kill @e[type=item]
+10552 /setblock 1 -59 0 mob_spawner
+10554 mine 1 -59 0 4 0
+10566 stop
+10567 /kill @e[type=xp_orb]
+10568 /kill @e[type=item]
+10570 /setblock 1 -59 0 mob_spawner
+10572 mine 1 -59 0 4 0
+10584 stop
+10585 /kill @e[type=xp_orb]
+10586 /kill @e[type=item]
+10588 /setblock 1 -59 0 mob_spawner
+10590 mine 1 -59 0 4 0
+10602 stop
+10603 /kill @e[type=xp_orb]
+10604 /kill @e[type=item]
+10606 /setblock 1 -59 0 mob_spawner
+10608 mine 1 -59 0 4 0
+10620 stop
+10621 /kill @e[type=xp_orb]
+10622 /kill @e[type=item]
+10624 /setblock 1 -59 0 mob_spawner
+10626 mine 1 -59 0 4 0
+10638 stop
+10639 /kill @e[type=xp_orb]
+10640 /kill @e[type=item]
+10642 /setblock 1 -59 0 mob_spawner
+10644 mine 1 -59 0 4 0
+10656 stop
+10657 /kill @e[type=xp_orb]
+10658 /kill @e[type=item]
+10660 /setblock 1 -59 0 mob_spawner
+10662 mine 1 -59 0 4 0
+10674 stop
+10675 /kill @e[type=xp_orb]
+10676 /kill @e[type=item]
+10678 /setblock 1 -59 0 mob_spawner
+10680 mine 1 -59 0 4 0
+10692 stop
+10693 /kill @e[type=xp_orb]
+10694 /kill @e[type=item]
+10696 /setblock 1 -59 0 mob_spawner
+10698 mine 1 -59 0 4 0
+10710 stop
+10711 /kill @e[type=xp_orb]
+10712 /kill @e[type=item]
+10714 /setblock 1 -59 0 mob_spawner
+10716 mine 1 -59 0 4 0
+10728 stop
+10729 /kill @e[type=xp_orb]
+10730 /kill @e[type=item]
+10732 /setblock 1 -59 0 mob_spawner
+10734 mine 1 -59 0 4 0
+10746 stop
+10747 /kill @e[type=xp_orb]
+10748 /kill @e[type=item]
+10750 /setblock 1 -59 0 mob_spawner
+10752 mine 1 -59 0 4 0
+10764 stop
+10765 /kill @e[type=xp_orb]
+10766 /kill @e[type=item]
+10768 /setblock 1 -59 0 mob_spawner
+10770 mine 1 -59 0 4 0
+10782 stop
+10783 /kill @e[type=xp_orb]
+10784 /kill @e[type=item]
+10786 /setblock 1 -59 0 mob_spawner
+10788 mine 1 -59 0 4 0
+10800 stop
+10801 /kill @e[type=xp_orb]
+10802 /kill @e[type=item]
+10804 /setblock 1 -59 0 mob_spawner
+10806 mine 1 -59 0 4 0
+10818 stop
+10819 /kill @e[type=xp_orb]
+10820 /kill @e[type=item]
+10822 /setblock 1 -59 0 mob_spawner
+10824 mine 1 -59 0 4 0
+10836 stop
+10837 /kill @e[type=xp_orb]
+10838 /kill @e[type=item]
+# iron_ore
+10840 /setblock 1 -59 0 iron_ore
+10842 mine 1 -59 0 4 0
+10854 stop
+10855 /kill @e[type=xp_orb]
+10856 /kill @e[type=item]
+10858 /setblock 1 -59 0 iron_ore
+10860 mine 1 -59 0 4 0
+10872 stop
+10873 /kill @e[type=xp_orb]
+10874 /kill @e[type=item]
+10876 /setblock 1 -59 0 iron_ore
+10878 mine 1 -59 0 4 0
+10890 stop
+10891 /kill @e[type=xp_orb]
+10892 /kill @e[type=item]
+# copper_ore
+10894 /setblock 1 -59 0 copper_ore
+10896 mine 1 -59 0 4 0
+10908 stop
+10909 /kill @e[type=xp_orb]
+10910 /kill @e[type=item]
+10912 /setblock 1 -59 0 copper_ore
+10914 mine 1 -59 0 4 0
+10926 stop
+10927 /kill @e[type=xp_orb]
+10928 /kill @e[type=item]
+10930 /setblock 1 -59 0 copper_ore
+10932 mine 1 -59 0 4 0
+10944 stop
+10945 /kill @e[type=xp_orb]
+10946 /kill @e[type=item]
+# gold_ore
+10948 /setblock 1 -59 0 gold_ore
+10950 mine 1 -59 0 4 0
+10962 stop
+10963 /kill @e[type=xp_orb]
+10964 /kill @e[type=item]
+10966 /setblock 1 -59 0 gold_ore
+10968 mine 1 -59 0 4 0
+10980 stop
+10981 /kill @e[type=xp_orb]
+10982 /kill @e[type=item]
+10984 /setblock 1 -59 0 gold_ore
+10986 mine 1 -59 0 4 0
+10998 stop
+10999 /kill @e[type=xp_orb]
+11000 /kill @e[type=item]
+# Silk Touch
+11002 /clear @s
+11003 /give @s netherite_pickaxe
+11004 /enchant @s silk_touch 1
+11005 /enchant @s efficiency 5
+# coal_ore
+11012 /setblock 1 -59 0 coal_ore
+11014 mine 1 -59 0 4 0
+11026 stop
+11027 /kill @e[type=xp_orb]
+11028 /kill @e[type=item]
+# deepslate_coal_ore
+11030 /setblock 1 -59 0 deepslate_coal_ore
+11032 mine 1 -59 0 4 0
+11044 stop
+11045 /kill @e[type=xp_orb]
+11046 /kill @e[type=item]
+# diamond_ore
+11048 /setblock 1 -59 0 diamond_ore
+11050 mine 1 -59 0 4 0
+11062 stop
+11063 /kill @e[type=xp_orb]
+11064 /kill @e[type=item]
+# deepslate_diamond_ore
+11066 /setblock 1 -59 0 deepslate_diamond_ore
+11068 mine 1 -59 0 4 0
+11080 stop
+11081 /kill @e[type=xp_orb]
+11082 /kill @e[type=item]
+# emerald_ore
+11084 /setblock 1 -59 0 emerald_ore
+11086 mine 1 -59 0 4 0
+11098 stop
+11099 /kill @e[type=xp_orb]
+11100 /kill @e[type=item]
+# deepslate_emerald_ore
+11102 /setblock 1 -59 0 deepslate_emerald_ore
+11104 mine 1 -59 0 4 0
+11116 stop
+11117 /kill @e[type=xp_orb]
+11118 /kill @e[type=item]
+# lapis_ore
+11120 /setblock 1 -59 0 lapis_ore
+11122 mine 1 -59 0 4 0
+11134 stop
+11135 /kill @e[type=xp_orb]
+11136 /kill @e[type=item]
+# deepslate_lapis_ore
+11138 /setblock 1 -59 0 deepslate_lapis_ore
+11140 mine 1 -59 0 4 0
+11152 stop
+11153 /kill @e[type=xp_orb]
+11154 /kill @e[type=item]
+# redstone_ore
+11156 /setblock 1 -59 0 redstone_ore
+11158 mine 1 -59 0 4 0
+11170 stop
+11171 /kill @e[type=xp_orb]
+11172 /kill @e[type=item]
+# deepslate_redstone_ore
+11174 /setblock 1 -59 0 deepslate_redstone_ore
+11176 mine 1 -59 0 4 0
+11188 stop
+11189 /kill @e[type=xp_orb]
+11190 /kill @e[type=item]
+# lit_redstone_ore
+11192 /setblock 1 -59 0 lit_redstone_ore
+11194 mine 1 -59 0 4 0
+11206 stop
+11207 /kill @e[type=xp_orb]
+11208 /kill @e[type=item]
+# lit_deepslate_redstone_ore
+11210 /setblock 1 -59 0 lit_deepslate_redstone_ore
+11212 mine 1 -59 0 4 0
+11224 stop
+11225 /kill @e[type=xp_orb]
+11226 /kill @e[type=item]
+# nether_gold_ore
+11228 /setblock 1 -59 0 nether_gold_ore
+11230 mine 1 -59 0 4 0
+11242 stop
+11243 /kill @e[type=xp_orb]
+11244 /kill @e[type=item]
+# quartz_ore
+11246 /setblock 1 -59 0 quartz_ore
+11248 mine 1 -59 0 4 0
+11260 stop
+11261 /kill @e[type=xp_orb]
+11262 /kill @e[type=item]
+# sculk
+11264 /setblock 1 -59 0 sculk
+11266 mine 1 -59 0 4 0
+11278 stop
+11279 /kill @e[type=xp_orb]
+11280 /kill @e[type=item]
+# sculk_catalyst
+11282 /setblock 1 -59 0 sculk_catalyst
+11284 mine 1 -59 0 4 0
+11296 stop
+11297 /kill @e[type=xp_orb]
+11298 /kill @e[type=item]
+# sculk_shrieker
+11300 /setblock 1 -59 0 sculk_shrieker
+11302 mine 1 -59 0 4 0
+11314 stop
+11315 /kill @e[type=xp_orb]
+11316 /kill @e[type=item]
+# sculk_sensor
+11318 /setblock 1 -59 0 sculk_sensor
+11320 mine 1 -59 0 4 0
+11332 stop
+11333 /kill @e[type=xp_orb]
+11334 /kill @e[type=item]
+# calibrated_sculk_sensor
+11336 /setblock 1 -59 0 calibrated_sculk_sensor
+11338 mine 1 -59 0 4 0
+11350 stop
+11351 /kill @e[type=xp_orb]
+11352 /kill @e[type=item]
+# mob_spawner
+11354 /setblock 1 -59 0 mob_spawner
+11356 mine 1 -59 0 4 0
+11368 stop
+11369 /kill @e[type=xp_orb]
+11370 /kill @e[type=item]
+11382 exit

@@ -14,6 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
+import breaking_fixture  # noqa: E402
+import combat_fixture  # noqa: E402
+import experience_table  # noqa: E402
+import food_table  # noqa: E402
 import capture  # noqa: E402
 import commit_fixtures  # noqa: E402
 import effects_fixture  # noqa: E402
@@ -269,6 +273,124 @@ class Wear(unittest.TestCase):
                   {'held_after': None}]
         self.assertEqual(summarize.wear_per_trial({'item': 'minecraft:golden_sword', 'damage': 0}, trials),
                          [1, 2, None])
+
+
+def record(direction, packet_id, name, payload, seq=0):
+    return {'seq': seq, 't_ms': seq, 'dir': direction, 'id': packet_id, 'name': name, 'hex': payload.hex()}
+
+
+def auth_input(tick):
+    """A PlayerAuthInput laid out as `combat_fixture.input_tick` reads it."""
+    return bytes([144, 1]) + bytes(32) + bytes([0, 0, 0, 0]) + bytes(8) + bytes([tick])
+
+
+class CombatFixture(unittest.TestCase):
+    def test_windows_keep_inputs_actions_and_answers_but_not_ambient_sounds(self):
+        sound = lambda name: bytes([123, len(name)]) + name  # noqa: E731
+        rows = [
+            record('c2s', 144, 'PlayerAuthInputPacket', auth_input(5)),
+            record('c2s', 30, 'InventoryTransactionPacket', bytes([30])),
+            record('c2s', 144, 'PlayerAuthInputPacket', auth_input(10)),
+            record('c2s', 30, 'InventoryTransactionPacket', bytes([30])),
+            record('s2c', 123, 'LevelSoundEventPacket', sound(b'item.iron_spear.attack_miss')),
+            record('s2c', 123, 'LevelSoundEventPacket', sound(b'ambient')),
+            record('s2c', 29, 'UpdateAttributesPacket', bytes([29, 1])),
+            record('s2c', 29, 'UpdateAttributesPacket', bytes([29, 4])),
+            record('s2c', 39, 'SetActorDataPacket', bytes([39, 1])),
+            record('s2c', 13, 'AddActorPacket', bytes([13, 8])),
+        ]
+        kept = combat_fixture.cut(rows, windows=[(8, 20)])
+        self.assertEqual([(r['name'], r['input']) for r in kept], [
+            ('PlayerAuthInputPacket', 10), ('InventoryTransactionPacket', 10), ('LevelSoundEventPacket', 10),
+            ('UpdateAttributesPacket', 10), ('SetActorDataPacket', 10), ('AddActorPacket', 10)])
+        self.assertEqual(kept[3]['hex'], '1d04', "only other actors' attributes")
+
+    def test_commands_keep_one_command_and_the_output_answering_each(self):
+        request = lambda text: bytes([77, len(text)]) + text  # noqa: E731
+        rows = [
+            record('c2s', 77, 'CommandRequestPacket', request(b'/replaceitem entity @s slot.weapon.mainhand 0 iron_spear')),
+            record('c2s', 77, 'CommandRequestPacket', request(b'/enchant @s sharpness 1')),
+            record('s2c', 79, 'CommandOutputPacket', bytes([79, 1])),
+            record('s2c', 79, 'CommandOutputPacket', bytes([79, 2])),
+        ]
+        kept = combat_fixture.cut(rows, commands='enchant')
+        self.assertEqual([r['hex'] for r in kept], [request(b'/enchant @s sharpness 1').hex(), '4f02'])
+
+
+class ExperienceTable(unittest.TestCase):
+    def test_breaks_take_the_tool_the_script_gave_last(self):
+        script = '\n'.join([
+            '# comment',
+            '30 /give @s netherite_pickaxe',
+            '32 /enchant @s efficiency 5',
+            '40 /setblock 1 -59 0 coal_ore',
+            '50 /clear @s',
+            '60 /setblock 1 -59 0 coal_ore',
+            '61 /setblock 9 9 9 stone',
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'script.txt'
+            path.write_text(script, encoding='utf-8')
+            breaks = experience_table.schedule(path)
+        self.assertEqual(breaks, [(40, 'minecraft:coal_ore', 'netherite_pickaxe+efficiency5'),
+                                  (60, 'minecraft:coal_ore', 'hand')])
+
+
+class BreakingFixture(unittest.TestCase):
+    @staticmethod
+    def rows(*specs):
+        return [{'seq': i, 't_ms': t, 'dir': d, 'id': packet_id, 'name': name, 'hex': payload}
+                for i, (t, d, packet_id, name, payload) in enumerate(specs)]
+
+    def test_the_observer_is_moved_onto_the_players_clock_and_inputs(self):
+        player = self.rows(
+            (1000, 'c2s', 144, 'PlayerAuthInputPacket', '80'),
+            (1040, 's2c', 21, 'UpdateBlockPacket', 'aa'),
+            (1050, 'c2s', 144, 'PlayerAuthInputPacket', '81'),
+            (1090, 's2c', 21, 'UpdateBlockPacket', 'bb'),
+            (1100, 'c2s', 144, 'PlayerAuthInputPacket', '82'),
+        )
+        observer = self.rows(
+            (3040, 's2c', 21, 'UpdateBlockPacket', 'aa'),
+            (3060, 's2c', 123, 'LevelSoundEventPacket', 'cc'),
+            (3090, 's2c', 21, 'UpdateBlockPacket', 'bb'),
+            (3095, 's2c', 30, 'InventoryTransactionPacket', 'dd'),
+        )
+        # The inputs' ticks, without encoding real PlayerAuthInputs.
+        with mock.patch.object(breaking_fixture, 'input_tick', int):
+            self.assertEqual(breaking_fixture.clock_offset(player, observer), -2000)
+            out = breaking_fixture.cut_observer(player, observer, [(80, 90)])
+        self.assertEqual([(r['dir'], r['input'], r['t_ms'], r['hex']) for r in out],
+                         [('s2o', 80, 1040, 'aa'), ('s2o', 81, 1060, 'cc'), ('s2o', 81, 1090, 'bb')])
+
+    def test_captures_without_a_common_block_update_are_not_aligned(self):
+        with self.assertRaises(SystemExit):
+            breaking_fixture.clock_offset(self.rows((0, 's2c', 21, 'UpdateBlockPacket', 'aa')),
+                                          self.rows((0, 's2c', 21, 'UpdateBlockPacket', 'bb')))
+
+    def test_windows_parse(self):
+        self.assertEqual(breaking_fixture.parse_windows('80-110,120-130'), [(80, 110), (120, 130)])
+
+
+class FoodTable(unittest.TestCase):
+    def test_each_use_runs_to_the_clear_after_it(self):
+        script = '\n'.join([
+            '# comment',
+            '50 /effect @s hunger 6 63 true',
+            '175 /effect @s clear',
+            '177 /give @s apple 1 0',
+            '180 use',
+            '220 /effect @s clear',
+            '225 /effect @s clear',
+            '230 /give @s suspicious_stew 1 5',
+            '235 use',
+            '275 /effect @s clear',
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'script.txt'
+            path.write_text(script, encoding='utf-8')
+            foods = food_table.schedule(path)
+        self.assertEqual(foods, [(180, 220, 'apple', 0), (235, 275, 'suspicious_stew', 5)])
 
 
 class RuntimeSlotTest(unittest.TestCase):
