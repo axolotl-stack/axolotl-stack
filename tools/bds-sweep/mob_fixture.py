@@ -86,10 +86,20 @@ def r4(values) -> list[float]:
     return [round(v, 4) for v in values]
 
 
-def actor_packets(rows: list[tuple[int, dict]], runtime_ids: set[int]) -> dict[int, dict]:
+def added_flags(records: list[dict]) -> dict[int, int | None]:
+    """The actor flags of every AddActor of a capture, by runtime id: an
+    item's AddActor can arrive before its first mark, after the previous
+    item's last one."""
+    return {record['packet']['target_runtime_id']['actor_runtime_id']:
+            flags_of(data_items(record['packet']['actor_data']['data']), None)
+            for record in records if record['name'] == 'AddActorPacket'}
+
+
+def actor_packets(rows: list[tuple[int, dict]], runtime_ids: set[int],
+                  adds: dict[int, int | None]) -> dict[int, dict]:
     """Per tracked runtime id: flags at AddActor, flag changes, actor events
     and sounds."""
-    out: dict[int, dict] = {rid: {'flags': None, 'flag_changes': [], 'events': [], 'sounds': []}
+    out: dict[int, dict] = {rid: {'flags': adds.get(rid), 'flag_changes': [], 'events': [], 'sounds': []}
                             for rid in runtime_ids}
     unique: dict[int, int] = {}
     for t, record in rows:
@@ -128,7 +138,7 @@ def actor_packets(rows: list[tuple[int, dict]], runtime_ids: set[int]) -> dict[i
     return out
 
 
-def distil(result: dict, rows: list[tuple[int, dict]]) -> dict:
+def distil(result: dict, rows: list[tuple[int, dict]], adds: dict[int, int | None]) -> dict:
     spec = result['spec']
     actors: dict[int, dict] = {}
     for sample in result['samples']:
@@ -137,7 +147,7 @@ def distil(result: dict, rows: list[tuple[int, dict]]) -> dict:
             entry['ticks'].append([sample['t'], *r4(actor['pos']), round(actor['rot'][1], 3),
                                    round(actor['rot'][0], 3), *r4(actor['vel']), int(bool(actor['ground'])),
                                    actor.get('health')])
-    packets = actor_packets(rows, set(actors))
+    packets = actor_packets(rows, set(actors), adds)
     player, last = [], None
     for sample in result['samples']:
         feet = r4(sample['player']['pos'])
@@ -170,14 +180,15 @@ def main() -> int:
     items: dict[str, dict] = {}
     sources = []
     for directory in map(Path, args[1:]):
-        rows = marked(decoded(directory / 'client' / 'packets.jsonl'))
+        records = decoded(directory / 'client' / 'packets.jsonl')
+        rows, adds = marked(records), added_flags(records)
         job = json.loads((directory / 'job.json').read_text(encoding='utf-8'))
         sources.append(job['items'][0]['key'].split('|', 1)[0])
         for line in (directory / 'results.jsonl').read_text(encoding='utf-8').splitlines():
             result = json.loads(line)
             if only is not None and result['key'].split('|', 1)[1].rsplit('-', 1)[0] not in only:
                 continue
-            items[result['key']] = distil(result, rows.get(result['key'], []))
+            items[result['key']] = distil(result, rows.get(result['key'], []), adds)
     kinds = ', '.join(sorted(set(sources)))
     fixture = {
         'source': f'BDS 1.26.51, sweep.py {kinds} --client-capture (tools/bds-sweep/mob_fixture.py)',
