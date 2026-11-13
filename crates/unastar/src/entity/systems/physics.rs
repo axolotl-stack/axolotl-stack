@@ -475,7 +475,10 @@ fn apply_living_drag(
             Some(LiquidKind::Water) => velocity.y * drag - gravity,
             _ => (velocity.y - gravity) * drag,
         };
-        drag
+        match (liquid, body.water_drag) {
+            (Some(LiquidKind::Water), Some(water)) => water,
+            _ => drag,
+        }
     } else {
         velocity.y = match effects.levitation {
             Some(speed) => velocity.y + (speed - velocity.y) * LEVITATION_ACCELERATION,

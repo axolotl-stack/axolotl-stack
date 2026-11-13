@@ -24,7 +24,7 @@ use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{EffectType, Effects, GameMode, Health, Player, Position};
 use crate::entity::mob::MobKind;
-use crate::entity::mob::components::{AttackConfig, MeleeBoxAttackGoal, SelfEvent};
+use crate::entity::mob::components::{AttackConfig, MeleeAttackGoal, SelfEvent};
 use crate::entity::mob::constants::{
     MELEE_FIRE_SPREAD_CHANCE, STRENGTH_DAMAGE_ADD, STRENGTH_DAMAGE_SCALE, TICKS_PER_SECOND,
     WEAKNESS_DAMAGE_ADD, WEAKNESS_DAMAGE_SCALE,
@@ -40,7 +40,7 @@ use crate::world::rules::Difficulty;
 pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     let (Some(attack), Some(goal), Some(feet)) = (
         world.get::<AttackConfig>(attacker).cloned(),
-        world.get::<MeleeBoxAttackGoal>(attacker).cloned(),
+        world.get::<MeleeAttackGoal>(attacker).cloned(),
         world.get::<Position>(attacker).map(|p| p.0),
     ) else {
         return;
@@ -98,7 +98,7 @@ fn after_hurt(
     world: &mut World,
     attacker: Entity,
     target: Entity,
-    goal: &MeleeBoxAttackGoal,
+    goal: &MeleeAttackGoal,
     holding: bool,
     is_player: bool,
 ) {

@@ -201,6 +201,11 @@ pub const MOB_HEAD_DISGUISES: [(&str, &str); 5] = [
     ("minecraft:piglin", "minecraft:piglin_head"),
     ("minecraft:piglin_brute", "minecraft:piglin_head"),
 ];
+/// `behavior.stomp_attack`: the mob rears up (`STANDING`) this many ticks
+/// before its cooldown runs out while its target is in the no-damage range
+/// (measured: BDS 1.26.51 polar bears stood ten ticks before every hit).
+pub const STOMP_WARNING_TICKS: i32 = 10;
+
 /// `behavior.melee_box_attack` `can_spread_on_fire`: a burning attacker with
 /// an empty main hand sets the target alight with probability
 /// `U(0, 1) < this[difficulty]` (peaceful, easy, normal, hard) for

@@ -3199,7 +3199,7 @@
 "minecraft:panda/spawn_rules" = { status = "partial", gaps = "panda cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:panda/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
 "minecraft:panda/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but panda cannot spawn yet" }
-"minecraft:panda/water_movement" = { status = "missing", gaps = "component behaviour not implemented" }
+"minecraft:panda/water_movement" = { status = "partial", owner = "entities", gaps = "implemented (the horizontal drag in water) and replayed on the polar bear, but panda cannot spawn yet" }
 "minecraft:parrot" = { status = "missing", gaps = "not spawnable: needs behavior.follow_mob, behavior.follow_owner, behavior.random_fly, behavior.stay_while_sitting, behavior.teleport_to_owner, can_fly (+7 more)" }
 "minecraft:parrot/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
 "minecraft:parrot/behavior.find_mount" = { status = "missing", gaps = "riding is not implemented; baby zombie jockeys never mount" }
@@ -3289,53 +3289,53 @@
 "minecraft:pig/spawn_rules" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/spawning/tests.rs::grass_plains_spawn_animal_herds_in_daylight", "crates/unastar/src/entity/spawning/tests.rs::animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes", "crates/unastar/src/entity/spawning/tests.rs::the_animal_cap_stops_spawning", "crates/unastar/src/entity/spawning/tests.rs::world_generation_places_herds_in_fresh_animal_chunks", "crates/unastar/tests/mob_e2e.rs::natural_spawning_populates_new_chunks_over_loopback"], notes = "Brightness is sky light only (no block light) and there is no weather, so adjust_for_weather has no effect (entity backlog 4-5)." }
 "minecraft:pig/transformation" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: a pig struck by lightning never converts, because there is no lightning" }
 "minecraft:pig/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/definition/families.rs::group_replacement_and_removal_do_not_union_or_restore_memberships", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown"] }
-"minecraft:polar_bear" = { status = "missing", gaps = "not spawnable: needs behavior.stomp_attack, follow_range, freezing_immune, on_friendly_anger, water_movement" }
-"minecraft:polar_bear/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
+"minecraft:polar_bear" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::spawned_adult_polar_bear_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/polar_bear.rs::the_stomp_clock_rears_and_hits_on_bds_ticks", "crates/unastar/src/entity/mob/tests/polar_bear.rs::a_hostile_polar_bear_rears_up_then_stomps_its_target"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/polar_bear.bin", notes = "Sub-row gaps: the stomp cooldown's first start after the bear turns hostile is not modelled, riding and leads are not implemented, no freezing, no drowning. Stomp and water drag replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json)." }
+"minecraft:polar_bear/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), not on the polar bear" }
+"minecraft:polar_bear/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::a_hostile_polar_bear_rears_up_then_stomps_its_target"] }
 "minecraft:polar_bear/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
-"minecraft:polar_bear/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.follow_parent" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.panic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet", notes = "Unconfirmed natively: the default damage_sources list is the 18-cause legacy list (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:polar_bear/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/behavior.stomp_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:polar_bear/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; polar_bear cannot spawn yet" }
-"minecraft:polar_bear/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; polar_bear cannot spawn yet" }
-"minecraft:polar_bear/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; polar_bear cannot spawn yet" }
-"minecraft:polar_bear/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/freezing_immune" = { status = "missing", gaps = "not implemented: needs sun avoidance and freezing" }
-"minecraft:polar_bear/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:polar_bear/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
+"minecraft:polar_bear/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.follow_parent" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.panic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear", notes = "Unconfirmed natively: the default damage_sources list is the 18-cause legacy list (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
+"minecraft:polar_bear/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.random_stroll" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/behavior.stomp_attack" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::the_stomp_clock_rears_and_hits_on_bds_ticks", "crates/unastar/src/entity/mob/tests/polar_bear.rs::a_hostile_polar_bear_rears_up_then_stomps_its_target"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json", notes = "Measured on 1.26.51: the bear rears up (STANDING) ten ticks before each hit and restarts a cooldown that runs out in the no-damage range; reach (width x reach_multiplier)^2 + target width, no-damage range that x no_damage_range_multiplier, judged after its move. Not modelled: when the cooldown first starts (BDS: nine ticks after the hurt), one unexplained mid-run restart (baby-0), stomp_range_multiplier (BDS hurt only the target), require_complete_path; a bear under Slowness 255 never rears in BDS." }
+"minecraft:polar_bear/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:polar_bear/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:polar_bear/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::spawned_adult_polar_bear_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/polar_bear.rs::the_stomp_clock_rears_and_hits_on_bds_ticks"] }
+"minecraft:polar_bear/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:polar_bear/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/follow_range" = { status = "partial", owner = "entities", gaps = "implemented (the target keep distance) and tested on the zombie pigman, not on the polar bear" }
+"minecraft:polar_bear/freezing_immune" = { status = "partial", owner = "entities", gaps = "accepted without behaviour: powder snow freezes nothing on the server" }
+"minecraft:polar_bear/health" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::spawned_adult_polar_bear_add_actor_matches_native_summon"] }
+"minecraft:polar_bear/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/is_baby" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
 "minecraft:polar_bear/leashable" = { status = "missing", gaps = "leads are not implemented; using a lead on the mob does nothing" }
 "minecraft:polar_bear/leashable_to" = { status = "missing", gaps = "leads are not implemented; nothing can be leashed to the mob" }
-"minecraft:polar_bear/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; polar_bear cannot spawn yet" }
-"minecraft:polar_bear/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/on_friendly_anger" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/on_target_acquired" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); polar_bear cannot spawn yet" }
-"minecraft:polar_bear/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/spawn_rules" = { status = "partial", gaps = "polar_bear cannot spawn yet, so drawn entries spawn nothing; the native spawn check of polar_bear's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:polar_bear/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but polar_bear cannot spawn yet" }
-"minecraft:polar_bear/water_movement" = { status = "missing", gaps = "component behaviour not implemented" }
+"minecraft:polar_bear/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:polar_bear/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/on_friendly_anger" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman, not on the polar bear" }
+"minecraft:polar_bear/on_target_acquired" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/physics" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::a_polar_bear_keeps_bds_horizontal_motion_in_water"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json" }
+"minecraft:polar_bear/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing)" }
+"minecraft:polar_bear/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/scale" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/spawn_rules" = { status = "partial", gaps = "the polar bear can spawn, but no test replays its natural spawning; the native spawn check of polar_bear's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:polar_bear/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the polar bear" }
+"minecraft:polar_bear/water_movement" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/polar_bear.rs::a_polar_bear_keeps_bds_horizontal_motion_in_water"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json", notes = "drag_factor is the horizontal drag in water; the vertical drag stays 0.8." }
 "minecraft:rabbit" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.raid_garden, jump.dynamic, movement.skip" }
 "minecraft:rabbit/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but rabbit cannot spawn yet" }
 "minecraft:rabbit/balloonable" = { status = "not_applicable", notes = "Balloons are an Education Edition item; vanilla survival servers never attach them." }
@@ -3749,7 +3749,7 @@
 "minecraft:turtle/spawn_rules" = { status = "partial", gaps = "turtle cannot spawn yet, so drawn entries spawn nothing; the native spawn check of turtle's class is not modelled; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:turtle/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but turtle cannot spawn yet" }
 "minecraft:turtle/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
-"minecraft:turtle/water_movement" = { status = "missing", gaps = "component behaviour not implemented" }
+"minecraft:turtle/water_movement" = { status = "partial", owner = "entities", gaps = "implemented (the horizontal drag in water) and replayed on the polar bear, but turtle cannot spawn yet" }
 "minecraft:wolf" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.beg, behavior.follow_owner, behavior.leap_at_target, behavior.owner_hurt_by_target, behavior.owner_hurt_target (+6 more)" }
 "minecraft:wolf/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }
 "minecraft:wolf/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wolf cannot spawn yet" }

@@ -50,5 +50,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0059](0059-infested-blocks-are-a-measured-table.md) | Infested blocks are a measured table | 2026-11-12 | proposed | |
 | [0062](0062-hopping-mobs-move-through-a-hop-control.md) | Hopping mobs move through a hop control, not the path follower | 2026-11-12 | proposed | |
 | [0065](0065-swimming-mobs-follow-a-pulled-swim-path.md) | Swimming mobs follow a pulled swim path with no gravity | 2026-11-12 | proposed | |
+| [0068](0068-stomp-is-a-melee-reach-judged-after-the-move.md) | The stomp attack is a reach of the one melee goal, judged after the move | 2026-11-12 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

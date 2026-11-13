@@ -1039,6 +1039,117 @@ def drowned_items(args) -> list[dict]:
     return sets[args.items]
 
 
+# Barrier walls west, north and south of the player's block at the origin,
+# open to the east: a push from the east cannot move the player.
+PEN = ['fill -1 -60 -1 -1 -59 1 barrier', 'fill 0 -60 -1 0 -59 -1 barrier', 'fill 0 -60 1 0 -59 1 barrier']
+UNPEN = ['fill -1 -60 -1 0 -59 1 air']
+# A closed glass room east of the arena (inside x 11..29, y -60..-51,
+# z -9..9) and how to take it down again.
+ROOM = ['fill 10 -61 -10 30 -50 10 glass hollow']
+UNROOM = ['fill 10 -61 -10 30 -50 10 air', 'fill 10 -61 -10 30 -61 10 grass_block']
+
+
+def track_row(kind: str, key: str, mob: str, event: str | None, at, player, ticks: int, setup=(), cleanup=(),
+              actions=(), track=None) -> dict:
+    """One item of the generic per-tick job: `mob` summoned at `at` (x, y, z,
+    yaw), with the spawn `event` when given, and every actor of a `track`
+    type (the mob's by default) sampled every tick."""
+    summon = f'summon minecraft:{mob} {at[0]} {at[1]} {at[2]} {at[3]} 0'
+    if event:
+        summon += f' minecraft:{event}'
+    clean = ['kill @e[type=minecraft:item]', 'kill @e[type=minecraft:xp_orb]']
+    return {'key': f'{kind}|{key}', 'mob': None, 'at': None, 'player': list(player), 'frozen': False,
+            'ticks': ticks, 'setup': list(setup) + [summon], 'cleanup': clean + list(cleanup),
+            'actions': list(actions), 'track': track or [f'minecraft:{mob}']}
+
+
+def pick_set(kind: str, sets: dict, items: str, default: str = 'all') -> list[dict]:
+    choice = default if items == 'slice' else items
+    if choice == 'all':
+        return [item for name in sets for item in sets[name]]
+    if choice not in sets:
+        raise SystemExit(f'{kind} --items must be all or one of {sorted(sets)}')
+    return sets[choice]
+
+
+def bat_items(args) -> list[dict]:
+    """`bat`: a bat summoned (its definition has no events) and sampled
+    every tick while the creative player stands outside. `--items room`
+    (a closed glass room, `ROOM`, 1,200 ticks, four times), `open` (the
+    open sky over the floor, 600 ticks, twice) or `all`."""
+    far = [0.5, -60, -24.5, 0]
+    sets = {
+        'room': [track_row('bat', f'room-{n}', 'bat', None, [20.5, -56, 0.5, 0], far, 1200,
+                           setup=ROOM, cleanup=UNROOM) for n in range(4)],
+        'open': [track_row('bat', f'open-{n}', 'bat', None, [20.5, -52, 0.5, 0], far, 600)
+                 for n in range(2)],
+    }
+    return pick_set('bat', sets, args.items)
+
+
+def polar_bear_items(args) -> list[dict]:
+    """`polar-bear`: polar bears summoned with a spawn event (an adult with
+    `minecraft:ageable_grow_up`, a baby with `minecraft:entity_born`) and
+    sampled every tick. `--items stroll` (an adult alone, the creative
+    player far away, 600 ticks, three times), `attack` (an adult the survival
+    player hits (`/damage` by the player) on tick 5 from three blocks away, 300 ticks, three times;
+    Health Boost X and Regeneration V, no Resistance), `stomp` (the player
+    held by barrier walls, `PEN`, and an angered adult frozen 1.4 to 5
+    blocks east of it, 200 ticks each), `baby` (a baby and an
+    adult, the survival player six blocks from the baby; the baby takes it
+    as a target and its anger reaches the adult, 300 ticks, three times),
+    `swim` (an adult in a pool, 300 ticks, twice), `swim-push` (an adult in
+    the pool hit by the far player, 120 ticks, three times) or `all`."""
+    target = f'"{PLAYER}"'
+    alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+             f'effect {target} regeneration 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    far = [0.5, -60, -24.5, 0]
+    track = ['minecraft:polar_bear']
+    adult = 'ageable_grow_up'
+    # The summoned bear has no runtime id in the job, so the player's hit is
+    # a `/damage` with the player as the attacker.
+    hit = f'damage @e[type=minecraft:polar_bear] 1 entity_attack entity {target}'
+    freeze = 'effect @e[type=minecraft:polar_bear] slowness 100000 255 true'
+    sets = {
+        'stroll': [track_row('polar_bear', f'stroll-{n}', 'polar_bear', adult, [20.5, -60, 0.5, 0], far, 600)
+                   for n in range(3)],
+        'attack': [track_row('polar_bear', f'attack-{n}', 'polar_bear', adult, [3.5, -60, 0.5, 90],
+                             [0.5, -60, 0.5, -90], 300, setup=alive, cleanup=restore,
+                             actions=[heal, {'t': 5, 'commands': [hit]}]) for n in range(3)],
+        'baby': [track_row('polar_bear', f'baby-{n}', 'polar_bear', 'entity_born', [6.5, -60, 0.5, 90],
+                           [0.5, -60, 0.5, -90], 300,
+                           setup=alive + ['summon minecraft:polar_bear 10.5 -60 4.5 90 0 minecraft:ageable_grow_up'],
+                           cleanup=restore, actions=[heal], track=track) for n in range(3)],
+        # The player held by barrier walls, an angered adult frozen (hidden
+        # Slowness 255) at a fixed distance east: when it hits and rears.
+        'stomp': [track_row('polar_bear', f'stomp-{d}', 'polar_bear', adult, [0.5 + d / 10, -60, 0.5, 90],
+                            [0.5, -60, 0.5, -90], 200, setup=alive + PEN,
+                            cleanup=restore + UNPEN,
+                            actions=[heal, {'t': 1, 'commands': [freeze]}, {'t': 5, 'commands': [hit]}])
+                  for d in (14, 18, 22, 26, 30, 34, 40, 50)],
+        'swim': [track_row('polar_bear', f'swim-{n}', 'polar_bear', adult, [11.5, -56, 0.5, 90], far, 300,
+                           setup=POOL, cleanup=UNPOOL) for n in range(2)],
+        # Knocked east across the pool by the far player's hit on tick 40:
+        # how fast the push dies away in water.
+        'swim-push': [track_row('polar_bear', f'swim-push-{n}', 'polar_bear', adult, [8.5, -58, 0.5, 90], far, 120,
+                                setup=POOL, cleanup=UNPOOL, actions=[{'t': 40, 'commands': [hit]}])
+                      for n in range(3)],
+    }
+    return pick_set('polar-bear', sets, args.items)
+
+
+def tadpole_items(args) -> list[dict]:
+    """`tadpole`: a tadpole summoned in the glass pool (`POOL`) and sampled
+    every tick while the creative player stands outside, 600 ticks, four
+    times (`--items swim` or `all`)."""
+    far = [0.5, -60, -24.5, 0]
+    sets = {'swim': [track_row('tadpole', f'swim-{n}', 'tadpole', None, [11.5, -57, 0.5, 90], far, 600,
+                               setup=POOL, cleanup=UNPOOL) for n in range(4)]}
+    return pick_set('tadpole', sets, args.items)
+
+
 def witch_items(args) -> list[dict]:
     """`witch`: a frozen witch (hidden Slowness 255) and the survival player
     in a barrier pen open towards it, kept alive by Health Boost X and
@@ -1203,7 +1314,7 @@ def build_job(args, out: Path) -> dict:
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
     elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'slime', 'drowned',
-                       'witch'):
+                       'witch', 'bat', 'polar-bear', 'tadpole'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
@@ -1211,7 +1322,8 @@ def build_job(args, out: Path) -> dict:
         job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
                         'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
                         'creeper': creeper_items, 'slime': slime_items, 'drowned': drowned_items,
-                        'witch': witch_items}[args.kind](args)
+                        'witch': witch_items, 'bat': bat_items, 'polar-bear': polar_bear_items,
+                        'tadpole': tadpole_items}[args.kind](args)
     elif args.kind == 'slime-spawn':
         job['kind'] = 'spawn_watch'
         job['items'] = slime_spawn_items(args)
@@ -1240,7 +1352,8 @@ def main() -> int:
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
-                                         'silverfish', 'creeper', 'slime', 'slime-spawn', 'drowned', 'witch'])
+                                         'silverfish', 'creeper', 'slime', 'slime-spawn', 'drowned', 'witch',
+                                         'bat', 'polar-bear', 'tadpole'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

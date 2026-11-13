@@ -28,6 +28,7 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `creeper_fixture.py` | `creeper` sweeps (run with `--client-capture`) to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-creeper.json`: per item the creeper's and the player's feet every tick, whether the player was a target, the actions, and the creeper's `TARGET`, `IGNITED` / `POWERED` / `MOVING` flag changes, `FUSE_TIME` values, sounds, explosion level event and `RemoveActor`, each with its tick; a later sweep's item replaces an earlier one of the same name |
 | `slime_fixture.py` | `slime` sweeps (run with `--client-capture`) and `slime-spawn` runs to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-slime.json`: per item the mob, its size, its first 120 ticks, every tick its ground contact or yaw changed and its hops; for `attack` the player's hits; for `split` where the body was last seen and each child's `AddActor` and `born` sound; and every slime `slime-spawn` saw spawn |
 | `drowned_fixture.py` | `drowned` sweeps (run with `--client-capture`) to `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-drowned.json`: per item the player's feet, the summoned mob's ticks (`sink` and `hunt` items), every damage the player took, each thrown trident's first sample, for `convert` items the tick the mob turned and what it held, and the equipment of the 200 `equipment` drowned |
+| `mob_fixture.py` | The generic fixture of the tracked-mob sweeps (`bat`, `polar-bear`, `tadpole`, run with `--client-capture`; `--only` picks item kinds), e.g. `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json`: per item the player's feet whenever they moved, the setup and actions, every damage event, and per tracked actor its ticks (feet, yaw, pitch, velocity, ground contact, health), its actor flags at `AddActor` and every flag that changed, its `ActorEvent`s and its sounds, each with its tick |
 | `native.py` | Readers for protocolgen's CC0 native data (block palette, mining classes, items, item tags) the jobs are built from |
 | `test_bds_sweep.py` | Tests for the BDS-free parts: `python -m unittest discover -s tools/bds-sweep -p "test_*.py"` |
 
@@ -119,6 +120,9 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `slime-spawn` | natural slime spawning (`spawn_watch`: every new slime recorded and removed, other monsters removed) | the still creative player at the origin of the superflat world (floor y -61), normal, midnight, mob spawning on; two items of `--samples` × 100 ticks |
 | `drowned` | the drowned in a glass pool (`POOL`, water x 3..19, y -60..-54), every drowned, zombie, husk and thrown trident sampled every tick: `--items sink` (no target), `hunt` (the survival player on the pool floor, on a pillar at the surface, on land), `trident` (a ranged drowned, no Resistance), `day` (noon, the player in the water or on land), `equipment` (200 drowned with their natural spawn event), `convert` (a zombie, a baby zombie and a husk under water for 1,100 ticks) or `all` | mobs summoned with a spawn event (`summon … minecraft:as_adult`); the player kept alive by Health Boost X, Regeneration V and Water Breathing |
 | `witch` | the witch: `--items throw` (the player 3, 6, 9 and 10 blocks away), `drink` (under water, in fire, hurt, target moved away), `resist` (`/damage` of several causes) or `all` | a frozen witch, the survival player in a barrier pen open towards it, no Resistance; findings in `docs/research/witch-bds-1.26.51.md` |
+| `bat` | the bat: `--items room` (a closed glass room, 1,200 ticks, four times), `open` (open sky, 600 ticks, twice) or `all` | the bat summoned (its definition has no events) and sampled every tick, the creative player outside |
+| `polar-bear` | the polar bear: `--items stroll`, `attack` (the survival player hits it with `/damage` from 3 blocks), `stomp` (an angered adult frozen 1.4 to 5 blocks from the player held by barrier walls), `baby` (a baby's anger reaching an adult), `swim`, `swim-push` (hit across the glass pool) or `all` | adults summoned with `minecraft:ageable_grow_up`, babies with `minecraft:entity_born`; the player kept alive by Health Boost X and Regeneration V |
+| `tadpole` | the tadpole in the glass pool (`--items swim`, 600 ticks, four times) | the creative player outside |
 | `entity-loot` | `/loot spawn … kill <mob>` outcomes, like `drops` for blocks (`--items <mob>,...`, `--samples`) | a frozen, resistant mob; the sweep player runs the command |
 
 ```powershell
@@ -160,6 +164,8 @@ python tools/bds-sweep/slime_fixture.py <fixture.json> <hop dir> <float dir> <at
 & $py tools/bds-sweep/sweep.py drowned --items all --difficulty normal --client-capture
 python tools/bds-sweep/drowned_fixture.py <fixture.json> <drowned dir>
 & $py tools/bds-sweep/sweep.py witch --items all --difficulty normal --client-capture
+& $py tools/bds-sweep/sweep.py polar-bear --items all --difficulty normal --client-capture   # and bat, tadpole
+python tools/bds-sweep/mob_fixture.py --only attack,baby,swim-push,stomp <fixture.json> <polar-bear dir> [<dir> ...]
 & $py tools/bds-sweep/sweep.py entity-loot --items wither_skeleton --samples 800
 cargo run -p bds-extractor -- --decode <dir>/client/packets.jsonl --only MobEffectPacket --output <out.jsonl>
 ```
