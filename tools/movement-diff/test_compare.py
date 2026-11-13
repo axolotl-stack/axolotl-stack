@@ -73,6 +73,8 @@ class CompareTest(unittest.TestCase):
         validation = {'scenarios': {
             'a': {'setup': [], 'inputs': [], 'relays': 3, 'ticks': 3, 'flags': []},
             'b': {'setup': ['1 blocks differ'], 'inputs': [], 'relays': 2, 'ticks': 2, 'flags': []},
+            'c': {'setup': [], 'inputs': [], 'events': ['knockback an input early'], 'relays': 1, 'ticks': 1,
+                  'flags': []},
         }}
         checks = {'runs': [{'check': 'repeat', 'run': 'r2', 'offset': [3, 3, 3], 'flag_source': 'simulation',
                             'digests': {'a': 'x', 'b': 'y'}, 'differs': {'b': 'why'}}]}
@@ -80,8 +82,9 @@ class CompareTest(unittest.TestCase):
             {'mutation': 'm1', 'change': 'gravity', 'caught_by': ['a']},
             {'mutation': 'm2', 'change': 'nothing', 'caught_by': []}]}
         text = '\n'.join(compare.validation_section(validation, checks, mutations))
-        self.assertIn('1 of 2 scenarios played exactly', text)
-        self.assertIn('5 relays for 5 inputs', text)
+        self.assertIn('1 of 3 scenarios played exactly', text)
+        self.assertIn('knockback an input early', text)
+        self.assertIn('6 relays for 6 inputs', text)
         self.assertIn('1 of 2 scenarios bit-identical', text)
         self.assertIn('1 of 2 caught', text)
         self.assertIn('nothing: **missed**', text)

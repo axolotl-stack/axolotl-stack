@@ -49,5 +49,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0040](0040-judge-player-movement-with-a-shared-simulation.md) | Judge player movement with a simulation shared with the measuring client | 2026-11-11 | proposed | |
 | [0054](0054-measure-bds-movement-through-a-far-reporting-client.md) | Measure BDS's own movement with a client that reports a far position | 2026-11-12 | proposed | |
 | [0060](0060-validate-the-movement-harness-against-bds-itself.md) | Validate the movement harness against BDS itself | 2026-11-12 | proposed | |
+| [0067](0067-find-movement-rules-from-random-seeds-and-probes.md) | Find movement rules from random seeds and targeted probes, and lay the fixtures out a tick a line | 2026-11-12 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

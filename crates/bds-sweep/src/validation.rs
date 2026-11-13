@@ -57,6 +57,10 @@ pub struct ScenarioValidation {
     pub setup: Vec<String>,
     /// Where a sent input differs from the corpus.
     pub inputs: Vec<String>,
+    /// Where a velocity BDS set (a knockback) differs from the corpus's
+    /// events, in tick or value.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub events: Vec<String>,
     /// Relays of the scenario's inputs the viewer received (one per input).
     pub relays: u32,
     pub ticks: u32,
@@ -66,7 +70,10 @@ pub struct ScenarioValidation {
 
 impl ScenarioValidation {
     pub fn passed(&self) -> bool {
-        self.setup.is_empty() && self.inputs.is_empty() && self.relays == self.ticks
+        self.setup.is_empty()
+            && self.inputs.is_empty()
+            && self.events.is_empty()
+            && self.relays == self.ticks
     }
 }
 

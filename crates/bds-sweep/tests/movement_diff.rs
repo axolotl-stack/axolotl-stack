@@ -23,17 +23,37 @@ const KNOWN_GAPS: &[(&str, u32, &str)] = &[
         12,
         "a bed's bounce is not BDS's (0.5324 after the landing, unfitted)",
     ),
+    (
+        "bed_drop_1",
+        6,
+        "a bed's bounce is not BDS's (measured from five heights, unfitted)",
+    ),
+    (
+        "bed_drop_2",
+        9,
+        "a bed's bounce is not BDS's (measured from five heights, unfitted)",
+    ),
+    (
+        "bed_drop_3",
+        11,
+        "a bed's bounce is not BDS's (measured from five heights, unfitted)",
+    ),
+    (
+        "bed_drop_4",
+        12,
+        "a bed's bounce is not BDS's (measured from five heights, unfitted)",
+    ),
+    (
+        "bed_drop_7",
+        16,
+        "a bed's bounce is not BDS's (measured from five heights, unfitted)",
+    ),
     ("bubble_column_down", 1, "bubble columns are not simulated"),
     ("bubble_column_up", 1, "bubble columns are not simulated"),
     (
         "elytra_glide_yaw",
         6,
-        "a glide at yaw 37.5 is 1-2 ULP off on its first tick: the heading angle is not fitted",
-    ),
-    (
-        "knockback_sprint_air",
-        16,
-        "1 ULP on z after a knockback that ends a sprint in the air",
+        "a glide at yaw 37.5 is 3 ULP off on its first tick: BDS's sine table entries are a few ULP off the correctly rounded sines",
     ),
     (
         "powder_snow_walk_into",
@@ -46,14 +66,29 @@ const KNOWN_GAPS: &[(&str, u32, &str)] = &[
         "4 ULP on x velocity late in a random scenario (soul sand, strafing sprint jumps)",
     ),
     (
-        "random_66",
-        12,
-        "a sneak let go while pressing forward on ice still sneaks through that move on BDS, not in unastar; the rule is not found yet",
+        "random_172",
+        6,
+        "a sprint jump at yaw 60 is 3 ULP off on z: BDS's sine table entry for cos 60 is 3 ULP under the correctly rounded one",
     ),
     (
-        "sprint_turn_jump",
-        17,
-        "1 ULP on x on the landing of a turning sprint jump",
+        "random_186",
+        32,
+        "a sneak let go under a top slab keeps BDS's copy in the 1.49 box, so a jump rises 0.01; unastar stands it up",
+    ),
+    (
+        "random_291",
+        72,
+        "a slime bounce an ULP off after the tick's gravity; no f32 order found",
+    ),
+    (
+        "random_66",
+        60,
+        "2 ULP on x after a strafing sprint jump on ice",
+    ),
+    (
+        "random_a141",
+        58,
+        "a sneak let go under a ceiling keeps BDS's copy in the 1.49 box; unastar stands it up",
     ),
     (
         "water_climb_out",
@@ -278,10 +313,8 @@ fn other_bds_runs_give_the_committed_traces() {
     }
     let mut failures = Vec::new();
     for run in &checks.runs {
-        // The runs played the corpus of the committed run md-r5-h; scenarios
-        // added from other runs since (the random seeds) are not in them.
         assert!(
-            run.digests.len() >= 144,
+            run.digests.len() >= 225,
             "{} did not play the whole corpus",
             run.run
         );

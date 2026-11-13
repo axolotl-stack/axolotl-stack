@@ -206,13 +206,8 @@ fn main() -> Result<()> {
                     .collect(),
                 differs: BTreeMap::new(),
             });
-            std::fs::write(
-                &into,
-                serde_json::to_string_pretty(&checks)?
-                    + "
-",
-            )
-            .with_context(|| format!("writing {}", into.display()))
+            std::fs::write(&into, bds_sweep::json::to_fixture_string(&checks, 4)?)
+                .with_context(|| format!("writing {}", into.display()))
         }
         Command::Simulate { corpus, out } => {
             let corpus = read_corpus(&corpus)?;
@@ -282,7 +277,7 @@ fn main() -> Result<()> {
                     DenseVelocity::Diverged { reason } => println!("{name}: {reason}"),
                 }
             }
-            std::fs::write(&out, serde_json::to_string_pretty(&dense)? + "\n")
+            std::fs::write(&out, bds_sweep::json::to_fixture_string(&dense, 5)?)
                 .with_context(|| format!("writing {}", out.display()))
         }
         Command::Random { first, last, out } => {
@@ -481,7 +476,7 @@ fn read_corpus(path: &Path) -> Result<Corpus> {
 }
 
 fn write(path: &Path, traces: &Traces) -> Result<()> {
-    std::fs::write(path, serde_json::to_string_pretty(traces)? + "\n")
+    std::fs::write(path, bds_sweep::json::to_fixture_string(traces, 4)?)
         .with_context(|| format!("writing {}", path.display()))
 }
 
@@ -528,7 +523,7 @@ fn extract(corpus: &Corpus, run: &Path) -> Result<(Traces, RunValidation)> {
         .filter(|(_, o)| o.relay.is_some())
         .map(|(tick, _)| *tick)
         .collect();
-    let validation = validate(corpus, &runs, &subject, &relays)?;
+    let mut validation = validate(corpus, &runs, &subject, &relays)?;
     for record in subject {
         if record.dir != Direction::S2c {
             continue;
@@ -629,6 +624,27 @@ fn extract(corpus: &Corpus, run: &Path) -> Result<(Traces, RunValidation)> {
             .filter(|(tick, _)| (first..=last).contains(tick))
             .map(|(_, speed)| Exact([*speed]))
             .collect();
+        // A knockback must reach BDS's copy when and as the corpus says: a
+        // command that ran an input early or late moves everything after it.
+        let expected: BTreeMap<u32, [u32; 3]> = (1..=scenario.ticks())
+            .filter_map(|tick| Some((tick, scenario.velocity_after(tick)?.map(f32::to_bits))))
+            .collect();
+        let set: BTreeMap<u32, [u32; 3]> = trace
+            .velocity_events
+            .iter()
+            .map(|(tick, velocity)| (*tick, velocity.0.map(f32::to_bits)))
+            .collect();
+        if expected != set {
+            validation
+                .scenarios
+                .entry(played.name.clone())
+                .or_default()
+                .events
+                .push(format!(
+                    "BDS set the velocity (bits) after {:?}, the corpus after {:?}",
+                    set, expected
+                ));
+        }
         traces.scenarios.insert(played.name.clone(), trace);
     }
     Ok((traces, validation))
