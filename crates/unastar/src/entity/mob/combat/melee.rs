@@ -36,15 +36,17 @@ use crate::entity::player_life::environment::ignite_player;
 use crate::entity::player_life::hurt_player;
 use crate::world::rules::Difficulty;
 
-/// `attacker` hits `target` (the melee goal found it in reach this tick).
+/// `attacker` hits `target` (its melee goal found it in reach this tick,
+/// or its charge touched it). The melee goal's fire spread and attack
+/// events follow only when it has one.
 pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
-    let (Some(attack), Some(goal), Some(feet)) = (
+    let (Some(attack), Some(feet)) = (
         world.get::<AttackConfig>(attacker).cloned(),
-        world.get::<MeleeAttackGoal>(attacker).cloned(),
         world.get::<Position>(attacker).map(|p| p.0),
     ) else {
         return;
     };
+    let goal = world.get::<MeleeAttackGoal>(attacker).cloned();
     if world.get::<Dead>(attacker).is_some() || !alive(world, target) {
         return;
     }
@@ -76,7 +78,9 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
         world
             .entity_mut(attacker)
             .insert(crate::entity::mob::state::LastAttack { tick, target });
-        after_hurt(world, attacker, target, &goal, holding, is_player);
+        if let Some(goal) = &goal {
+            after_hurt(world, attacker, target, goal, holding, is_player);
+        }
     }
     // Through the shared effect system (`entity::effects`), which keeps it
     // off an immune target and shows it.

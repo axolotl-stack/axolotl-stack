@@ -29,6 +29,9 @@ pub enum GoalError {
     Molang(#[from] MolangError),
     #[error(transparent)]
     Event(#[from] SelfEventError),
+    /// Only the filterless goal is measured (the vex's).
+    #[error("behavior.look_at_entity filters are not implemented")]
+    LookFilters,
 }
 
 impl ComponentError for GoalError {}
@@ -115,6 +118,13 @@ pub struct LookAtPlayerGoal {
     pub look_ticks: (i32, i32),
 }
 
+/// `minecraft:behavior.look_at_entity`: the [`LookAtPlayerGoal`] rules
+/// over the nearby mobs instead of the players (BDS 1.26.51: a vex looked
+/// at a frozen cow within 6 blocks, `sweep.py vex --items look`). Whether
+/// players count is not measured; the vex also authors `look_at_player`.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct LookAtEntityGoal(pub LookAtPlayerGoal);
+
 /// `minecraft:behavior.random_look_around`.
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct RandomLookAroundGoal {
@@ -192,6 +202,22 @@ pub fn register_component_kinds(
             (b.look_time.min * 20.0) as i32,
             (b.look_time.max * 20.0) as i32,
         ),
+    })?;
+    insert(builder, |b: body::BehaviorLookAtEntity| {
+        if b.filters.is_some() {
+            return Err(GoalError::LookFilters);
+        }
+        Ok(LookAtEntityGoal(LookAtPlayerGoal {
+            priority: b.priority,
+            look_distance: b.look_distance,
+            probability: b.probability,
+            half_angle_horizontal: b.angle_of_view_horizontal as f32 / 2.0,
+            half_angle_vertical: b.angle_of_view_vertical as f32 / 2.0,
+            look_ticks: (
+                (b.look_time.min * 20.0) as i32,
+                (b.look_time.max * 20.0) as i32,
+            ),
+        }))
     })?;
     insert_infallible(builder, |b: body::BehaviorRandomLookAround| {
         RandomLookAroundGoal {

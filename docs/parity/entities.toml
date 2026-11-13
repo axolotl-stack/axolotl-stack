@@ -215,7 +215,7 @@
 "minecraft:squid/spawn_egg_interaction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but squid cannot spawn yet" }
 "minecraft:squid/spawn_rules" = { status = "partial", gaps = "squid cannot spawn yet, so drawn entries spawn nothing; the native spawn check of squid's class is not modelled; brightness is sky light only" }
 "minecraft:squid/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but squid cannot spawn yet" }
-"minecraft:tadpole" = { status = "missing", gaps = "not spawnable: needs behavior.random_swim, movement.sway", notes = "Measured on BDS 1.26.51, not modelled: docs/research/tadpole-and-vex-bds-1.26.51.md (swimming, bobbing, growth into a frog with no delay)." }
+"minecraft:tadpole" = { status = "missing", gaps = "not spawnable: needs behavior.random_swim, movement.sway", notes = "Measured on BDS 1.26.51, not modelled: docs/research/tadpole-and-vex-bds-1.26.51.md (swimming, the vertical push fitted but not the pitch that steers it, growth into a frog with no delay)." }
 "minecraft:tadpole/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tadpole cannot spawn yet" }
 "minecraft:tadpole/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tadpole cannot spawn yet" }
 "minecraft:tadpole/behavior.panic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but tadpole cannot spawn yet", notes = "Unconfirmed natively: the default damage_sources list is the 18-cause legacy list (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -724,7 +724,7 @@
 "minecraft:evocation_illager/behavior.equip_item" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
-"minecraft:evocation_illager/behavior.look_at_entity" = { status = "missing", gaps = "component behaviour not implemented" }
+"minecraft:evocation_illager/behavior.look_at_entity" = { status = "missing", gaps = "only the filterless goal is implemented (the vex's); this one's filters are rejected" }
 "minecraft:evocation_illager/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:evocation_illager/behavior.move_to_village" = { status = "missing", gaps = "not implemented: needs villages and raids" }
 "minecraft:evocation_illager/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
@@ -1134,7 +1134,7 @@
 "minecraft:ravager/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/behavior.knockback_roar" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:ravager/behavior.look_at_entity" = { status = "missing", gaps = "component behaviour not implemented" }
+"minecraft:ravager/behavior.look_at_entity" = { status = "missing", gaps = "only the filterless goal is implemented (the vex's); this one's filters are rejected" }
 "minecraft:ravager/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ravager cannot spawn yet" }
 "minecraft:ravager/behavior.mount_pathing" = { status = "missing", gaps = "only runs while ridden; riding is not implemented" }
 "minecraft:ravager/behavior.move_to_village" = { status = "missing", gaps = "not implemented: needs villages and raids" }
@@ -1382,33 +1382,33 @@
 "minecraft:stray/spawn_rules" = { status = "missing", gaps = "conditions not implemented: spawn_event (2 of 2 entries left out of every pool), so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
 "minecraft:stray/transformation" = { status = "partial", owner = "entities", gaps = "the transformation runs as the zombie to drowned one does once the mob gains it, but nothing tests what makes this mob gain it, and lightning is not implemented" }
 "minecraft:stray/type_family" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/facets.rs::listed_mobs_belong_to_their_authored_families"] }
-"minecraft:vex" = { status = "missing", gaps = "not spawnable: needs behavior.charge_attack, behavior.look_at_entity, damage_over_time", notes = "First BDS 1.26.51 measurements, not modelled: docs/research/tadpole-and-vex-bds-1.26.51.md." }
-"minecraft:vex/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/behavior.charge_attack" = { status = "missing", gaps = "not implemented: needs area and special attacks" }
-"minecraft:vex/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/behavior.look_at_entity" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:vex/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; vex cannot spawn yet" }
-"minecraft:vex/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; vex cannot spawn yet" }
-"minecraft:vex/damage_over_time" = { status = "missing", gaps = "not implemented: needs mob effects" }
-"minecraft:vex/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/equipment" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
+"minecraft:vex" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::spawned_vex_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/vex.rs::a_wandering_vex_flies_its_course_like_bds", "crates/unastar/src/entity/mob/tests/vex.rs::vex_wanders_match_bds_by_distribution", "crates/unastar/src/entity/mob/tests/vex.rs::a_charging_vex_flies_at_its_target_like_bds", "crates/unastar/src/entity/mob/tests/vex.rs::a_vex_charges_and_hits_a_survival_player", "crates/unastar/src/entity/mob/tests/vex.rs::a_decaying_vex_hurts_every_second_until_it_dies"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/vex.bin", notes = "Spawned by /summon only: the evoker that summons vexes cannot spawn. Sub-row gaps: its head turns and pitch (look goals) are not replicated, the MOVING flag it toggles around its courses is not sent, and a mob target's aim point is unmeasured. Flight, wander, charge and decay replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-vex.json), see docs/research/tadpole-and-vex-bds-1.26.51.md." }
+"minecraft:vex/attack" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_vex_charges_and_hits_a_survival_player"] }
+"minecraft:vex/behavior.charge_attack" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_charging_vex_flies_at_its_target_like_bds", "crates/unastar/src/entity/mob/tests/vex.rs::a_vex_charges_and_hits_a_survival_player", "crates/unastar/src/entity/mob/tests/vex.rs::bds_charge_hits_come_on_the_move_that_touches"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-vex.json", notes = "Starts with success_rate a tick while the move control has no course and the target is farther than min_distance; flies at speed_multiplier x 0.05 a tick at 0.1 below the target's eyes and hits when the boxes touch after a move. max_distance bounds nothing (BDS charged from 12 blocks). Only the vex class flies it." }
+"minecraft:vex/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/behavior.look_at_entity" = { status = "partial", owner = "entities", gaps = "the goal picks the nearest mob in view and holds the look, but the vex's head and pitch are not replicated; whether players count is unmeasured; filters are rejected" }
+"minecraft:vex/behavior.look_at_player" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding" }
+"minecraft:vex/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::spawned_vex_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/vex.rs::the_vex_arrives_within_its_box_size"] }
+"minecraft:vex/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:vex/damage_over_time" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_decaying_vex_hurts_every_second_until_it_dies", "crates/unastar/src/entity/mob/tests/vex.rs::the_decay_timer_starts_within_its_authored_range"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-vex.json", notes = "damage_per_hurt every time_between_hurt seconds, cause none, the first one interval after the component arrives." }
+"minecraft:vex/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/equipment" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_vex_charges_and_hits_a_survival_player"], notes = "The iron sword from vex_gear adds 6 to its hits (9 in BDS)." }
+"minecraft:vex/experience_reward" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/fire_immune" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
 "minecraft:vex/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
-"minecraft:vex/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:vex/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; vex cannot spawn yet" }
-"minecraft:vex/navigation.walk" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/timer" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
-"minecraft:vex/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vex cannot spawn yet" }
+"minecraft:vex/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
+"minecraft:vex/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
+"minecraft:vex/movement" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_wandering_vex_flies_its_course_like_bds"], notes = "The vex's pushes scale with it (0.05 x speed x movement)." }
+"minecraft:vex/movement.basic" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_wandering_vex_flies_its_course_like_bds"], notes = "max_turn limits the vex body's turn a tick." }
+"minecraft:vex/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:vex/navigation.walk" = { status = "partial", owner = "entities", gaps = "compiled, but the vex class flies through its move control and never paths" }
+"minecraft:vex/physics" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_vex_flies_out_of_a_closed_glass_box", "crates/unastar/src/entity/mob/tests/vex.rs::a_wandering_vex_flies_its_course_like_bds"], notes = "has_collision false moves the body through blocks and it never stands on one; has_gravity false. The vex class also drags 0.91 on every axis." }
+"minecraft:vex/timer" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/vex.rs::a_vex_with_a_damage_timer_starts_decaying_in_its_range", "crates/unastar/src/entity/mob/tests/vex.rs::the_decay_timer_starts_within_its_authored_range"], notes = "add_damage_timer starts the decay in the authored 30 to 119 seconds, as both BDS decays did." }
+"minecraft:vex/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not tested on the vex" }
 "minecraft:vindicator" = { status = "missing", gaps = "not spawnable: needs behavior.avoid_mob_type, behavior.celebrate, behavior.follow_target_captain, behavior.move_to_random_block, behavior.move_to_village, can_join_raid (+4 more)" }
 "minecraft:vindicator/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but vindicator cannot spawn yet" }
 "minecraft:vindicator/angry" = { status = "partial", owner = "entities", gaps = "implemented and tested on the zombie pigman (spreading, calm, sounds on the zoglin, filters, broadcast targets, spreading on hits and while dying), but vindicator cannot spawn yet" }
@@ -2123,7 +2123,7 @@
 "minecraft:axolotl/breedable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/combat_regeneration" = { status = "missing", gaps = "component behaviour not implemented" }
-"minecraft:axolotl/damage_over_time" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:axolotl/damage_over_time" = { status = "missing", gaps = "the component is implemented (replayed on the vex), but this one authors time_between_hurt 0, which is rejected until measured" }
 "minecraft:axolotl/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:axolotl/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/drying_out_timer" = { status = "missing", gaps = "component behaviour not implemented" }
@@ -2532,7 +2532,7 @@
 "minecraft:dolphin/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; dolphin cannot spawn yet" }
 "minecraft:dolphin/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; dolphin cannot spawn yet" }
-"minecraft:dolphin/damage_over_time" = { status = "missing", gaps = "not implemented: needs mob effects" }
+"minecraft:dolphin/damage_over_time" = { status = "missing", gaps = "the component is implemented (replayed on the vex), but this one authors time_between_hurt 0, which is rejected until measured" }
 "minecraft:dolphin/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
 "minecraft:dolphin/drying_out_timer" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:dolphin/environment_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but dolphin cannot spawn yet" }
@@ -2728,7 +2728,7 @@
 "minecraft:frog/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:frog/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
 "minecraft:frog/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but frog cannot spawn yet" }
-"minecraft:goat" = { status = "missing", gaps = "not spawnable: needs attack_cooldown, behavior.jump_to_block, behavior.ram_attack, genetics" }
+"minecraft:goat" = { status = "missing", gaps = "not spawnable: needs attack_cooldown, behavior.jump_to_block, behavior.ram_attack, genetics", notes = "Rams, jumps and falls measured on BDS 1.26.51, not modelled: docs/research/tadpole-and-vex-bds-1.26.51.md." }
 "minecraft:goat/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:goat/attack" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but goat cannot spawn yet" }
 "minecraft:goat/attack_cooldown" = { status = "missing", gaps = "not implemented: needs area and special attacks" }

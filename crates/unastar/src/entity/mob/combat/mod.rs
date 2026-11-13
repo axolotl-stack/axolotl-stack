@@ -21,6 +21,6 @@ mod bds_knockback;
 mod bds_ranged;
 
 pub use hit::{
-    Hit, HurtTimer, fire_immune, hurt_mob, hurt_mob_quietly, hurt_on_condition, knockback_power_of,
-    knockback_velocity, player_attack, send_actor_event,
+    DamageOverTimeClock, Hit, HurtTimer, damage_over_time, fire_immune, hurt_mob, hurt_mob_quietly,
+    hurt_on_condition, knockback_power_of, knockback_velocity, player_attack, send_actor_event,
 };

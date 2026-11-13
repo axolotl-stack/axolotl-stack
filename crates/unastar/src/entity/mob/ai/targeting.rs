@@ -119,6 +119,15 @@ impl Candidate {
             player: false,
         })
     }
+    /// The feet: the bottom centre of the box.
+    pub fn feet(&self) -> DVec3 {
+        let aabb = self.aabb;
+        DVec3::new(
+            (aabb.min.x + aabb.max.x) / 2.0,
+            aabb.min.y,
+            (aabb.min.z + aabb.max.z) / 2.0,
+        )
+    }
 }
 
 /// The fraction of `entity`'s four armour slots that hold an item.

@@ -31,10 +31,12 @@ pub(crate) use targeting::Candidate;
 
 #[cfg(test)]
 mod tests;
+pub mod vex;
 
 pub(crate) use self::break_door::stop_breaking_doors;
 pub use self::melee::{StompClock, StompStep, tick_stomp_attacks};
 pub use self::path::PathBlockTable;
+pub use self::vex::tick_charge_hits;
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -323,6 +325,28 @@ fn think(
         look,
     } = brain;
     let mut effects = Effects::default();
+    // The vex's move control steers before its goals think, whatever its
+    // navigation says (`vex`): a course a goal sets is first flown on the
+    // next tick.
+    let vex = kind.0.native.vex;
+    let vex_flight = vex.filter(|_| turn != Turn::Die).map(|class| {
+        movement.wanted = None;
+        // With a target its body faces the target, else its motion.
+        let facing = states
+            .targets
+            .target
+            .and_then(|target| targeting::Candidate::of(world, target))
+            .map(|target| target.pos);
+        states.fly.steer(
+            feet,
+            vex::arrival_distance(physics.width, physics.height),
+            class.arrival_slowdown,
+            rotation.yaw,
+            max_turn,
+            facing,
+            velocity,
+        )
+    });
     if turn == Turn::Think(true) {
         // A rebuilt composition rebuilds the native goals.
         if states.melee.reset() {
@@ -398,7 +422,20 @@ fn think(
     }
     ctx.check_unheld_target();
     selector.tick(&mut ctx);
+    if let Some(class) = &vex {
+        ctx.vex_wander(class);
+    }
     let goal_jump = ctx.jump;
+
+    if let Some(flight) = vex_flight {
+        return Some(Output {
+            yaw: flight.yaw,
+            head_yaw: flight.yaw,
+            velocity: flight.velocity,
+            swimming: false,
+            effects,
+        });
+    }
 
     if let Some(hop) = mob.get::<HopMovementConfig>() {
         // A hopping mob never paths: its control turns, waits and jumps.
@@ -600,6 +637,9 @@ fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Defer
     }
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
+    }
+    if let Some(charging) = effects.charging {
+        set_flag(&mut mob, actor_flags::CHARGING, charging);
     }
     if let Some(standing) = effects.standing {
         set_flag(&mut mob, actor_flags::STANDING, standing);

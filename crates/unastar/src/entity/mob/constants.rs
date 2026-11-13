@@ -936,6 +936,32 @@ pub const BAT_REST_CHANCE: f32 = 0.01;
 /// A resting bat wakes when a player's eyes come closer than this to its
 /// feet (BDS 1.26.51, `sweep.py bat --items wake,canopy`).
 pub const BAT_WAKE_RANGE: f64 = 4.0;
+// --- The vex (`mob::ai::vex`) -----------------------------------------------
+
+/// The vex's move control pushes movement x speed multiplier x this a tick
+/// toward its point (BDS 1.26.51, `sweep.py vex`: 0.0125 while it wanders,
+/// 0.05 while it charges, with `minecraft:movement` 1).
+pub const VEX_PUSH_SCALE: f64 = 0.05;
+/// The speed multiplier of the vex's native wander (0.0125 / 0.05).
+pub const VEX_WANDER_SPEED: f64 = 0.25;
+/// The chance per tick that a vex with no point starts a wander (BDS
+/// 1.26.51: 44 waits after an arrival averaged 7.6 samples, from 1 to 35).
+pub const VEX_WANDER_CHANCE: f32 = 1.0 / 7.0;
+/// A wander point is the centre of a block within this many blocks of the
+/// vex's block on x and z (BDS 1.26.51: every measured point within 7).
+pub const VEX_WANDER_XZ: i32 = 7;
+/// ... and on y (every measured point within 5).
+pub const VEX_WANDER_Y: i32 = 5;
+/// The vex's move control lets its velocity drop to this share on the tick
+/// it arrives (BDS 1.26.51: 0.455 = 0.5 x 0.91 of the last move).
+pub const VEX_ARRIVAL_SLOWDOWN: f64 = 0.5;
+/// A charging vex steers again at its target's eyes while their feet are
+/// within this distance (3 blocks).
+pub const VEX_CHARGE_STEER_DIST: f64 = 3.0;
+/// A charging vex flies at this far below its target's eyes (BDS 1.26.51:
+/// 1.52 above a player's feet in 33 charges, `sweep.py vex --items charge`).
+pub const VEX_CHARGE_AIM_DROP: f64 = 0.1;
+
 /// The bat class starts with this `FALL_DAMAGE_MULTIPLIER` (BDS 1.26.51:
 /// the native bat summon; its definition's fall damage sensor deals none
 /// either way).

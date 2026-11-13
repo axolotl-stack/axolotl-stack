@@ -575,6 +575,16 @@ hurt). A float-navigating mob flies straight at the point its goal wants, with
 no path search and no gravity (`mob::ai::fly`, decision 0069); the bat's
 resting is native (`mob::ai::roost`).
 
+The vex (`sweep.py vex --client-capture`: wandering, charging a survival player,
+beside a cow, and decaying, distilled into
+`src/entity/mob/ai/testdata/bds-1.26.51-vex.json`) is replayed by
+`src/entity/mob/tests/vex.rs`: its summon, its wanders and charges tick by tick,
+its waits by distribution, its hits and its decay. The vex class flies through
+one held course, steered before its goals: no gravity, no block collision, a
+push of 0.05 × speed a tick at the point and half its velocity on arrival
+(`mob::ai::vex`, decision 0070). `behavior.charge_attack` hits after the move
+(`tick_charge_hits`), and `damage_over_time` hurts with no cause.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

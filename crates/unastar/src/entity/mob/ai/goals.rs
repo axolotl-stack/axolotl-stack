@@ -18,12 +18,12 @@ use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_ta
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
-    AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
-    FloatGoal, FloatWanderGoal, FollowParentGoal, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal,
-    HopRandomDirectionGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeAttackGoal,
-    MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
-    RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal, TemptGoal,
-    WakeUpFriendsGoal, WalkNavigationConfig,
+    AvoidMobTypeGoal, BreedGoal, BreedableConfig, ChargeAttackGoal, EatBlockGoal, EquipItemGoal,
+    FleeSunGoal, FloatGoal, FloatWanderGoal, FollowParentGoal, HopAttackGoal, HopFloatGoal,
+    HopKeepJumpingGoal, HopRandomDirectionGoal, HurtByTargetGoal, LookAtEntityGoal,
+    LookAtPlayerGoal, MeleeAttackGoal, MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal,
+    PickupItemsGoal, RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal,
+    TemptGoal, WakeUpFriendsGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -68,10 +68,12 @@ pub enum Goal {
     HopRandomDirection,
     HopKeepJumping,
     FloatWander,
+    ChargeAttack,
+    LookAtEntity,
 }
 
 impl Goal {
-    const ALL: [Goal; 25] = [
+    const ALL: [Goal; 27] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -97,6 +99,8 @@ impl Goal {
         Goal::HopRandomDirection,
         Goal::HopKeepJumping,
         Goal::FloatWander,
+        Goal::ChargeAttack,
+        Goal::LookAtEntity,
     ];
 
     pub fn id(self) -> GoalId {
@@ -120,7 +124,7 @@ impl Goal {
             Goal::Breed | Goal::Tempt | Goal::RandomLookAround => {
                 GoalControls::MOVE | GoalControls::LOOK
             }
-            Goal::LookAtPlayer => GoalControls::LOOK,
+            Goal::LookAtPlayer | Goal::LookAtEntity => GoalControls::LOOK,
             Goal::EatBlock => crate::entity::mob::constants::EAT_BLOCK_DEFAULT_CONTROLS,
             Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
             Goal::MeleeAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
@@ -131,6 +135,7 @@ impl Goal {
             Goal::HopFloat | Goal::HopKeepJumping => GoalControls::MOVE | GoalControls::JUMP,
             Goal::HopAttack | Goal::HopRandomDirection => GoalControls::LOOK,
             Goal::FloatWander => GoalControls::NONE,
+            Goal::ChargeAttack => GoalControls::MOVE | GoalControls::LOOK,
         }
     }
 }
@@ -166,6 +171,10 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             entity.get::<LookAtPlayerGoal>().map(|g| g.priority),
         ),
         (
+            Goal::LookAtEntity,
+            entity.get::<LookAtEntityGoal>().map(|g| g.0.priority),
+        ),
+        (
             Goal::RandomLookAround,
             entity.get::<RandomLookAroundGoal>().map(|g| g.priority),
         ),
@@ -189,6 +198,14 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
     if let Some(goal) = entity.get::<FloatWanderGoal>() {
         out.push(GoalSpec {
             id: Goal::FloatWander.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<ChargeAttackGoal>() {
+        out.push(GoalSpec {
+            id: Goal::ChargeAttack.id(),
             kind: GoalKind::Normal,
             priority: goal.priority,
             controls: goal.controls,
@@ -323,6 +340,11 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
     }));
 }
 
+/// A mob's eyes, as the look goals see them.
+fn mob_eye(mob: &MobView) -> DVec3 {
+    mob.feet + DVec3::Y * mob.height * crate::entity::mob::constants::MOB_EYE_HEIGHT_RATIO
+}
+
 /// World writes the goals request; applied after the mob's tick.
 #[derive(Debug, Default)]
 pub struct Effects {
@@ -352,6 +374,9 @@ pub struct Effects {
     pub standing: Option<bool>,
     /// The `RESTING` flag changes (a bat settles or wakes, `super::roost`).
     pub resting: Option<bool>,
+    /// The `CHARGING` flag changes (a vex's charge starts or ends,
+    /// `super::vex`).
+    pub charging: Option<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -380,6 +405,8 @@ pub struct GoalStates {
     parent: Option<Entity>,
     parent_repath: u32,
     look_player: Option<Entity>,
+    /// The mob `behavior.look_at_entity` looks at.
+    look_mob: Option<Entity>,
     look_ticks: i32,
     look_point: DVec3,
     breed: BreedState,
@@ -399,6 +426,7 @@ pub struct GoalStates {
     pub(super) silverfish: super::silverfish::SilverfishState,
     pub(super) hop: super::hop::HopState,
     pub(super) fly: super::fly::FlyState,
+    pub(super) charge: super::vex::ChargeState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -558,7 +586,11 @@ impl<'a> GoalContext<'a> {
     }
 
     fn in_view(&self, goal: &LookAtPlayerGoal, player: &PlayerView) -> bool {
-        let delta = player.eye - self.eye();
+        self.eye_in_view(goal, player.eye)
+    }
+
+    fn eye_in_view(&self, goal: &LookAtPlayerGoal, eye: DVec3) -> bool {
+        let delta = eye - self.eye();
         if goal.half_angle_horizontal < 180.0 {
             let off = wrap_degrees(yaw_toward(delta) - self.yaw).abs();
             if off > goal.half_angle_horizontal {
@@ -573,6 +605,48 @@ impl<'a> GoalContext<'a> {
             }
         }
         true
+    }
+
+    fn look_at_entity_can_start(&mut self) -> bool {
+        let Some(goal) = self.config::<LookAtEntityGoal>() else {
+            return false;
+        };
+        let goal = &goal.0;
+        if self.rng.r#gen::<f32>() >= goal.probability {
+            return false;
+        }
+        let range = f64::from(goal.look_distance);
+        let feet = self.body.feet;
+        let target = self
+            .nearby
+            .mobs_in(self.aabb().inflate(DVec3::splat(range)))
+            .filter(|m| {
+                m.entity != self.entity
+                    && !m.dead
+                    && m.feet.distance_squared(feet) <= range * range
+                    && self.eye_in_view(goal, mob_eye(m))
+            })
+            .min_by(|a, b| {
+                a.feet
+                    .distance_squared(feet)
+                    .total_cmp(&b.feet.distance_squared(feet))
+            })
+            .map(|m| m.entity);
+        self.states.look_mob = target;
+        target.is_some()
+    }
+
+    fn look_at_entity_can_continue(&self) -> bool {
+        let Some(goal) = self.config::<LookAtEntityGoal>() else {
+            return false;
+        };
+        let Some(mob) = self.mob(self.states.look_mob) else {
+            return false;
+        };
+        let range = f64::from(goal.0.look_distance);
+        self.states.look_ticks > 0
+            && mob.feet.distance_squared(self.body.feet) <= range * range
+            && self.eye_in_view(&goal.0, mob_eye(&mob))
     }
 
     fn breed_partner(&self) -> Option<Entity> {
@@ -772,6 +846,7 @@ impl GoalCallbacks for GoalContext<'_> {
                 };
                 self.rng.r#gen::<f32>() < goal.probability
             }
+            Goal::LookAtEntity => self.look_at_entity_can_start(),
             Goal::Breed => {
                 if self.config::<BreedGoal>().is_none() || self.baby || !self.self_in_love() {
                     return false;
@@ -812,6 +887,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HopRandomDirection => self.hop_direction_can_start(),
             Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
             Goal::FloatWander => self.float_wander_can_start(),
+            Goal::ChargeAttack => self.charge_can_start(),
         }
     }
 
@@ -828,6 +904,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HopRandomDirection => self.hop_direction_can_start(),
             Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
             Goal::FloatWander => self.float_wander_can_start(),
+            Goal::ChargeAttack => self.charge_can_continue(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -872,6 +949,7 @@ impl GoalCallbacks for GoalContext<'_> {
                     && self.in_view(goal, &player)
             }
             Goal::RandomLookAround => self.states.look_ticks > 0,
+            Goal::LookAtEntity => self.look_at_entity_can_continue(),
             Goal::EatBlock => self.states.eat_ticks > 0,
             Goal::HurtByTarget => self.hurt_by_can_continue(),
             Goal::NearestAttackableTarget => self.nearest_target_can_continue(),
@@ -926,6 +1004,12 @@ impl GoalCallbacks for GoalContext<'_> {
                     .map_or((0, 0), |g| g.look_ticks);
                 self.states.look_ticks = view_range(ticks, self.rng);
             }
+            Goal::LookAtEntity => {
+                let ticks = self
+                    .config::<LookAtEntityGoal>()
+                    .map_or((0, 0), |g| g.0.look_ticks);
+                self.states.look_ticks = view_range(ticks, self.rng);
+            }
             Goal::RandomLookAround => {
                 let Some(goal) = self.config::<RandomLookAroundGoal>() else {
                     return;
@@ -964,6 +1048,7 @@ impl GoalCallbacks for GoalContext<'_> {
             | Goal::HopRandomDirection
             | Goal::HopKeepJumping
             | Goal::FloatWander => {}
+            Goal::ChargeAttack => self.charge_start(),
             Goal::Swell => {
                 self.nav.stop(self.movement);
                 self.effects.swell_started = true;
@@ -984,6 +1069,7 @@ impl GoalCallbacks for GoalContext<'_> {
             | Goal::HopRandomDirection
             | Goal::HopKeepJumping => {}
             Goal::FloatWander => self.float_wander_stop(),
+            Goal::ChargeAttack => self.charge_stop(),
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -1000,6 +1086,7 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.effects.tempted = Some(false);
             }
             Goal::LookAtPlayer => self.states.look_player = None,
+            Goal::LookAtEntity => self.states.look_mob = None,
             Goal::RandomLookAround => self.states.look_ticks = 0,
             Goal::EatBlock => self.states.eat_ticks = 0,
             Goal::HurtByTarget => self.target_stop(super::targeting::TargetSource::HurtBy),
@@ -1045,6 +1132,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HopRandomDirection => self.hop_direction_tick(),
             Goal::HopKeepJumping => self.hop_keep_jumping_tick(),
             Goal::FloatWander => self.float_wander_tick(),
+            Goal::ChargeAttack => self.charge_tick(),
             Goal::EatBlock => {
                 self.states.eat_ticks = self.states.eat_ticks.max(1) - 1;
                 if self.states.eat_ticks == 0 {
@@ -1104,6 +1192,12 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::LookAtPlayer => {
                 if let Some(player) = self.player(self.states.look_player) {
                     self.look.look_at(player.eye, LOOK_AT_PLAYER_HEAD_TURN);
+                }
+                self.states.look_ticks -= 1;
+            }
+            Goal::LookAtEntity => {
+                if let Some(mob) = self.mob(self.states.look_mob) {
+                    self.look.look_at(mob_eye(&mob), LOOK_AT_PLAYER_HEAD_TURN);
                 }
                 self.states.look_ticks -= 1;
             }

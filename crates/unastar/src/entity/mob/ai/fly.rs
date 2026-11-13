@@ -23,7 +23,7 @@
 use glam::{DVec3, IVec3};
 use rand::Rng;
 
-use super::control::{wrap_degrees, yaw_toward};
+use super::control::{rotate_towards, wrap_degrees, yaw_toward};
 use super::goals::GoalContext;
 use crate::entity::mob::components::FloatWanderGoal;
 use crate::entity::systems::physics::BlockSource;
@@ -38,6 +38,16 @@ pub struct FlyState {
     ticks_left: u32,
     /// The point a goal flies at this tick.
     wanted: Option<DVec3>,
+    /// The vex's course: held until it arrives (`super::vex`).
+    course: Option<Course>,
+}
+
+/// A point the vex's move control flies to until it arrives, and the push
+/// a tick toward it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Course {
+    pub point: DVec3,
+    pub push: f64,
 }
 
 /// The float control's result for one tick.
@@ -66,6 +76,63 @@ impl FlyState {
             yaw
         };
         Flight { yaw, velocity }
+    }
+
+    /// The vex's move control: on a tick its feet are closer than `arrive`
+    /// to its course's point it keeps `slowdown` of its velocity and drops
+    /// the course; on any other tick of a course it pushes `push` along the
+    /// unit vector from its feet to the point. Its body turns at most
+    /// `max_turn` a tick toward `facing` when it has one (its target), else
+    /// toward the direction it moves this tick.
+    #[allow(clippy::too_many_arguments)]
+    pub fn steer(
+        &mut self,
+        feet: DVec3,
+        arrive: f64,
+        slowdown: f64,
+        yaw: f32,
+        max_turn: f32,
+        facing: Option<DVec3>,
+        velocity: DVec3,
+    ) -> Flight {
+        let mut velocity = velocity;
+        if let Some(course) = self.course {
+            let towards = course.point - feet;
+            let distance = towards.length();
+            if distance < arrive {
+                velocity *= slowdown;
+                self.course = None;
+            } else {
+                velocity += towards * (course.push / distance);
+            }
+        }
+        let direction = facing.map_or(velocity, |point| point - feet);
+        let yaw = if direction.x != 0.0 || direction.z != 0.0 {
+            rotate_towards(yaw, yaw_toward(direction), max_turn)
+        } else {
+            yaw
+        };
+        Flight { yaw, velocity }
+    }
+
+    /// Whether the vex's control has no course.
+    pub fn idle(&self) -> bool {
+        self.course.is_none()
+    }
+
+    /// Set the vex's course.
+    pub fn set_course(&mut self, course: Course) {
+        self.course = Some(course);
+    }
+
+    /// The vex's course.
+    pub fn course(&self) -> Option<Course> {
+        self.course
+    }
+
+    /// The vex's course, to steer it again.
+    pub(super) fn course_mut(&mut self) -> Option<&mut Course> {
+        self.course.as_mut()
     }
 
     /// Forget the current wander: a bat that settles starts a new one when

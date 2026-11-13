@@ -41,6 +41,7 @@ pub mod stats;
 pub mod target_triggers;
 pub mod transformation;
 pub mod variant;
+pub mod vex;
 
 use std::sync::Arc;
 
@@ -60,7 +61,8 @@ pub use equipment::{
 pub use flight::{FloatNavigation, FloatWanderGoal};
 pub use goals::{
     BreedGoal, EatBlockGoal, EatBlockPair, FleeSunGoal, FloatGoal, FollowParentGoal, GoalBase,
-    LookAtPlayerGoal, PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
+    LookAtEntityGoal, LookAtPlayerGoal, PanicGoal, RandomLookAroundGoal, RandomStrollGoal,
+    TemptGoal,
 };
 pub use hostile::{
     AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeAttackGoal, MeleeReach,
@@ -83,6 +85,7 @@ pub use slime::{
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer, Spawned};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
 pub use transformation::{TransformationConfig, TransformationDue};
+pub use vex::{ChargeAttackGoal, DamageOverTime};
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 use crate::registry::ItemRegistry;
@@ -228,5 +231,6 @@ pub fn register_component_kinds(
     variant::register_component_kinds(builder)?;
     target_triggers::register_component_kinds(builder)?;
     stats::register_component_kinds(builder)?;
+    vex::register_component_kinds(builder)?;
     angry::register_component_kinds(builder)
 }

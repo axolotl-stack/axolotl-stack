@@ -7,7 +7,8 @@ use super::constants::{
     ANIMAL_AMBIENT_SOUND_INTERVAL, BAT_FALL_DAMAGE_MULTIPLIER, BAT_FLIGHT_VERTICAL_FACTOR,
     BAT_REST_CHANCE, BAT_WAKE_RANGE, CHICKEN_FALL_DAMAGE_MULTIPLIER,
     DEFAULT_AMBIENT_SOUND_INTERVAL, MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER, MAGMA_CUBE_JUMP_PER_SIZE,
-    WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
+    VEX_ARRIVAL_SLOWDOWN, VEX_PUSH_SCALE, VEX_WANDER_CHANCE, VEX_WANDER_SPEED, VEX_WANDER_XZ,
+    VEX_WANDER_Y, WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
 };
 
 /// The native traits of one actor class.
@@ -54,6 +55,28 @@ pub struct NativeTraits {
     pub flight_vertical_factor: f64,
     /// The bat class: see [`BatClass`].
     pub bat: Option<BatClass>,
+    /// The vex class: see [`VexClass`].
+    pub vex: Option<VexClass>,
+}
+
+/// What the vex class does natively, whatever its definition's walk
+/// navigation says: it flies like a float flyer (no gravity, 0.91 drag on
+/// every axis) through a move control that pushes it at one point until it
+/// arrives, and wanders to random block centres when nothing else moves it
+/// (`mob::ai::vex`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VexClass {
+    /// The push a tick is movement x speed multiplier x this.
+    pub push_scale: f64,
+    /// The wander's speed multiplier.
+    pub wander_speed: f64,
+    /// The chance per tick that a vex with no point starts a wander.
+    pub wander_chance: f32,
+    /// The wander's reach in blocks on x and z, and on y.
+    pub wander_xz: i32,
+    pub wander_y: i32,
+    /// The velocity share kept on the tick it arrives.
+    pub arrival_slowdown: f64,
 }
 
 /// What the bat class does natively: it is born resting, rests hanging
@@ -121,6 +144,17 @@ impl NativeTraits {
             }),
             _ => None,
         };
+        let vex = match actor_type {
+            ActorType::Vex => Some(VexClass {
+                push_scale: VEX_PUSH_SCALE,
+                wander_speed: VEX_WANDER_SPEED,
+                wander_chance: VEX_WANDER_CHANCE,
+                wander_xz: VEX_WANDER_XZ,
+                wander_y: VEX_WANDER_Y,
+                arrival_slowdown: VEX_ARRIVAL_SLOWDOWN,
+            }),
+            _ => None,
+        };
         let flight_vertical_factor = match actor_type {
             ActorType::Bat => BAT_FLIGHT_VERTICAL_FACTOR,
             _ => 1.0,
@@ -146,6 +180,7 @@ impl NativeTraits {
                 slime,
                 flight_vertical_factor,
                 bat,
+                vex,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -164,6 +199,7 @@ impl NativeTraits {
                 slime,
                 flight_vertical_factor,
                 bat,
+                vex,
             },
         }
     }

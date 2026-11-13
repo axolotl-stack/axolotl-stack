@@ -592,6 +592,25 @@ pub fn step_body_with_effects(
 
     // A living body's friction is decided by where it stood before the move.
     let started_on_ground = *on_ground;
+    if !body.collides {
+        // No collision: the whole move goes through blocks, and the body
+        // never stands on anything.
+        *on_ground = false;
+        let feet = position + *velocity;
+        if body.model == PhysicsModel::Living {
+            apply_living_drag(
+                blocks,
+                body,
+                position,
+                false,
+                living_liquid,
+                effects,
+                swimming,
+                velocity,
+            );
+        }
+        return (feet, living_liquid);
+    }
     let result = move_aabb(blocks, aabb, *velocity, body.step_height, *on_ground);
     if result.moved.x != velocity.x {
         velocity.x = 0.0;

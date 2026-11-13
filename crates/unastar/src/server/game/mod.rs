@@ -486,6 +486,12 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
+        // A charging vex hits by where it stands after its move.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::ai::tick_charge_hits
+                .in_set(PhysicsSet)
+                .after(tick_physics),
+        );
         // The slime classes report leaving the ground and landing.
         ecs.schedule_mut().add_systems(
             crate::entity::mob::ai::hop::report_ground_changes
@@ -555,6 +561,7 @@ impl GameServer {
                 crate::entity::mob::combat::fall::apply_fall_damage,
                 crate::entity::mob::combat::area_attack::area_attacks,
                 crate::entity::mob::combat::hurt_on_condition,
+                crate::entity::mob::combat::damage_over_time,
                 crate::entity::mob::combat::fire::burn_in_daylight,
                 crate::entity::mob::combat::fire::burn_mobs,
                 crate::entity::mob::combat::death::die_at_zero_health,

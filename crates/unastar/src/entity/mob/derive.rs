@@ -87,11 +87,16 @@ fn derive(
     if !gravity {
         body.gravity = 0.0;
     }
-    if floats.is_some() {
+    // The `HAS_COLLISION` flag and the body agree: no collision lets the
+    // body through blocks.
+    body.collides = has_collision;
+    if floats.is_some() || kind.0.native.vex.is_some() {
         // A float-navigating flyer has no gravity whatever its physics
         // says, and air drags it alike on every axis (BDS 1.26.51: a
         // ghast's motion kept 0.91 a tick on x, y and z, and so did a
-        // bat's on x and z, its native vertical factor aside).
+        // bat's on x and z, its native vertical factor aside). The vex
+        // class flies the same way with its walk navigation (`sweep.py
+        // vex`: 0.91 a tick on every axis).
         body.gravity = 0.0;
         body.vertical_drag = LIVING_FRICTION_FACTOR * kind.0.native.flight_vertical_factor;
     }
