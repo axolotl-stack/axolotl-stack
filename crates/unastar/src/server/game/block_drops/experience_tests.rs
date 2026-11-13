@@ -12,10 +12,11 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
+use unastar_rules::ids::Enchantment;
 
 use super::*;
 use crate::entity::xp_orb::orb_values;
-use crate::item::enchant::{Enchantment, with_enchantments};
+use crate::item::enchant::with_enchantments;
 use crate::registry::BlockRegistry;
 
 #[derive(Deserialize)]
@@ -43,12 +44,13 @@ fn tool(key: &str) -> Option<ItemStack> {
             let split = part.find(|c: char| c.is_ascii_digit()).unwrap();
             let (name, level) = part.split_at(split);
             (
-                Enchantment::from_name(name).unwrap_or_else(|| panic!("{name}")),
+                name.parse::<Enchantment>()
+                    .unwrap_or_else(|error| panic!("{name}: {error}")),
                 level.parse().unwrap(),
             )
         })
         .collect();
-    Some(with_enchantments(&stack, &enchantments))
+    Some(with_enchantments(&stack, enchantments))
 }
 
 #[test]

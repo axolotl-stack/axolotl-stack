@@ -17,6 +17,7 @@ use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use rand::Rng;
 use tracing::warn;
+use unastar_rules::ids::Enchantment;
 
 use super::items::world_stack;
 use super::loot::LootContext;
@@ -202,10 +203,8 @@ pub(crate) fn experience_drop(
     tool: Option<&ItemStack>,
 ) -> Option<BlockExperience> {
     let experience = block_experience(&block.string_id)?;
-    let silk_touch = tool.is_some_and(|tool| {
-        crate::item::enchant::enchantment_level(tool, crate::item::enchant::Enchantment::SilkTouch)
-            > 0
-    });
+    let silk_touch =
+        tool.is_some_and(|tool| tool.enchantment_level(Enchantment::SilkTouch) > 0);
     let hoe = tool
         .and_then(ItemStack::item)
         .is_some_and(|entry| entry.has_tag("minecraft:is_hoe"));
