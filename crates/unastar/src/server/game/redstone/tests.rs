@@ -242,8 +242,111 @@ fn placed(stored: &Stored, pos: IVec3, block: &str, states: &Value) -> u32 {
     state(stored_block, stored_states)
 }
 
-/// Apply one scenario action to the cell; `Err` when the replay cannot.
-fn apply(cell: &mut Cell, stored: &Stored, event: &Value) -> Result<(), Skip> {
+/// A world a circuit row replays in: the in-memory [`Cell`] or the live
+/// server world ([`LiveBench`]).
+trait Bench: BlockSource {
+    /// Set `state` at `pos` from outside the circuit, with the block update
+    /// a placement triggers when `physics`.
+    fn set(&mut self, pos: IVec3, state: u32, physics: bool);
+    /// One game tick of the circuit.
+    fn step(&mut self);
+    /// `replaceitem block`: `count` items in `slot` of the container at
+    /// `pos` (`None` empties it).
+    fn replace_item(&mut self, pos: IVec3, slot: usize, count: Option<u32>) -> Result<(), Skip>;
+}
+
+impl Bench for Cell {
+    fn set(&mut self, pos: IVec3, state: u32, physics: bool) {
+        Cell::set(self, pos, state, physics);
+    }
+
+    fn step(&mut self) {
+        Cell::step(self);
+    }
+
+    fn replace_item(&mut self, pos: IVec3, slot: usize, count: Option<u32>) -> Result<(), Skip> {
+        let slots = self.containers.entry(pos).or_default();
+        match count {
+            Some(count) => slots.insert(slot, (count, 64)),
+            None => slots.remove(&slot),
+        };
+        Ok(())
+    }
+}
+
+/// The live server world: blocks go through the game's block path
+/// ([`set_block`](crate::server::game::blocks::set_block)) and the circuit
+/// steps through [`super::tick_redstone`], so its own writes take the same
+/// path a player's would. The row's cell sits at `ORIGIN` on a superflat
+/// floor in chunk (0, 0).
+struct LiveBench(bevy_ecs::world::World);
+
+impl LiveBench {
+    const ORIGIN: IVec3 = IVec3::new(4, 64, 4);
+
+    fn new(redstone: Redstone) -> Self {
+        use crate::world::ecs::{BlockBroadcastEvent, ChunkData, ChunkManager, ChunkPosition};
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(ChunkManager::new(
+            crate::world::WorldConfig::void_spawn_platform(1),
+        ));
+        world.insert_resource(crate::server::game::types::BlockRegistryResource(
+            std::sync::Arc::new(registry().clone()),
+        ));
+        world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
+        let mut chunk = crate::world::chunk::Chunk::new(0, 0);
+        for x in 0..16u8 {
+            for z in 0..16u8 {
+                for y in -4..0 {
+                    if let Some(name) = Cell::floor(y) {
+                        let id = registry().default_state_id_by_name(name).unwrap();
+                        chunk.set_block(x, (Self::ORIGIN.y + y) as i16, z, id);
+                    }
+                }
+            }
+        }
+        let chunk = world.spawn(ChunkData::new(chunk)).id();
+        world
+            .resource_mut::<ChunkManager>()
+            .insert(ChunkPosition::new(0, 0), chunk);
+        world.insert_resource(redstone);
+        Self(world)
+    }
+}
+
+impl BlockSource for LiveBench {
+    fn block_at(&self, pos: IVec3) -> Option<u32> {
+        let at = pos + Self::ORIGIN;
+        crate::server::game::blocks::block_at(&self.0, (at.x, at.y, at.z))
+    }
+
+    fn registry(&self) -> &BlockRegistry {
+        registry()
+    }
+}
+
+impl Bench for LiveBench {
+    fn set(&mut self, pos: IVec3, state: u32, physics: bool) {
+        use crate::server::game::blocks::{set_block, write_block};
+        let at = pos + Self::ORIGIN;
+        if physics {
+            set_block(&mut self.0, at, state, false);
+        } else {
+            write_block(&mut self.0, at, state, false);
+        }
+    }
+
+    fn step(&mut self) {
+        super::tick_redstone(&mut self.0);
+    }
+
+    fn replace_item(&mut self, _: IVec3, _: usize, _: Option<u32>) -> Result<(), Skip> {
+        Err("containers are not modelled in the live bench".to_string())
+    }
+}
+
+/// Apply one scenario action to the bench; `Err` when the replay cannot.
+fn apply(cell: &mut impl Bench, stored: &Stored, event: &Value) -> Result<(), Skip> {
     let kind = event[0].as_str().unwrap();
     match kind {
         "set" => {
@@ -269,13 +372,8 @@ fn apply(cell: &mut Cell, stored: &Stored, event: &Value) -> Result<(), Skip> {
                 let pos = offset(&event[2]);
                 let slot: usize = words[6].parse().map_err(|_| text.to_string())?;
                 let count: u32 = words[8].parse().map_err(|_| text.to_string())?;
-                let slots = cell.containers.entry(pos).or_default();
-                if words[7] == "minecraft:air" {
-                    slots.remove(&slot);
-                } else {
-                    slots.insert(slot, (count, 64));
-                }
-                return Ok(());
+                let count = (words[7] != "minecraft:air").then_some(count);
+                return cell.replace_item(pos, slot, count);
             }
             return Err(format!("command `{text}` is not modelled"));
         }
@@ -321,9 +419,18 @@ fn switches(events: &[Value], watch: &[IVec3], trace: &[Value]) -> Vec<(u64, boo
     out
 }
 
-/// Replay one row, comparing every watched position but `ignored`;
-/// `Ok(Err(skip))` for rows the in-memory world cannot run.
+/// Replay one row in the in-memory [`Cell`], comparing every watched
+/// position but `ignored`; `Ok(Err(skip))` for rows it cannot run.
 fn replay(row: &Value, ignored: &[usize]) -> Result<Result<(), Skip>, String> {
+    replay_in(row, ignored, Cell::new)
+}
+
+/// [`replay`] in the bench `bench` makes from the circuit.
+fn replay_in<B: Bench>(
+    row: &Value,
+    ignored: &[usize],
+    bench: impl FnOnce(Redstone) -> B,
+) -> Result<Result<(), Skip>, String> {
     let witness = row[1].as_u64().unwrap();
     let steps = row[2].as_array().unwrap();
     let trace = row[3].as_array().unwrap();
@@ -361,7 +468,7 @@ fn replay(row: &Value, ignored: &[usize]) -> Result<Result<(), Skip>, String> {
     // whose parity is the witness's, so tick i updates when i + 1 - witness
     // is even.
     let base = 1000 + (witness + 1) % 2;
-    let mut cell = Cell::new(Redstone::starting_at(base - waits - 1));
+    let mut cell = bench(Redstone::starting_at(base - waits - 1));
     for step in steps {
         match step[0].as_str().unwrap() {
             "wait" => {
@@ -467,15 +574,16 @@ fn skip_reason(name: &Value) -> Option<&'static str> {
     None
 }
 
-/// Observer cells where BDS pulsed a tick earlier than every other cell of
-/// the same kind (one tick after the change instead of three; 7 of 38
-/// measured observer cells, no cause found in the circuit or the cell).
-const EARLY_OBSERVERS: &[&str] = &[
-    r#"["lamp",4]"#,
-    r#"["repeater",4]"#,
-    r#"["golden_rail",4]"#,
-    r#"["dispenser",4]"#,
-    r#"["torch",4]"#,
+/// Observer cells (family, row) where BDS pulsed a tick earlier than every
+/// other cell of the same kind (one tick after the change instead of three;
+/// 5 of 38 measured observer cells, no cause found in the circuit or the
+/// cell). The same rows of the other family pulse on time.
+const EARLY_OBSERVERS: &[(&str, &str)] = &[
+    ("redstone_observers", r#"["lamp",4]"#),
+    ("redstone_observers", r#"["repeater",4]"#),
+    ("redstone_observer_timing", r#"["golden_rail",4]"#),
+    ("redstone_observer_timing", r#"["dispenser",4]"#),
+    ("redstone_observer_timing", r#"["torch",4]"#),
 ];
 
 /// Replay every row of `family`; panics listing the rows that differ.
@@ -494,7 +602,7 @@ fn check_family_ignoring(family: &str, ignored: &[usize]) {
             skipped.push(format!("{name}: {reason}"));
             continue;
         }
-        if family.contains("observer") && EARLY_OBSERVERS.contains(&name.to_string().as_str()) {
+        if EARLY_OBSERVERS.contains(&(family, name.to_string().as_str())) {
             skipped.push(format!("{name}: BDS pulsed this observer a tick early"));
             continue;
         }
@@ -577,4 +685,62 @@ fn dust_climbs_and_is_cut_like_bds() {
 #[test]
 fn buttons_and_levers_power_like_bds() {
     check_family("redstone_switches");
+}
+
+/// The burnout rows through the live server world: the circuit's own writes
+/// (a torch turning off) take the game's block path and must not count as
+/// outside changes, which would recover the burnt-out torch next tick.
+#[test]
+fn torch_burnout_runs_like_bds_in_the_live_world() {
+    let torches = rows("redstone_torches");
+    let burnout = rows("redstone_burnout");
+    let picked: Vec<&Value> = torches
+        .iter()
+        .filter(|row| {
+            row[0][0]
+                .as_str()
+                .is_some_and(|name| name.starts_with("burnout"))
+        })
+        .chain(&burnout)
+        .collect();
+    assert!(picked.len() >= 2);
+    for row in picked {
+        match replay_in(row, &[], LiveBench::new) {
+            Ok(Ok(())) => {}
+            Ok(Err(skip)) => panic!("{}: skipped: {skip}", row[0]),
+            Err(message) => panic!("{}: {message}", row[0]),
+        }
+    }
+}
+
+/// A circuit the world had before the server knew it (loaded from disk) is
+/// found from a change next to it, through a solid block: a lever on stone
+/// lights the lamp on the far side.
+#[test]
+fn a_loaded_circuit_is_found_through_a_solid_block() {
+    let lever = |on: bool| {
+        state(
+            "lever",
+            &serde_json::json!({"lever_direction": "west", "open_bit": on}),
+        )
+    };
+    let lamp = IVec3::new(2, 0, 0);
+    let mut cell = Cell::new(Redstone::starting_at(1000));
+    // In the world before the circuit started: not changes it saw.
+    cell.blocks.insert(IVec3::ZERO, lever(false));
+    cell.blocks
+        .insert(IVec3::X, state("stone", &serde_json::json!({})));
+    cell.blocks
+        .insert(lamp, state("redstone_lamp", &serde_json::json!({})));
+    for _ in 0..4 {
+        cell.step();
+    }
+    cell.set(IVec3::ZERO, lever(true), true);
+    for _ in 0..4 {
+        cell.step();
+    }
+    assert_eq!(
+        describe(cell.block_at(lamp).unwrap()).0,
+        "lit_redstone_lamp"
+    );
 }

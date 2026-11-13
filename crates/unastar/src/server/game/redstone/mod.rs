@@ -223,8 +223,10 @@ impl Redstone {
         self.changed.push((pos, self.now));
     }
 
-    /// Find the components connected to the frontier (every block within
-    /// one step, diagonals included, of a known component or a change).
+    /// Find the components connected to the frontier: every block within
+    /// one step, diagonals included, of a known component or a change, and
+    /// every block beside a conductor there (power reaches through one solid
+    /// block: lever, stone, lamp).
     fn discover(&mut self, world: &(impl Circuit + ?Sized), table: &Table) {
         /// Positions one step may add (a runaway search stops here).
         const BUDGET: usize = 65_536;
@@ -234,25 +236,49 @@ impl Redstone {
                 for dy in -1..=1 {
                     for dz in -1..=1 {
                         let at = pos + IVec3::new(dx, dy, dz);
-                        if self.components.contains(&at) {
-                            continue;
-                        }
                         let Some(state) = world.block_at(at) else {
                             continue;
                         };
-                        if table.get(state).kind == Kind::None {
+                        let facts = table.get(state);
+                        if facts.kind == Kind::None {
+                            if facts.conductor {
+                                for face in FACES {
+                                    self.found(world, table, at + face.offset(), &mut budget);
+                                }
+                            }
                             continue;
                         }
-                        self.components.insert(at);
-                        if budget == 0 {
-                            continue;
-                        }
-                        budget -= 1;
-                        self.frontier.push(at);
+                        self.found(world, table, at, &mut budget);
                     }
                 }
             }
         }
+    }
+
+    /// Add `at` to the circuit when it is a component not known yet, and
+    /// search around it while the budget lasts.
+    fn found(
+        &mut self,
+        world: &(impl Circuit + ?Sized),
+        table: &Table,
+        at: IVec3,
+        budget: &mut usize,
+    ) {
+        if self.components.contains(&at) {
+            return;
+        }
+        let Some(state) = world.block_at(at) else {
+            return;
+        };
+        if table.get(state).kind == Kind::None {
+            return;
+        }
+        self.components.insert(at);
+        if *budget == 0 {
+            return;
+        }
+        *budget -= 1;
+        self.frontier.push(at);
     }
 
     /// Track a changed block's part in circuits and wake the observers

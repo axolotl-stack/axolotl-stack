@@ -14,7 +14,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 |---|---:|---:|---:|---:|---:|---:|---:|
 | [Entities](#entities): actor rows (summon and replication) | 137 | 113 | 1 | 3 | 16 | 4 | 14.3% |
 | Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1004 | 2675 | 308 | 49 | 46 | 8.8% |
-| [Blocks](#blocks) | 1477 | 0 | 408 | 511 | 391 | 167 | 68.9% |
+| [Blocks](#blocks) | 1477 | 0 | 410 | 511 | 389 | 167 | 68.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
@@ -45,12 +45,12 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 52 |
 
-**Blocks**: 237 open rows free, 171 claimed.
+**Blocks**: 238 open rows free, 172 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | functional (part claimed) | 57 | 0 | 57 |
-| surface_dynamic (part claimed) | 44 | 0 | 44 |
+| surface_dynamic (part claimed) | 45 | 0 | 45 |
 | candles | 34 | 0 | 34 |
 | building_blocks | 27 | 0 | 27 |
 | coral | 20 | 0 | 20 |
@@ -61,7 +61,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 154 |
+| Block behaviour families, gravity, fire, redstone and random ticks | lane BLOCKS | 2026-10-29 | 155 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
@@ -233,12 +233,12 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 | plants | 54 | 0 | 17 | 19 | 18 | 0 | 68.5% |
 | pressure_plates | 17 | 0 | 17 | 0 | 0 | 0 | 0.0% |
 | rails | 4 | 0 | 3 | 0 | 1 | 0 | 25.0% |
-| redstone | 39 | 0 | 22 | 0 | 17 | 0 | 43.6% |
+| redstone | 39 | 0 | 23 | 0 | 16 | 0 | 41.0% |
 | saplings | 10 | 0 | 10 | 0 | 0 | 0 | 0.0% |
 | signs | 39 | 0 | 0 | 23 | 16 | 0 | 100.0% |
 | slabs | 202 | 0 | 8 | 128 | 66 | 0 | 96.0% |
 | stairs | 97 | 0 | 4 | 0 | 93 | 0 | 95.9% |
-| surface_dynamic | 62 | 0 | 50 | 10 | 2 | 0 | 19.4% |
+| surface_dynamic | 62 | 0 | 51 | 10 | 1 | 0 | 17.7% |
 | technical | 31 | 0 | 8 | 22 | 0 | 1 | 73.3% |
 | trapdoors | 22 | 0 | 4 | 0 | 18 | 0 | 81.8% |
 | walls | 32 | 0 | 0 | 0 | 32 | 0 | 100.0% |
@@ -365,7 +365,7 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 - `minecraft:dispenser`, `minecraft:dropper`: not a container; does not dispense or drop (power sets triggered_bit only)
 - `minecraft:piston_arm_collision`, `minecraft:sticky_piston_arm_collision`: piston heads are never produced (pistons do not extend)
 - `minecraft:crafter`: not a container; no crafting; its partial block actor is not sent (power sets triggered_bit only)
-- 11 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 12 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **saplings**
 
@@ -384,10 +384,10 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 - `minecraft:black_concrete_powder`, `minecraft:blue_concrete_powder`, `minecraft:brown_concrete_powder`, `minecraft:cyan_concrete_powder`, `minecraft:gray_concrete_powder`, `minecraft:green_concrete_powder`, `minecraft:light_blue_concrete_powder`, `minecraft:light_gray_concrete_powder`, `minecraft:lime_concrete_powder`, `minecraft:magenta_concrete_powder`, `minecraft:orange_concrete_powder`, `minecraft:pink_concrete_powder` and 4 more: does not harden into concrete next to water
 - `minecraft:crimson_nylium`, `minecraft:warped_nylium`: bone meal does not grow nether vegetation; does not turn to netherrack under blocks
+- `minecraft:cake`: eating in creative is not measured
 - `minecraft:coarse_dirt`: hoe turning it into dirt is not covered by a test
 - `minecraft:dragon_egg`: does not teleport when used or attacked
-- `minecraft:end_gateway`: no gateway teleporting; no block actor
-- 29 more partial rows with other gaps (see [blocks.toml](blocks.toml))
+- 30 more partial rows with other gaps (see [blocks.toml](blocks.toml))
 
 **technical**
 

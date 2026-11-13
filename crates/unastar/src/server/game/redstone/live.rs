@@ -25,7 +25,7 @@ impl BlockSource for Live<'_> {
 
 impl Circuit for Live<'_> {
     fn write(&mut self, pos: IVec3, state: u32) {
-        crate::server::game::blocks::write_block(self.0, pos, state, false);
+        crate::server::game::blocks::write_circuit_block(self.0, pos, state);
     }
 
     fn container_signal(&mut self, pos: IVec3) -> Option<u8> {
@@ -39,8 +39,9 @@ impl Circuit for Live<'_> {
 struct Deferred(Vec<(IVec3, u32)>);
 
 /// A block at `pos` changed from `old` outside the circuit (no-op in a world
-/// without one). The circuit's own writes are not noted: while it steps it
-/// is out of the world, and only block updates it caused land in
+/// without one). The circuit's own writes are not noted
+/// ([`crate::server::game::blocks::write_circuit_block`]); a change made
+/// while the circuit steps (it is out of the world then) lands in
 /// [`Deferred`].
 pub(crate) fn note_change(world: &mut World, pos: IVec3, old: u32, new: u32) {
     if old == new {
@@ -73,8 +74,8 @@ pub(crate) fn tick_redstone(world: &mut World) {
     world.resource_scope(|world, mut redstone: Mut<Redstone>| {
         world.insert_resource(Deferred::default());
         redstone.step(&registry, &mut Live(world));
-        // The circuit's own writes are noted as it makes them; the block
-        // updates they caused are outside changes of this tick.
+        // Anything else written during the step is an outside change of
+        // this tick.
         if let Some(deferred) = world.remove_resource::<Deferred>() {
             for (pos, old) in deferred.0 {
                 redstone.outside_change(pos, old);

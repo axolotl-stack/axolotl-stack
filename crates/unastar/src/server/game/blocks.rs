@@ -1322,6 +1322,25 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 /// [`set_block`] without block updates: store the block, broadcast it and
 /// schedule gravity checks.
 pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    store_block(world, pos, block_runtime_id, place_sound, true);
+}
+
+/// [`write_block`] for the redstone circuit's own changes: not noted as an
+/// outside change, so the circuit does not see its own writes as a player's
+/// edit (which would recover burnt-out torches and delay what it sees).
+pub(crate) fn write_circuit_block(world: &mut World, pos: IVec3, block_runtime_id: u32) {
+    store_block(world, pos, block_runtime_id, false, false);
+}
+
+/// Store, broadcast and schedule gravity checks; `outside` notes the change
+/// to the redstone circuit.
+fn store_block(
+    world: &mut World,
+    pos: IVec3,
+    block_runtime_id: u32,
+    place_sound: bool,
+    outside: bool,
+) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1363,7 +1382,9 @@ pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, 
         old_block: old_block_id,
         new_block: block_runtime_id,
     });
-    super::redstone::note_change(world, pos, old_block_id, block_runtime_id);
+    if outside {
+        super::redstone::note_change(world, pos, old_block_id, block_runtime_id);
+    }
 
     world.write_message(BlockBroadcastEvent {
         chunk_entity,
