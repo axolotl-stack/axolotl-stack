@@ -614,13 +614,24 @@ pub(crate) fn tick_random_blocks(world: &mut bevy_ecs::prelude::World) {
     if origins.is_empty() {
         return;
     }
-    use rand::SeedableRng;
-    let mut rng = world
-        .get_resource_mut::<crate::entity::EntityRandom>()
-        .and_then(|mut random| rand::rngs::StdRng::from_rng(&mut random.0).ok())
-        .unwrap_or_else(rand::rngs::StdRng::from_entropy);
-    for origin in origins {
-        tick_subchunk(&mut Live(world), origin, speed, &mut rng);
+    world.init_resource::<RandomTickRandom>();
+    world.resource_scope(|world, mut rng: bevy_ecs::prelude::Mut<RandomTickRandom>| {
+        for origin in origins {
+            tick_subchunk(&mut Live(world), origin, speed, &mut rng.0);
+        }
+    });
+}
+
+/// The random source of random block ticks, its own: drawing the picks from
+/// [`crate::entity::EntityRandom`] moved every item drop's offset and
+/// velocity whenever a ticking sub-chunk existed. Seeded from entropy.
+#[derive(bevy_ecs::prelude::Resource)]
+pub(crate) struct RandomTickRandom(pub(crate) rand::rngs::StdRng);
+
+impl Default for RandomTickRandom {
+    fn default() -> Self {
+        use rand::SeedableRng;
+        Self(rand::rngs::StdRng::from_entropy())
     }
 }
 
