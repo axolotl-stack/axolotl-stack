@@ -33,6 +33,17 @@ A block lists only the states that differ from its first canonical state.
 places every state explicitly. Every scenario starts with at least 3 idle inputs (see "BDS" below).
 The player starts at rest and on the ground, as BDS's `/tp` leaves it, even in mid-air.
 
+Besides the hand-written situations the corpus holds:
+
+- probes that vary one thing at a time: `sr_*` (letting go of sneak), `ss_*` (sprint stops),
+  `dt_*` (double-tap sprints), `sw_*` (sprinting into walls), `bed_drop_*` (bed bounces from
+  several heights, measured for a fit);
+- seeds of randomised runs, kept as regression scenarios: `random_N` (`movement-diff random`
+  seed N) and `random_aN` (seed N of a batch made before the generator dropped carpets and
+  snow, so the same seed now gives another scenario);
+- mutation catchers (see "Harness validation"): `sprint_jump_yaw_*`, `step_lectern_slab`,
+  `dive_90`, `slow_fall_tower`, `web_*`, `slime_web_jump`, `wall_slide_east`.
+
 ## Traces
 
 Each implementation writes one JSON file in the same format
@@ -45,6 +56,9 @@ Each implementation writes one JSON file in the same format
 - the fall distance (bedsim only).
 
 Every `f32` is written as its shortest decimal and its hex bits; the bits are authoritative.
+The trace files (and the checks and dense-velocity fixtures) are laid out one tick a line
+(`bds_sweep::json`): plain JSON, readable and diffable, at about a third of their
+pretty-printed size.
 
 ## Running it
 
@@ -74,9 +88,11 @@ target/debug/movement-diff check --traces RUN2/bds.json --against crates/bds-swe
 target/debug/movement-diff shift --corpus tools/movement-diff/corpus.json --shifts 1,2,3,4,5 --out shifted.json
 python tools/movement-diff/bds_run.py --corpus shifted.json --out RUN5
 target/debug/movement-diff velocities --base crates/bds-sweep/testdata/bds-1.26.51-movement-diff.json     --shifted RUN5/bds.json --out crates/bds-sweep/testdata/bds-1.26.51-movement-diff-velocities.json
-# random scenarios
-target/debug/movement-diff random --first 1 --last 200 --out random.json
+# random scenarios: play them on BDS with the current simulation (the subject's flags come
+# from it, so a run made before a rule change no longer scores it)
+target/debug/movement-diff random --first 151 --last 300 --out random.json
 python tools/movement-diff/bds_run.py --corpus random.json --out RUN6
+target/debug/movement-diff simulate --corpus random.json --out random-unastar.json
 # mutation check
 python tools/movement-diff/mutate.py
 ```
@@ -179,8 +195,11 @@ committed result; `report.md` ("Harness validation") gives the numbers of the co
    tick must have exactly one input, with the corpus's move vector (sent and raw), rotation and
    held keys (`JumpDown`, `SneakDown`, `SprintDown`, the direction flags), and no glide request
    without the glide key.
-3. **Relays.** The viewer must have exactly one relay of every scenario input (a missing or
-   second relay fails the extraction).
+3. **Relays and knockbacks.** The viewer must have exactly one relay of every scenario input (a
+   missing or second relay fails the extraction), and every velocity BDS set (`SetActorMotion`)
+   must come after the input and with the value the corpus's events give. A `/damage` command
+   that runs an input early or late fails the scenario; it once passed unnoticed, and every
+   position after it differed.
 4. **Known answers.** `known_still` and `known_free_fall` have physics simple enough to write
    down independently of unastar: a body standing on stone, and a fall from rest
    (`v = (v - 0.08) × 0.98` in `f32`, the first input resting as the teleport leaves it). The
@@ -207,9 +226,13 @@ committed result; `report.md` ("Harness validation") gives the numbers of the co
    differs from unastar's (BDS's shapes), so a divergence the runner causes is not reported as
    the library's physics.
 8. **Mutations.** `mutate.py` changes the simulation a little (a constant one `f32` ULP off, two
-   operations swapped, a threshold moved), plays the corpus and lists the scenarios that catch
-   each change (`mutations.json`). A mutation no scenario catches is a blind spot, and the next
-   scenario to write.
+   operations swapped, a threshold moved, a rule switched off), plays the corpus and lists the
+   scenarios that catch each change (`mutations.json`). A mutation no scenario catches is a
+   blind spot, and the next scenario to write. Write catchers by simulating candidates with and
+   without the mutation and keeping those that differ in what a BDS trace shows: the position on
+   every tick (smallest ULPs near the origin), ground contact, and the velocity on every sixth
+   tick. A constant whose one-ULP change no product can show (the swim rate, slow falling's
+   gravity) is mutated by the smallest change that shows.
 9. **CI.** `cargo test -p bds-sweep` runs the replay, known-answer and other-run tests; the
    `movement-harness` job runs `test_compare.py` and the bedsim runner's `go vet` and `go test`.
 

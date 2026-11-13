@@ -160,15 +160,17 @@ def validation_section(validation: dict | None, checks: dict | None, mutations: 
     lines = ['', '## Harness validation', '']
     if validation:
         runs = validation['scenarios']
-        failed = {n: v for n, v in runs.items() if v['setup'] or v['inputs'] or v['relays'] != v['ticks']}
+        failed = {n: v for n, v in runs.items()
+                  if v['setup'] or v['inputs'] or v.get('events') or v['relays'] != v['ticks']}
         relays = sum(v['relays'] for v in runs.values())
         ticks = sum(v['ticks'] for v in runs.values())
-        lines.append(f'- **Setup, inputs and relays** (the committed run\'s `validation.json`): '
+        lines.append(f'- **Setup, inputs, knockbacks and relays** (the committed run\'s `validation.json`): '
                      f'{len(runs) - len(failed)} of {len(runs)} scenarios played exactly as the corpus says '
-                     f'(world, effects, chest slot, start teleport; every input\'s move vector, rotation and keys); '
+                     f'(world, effects, chest slot, start teleport; every input\'s move vector, rotation and keys; '
+                     f'every velocity BDS set, after the corpus\'s input); '
                      f'{relays} relays for {ticks} inputs.')
         for name, v in sorted(failed.items()):
-            lines.append(f'  - `{name}`: ' + '; '.join(v['setup'] + v['inputs'][:3]))
+            lines.append(f'  - `{name}`: ' + '; '.join(v['setup'] + v['inputs'][:3] + v.get('events', [])))
     if checks:
         for run in checks['runs']:
             differs = run.get('differs', {})

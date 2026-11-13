@@ -5619,8 +5619,8 @@
           "command": "/damage @s 1 entity_attack entity MoveViewer"
         },
         {
-          "after": 12,
-          "velocity": [0.28901055, 0.4, -0.17011593]
+          "after": 11,
+          "velocity": [0.2867675, 0.4, -0.17465603]
         }
       ]
     },
@@ -5903,7 +5903,7 @@
       ]
     },
     {
-      "description": "Random seed 66 (movement-diff random): a sneak let go while pressing forward on ice; not matched yet.",
+      "description": "Random seed 66 (movement-diff random): a sneak let go while pressing forward on ice (matched since round 6); 2 ULP on x after a strafing sprint jump at tick 60, not matched yet.",
       "inputs": [
         {
           "ticks": 4
@@ -6055,6 +6055,4288 @@
           },
           "from": [2, 100, 4],
           "to": [3, 100, 4]
+        }
+      ]
+    },
+    {
+      "name": "sr_still_forward_4",
+      "description": "Sneak still, then walk forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "ticks": 8,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_still_forward_7",
+      "description": "Sneak still, then walk forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 7
+        },
+        {
+          "ticks": 8,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_walk_5",
+      "description": "Sneak forward, then let go of sneak, still forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_ice_still_forward",
+      "description": "On ice: sneak still, then walk forward at yaw 22.5.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:ice"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "ticks": 7,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1,
+          "yaw": 22.5
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_jump",
+      "description": "Sneak forward, then let go of sneak and jump.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1,
+          "jump": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_sprint_jump",
+      "description": "Sneak forward, then sprint-jump.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1,
+          "sprint": true,
+          "jump": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_strafe",
+      "description": "Sneak strafing, then strafe.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "strafe": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "strafe": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_back",
+      "description": "Sneak backwards, then walk backwards.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": -1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": -1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_edge",
+      "description": "Sneak to a ledge, then let go: walks off.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 96, 4],
+          "to": [8, 96, 30],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 40,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_tap",
+      "description": "Walk, one tick of sneak, walk.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1
+        },
+        {
+          "ticks": 1,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 12,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_toggle",
+      "description": "Sneak on and off every 2 ticks while walking.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": false
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": false
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": false
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": false
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 2,
+          "forward": 1,
+          "sneak": false
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_low_ceiling",
+      "description": "Sneak forward under a 1.5-high ceiling and let go there.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 101, 3],
+          "to": [8, 101, 10],
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 20,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sr_air",
+      "description": "Jump, sneak in the air, let go in the air while moving.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1,
+          "jump": true
+        },
+        {
+          "ticks": 4,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_half_forward",
+      "description": "Sprint, then half forward with the sprint key held.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 8,
+          "forward": 0.5,
+          "sprint": true
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_half_forward_nokey",
+      "description": "Sprint, then half forward, then forward again, no sprint key.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 8,
+          "forward": 0.5
+        },
+        {
+          "ticks": 10,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_strafe_stop",
+      "description": "Sprint, then strafe only.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 10,
+          "strafe": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_back",
+      "description": "Sprint, then backwards with the key.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 10,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 10,
+          "forward": -1,
+          "sprint": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_air_stop",
+      "description": "Sprint-jump, let go of forward in the air while strafing.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 8,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 1,
+          "forward": 1,
+          "sprint": true,
+          "jump": true
+        },
+        {
+          "ticks": 10,
+          "strafe": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_strafe_jump",
+      "description": "Sprint-jump with a 0.3 strafe, repeatedly.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "strafe": 0.3,
+          "sprint": true,
+          "jump": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "ss_diag_air",
+      "description": "Sprint-jump diagonally at yaw 30, held.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "strafe": 1,
+          "sprint": true,
+          "jump": true,
+          "yaw": 30
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_gap_1",
+      "description": "Tap forward once, wait 1 inputs, hold forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 1
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_gap_5",
+      "description": "Tap forward once, wait 5 inputs, hold forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_gap_6",
+      "description": "Tap forward once, wait 6 inputs, hold forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 6
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_gap_7",
+      "description": "Tap forward once, wait 7 inputs, hold forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 7
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_gap_8",
+      "description": "Tap forward once, wait 8 inputs, hold forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 8
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_half",
+      "description": "Tap half forward twice: no sprint expected.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 0.5
+        },
+        {
+          "ticks": 2
+        },
+        {
+          "ticks": 15,
+          "forward": 0.5
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_half_then_full",
+      "description": "Half forward, then full forward twice.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 2,
+          "forward": 0.5
+        },
+        {
+          "ticks": 2,
+          "forward": 1
+        },
+        {
+          "ticks": 2,
+          "forward": 0.5
+        },
+        {
+          "ticks": 15,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_air",
+      "description": "Jump, then tap forward twice in the air.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "jump": true
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 2
+        },
+        {
+          "ticks": 12,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_air_second",
+      "description": "Tap forward on the ground, jump, second tap in the air.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 1,
+          "jump": true
+        },
+        {
+          "ticks": 1
+        },
+        {
+          "ticks": 12,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_strafe",
+      "description": "Tap forward with strafe held, twice.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1,
+          "strafe": 1
+        },
+        {
+          "ticks": 2,
+          "strafe": 1
+        },
+        {
+          "ticks": 12,
+          "forward": 1,
+          "strafe": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_back",
+      "description": "Back, forward, back, forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 2,
+          "forward": -1
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 2,
+          "forward": -1
+        },
+        {
+          "ticks": 12,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_sneak_hold",
+      "description": "Tap forward twice while sneaking.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 2,
+          "sneak": true
+        },
+        {
+          "ticks": 12,
+          "forward": 1,
+          "sneak": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_sprint_key_first",
+      "description": "Tap forward with the sprint key once, wait, forward.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 2
+        },
+        {
+          "ticks": 12,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dt_three",
+      "description": "Three taps.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:ice"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 1
+        },
+        {
+          "ticks": 1,
+          "forward": 1
+        },
+        {
+          "ticks": 1
+        },
+        {
+          "ticks": 12,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_5",
+      "description": "Sprint into a wall at yaw -5 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -5
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_20",
+      "description": "Sprint into a wall at yaw -20 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -20
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_30",
+      "description": "Sprint into a wall at yaw -30 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -30
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_75",
+      "description": "Sprint into a wall at yaw -75 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -75
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_nokey_10",
+      "description": "Sprint, let go of the key, then into a wall at yaw -10.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 3,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -10
+        },
+        {
+          "ticks": 25,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_nokey_30",
+      "description": "Sprint, let go of the key, then into a wall at yaw -30.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 3,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -30
+        },
+        {
+          "ticks": 25,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_jump_10",
+      "description": "Sprint-jump into a wall at yaw -10.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "jump": true,
+          "yaw": -10
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_jump_30",
+      "description": "Sprint-jump into a wall at yaw -30.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "jump": true,
+          "yaw": -30
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_strafe_wall",
+      "description": "Sprint forward along a wall while strafing into it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-1, 100, -8],
+          "to": [-1, 102, 30],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "strafe": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_strafe_wall_03",
+      "description": "Sprint forward along a wall with a 0.3 strafe into it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-1, 100, -8],
+          "to": [-1, 102, 30],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "strafe": 0.3,
+          "sprint": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_head_on_strafe",
+      "description": "Sprint head-on into a wall, then strafe along it with forward held.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 15,
+          "forward": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 15,
+          "forward": 1,
+          "strafe": 1,
+          "sprint": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_post",
+      "description": "Sprint past a single post that clips the box.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [1, 100, 4],
+          "to": [1, 101, 4],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -5
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_22",
+      "description": "Sprint into a wall at yaw -22 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -22
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_24",
+      "description": "Sprint into a wall at yaw -24 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -24
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_ground_25",
+      "description": "Sprint into a wall at yaw -25 and slide along it.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -25
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_xwall_65",
+      "description": "Sprint into a wall on x at yaw -65.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [3, 100, -8],
+          "to": [3, 102, 30],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -65
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_near_partial",
+      "description": "Start 0.05 from a wall and sprint into it at yaw -10 (a short first hit).",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 2.65]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 25,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -10
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sw_corner",
+      "description": "Sprint diagonally into an inside corner.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 3],
+          "to": [8, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [3, 100, -8],
+          "to": [3, 102, 2],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 25,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -45
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "bed_drop_1",
+      "description": "Fall onto a bed from 1 blocks above its top, to fit the bounce.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 101.5625, 1.5]
+      },
+      "inputs": [
+        {
+          "ticks": 45
+        }
+      ],
+      "formed": [
+        {
+          "from": [0, 100, 0],
+          "to": [0, 100, 0],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed",
+            "states": {
+              "head_piece_bit": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "bed_drop_2",
+      "description": "Fall onto a bed from 2 blocks above its top, to fit the bounce.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 102.5625, 1.5]
+      },
+      "inputs": [
+        {
+          "ticks": 45
+        }
+      ],
+      "formed": [
+        {
+          "from": [0, 100, 0],
+          "to": [0, 100, 0],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed",
+            "states": {
+              "head_piece_bit": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "bed_drop_3",
+      "description": "Fall onto a bed from 3 blocks above its top, to fit the bounce.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 103.5625, 1.5]
+      },
+      "inputs": [
+        {
+          "ticks": 45
+        }
+      ],
+      "formed": [
+        {
+          "from": [0, 100, 0],
+          "to": [0, 100, 0],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed",
+            "states": {
+              "head_piece_bit": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "bed_drop_4",
+      "description": "Fall onto a bed from 4 blocks above its top, to fit the bounce.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 104.5625, 1.5]
+      },
+      "inputs": [
+        {
+          "ticks": 45
+        }
+      ],
+      "formed": [
+        {
+          "from": [0, 100, 0],
+          "to": [0, 100, 0],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed",
+            "states": {
+              "head_piece_bit": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "bed_drop_7",
+      "description": "Fall onto a bed from 7 blocks above its top, to fit the bounce.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 107.5625, 1.5]
+      },
+      "inputs": [
+        {
+          "ticks": 45
+        }
+      ],
+      "formed": [
+        {
+          "from": [0, 100, 0],
+          "to": [0, 100, 0],
+          "block": {
+            "name": "minecraft:bed"
+          }
+        },
+        {
+          "from": [0, 100, 1],
+          "to": [0, 100, 1],
+          "block": {
+            "name": "minecraft:bed",
+            "states": {
+              "head_piece_bit": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "Random seed 7 of the first batch (movement-diff random, before the generator dropped carpets and snow): a sneak let go with forward held.",
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 6
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 10
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 13
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 13,
+          "yaw": 75.0
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 6,
+          "turn": -6.0,
+          "yaw": 60.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 8,
+          "yaw": 105.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 11,
+          "turn": 1.5
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a7",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:slime"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {}
+          },
+          "from": [2, 100, 5],
+          "to": [3, 100, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:soul_sand",
+            "states": {}
+          },
+          "from": [3, 101, 1],
+          "to": [3, 101, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [3, 102, 4],
+          "to": [5, 102, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [2, 102, 6],
+          "to": [3, 102, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:glass",
+            "states": {}
+          },
+          "from": [-1, 100, 9],
+          "to": [0, 100, 10]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 67 of the first batch (movement-diff random, before the generator dropped carpets and snow): a sneak let go with forward held on soul sand.",
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 10,
+          "turn": 3.0
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 9,
+          "turn": 7.5
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 4,
+          "yaw": -30.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 4
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 14,
+          "yaw": -37.5
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 4
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 8,
+          "turn": 0.0
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 11
+        },
+        {
+          "forward": -1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 9,
+          "yaw": 7.5
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a67",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:soul_sand"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [-1, 100, 1],
+          "to": [1, 100, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:ice",
+            "states": {}
+          },
+          "from": [-4, 102, 8],
+          "to": [-3, 102, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [0, 100, 4],
+          "to": [2, 100, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [-4, 102, 7],
+          "to": [-2, 102, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [-4, 101, 10],
+          "to": [-2, 101, 12]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [-3, 102, 2],
+          "to": [-3, 103, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [3, 101, 5],
+          "to": [4, 101, 6]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 30 of the first batch (movement-diff random, before the generator dropped carpets and snow): a sprint whose forward vector drops to a half walks, and does not sprint again without the key.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 10
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 12
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 13
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 4
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a30",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:stone"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:blue_ice",
+            "states": {}
+          },
+          "from": [4, 100, 1],
+          "to": [5, 100, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 0
+            }
+          },
+          "from": [3, 100, 7],
+          "to": [4, 100, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {}
+          },
+          "from": [1, 102, 6],
+          "to": [2, 102, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [0, 102, 9],
+          "to": [0, 102, 11]
+        },
+        {
+          "block": {
+            "name": "minecraft:blue_ice",
+            "states": {}
+          },
+          "from": [-1, 100, 8],
+          "to": [1, 100, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {}
+          },
+          "from": [4, 102, 2],
+          "to": [5, 102, 4]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 146 of the first batch (movement-diff random, before the generator dropped carpets and snow): the forward key let go for a strafe ends the sprint before the move.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 10
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 9
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 12
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 13,
+          "yaw": -30.0
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 7
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 5,
+          "turn": -6.0
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 8
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 12,
+          "yaw": -97.5
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a146",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:slime"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:blue_ice",
+            "states": {}
+          },
+          "from": [-2, 100, 5],
+          "to": [-2, 100, 5]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 0
+            }
+          },
+          "from": [0, 102, 9],
+          "to": [0, 102, 9]
+        },
+        {
+          "block": {
+            "name": "minecraft:packed_ice",
+            "states": {}
+          },
+          "from": [2, 102, 1],
+          "to": [4, 102, 1]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 123 of the first batch (movement-diff random, before the generator dropped carpets and snow): a strafing sprint jump: the air acceleration of a sprinter is 0.025999999.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 11,
+          "turn": 4.5
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 13
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 14,
+          "yaw": -22.5
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 7
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 14,
+          "turn": 4.5
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 3
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a123",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:stone"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:blue_ice",
+            "states": {}
+          },
+          "from": [0, 102, 3],
+          "to": [1, 102, 5]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [-4, 100, 3],
+          "to": [-3, 100, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [1, 102, 1],
+          "to": [1, 103, 1]
+        },
+        {
+          "block": {
+            "name": "minecraft:packed_ice",
+            "states": {}
+          },
+          "from": [0, 100, 7],
+          "to": [1, 101, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [-1, 100, 7],
+          "to": [-1, 100, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [2, 101, 9],
+          "to": [3, 101, 11]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [-4, 101, 3],
+          "to": [-2, 101, 5]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 27 of the first batch (movement-diff random, before the generator dropped carpets and snow): sliding on blue ice into the side of a honey block.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 12
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 7
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 14,
+          "yaw": -7.5
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 14
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a27",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:blue_ice"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [-1, 101, 5],
+          "to": [1, 101, 5]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {}
+          },
+          "from": [-4, 101, 5],
+          "to": [-2, 101, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [-1, 100, 1],
+          "to": [1, 100, 1]
+        },
+        {
+          "block": {
+            "name": "minecraft:ice",
+            "states": {}
+          },
+          "from": [4, 100, 10],
+          "to": [6, 100, 12]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 90 of the first batch (movement-diff random, before the generator dropped carpets and snow): sliding down the side of a honey block while moving away from it.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 6
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 10
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 9
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 14
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 7
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 12
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 4
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 3
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a90",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:blue_ice"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [4, 100, 5],
+          "to": [5, 100, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [-2, 101, 1],
+          "to": [-2, 101, 2]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 141 of the first batch (movement-diff random, before the generator dropped carpets and snow): a sprint ended by a wall in the air; at tick 58 a sneak let go under a ceiling, not matched yet.",
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 5,
+          "turn": -3.0
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 8
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 11
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 12
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 6
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 10,
+          "yaw": 52.5
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 12,
+          "yaw": 90.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 11
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 7
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 8,
+          "turn": -7.5,
+          "yaw": 142.5
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_a141",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:ice"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [-2, 102, 6],
+          "to": [-1, 102, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:trapdoor",
+            "states": {}
+          },
+          "from": [3, 101, 5],
+          "to": [3, 101, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [2, 100, 3],
+          "to": [4, 101, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 0
+            }
+          },
+          "from": [-3, 102, 5],
+          "to": [-1, 103, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [-1, 101, 1],
+          "to": [1, 101, 1]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 0
+            }
+          },
+          "from": [4, 102, 10],
+          "to": [6, 102, 12]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [3, 101, 8],
+          "to": [5, 101, 9]
+        },
+        {
+          "block": {
+            "name": "minecraft:glass",
+            "states": {}
+          },
+          "from": [-4, 101, 8],
+          "to": [-3, 101, 8]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 248 (movement-diff random): a box 3e-7 into a slab's side is still stopped by it.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 10,
+          "yaw": 15.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 13
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 9
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 13
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 14
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_248",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:slime"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:ice",
+            "states": {}
+          },
+          "from": [-3, 100, 7],
+          "to": [-2, 101, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [1, 102, 10],
+          "to": [1, 103, 12]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [3, 100, 5],
+          "to": [3, 100, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [2, 102, 7],
+          "to": [2, 102, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [2, 101, 9],
+          "to": [4, 101, 10]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [-2, 102, 5],
+          "to": [-1, 102, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [-4, 100, 3],
+          "to": [-2, 100, 5]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 172 (movement-diff random): a sprint jump at yaw 60 on ice: 3 ULP on z, not matched yet.",
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 5,
+          "yaw": 60.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 5,
+          "yaw": 90.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 6
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 6,
+          "turn": -6.0,
+          "yaw": 180.0
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 7
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 10,
+          "turn": 4.5
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_172",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:ice"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [1, 101, 7],
+          "to": [2, 101, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:packed_ice",
+            "states": {}
+          },
+          "from": [-4, 101, 10],
+          "to": [-4, 102, 10]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [1, 102, 8],
+          "to": [1, 102, 9]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 186 (movement-diff random): a sneak let go under a top slab keeps the sneaking box; not matched yet.",
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 11,
+          "yaw": -30.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 9
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 7,
+          "turn": 3.0
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 12,
+          "yaw": -37.5
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 8,
+          "yaw": 52.5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 14
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 12
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 13,
+          "yaw": 82.5
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 9
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_186",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:stone"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [0, 102, 9],
+          "to": [2, 102, 9]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [2, 100, 5],
+          "to": [3, 100, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [4, 102, 3],
+          "to": [5, 102, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [0, 101, 2],
+          "to": [2, 101, 4]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 291 (movement-diff random): a slime bounce an ULP off after the tick's gravity; not matched yet.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 9,
+          "yaw": 45.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 12
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 14,
+          "turn": -1.5,
+          "yaw": -30.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 6,
+          "yaw": 15.0
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": true,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 3,
+          "yaw": 15.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 14
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 9
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 12
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_291",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:slime"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [-2, 100, 7],
+          "to": [0, 100, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [0, 100, 5],
+          "to": [1, 100, 5]
+        },
+        {
+          "block": {
+            "name": "minecraft:ice",
+            "states": {}
+          },
+          "from": [0, 101, 3],
+          "to": [2, 101, 3]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 297 (movement-diff random): a sprint key pressed walking along a wall, and a box ending exactly on a web's side.",
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 8,
+          "yaw": -30.0
+        },
+        {
+          "forward": -1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 11
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 8
+        },
+        {
+          "forward": 0.5,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 1.0,
+          "ticks": 10
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 13
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 9,
+          "turn": -3.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 14
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 4
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 8,
+          "turn": 3.0
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_297",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:soul_sand"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [2, 101, 1],
+          "to": [2, 102, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [2, 100, 1],
+          "to": [3, 100, 2]
+        }
+      ]
+    },
+    {
+      "name": "sprint_jump_yaw_37_3",
+      "description": "Sprint-jump at yaw 37.3.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 3,
+          "forward": 1,
+          "sprint": true,
+          "yaw": 37.3
+        },
+        {
+          "ticks": 14,
+          "forward": 1,
+          "sprint": true,
+          "jump": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "sprint_jump_yaw_m71_9",
+      "description": "Sprint-jump at yaw -71.9.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 3,
+          "forward": 1,
+          "sprint": true,
+          "yaw": -71.9
+        },
+        {
+          "ticks": 14,
+          "forward": 1,
+          "sprint": true,
+          "jump": true
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "step_lectern_slab",
+      "description": "Walk off a lectern towards a bottom slab 0.6 higher.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-1, 100, -1],
+          "to": [1, 100, 1],
+          "block": {
+            "name": "minecraft:lectern"
+          }
+        },
+        {
+          "from": [-1, 101, 2],
+          "to": [1, 101, 4],
+          "block": {
+            "name": "minecraft:smooth_stone_slab"
+          }
+        },
+        {
+          "from": [-1, 100, 2],
+          "to": [1, 100, 4],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100.9, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 25,
+          "forward": 1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "dive_90",
+      "description": "Sprint-swim from the surface looking 90 down.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-4, 100, -4],
+          "to": [4, 110, 16],
+          "block": {
+            "name": "minecraft:glass"
+          }
+        },
+        {
+          "from": [-3, 100, -3],
+          "to": [3, 110, 15],
+          "block": {
+            "name": "minecraft:water"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 108, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 30,
+          "forward": 1,
+          "sprint": true,
+          "pitch": 90
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "slow_fall_tower",
+      "description": "Walk off a 16-block tower under slow falling.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [0, 100, 0],
+          "to": [0, 115, 0],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 116, 0.5],
+        "effects": [
+          {
+            "effect": "slow_falling",
+            "amplifier": 0
+          }
+        ]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 8,
+          "forward": 1
+        },
+        {
+          "ticks": 70
+        }
+      ]
+    },
+    {
+      "name": "web_walk_0",
+      "description": "Walk diagonally into web near the origin.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 0],
+          "to": [8, 101, 0],
+          "block": {
+            "name": "minecraft:web"
+          }
+        }
+      ],
+      "start": {
+        "feet": [-1.2, 100, -1.2]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 25,
+          "forward": 1,
+          "yaw": -45
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "web_cross_0",
+      "description": "Sprint-jump diagonally through web near the origin.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [-8, 100, 0],
+          "to": [8, 101, 0],
+          "block": {
+            "name": "minecraft:web"
+          }
+        }
+      ],
+      "start": {
+        "feet": [-1.5, 100, -1.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 12,
+          "forward": 1,
+          "sprint": true,
+          "jump": true,
+          "yaw": -45
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "wall_slide_east",
+      "description": "Slide along a broken wall far from the origin.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [7, 100, -8],
+          "to": [7, 102, 3],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [7, 100, 5],
+          "to": [7, 102, 9],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        },
+        {
+          "from": [6, 100, 11],
+          "to": [6, 100, 11],
+          "block": {
+            "name": "minecraft:stone"
+          }
+        }
+      ],
+      "start": {
+        "feet": [6.3, 100, -6.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 50,
+          "forward": 1,
+          "strafe": -1
+        },
+        {
+          "ticks": 5
+        }
+      ]
+    },
+    {
+      "name": "slime_web_jump",
+      "description": "Jump inside a cobweb standing on slime.",
+      "world": [
+        {
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40],
+          "block": {
+            "name": "minecraft:slime"
+          }
+        },
+        {
+          "from": [0, 100, 0],
+          "to": [0, 100, 0],
+          "block": {
+            "name": "minecraft:web"
+          }
+        }
+      ],
+      "start": {
+        "feet": [0.5, 100, 0.5]
+      },
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "ticks": 1,
+          "jump": true
+        },
+        {
+          "ticks": 30
         }
       ]
     },

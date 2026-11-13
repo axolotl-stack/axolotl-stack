@@ -524,9 +524,10 @@ fn horizontal(a: [f32; 3], b: [f32; 3]) -> f32 {
 
 /// The controls an input reports: move vector as pressed (x strafe, y
 /// forward), rotation, and the jump, sneak and sprint keys. A sprint the
-/// client starts without the sprint key (a double tap) counts as pressed:
-/// whether BDS starts sprints so is unmeasured, and sprinting where the copy
-/// would not is the lenient way to be wrong.
+/// client starts without the sprint key counts as pressed. BDS starts a
+/// double-tap sprint on its own, and the simulation does too; a client's
+/// `StartSprinting` outside a double tap is followed, the lenient way to be
+/// wrong.
 pub fn controls(input: &PlayerAuthInputPacket) -> Controls {
     let has = |flag| input.input_data.contains(&flag);
     Controls {
@@ -586,6 +587,7 @@ impl PlayerMotion {
         self.body.on_ground = true;
         self.body.gliding = false;
         self.body.swimming = false;
+        self.body.resume_sprint_inputs(0.0);
         self.push = None;
         self.pushed = 0;
         self.spin = 0;
@@ -845,9 +847,9 @@ impl PlayerMotion {
         body.horizontal_collision = has(Flag::Horizontalcollision);
         body.sneaking = has(Flag::Sneaking);
         // A sprint with its speed: the simulation sets the speed only when a
-        // sprint starts. A stopping sprint moved this tick as a sprint.
+        // sprint starts.
         body.sprinting = has(Flag::Sprinting);
-        body.moved_sprinting = body.sprinting || has(Flag::Stopsprinting);
+        body.resume_sprint_inputs(input.move_vector.y);
         body.set_walk_speed(body.walk_speed);
         if has(Flag::Startswimming) {
             body.swimming = true;

@@ -4,6 +4,7 @@
 //! (`tools/movement-diff`, [`scenario`]).
 
 pub mod capture;
+pub mod json;
 pub mod physics;
 pub mod random;
 pub mod scenario;

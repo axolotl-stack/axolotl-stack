@@ -40,9 +40,13 @@ const AIR_FRICTION: f32 = 0.91;
 /// Friction of ordinary ground (0.6) in the air's 0.91: the reference of the
 /// ground acceleration.
 const BASE_GROUND_FRICTION: f32 = AIR_FRICTION * 0.6;
-/// Input acceleration in the air, and while sprinting.
+/// Input acceleration in the air.
 const AIR_SPEED: f32 = 0.02;
-const AIR_SPEED_SPRINTING: f32 = 0.026;
+/// Input acceleration in the air while sprinting: 0.025999999, one `f32` ULP
+/// under 0.026 (BDS 1.26.51, `random_a123`: a strafing sprint jump's
+/// velocity after two air ticks is 2 ULP lower with 0.026, and it matches
+/// only this way; the sprint's 0.13 on the ground is exact).
+const AIR_SPEED_SPRINTING: f32 = 0.025_999_999;
 /// Jump velocity, and per jump boost level.
 const JUMP_VELOCITY: f32 = 0.42;
 const JUMP_BOOST_STEP: f32 = 0.1;
@@ -55,6 +59,8 @@ const SLIME_MIN_BOUNCE: f32 = 0.080_000_12;
 const SCAFFOLDING_SPEED: f32 = 0.15;
 /// The fastest slide down a honey block's side.
 const HONEY_SLIDE: f32 = 0.12;
+/// The horizontal velocity beside a honey block is scaled by this.
+const HONEY_BESIDE: f32 = 0.4;
 /// A fall longer than this lands on powder snow instead of sinking in.
 const POWDER_SNOW_LANDING: f32 = 2.5;
 /// Soul sand's friction is scaled by this for the acceleration only.
@@ -78,8 +84,15 @@ pub const WALK_SPEED: f32 = 0.1;
 pub const SPRINT_MULTIPLIER: f32 = 1.3;
 /// The forward part of the move vector a sprint needs to start.
 const SPRINT_START_FORWARD: f32 = 0.8;
-/// Penetrations this small count as touching.
-const EPSILON: f32 = 1.0e-7;
+/// The largest turn a wall may give a sprinter's move, in radians.
+const SPRINT_WALL_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
+/// Inputs, the first press included, in which a second forward press starts
+/// a sprint (BDS 1.26.51, `dt_gap_*`: 5 idle inputs between the presses
+/// sprint, 6 do not).
+const SPRINT_TAP: u8 = 7;
+/// Penetrations this small count as touching (BDS 1.26.51, `random_248`: a
+/// box 3e-7 into a slab's side is stopped by it; 1e-7 lets it through).
+const EPSILON: f32 = 1.0e-6;
 /// Water: input acceleration, drag, sink rate, jump push.
 const WATER_SPEED: f32 = 0.02;
 const WATER_DRAG: f32 = 0.8;
@@ -154,6 +167,14 @@ impl Aabb {
         (
             self.min.map(|v| v.floor() as i32),
             self.max.map(|v| v.floor() as i32),
+        )
+    }
+
+    /// The blocks the box overlaps, inclusive: not those it only touches.
+    pub fn inner_block_range(&self) -> ([i32; 3], [i32; 3]) {
+        (
+            self.min.map(|v| v.floor() as i32),
+            self.max.map(|v| v.ceil() as i32 - 1),
         )
     }
 
@@ -403,7 +424,19 @@ fn collisions(terrain: &impl Terrain, area: &Aabb) -> Vec<Aabb> {
 
 /// Whether any block `area` touches passes `test`.
 fn any_block(terrain: &impl Terrain, area: &Aabb, test: impl Fn(&Block) -> bool) -> bool {
-    let (min, max) = area.block_range();
+    blocks_in(terrain, area.block_range(), test)
+}
+
+/// Whether any block `area` overlaps (not only touches) passes `test`.
+fn any_block_inside(terrain: &impl Terrain, area: &Aabb, test: impl Fn(&Block) -> bool) -> bool {
+    blocks_in(terrain, area.inner_block_range(), test)
+}
+
+fn blocks_in(
+    terrain: &impl Terrain,
+    (min, max): ([i32; 3], [i32; 3]),
+    test: impl Fn(&Block) -> bool,
+) -> bool {
     (min[0]..=max[0]).any(|x| {
         (min[1]..=max[1]).any(|y| (min[2]..=max[2]).any(|z| test(&terrain.block([x, y, z]))))
     })
@@ -425,12 +458,15 @@ fn stuck(terrain: &impl Terrain, body: &Aabb) -> Option<[f32; 3]> {
     if terrain.block(feet).kind == BlockKind::PowderSnow {
         return Some([0.9, 1.5, 0.9]);
     }
-    if any_block(terrain, body, |b| b.kind == BlockKind::Cobweb) {
+    // A block the box only touches does not hold it (BDS 1.26.51,
+    // `random_297`: a box ending exactly on a web's side moves freely).
+    if any_block_inside(terrain, body, |b| b.kind == BlockKind::Cobweb) {
         return Some([0.25, 0.05, 0.25]);
     }
     // BDS 1.26.51, `sweet_berry_jump`: a jump of 0.315 (0.42 x 0.75), then a
     // fall of 0.0588 a tick (0.0784 x 0.75); walking in, 0.0784 a tick.
-    any_block(terrain, body, |b| b.kind == BlockKind::SweetBerryBush).then_some([0.8, 0.75, 0.8])
+    any_block_inside(terrain, body, |b| b.kind == BlockKind::SweetBerryBush)
+        .then_some([0.8, 0.75, 0.8])
 }
 
 /// The simulated player.
@@ -442,6 +478,15 @@ pub struct Body {
     pub jump_delay: u8,
     pub sprinting: bool,
     pub sneaking: bool,
+    /// The move vector is slowed as a sneak's this tick: sneaking, or let
+    /// go of the sneak in this input ([`update_state`]).
+    pub sneak_slowed: bool,
+    /// The last input's move vector could start a sprint: at least 0.8
+    /// forward and not slowed by a sneak (a wall does not count).
+    pub sprint_ready: bool,
+    /// Inputs left in which the move vector becoming ready again starts a
+    /// sprint without the sprint key (a double tap of forward).
+    pub sprint_tap: u8,
     pub swimming: bool,
     pub gliding: bool,
     pub in_water: bool,
@@ -452,8 +497,6 @@ pub struct Body {
     /// `minecraft:movement` without the sprint: 0.1 with the speed and
     /// slowness effects ([`walk_speed`]); a sprint multiplies it by 1.3.
     pub walk_speed: f32,
-    /// The last tick moved as a sprinter.
-    pub moved_sprinting: bool,
     pub jump_boost: u8,
     pub slow_falling: bool,
     /// The levitation effect's level (1-based, 0 for none).
@@ -463,6 +506,8 @@ pub struct Body {
     /// The last tick's move collided horizontally / vertically.
     pub horizontal_collision: bool,
     pub vertical_collision: bool,
+    /// The last move hit a wall that ends a sprint ([`wall_stops_sprint`]).
+    pub sprint_blocked: bool,
     /// The box the last move left, with the feet and pose it was left at.
     /// Moves translate the box and the feet are its centre, so a box rebuilt
     /// from the rounded feet differs by an ULP; BDS keeps the box.
@@ -478,21 +523,34 @@ impl Body {
             jump_delay: 0,
             sprinting: false,
             sneaking: false,
+            sneak_slowed: false,
+            sprint_ready: false,
+            sprint_tap: 0,
             swimming: false,
             gliding: false,
             in_water: false,
             in_lava: false,
             movement_speed: WALK_SPEED,
             walk_speed: WALK_SPEED,
-            moved_sprinting: false,
             jump_boost: 0,
             slow_falling: false,
             levitation: 0,
             fall_distance: 0.0,
             horizontal_collision: false,
             vertical_collision: false,
+            sprint_blocked: false,
             swept: None,
         }
+    }
+
+    /// Take the sprint state a client reports after inputs the copy did not
+    /// simulate (trusted, or before a teleport): no wall holds the sprint, no
+    /// double tap is pending, and the move vector of the client's last input
+    /// (`forward`) is as ready to sprint as it was.
+    pub fn resume_sprint_inputs(&mut self, forward: f32) {
+        self.sprint_blocked = false;
+        self.sprint_tap = 0;
+        self.sprint_ready = forward >= SPRINT_START_FORWARD && !self.sneaking;
     }
 
     /// `minecraft:movement` while sprinting.
@@ -580,56 +638,64 @@ pub struct Changes {
 }
 
 /// Apply this tick's controls to the body's movement state (sprint, sneak,
-/// swim) like the client does before it moves. A sprint (and the swim it
-/// carries) starts before this tick's move but stops after it: BDS still
-/// moves the player as a sprinter in the tick its `StopSprinting` arrives.
-/// A swim starts only once the eyes are under water (`submerged`), and goes
-/// on while the body is in water. A sneak ends a sprint before the move
-/// (BDS 1.26.51, `sprint_sneak_toggle`: the sneak's first tick accelerates
-/// 0.0294, a walk's sneak). A sneak let go in the input that asks for a
-/// sprint still sneaks through that move, and the sprint starts with the
-/// next input (same scenario, tick 31); otherwise it ends before the move.
-pub fn update_state(
-    body: &mut Body,
-    controls: &Controls,
-    submerged: bool,
-    changes: &mut Changes,
-) -> Pending {
-    let mut pending = Pending::default();
+/// swim) like the client does before it moves. A sprint starts and stops
+/// before this tick's move (BDS 1.26.51, `random_a146`: the forward key let
+/// go for a strafe accelerates the strafe at walking speed), and the swim it
+/// carries stops after the move. A swim starts only once the eyes are under
+/// water (`submerged`), and goes on while the body is in water. A sneak ends
+/// a sprint before the move (`sprint_sneak_toggle`: the sneak's first tick
+/// accelerates 0.0294, a walk's sneak). A sneak let go stands the body up
+/// before the move, but the move vector of that input is still slowed as a
+/// sneak's, and no sprint starts with it (`random_a67` and the `sr_*`
+/// scenarios: the release's move accelerates like a sneak's; `flat_sneak`:
+/// the box is the standing one from that move on; `sprint_sneak_toggle`
+/// tick 31: the sprint starts with the next input).
+pub fn update_state(body: &mut Body, controls: &Controls, submerged: bool, changes: &mut Changes) {
+    body.sneak_slowed = body.sneaking || controls.sneak;
     if controls.sneak && !body.sneaking {
         body.sneaking = true;
         changes.started_sneaking = true;
     } else if !controls.sneak && body.sneaking {
         changes.stopped_sneaking = true;
-        // A sprint asked for in the same input is refused while the body
-        // still sneaks, and the sneak then lasts through this move.
-        if controls.sprint && controls.forward > 0.0 && !body.sprinting {
-            pending.sneak = true;
-        } else {
-            body.sneaking = false;
-        }
+        body.sneaking = false;
     }
     // The sprint key starts a sprint; it lasts while the player keeps moving
     // forward without sneaking (BDS answers a stop sent while still moving
-    // forward with the unchanged sprint).
-    // A sprint starts only with the move vector at least 0.8 forward (BDS
-    // 1.26.51, `random_14`: a sprint key held with half a forward vector
-    // walks), and lasts while it is forward at all.
-    let can_sprint = controls.forward > 0.0 && !body.sneaking;
-    let want_sprint = can_sprint
-        && (body.sprinting || (controls.sprint && controls.forward >= SPRINT_START_FORWARD));
+    // forward with the unchanged sprint). Both need the move vector at least
+    // 0.8 forward (BDS 1.26.51, `random_14`: a sprint key held with half a
+    // forward vector walks; `random_a30`: a sprint goes on as a walk once the
+    // forward vector drops to a half).
+    // A wall the last move ran into ends a sprint, and none starts against it
+    // (BDS 1.26.51, `sw_ground_20`: the sprint key held into a wall at yaw
+    // -20 walks along it from the input after the first move it fully
+    // stopped).
+    let can_sprint =
+        controls.forward >= SPRINT_START_FORWARD && !body.sneak_slowed && !body.sprint_blocked;
+    // Double tap: the move vector becoming ready to sprint on the ground
+    // opens a window of SPRINT_TAP inputs; becoming ready again on the
+    // ground inside it sprints (BDS 1.26.51, `sr_toggle`: sneaking on and
+    // off every two inputs with forward held sprints on the second release,
+    // and BDS sends 0.13; `sr_air`: not in the air).
+    body.sprint_tap = body.sprint_tap.saturating_sub(1);
+    let mut tapped = false;
+    let ready = controls.forward >= SPRINT_START_FORWARD && !body.sneak_slowed;
+    if can_sprint && !body.sprint_ready && !body.sprinting && body.on_ground {
+        if body.sprint_tap == 0 && !controls.sprint {
+            body.sprint_tap = SPRINT_TAP;
+        } else {
+            tapped = true;
+        }
+    }
+    body.sprint_ready = ready;
+    let want_sprint = can_sprint && (body.sprinting || controls.sprint || tapped);
     if want_sprint && !body.sprinting {
         body.sprinting = true;
         body.movement_speed = body.sprint_speed();
         changes.started_sprinting = true;
     } else if !want_sprint && body.sprinting {
         changes.stopped_sprinting = true;
-        if body.sneaking {
-            body.sprinting = false;
-            body.movement_speed = body.walk_speed;
-        } else {
-            pending.sprint = true;
-        }
+        body.sprinting = false;
+        body.movement_speed = body.walk_speed;
     }
     // BDS 1.26.51 sprints at the surface without swimming (drag 0.9, the
     // sink, no pitch steering) until the eyes go under.
@@ -645,26 +711,16 @@ pub fn update_state(
     } else if !want_swim && body.swimming {
         changes.stopped_swimming = true;
     }
-    pending
-}
-
-/// State changes [`update_state`] leaves for after the move.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Pending {
-    /// The sprint stops after the move.
-    pub sprint: bool,
-    /// The sneak stops after the move.
-    pub sneak: bool,
 }
 
 /// Move the body one tick.
 pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Changes {
     let mut changes = Changes::default();
-    let pending = update_state(body, controls, eyes_in_water(body, terrain), &mut changes);
+    update_state(body, controls, eyes_in_water(body, terrain), &mut changes);
     if !terrain.loaded(&body.aabb().inflate([1.0, 1.0, 1.0])) {
         body.velocity = [0.0; 3];
         changes.frozen = true;
-        finish(body, pending, &changes);
+        finish(body, &changes);
         return changes;
     }
     let liquid_box = body.water_box();
@@ -678,7 +734,7 @@ pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Cha
     if body.in_water {
         let swim = Swim {
             steering: body.swimming && !changes.stopped_swimming,
-            sprint_drag: body.swimming || (body.sprinting && !pending.sprint),
+            sprint_drag: body.swimming || body.sprinting,
         };
         water_tick(body, controls, terrain, swim);
     } else if body.in_lava {
@@ -686,7 +742,7 @@ pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Cha
     } else if body.gliding {
         glide_tick(body, controls, terrain);
     } else {
-        land_tick(body, controls, terrain, pending.sprint, &mut changes);
+        land_tick(body, controls, terrain, &mut changes);
     }
     body.fall_distance = if body.on_ground || body.in_water || body.in_lava {
         0.0
@@ -698,21 +754,12 @@ pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Cha
     } else if body.jump_delay > 0 {
         body.jump_delay -= 1;
     }
-    finish(body, pending, &changes);
+    finish(body, &changes);
     changes
 }
 
-/// After the move: remember the sprint it used, then end a stopping sprint
-/// (and swim) and sneak.
-fn finish(body: &mut Body, pending: Pending, changes: &Changes) {
-    body.moved_sprinting = body.sprinting;
-    if pending.sprint {
-        body.sprinting = false;
-        body.movement_speed = body.walk_speed;
-    }
-    if pending.sneak {
-        body.sneaking = false;
-    }
+/// After the move: end a stopping swim.
+fn finish(body: &mut Body, changes: &Changes) {
     if changes.stopped_swimming {
         body.swimming = false;
     }
@@ -745,7 +792,7 @@ fn impulse(body: &Body, controls: &Controls) -> [f32; 2] {
         strafe /= length;
         forward /= length;
     }
-    if body.sneaking {
+    if body.sneak_slowed {
         strafe *= SNEAK_IMPULSE;
         forward *= SNEAK_IMPULSE;
     }
@@ -827,15 +874,8 @@ fn landing_block(body: &Body, terrain: &impl Terrain) -> Block {
     }
 }
 
-/// One tick on land or in the air; `stopping` is whether the sprint stops
-/// after this move.
-fn land_tick(
-    body: &mut Body,
-    controls: &Controls,
-    terrain: &impl Terrain,
-    stopping: bool,
-    changes: &mut Changes,
-) {
+/// One tick on land or in the air.
+fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, changes: &mut Changes) {
     let mut friction = AIR_FRICTION;
     let mut speed = if body.sprinting {
         AIR_SPEED_SPRINTING
@@ -864,10 +904,10 @@ fn land_tick(
         }
         body.velocity[1] = body.velocity[1].max(jump);
         body.jump_delay = JUMP_DELAY;
-        // A sprint that stops after this move still accelerates as a
-        // sprint, but its jump gets no push (BDS 1.26.51, `random_135`: the
-        // forward key let go with the jump).
-        if body.sprinting && !stopping {
+        // A sprint stopping in this input stopped before the move: its jump
+        // gets no push (BDS 1.26.51, `random_135`: the forward key let go
+        // with the jump).
+        if body.sprinting {
             let yaw = controls.yaw * 0.017_453_292;
             body.velocity[0] -= table_sin(yaw) * SPRINT_JUMP;
             body.velocity[2] += table_cos(yaw) * SPRINT_JUMP;
@@ -983,17 +1023,17 @@ fn feet_block(body: &Body, terrain: &impl Terrain, dy: i32) -> Block {
     terrain.block([x, y + dy, z])
 }
 
-/// Falling beside a honey block's side slides down it at most 0.12 a tick,
-/// the horizontal velocity slowed in proportion (BDS 1.26.51,
-/// `honey_wall_slide`: -0.12 a tick from the first tick the box reaches the
-/// block's cell, with the velocity after the tick -0.12 too). The body's
-/// centre must be at least 0.4375 + half its width from the block's centre
-/// on x or z, and its feet below the block's top less 1/16.
+/// Beside a honey block's side the horizontal velocity is slowed to 0.4 of
+/// itself after each move, and a fall slides down the side at most 0.12 a
+/// tick (BDS 1.26.51: `honey_wall_slide`, -0.12 a tick from the first tick
+/// the box reaches the block's cell, with the velocity after the tick -0.12
+/// too; `random_a27`, walking into the side on blue ice, 0.36 of the move
+/// kept a tick, the ice's 0.9 times 0.4; `random_a90`, sliding while moving
+/// away, 0.4 and the air's 0.91). The body's box must reach the block's
+/// cell, its centre be at least 0.4375 + half its width from the block's
+/// centre on x or z, and its feet below the block's top less 1/16.
 fn honey_slide(body: &mut Body, terrain: &impl Terrain) {
     let vy = body.velocity[1];
-    if body.on_ground || vy >= -HONEY_SLIDE {
-        return;
-    }
     let bb = body.aabb();
     let (min, max) = bb.block_range();
     let reach = 0.4375 + WIDTH / 2.0;
@@ -1007,13 +1047,13 @@ fn honey_slide(body: &mut Body, terrain: &impl Terrain) {
             })
         })
     });
-    if beside {
-        let factor = -HONEY_SLIDE / vy;
-        body.velocity = [
-            body.velocity[0] * factor,
-            -HONEY_SLIDE,
-            body.velocity[2] * factor,
-        ];
+    if !beside {
+        return;
+    }
+    body.velocity[0] *= HONEY_BESIDE;
+    body.velocity[2] *= HONEY_BESIDE;
+    if !body.on_ground && vy < -HONEY_SLIDE {
+        body.velocity[1] = -HONEY_SLIDE;
     }
 }
 
@@ -1050,8 +1090,7 @@ struct Swim {
     steering: bool,
     /// Horizontal drag 0.9: swimming (also in the tick the swim stops,
     /// BDS 1.26.51 `water_swim_deep` tick 46), or sprinting at the surface
-    /// but not in the tick that sprint stops (`water_surface_sprint` tick
-    /// 36).
+    /// (a sprint stops before the move: `water_surface_sprint` tick 36).
     sprint_drag: bool,
 }
 
@@ -1276,6 +1315,14 @@ fn move_and_collide(body: &mut Body, terrain: &impl Terrain) {
     body.on_ground = (y_hit && velocity[1] < 0.0)
         || (body.on_ground && !y_hit && velocity[1].abs() <= 1.0e-5 && body.levitation == 0);
     body.horizontal_collision = x_hit || z_hit;
+    // Only a move the wall stopped entirely on the axes it hit (the box
+    // already touched it): a move it only shortened keeps the sprint.
+    let stopped = [x_hit, z_hit]
+        .into_iter()
+        .zip([moved[0], moved[2]])
+        .all(|(hit, moved)| !hit || moved == 0.0);
+    body.sprint_blocked =
+        body.horizontal_collision && stopped && wall_stops_sprint(velocity, moved);
     body.vertical_collision = y_hit;
     body.velocity = moved;
     if x_hit {
@@ -1284,6 +1331,24 @@ fn move_and_collide(body: &mut Body, terrain: &impl Terrain) {
     if z_hit {
         body.velocity[2] = 0.0;
     }
+}
+
+/// Whether a move a wall stopped ends a sprint: the move it made turned more
+/// than [`SPRINT_WALL_ANGLE`] away from the one it meant to make, on x and z
+/// (BDS 1.26.51, `sw_ground_30`: sliding along a wall at yaw -30 turns the
+/// move 38 degrees and keeps the sprint; `sw_ground_20`, 51 degrees, and
+/// `sw_jump_30`, 45.5 degrees after a sprint jump into the wall, end it).
+fn wall_stops_sprint(meant: [f32; 3], made: [f32; 3]) -> bool {
+    let meant_sq = meant[0] * meant[0] + meant[2] * meant[2];
+    let made_sq = made[0] * made[0] + made[2] * made[2];
+    if meant_sq < 1.0e-7 {
+        return false;
+    }
+    if made_sq < 1.0e-7 {
+        return true;
+    }
+    let dot = meant[0] * made[0] + meant[2] * made[2];
+    dot / (meant_sq * made_sq).sqrt() < SPRINT_WALL_ANGLE.cos()
 }
 
 /// Whether a body box at `bb` overlaps any block's collision box.

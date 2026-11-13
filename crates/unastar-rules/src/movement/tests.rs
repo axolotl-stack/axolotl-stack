@@ -292,10 +292,10 @@ fn a_swimmer_heads_where_it_looks_and_keeps_the_sprint_drag_a_tick() {
     // Looking 30 degrees down: d' = 0.8 (1 - 0.085) d - 0.0425.
     let steady = -0.0425 / (1.0 - 0.8 * 0.915);
     assert!((per_tick - steady).abs() < 1e-4, "{per_tick} vs {steady}");
-    // Letting go: the sprint (and its 0.9 drag) still moves this tick.
+    // Letting go: the swim (and its 0.9 drag) still moves this tick.
     let changes = step(&mut body, &Controls::default(), &terrain);
     assert!(changes.stopped_sprinting && changes.stopped_swimming);
-    assert!(!body.sprinting && !body.swimming && body.moved_sprinting);
+    assert!(!body.sprinting && !body.swimming);
 }
 
 #[test]
@@ -339,6 +339,71 @@ fn sprinting_needs_forward_input_and_no_sneak() {
     );
     assert!(body.sprinting && changes.started_sprinting);
     assert!((body.movement_speed - 0.13).abs() < 1e-7);
+}
+
+#[test]
+fn a_released_sneak_stands_up_but_still_slows_its_input() {
+    let terrain = Flat::stone(0.0);
+    let mut body = standing(0.0);
+    let sneak = Controls {
+        sneak: true,
+        ..Default::default()
+    };
+    step(&mut body, &sneak, &terrain);
+    step(&mut body, &sneak, &terrain);
+    let changes = step(&mut body, &walk(1.0), &terrain);
+    assert!(changes.stopped_sneaking && body.pose() == Pose::Standing);
+    // From rest: a sneak's 0.3 x 0.98 x 0.1, not a walk's 0.098.
+    assert!((body.velocity[2] / 0.546 - 0.0294).abs() < 1e-6);
+    step(&mut body, &walk(1.0), &terrain);
+    assert!(!body.sneak_slowed);
+}
+
+#[test]
+fn a_second_forward_press_after_at_most_five_idle_inputs_sprints() {
+    let terrain = Flat::stone(0.0);
+    // The window counts the first press: five idle inputs between the
+    // presses sprint, six do not (BDS 1.26.51, `dt_gap_*`).
+    for (gap, sprints) in [(5, true), (6, false)] {
+        let mut body = standing(0.0);
+        step(&mut body, &walk(1.0), &terrain);
+        for _ in 0..gap {
+            step(&mut body, &walk(0.0), &terrain);
+        }
+        let changes = step(&mut body, &walk(1.0), &terrain);
+        assert_eq!(changes.started_sprinting, sprints, "gap {gap}");
+    }
+}
+
+#[test]
+fn a_sprint_ends_at_half_forward_and_needs_the_key_again() {
+    let terrain = Flat::stone(0.0);
+    let mut body = standing(0.0);
+    let sprint = Controls {
+        sprint: true,
+        ..walk(1.0)
+    };
+    step(&mut body, &sprint, &terrain);
+    let changes = step(&mut body, &walk(0.5), &terrain);
+    assert!(changes.stopped_sprinting && body.movement_speed == WALK_SPEED);
+    for _ in 0..10 {
+        step(&mut body, &walk(0.5), &terrain);
+    }
+    assert!(!step(&mut body, &walk(1.0), &terrain).started_sprinting);
+}
+
+#[test]
+fn a_wall_turning_the_move_more_than_45_degrees_ends_a_sprint() {
+    // Sliding along a wall on x keeps the move on x; the move meant had z.
+    let meant = |degrees: f32| {
+        let r = degrees.to_radians();
+        [r.cos(), 0.0, r.sin()]
+    };
+    let made = [meant(0.0)[0], 0.0, 0.0];
+    assert!(!wall_stops_sprint(meant(38.0), [meant(38.0)[0], 0.0, 0.0]));
+    assert!(wall_stops_sprint(meant(46.0), [meant(46.0)[0], 0.0, 0.0]));
+    assert!(wall_stops_sprint([0.0, 0.0, 0.3], [0.0; 3]));
+    assert!(!wall_stops_sprint([0.0; 3], made));
 }
 
 /// A standing copy and a client that reports `claim` every input: what
