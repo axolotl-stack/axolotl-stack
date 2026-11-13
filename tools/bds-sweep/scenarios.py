@@ -449,6 +449,23 @@ FAMILIES = {'pilot': pilot, 'stairs': stairs, 'connections': connections, 'wall_
             'junctions': junctions, 'halves': halves}
 
 
+def signature(item: dict) -> list[str]:
+    """The step signature the job groups waves by (`jobs.step_signature`):
+    an item whose timeline has a click (`use`) runs alone."""
+    out = []
+    for step in item['steps']:
+        if step[0] == 'timeline' and any(event[0] == 'use' for _, event in step[3]):
+            out.append(f'timeline{step[1]}:{item["key"]}')
+        elif step[0] in ('wait', 'timeline'):
+            out.append(f'{step[0]}{step[1]}')
+        elif step[0] == 'cmd':
+            # A command (a game rule) applies to the whole wave.
+            out.append(f'cmd:{step[1]}')
+        else:
+            out.append(step[0])
+    return out
+
+
 def items(families: str) -> list[dict]:
     names = list(FAMILIES) if families == 'all' else families.split(',')
     out = []
@@ -457,7 +474,7 @@ def items(families: str) -> list[dict]:
             raise SystemExit(f'unknown scenario family {name!r}; known: {", ".join(FAMILIES)}')
         family = FAMILIES[name]()
         # Items with the same step signature share waves.
-        out += sorted(family, key=lambda i: [f'wait{s[1]}' if s[0] == 'wait' else s[0] for s in i['steps']])
+        out += sorted(family, key=signature)
     return out
 
 
@@ -682,3 +699,40 @@ ROUND_TWO = {'stairs_blocks': stairs_blocks, 'connections_blocks': connections_b
              'wall_heights_blocks': wall_heights_blocks, 'multiface_support': multiface_support, 'rails': rails,
              'soils_more': soils_more, 'coral_death': coral_death}
 FAMILIES.update(ROUND_TWO)
+
+
+# ------------------------------------------------------------------ round 3
+
+def _circuit_families() -> dict:
+    import circuits
+    return circuits.FAMILIES
+
+
+def _random_tick_families() -> dict:
+    import random_ticks
+    return random_ticks.FAMILIES
+
+
+def _coral_families() -> dict:
+    import coral
+    return coral.FAMILIES
+
+
+ROUND_THREE = _circuit_families()
+RANDOM_TICKS = _random_tick_families()
+CORAL = _coral_families()
+FAMILIES.update(ROUND_THREE)
+FAMILIES.update(RANDOM_TICKS)
+FAMILIES.update(CORAL)
+# Families that need their own cell layout (name in sweep.ARENAS) and server
+# properties; every family in one run must share a layout.
+LAYOUTS = ({name: 'circuits' for name in ROUND_THREE} | {name: 'fields' for name in RANDOM_TICKS}
+           | {name: 'coral' for name in CORAL} | {'coral_death': 'coral'})
+
+
+def layout(families: str) -> str:
+    names = list(FAMILIES) if families == 'all' else families.split(',')
+    found = {LAYOUTS.get(name, 'cells') for name in names}
+    if len(found) != 1:
+        raise SystemExit(f'families {families!r} mix cell layouts {sorted(found)}; run them separately')
+    return found.pop()

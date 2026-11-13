@@ -568,7 +568,6 @@ fn unmodelled_support(block: &str) -> Option<&'static str> {
         | "mangrove_propagule" | "wall_banner" | "chalkboard" => "not modelled",
         _ if dead_coral_attachment => return None,
         _ if name.contains("coral") && !name.ends_with("_block") => "coral death",
-        _ if name.ends_with("_hanging_sign") => "not modelled",
         _ => return None,
     })
 }

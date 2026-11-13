@@ -30,6 +30,7 @@ import player_script  # noqa: E402
 import pvp_fixture  # noqa: E402
 import pvp_items  # noqa: E402
 import range_fixture  # noqa: E402
+import scenarios  # noqa: E402
 import spawn_bonus_fixture  # noqa: E402
 import subchunk_fixture  # noqa: E402
 import subchunk_roundtrip  # noqa: E402
@@ -906,3 +907,75 @@ class RoundTwoScenarios(unittest.TestCase):
         rails = scenarios.FAMILIES['rails']()
         self.assertEqual(len(rails), 4 * 81 * 2)
         self.assertEqual(len({item['key'] for item in rails}), len(rails))
+
+
+class RoundThree(unittest.TestCase):
+    """Circuit and random tick families and the wave signature."""
+
+    def test_measured_families_have_unique_keys_and_one_layout(self):
+        import circuits
+        import random_ticks
+        for family in list(circuits.MEASURED) + list(random_ticks.FAMILIES):
+            items = scenarios.FAMILIES[family]()
+            keys = [item['key'] for item in items]
+            self.assertEqual(len(keys), len(set(keys)), family)
+            self.assertTrue(all(key.startswith(family + '|') for key in keys), family)
+        self.assertEqual(scenarios.layout(','.join(circuits.MEASURED)), 'circuits')
+        self.assertEqual(scenarios.layout(','.join(random_ticks.FAMILIES)), 'fields')
+        with self.assertRaises(SystemExit):
+            scenarios.layout('redstone_dust,random_crops')
+
+    def test_coral_families_share_the_spaced_layout(self):
+        import coral
+        for family in list(coral.FAMILIES) + ['coral_death']:
+            keys = [item['key'] for item in scenarios.FAMILIES[family]()]
+            self.assertEqual(len(keys), len(set(keys)), family)
+        self.assertEqual(scenarios.layout('coral_death,coral_water,coral_timing'), 'coral')
+        spacing = coral.LAYOUT['spacing']
+        (low_x, _, low_z), (high_x, _, high_z) = coral.LAYOUT['clear_box']
+        # Water flows 7 blocks: two cells' boxes never overlap.
+        self.assertGreater(min(spacing), max(high_x - low_x, high_z - low_z))
+
+    def test_leftover_clicks_end_with_the_normal_difficulty_cases(self):
+        import placements
+        items = placements.items('leftovers')
+        keys = [item['key'] for item in items]
+        self.assertEqual(len(keys), len(set(keys)))
+        changes = [i for i, item in enumerate(items) if item.get('before')]
+        self.assertEqual(changes, [len(items) - 2, len(items) - 1])
+
+    def test_signature_splits_clicks_and_commands_into_their_own_waves(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent / 'endstone-sweep' / 'src'))
+        from endstone_bds_sweep import jobs
+        click = {'key': 'f|a', 'steps': [['build', []], ['timeline', 10, 't', [[1, ['use', [0, 0, 0], 1,
+                                                                                     [0, 0, 0]]]], []]]}
+        plain = {'key': 'f|b', 'steps': [['build', []], ['timeline', 10, 't', [[1, ['set', [0, 0, 0],
+                                                                                     'minecraft:air', {}, True]]],
+                                                         []]]}
+        fast = {'key': 'f|c', 'steps': [['cmd', 'gamerule randomtickspeed 8', [0, 0, 0]]]}
+        slow = {'key': 'f|d', 'steps': [['cmd', 'gamerule randomtickspeed 128', [0, 0, 0]]]}
+        for item in (click, plain, fast, slow):
+            self.assertEqual(list(jobs.step_signature(item)), scenarios.signature(item))
+        self.assertIn('f|a', jobs.step_signature(click)[1])
+        self.assertEqual(jobs.step_signature(plain)[1], 'timeline10')
+        self.assertNotEqual(jobs.step_signature(fast), jobs.step_signature(slow))
+
+    def test_circuit_rows_derive_conductors_cuts_and_climbing(self):
+        trace_lit = [[0, 1, 'unpowered_repeater', {}], [0, 2, 'stone', {}], [0, 3, 'redstone_lamp', {}],
+                     [4, 1, 'powered_repeater', {}], [4, 3, 'lit_redstone_lamp', {}]]
+        trace_late = [[0, 1, 'unpowered_repeater', {}], [0, 2, 'bell', {}], [0, 3, 'redstone_lamp', {}],
+                      [4, 1, 'powered_repeater', {}], [8, 3, 'lit_redstone_lamp', {}]]
+        cut = [[0, 2, 'redstone_wire', {'redstone_signal': 0}], [0, 3, 'stone', {}],
+               [5, 1, 'redstone_wire', {'redstone_signal': 15}]]
+        climb = [[0, 3, 'redstone_wire', {'redstone_signal': 0}], [4, 3, 'redstone_wire', {'redstone_signal': 14}],
+                 [6, 3, 'air', {}]]
+        derived = summarize.circuit_blocks({
+            'redstone_conductors': [[['block', 'stone', {}], 2, [], trace_lit],
+                                    [['block', 'bell', {}], 2, [], trace_late]],
+            'redstone_dust_cut': [[['cut', 'stone', {}], 2, [], cut]],
+            'redstone_dust_blocks': [[['climb', 'acacia_trapdoor', {'open_bit': False}], 2, [], climb]],
+        })
+        self.assertEqual(derived['conductors'], ['minecraft:stone'])
+        self.assertEqual(derived['cuts'], ['minecraft:stone'])
+        # Ever lit: the dust on top popped later.
+        self.assertEqual(derived['rows'], [['minecraft:acacia_trapdoor', {'open_bit': False}, True, False]])

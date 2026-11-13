@@ -119,6 +119,21 @@ fn state_value(world: &World, pos: IVec3, property: &str) -> Option<StateValue> 
         .state_value(runtime_id, property)
 }
 
+/// What a comparator reads from the container at `pos`: 0 when it is empty,
+/// else 1 + 14 x the average fullness of its slots, rounded down (BDS
+/// 1.26.51, `redstone_comparators.json`); `None` when there is no container.
+pub(crate) fn comparator_signal(world: &mut World, pos: IVec3) -> Option<u8> {
+    load(world, pos)?;
+    let container = world.resource::<BlockContainers>().live.get(&pos)?;
+    Some(crate::server::game::redstone::container_reading(
+        container.items.size(),
+        (0..container.items.size())
+            .filter_map(|slot| container.items.item(slot))
+            .filter(|stack| !stack.is_empty())
+            .map(|stack| (u32::from(stack.count), u32::from(stack.max_stack_size()))),
+    ))
+}
+
 /// Decode (or create) the actor at `pos` into the cache. `None` when the
 /// block is not a container, its chunk is not loaded, or its saved actor
 /// cannot be read (it is then left untouched rather than overwritten).

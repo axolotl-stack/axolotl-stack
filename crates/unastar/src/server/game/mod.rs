@@ -22,6 +22,7 @@ pub mod durability;
 pub mod effects;
 pub mod elytra;
 mod falling;
+mod flower_pots;
 pub mod hunger;
 mod inventory;
 pub mod item_use;
@@ -40,6 +41,8 @@ mod placement;
 #[cfg(test)]
 mod placement_capture_tests;
 mod plugins;
+pub(crate) mod random_ticks;
+pub(crate) mod redstone;
 pub(crate) mod roster;
 pub(crate) mod signs;
 pub mod types;
@@ -647,6 +650,15 @@ impl GameServer {
             block_use::tick_scheduled_blocks
                 .in_set(EntityLogicSet)
                 .after(containers::tick_block_containers)
+                .before(tick_block_breaking),
+        );
+        // Redstone, after this tick's other block changes, then random block
+        // ticks (exclusive: edit chunks).
+        ecs.schedule_mut().add_systems(
+            (redstone::tick_redstone, random_ticks::tick_random_blocks)
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(block_use::tick_scheduled_blocks)
                 .before(tick_block_breaking),
         );
         // Mob fall damage, condition damage, daylight burning and fire, death,

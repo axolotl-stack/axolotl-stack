@@ -39,6 +39,10 @@ time, and first failed on CI (PR #77, test-windows) after a docs-only change.
 - The other replays already seed their RNG: melee 7, spears 11, elytra 3, and 13 for
   `capture_replay.rs` (jukebox, drinks). Mob RNGs are seeded from deterministic seeds, so
   seeding `EntityRandom` covers them too.
+- Keep `EntityRandom` for entity rolls only. Random block ticks once drew their picks from it
+  every game tick, so a seeded replay's drop landed elsewhere (out of the observer's pickup
+  in `breaking_seen_by_another_player_and_in_creative_answers_like_bds`); they now draw from
+  their own `RandomTickRandom`. A new per-tick system that rolls takes its own resource.
 
 ## Where it lives
 

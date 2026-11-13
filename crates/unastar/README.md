@@ -855,12 +855,17 @@ per-item sounds of `server/game/place_sounds.rs`), the inventory resync, and wha
 other player is sent (blocks, sounds, level events, block actors). Stacks describe
 the block BDS describes them with (`unastar_data::item_blocks`, measured for every
 item). Covered since round 2: door hinges from neighbouring doors and blocks; coral
-fans on floors and walls (placed dead out of water) and coral blocks dying after a
-placement; skulls; beehives, bee nests, looms, chiseled bookshelves, decorated pots,
+fans on floors and walls (placed dead out of water) and coral blocks dying 45 ticks
+after any placement out of water (or 54 to 184 ticks after their water goes,
+`block_use.rs`, `crates/unastar-data/data/measured/block_updates/coral_timing.json`); skulls; beehives, bee nests, looms, chiseled bookshelves, decorated pots,
 crafters, grindstones, shelf mushrooms; bells under blocks and on walls; vines, glow
 lichen, sculk veins and resin clumps on every face; stacking candles, snow layers, sea
-pickles, turtle eggs and petals; candles on cakes; seeds and other planting items;
-player-placed leaves. Placed blocks BDS announces with a block actor get the measured
+pickles, turtle eggs and petals; candles on cakes; seeds and other planting items (a
+cave vine with BDS's random age); player-placed leaves; string, linked to the
+tripwire beside it. Since round 3 (`testdata/bds-placements-leftovers.json`): cake
+eaten slice by slice (a candle cake drops its candle; a full player eats only on
+peaceful) and flower pots taking the 37 plants BDS takes and giving them back
+(`server/game/flower_pots.rs`). Placed blocks BDS announces with a block actor get the measured
 default (`unastar_data::block_updates::block_actor_default`, `block_actors.rs`).
 
 Signs (`server/game/signs.rs`) work like BDS: placing one opens its editor for the
@@ -871,8 +876,35 @@ change it, and the text is kept in the chunk's block actor (saved and sent with 
 chunk). Doors, trapdoors, fence gates, buttons and levers open, close and press on
 use (`server/game/block_use.rs`); buttons pop back after 20 or 30 ticks. Not copied:
 the attribute and actor-data resend BDS sends after every click, banners (BDS's
-banner stack carries item user data unastar's lacks), flower pots taking plants,
-eating cake, and the click corrections BDS sends after lighting with flint and steel.
+banner stack carries item user data unastar's lacks), the plant a broken flower pot
+holds, and the click corrections BDS sends after lighting with flint and steel.
+
+Redstone (`server/game/redstone/`) runs like BDS 1.26.51, tick by tick
+(`redstone/tests.rs` replays every circuit of
+`crates/unastar-data/data/measured/redstone/`; decision
+[0041](../../docs/decisions/0041-run-redstone-as-a-two-tick-circuit-update.md)). The circuit
+is worked every other game tick; a change made in a tick is seen from the next update of a
+later tick. An update takes each dust's level from the outputs as they stand (and shows it on
+the dust), then the new outputs of repeaters (delay, pulse stretching, locking), comparators
+(compare, subtract, block and container readings), torches (burnout) and observers, then the
+blocks power acts on: lamps, doors, trapdoors, fence gates, copper bulbs, hoppers (locked),
+dispensers, droppers, crafters (`triggered_bit` only) and powered and activator rails. Which
+blocks conduct, cut climbing dust and let dust climb are measured per block
+(`unastar_data::redstone`). Levers and buttons switch through `block_use.rs`. Not modelled:
+pistons, entities on pressure plates and tripwires, target blocks, daylight measurement, sculk
+sensors, note block sounds, TNT priming and dispensing; a circuit already in a chunk loaded
+from disk starts working once a block next to it changes.
+
+Random block ticks (`server/game/random_ticks.rs`) follow BDS 1.26.51 by distribution
+(`random_ticks/tests.rs` compares measured fields of
+`crates/unastar-data/data/measured/random_ticks/` by chi-square): each sub-chunk of a ticking
+chunk gets `2 x randomtickspeed` random positions per game tick (a block is ticked
+`randomtickspeed / 2048` times per tick on average). Crops grow by the growth factor of the
+farmland around them, sugar cane ages and grows to three blocks, farmland dries away from
+water and turns to dirt, grass spreads to dirt, leaves with no log within four steps through
+leaves decay, and copper oxidises (a door's halves together), held back by younger copper
+near it. Not modelled: light levels, cactus flowers, saplings, bamboo, kelp, vines, ice and
+snow, fire and the other random-tick blocks.
 
 Using a crafting table (unless sneaking with an item in hand) opens BDS's
 WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID

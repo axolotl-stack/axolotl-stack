@@ -516,11 +516,21 @@ pub(crate) fn stays_after(
     let needs = needs(entry, state);
     let checked = match (check, needs) {
         (Check::None, _) | (_, Needs::Nothing) => false,
+        // Dust, pressure plates, repeaters and comparators set on a block
+        // that cannot hold them stay until a neighbour changes
+        // (`redstone_dust*.json`: dust on a bottom slab or leaves, plates and
+        // diodes on dust).
+        (Check::Placed, _) if kept_when_placed(entry) => false,
         (Check::Placed, Needs::Holder { .. } | Needs::Rail { .. }) => true,
         (Check::Neighbour(from), Needs::Rail { slope }) => {
             from == Face::Down || Some(from) == slope
         }
         (Check::Placed, _) => false,
+        // ... and are checked whichever neighbour changes (a stone set beside
+        // dust on a bottom slab pops it, `redstone_dust.json` climb rows; a
+        // plate or repeater on a fence gate drops when a block is set on it,
+        // `surfaces.json`).
+        (Check::Neighbour(_), Needs::Holder { .. }) if kept_when_placed(entry) => true,
         (Check::Neighbour(from), Needs::Holder { face, .. }) => from == face,
         // A tall plant half checks itself only when the block above or below
         // changes: a lever placed beside a lone lower half of a large fern
@@ -535,6 +545,20 @@ pub(crate) fn stays_after(
         (Check::Neighbour(_), _) => true,
     };
     !checked || stays(blocks, pos, entry, state)
+}
+
+/// Blocks BDS keeps when they are set where they could not stay, until a
+/// neighbour changes.
+fn kept_when_placed(entry: &BlockEntry) -> bool {
+    let id = entry.string_id.as_str();
+    matches!(
+        id,
+        "minecraft:redstone_wire"
+            | "minecraft:unpowered_repeater"
+            | "minecraft:powered_repeater"
+            | "minecraft:unpowered_comparator"
+            | "minecraft:powered_comparator"
+    ) || id.ends_with("_pressure_plate")
 }
 
 /// Whether `state` of `entry` at `pos` has what it needs to stay.

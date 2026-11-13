@@ -6110,6 +6110,21 @@
      "sha256": "7855a3081bd97be595d2293b676c725cb43de2c1c7a74df8610de9b2acd97cad"
     },
     {
+     "path": "block_updates/coral_death.json",
+     "rows": 80,
+     "sha256": "91777e0e8aa818fca73ccc65768cb823e290611f3ad41d4ed92d4869489a1656"
+    },
+    {
+     "path": "block_updates/coral_timing.json",
+     "rows": 43,
+     "sha256": "f368f081e2a41898e4ec35b59a3ffb2c3463551ff99564fad0d13e4ba78a1953"
+    },
+    {
+     "path": "block_updates/coral_water.json",
+     "rows": 65,
+     "sha256": "deb8b320859aaa90a809bfb9aad7d49057379cbcba5e9b0900eb2423beddc212"
+    },
+    {
      "path": "block_updates/gate_in_wall.json",
      "rows": 192,
      "sha256": "d16dbaf55b65988ff467c267ef03084fc02d285f4c5268967067b165ed3bbb45"
@@ -6183,7 +6198,7 @@
      "sha256": "21aaf072a371c26edb231ac5dbb4392232450f7d8d6e0f78b7e3a11271b48fb3"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362",
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 9521761a1a33fb0503921cd310efb2d217484102",
    "method": "block scenarios (tools/bds-sweep/scenarios.py) run by the endstone-sweep `scenarios` job on a superflat world with random ticks off: blocks set through the Endstone block API with or without the block update a placement triggers, read back after the stated wait; see each file's `method`",
    "source": "bds_sweep",
    "sweeps": [
@@ -6255,6 +6270,30 @@
        "items": 25683,
        "seconds": 124.8,
        "started": "20261110T224734Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-coral",
+     "items": 145,
+     "runs": [
+      {
+       "items": 145,
+       "seconds": 569.7,
+       "started": "20261111T162037Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-coral-timing",
+     "items": 43,
+     "runs": [
+      {
+       "items": 43,
+       "seconds": 70.0,
+       "started": "20261111T163851Z",
        "status": "done"
       }
      ]
@@ -6388,6 +6427,232 @@
        "seconds": 15.5,
        "started": "20261110T195718Z",
        "status": "client exited 1"
+      }
+     ]
+    }
+   ]
+  },
+  "random_ticks": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "random_ticks/random_cane.json",
+     "rows": 2,
+     "sha256": "66924708895a0c6148369f155506cd0a79fd79ab950e738193956642786c0c34"
+    },
+    {
+     "path": "random_ticks/random_copper.json",
+     "rows": 8,
+     "sha256": "5098454a816e8af18f36f80fbb68a7f18d0fbe136925d1dcdcd2c0657b3aed1d"
+    },
+    {
+     "path": "random_ticks/random_copper_more.json",
+     "rows": 11,
+     "sha256": "a0f7e980ba9f13f52645ec805340ae36ad8817906b7207dd8e56fe05ec94fbc3"
+    },
+    {
+     "path": "random_ticks/random_crops.json",
+     "rows": 8,
+     "sha256": "493b593b11799fa7d208cb517fdd2baea6f981d3bc36cde79e47cf86adff747b"
+    },
+    {
+     "path": "random_ticks/random_farmland.json",
+     "rows": 2,
+     "sha256": "f7533bde095a54c546c0c4c005aba49170e0f53b2882abad99a44c9a01ff7c35"
+    },
+    {
+     "path": "random_ticks/random_grass.json",
+     "rows": 1,
+     "sha256": "7c8fc2739c6f8a9148aa8f3389f799b7733c417111c50f2b7e5e7f8d3c441aef"
+    },
+    {
+     "path": "random_ticks/random_leaves.json",
+     "rows": 6,
+     "sha256": "b107e2b8cdaffa68259b19333835914af375b8e383231db7c75263a46b43a195"
+    },
+    {
+     "path": "random_ticks/random_leaves_logs.json",
+     "rows": 2,
+     "sha256": "14f0754420f32a5c57c0e5ceb488b87591569eecae63395b6ea9e4e1cac7d362"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at c96f3d80e89c8d6a9211657e0b0aa97fc8378282",
+   "method": "random tick fields compared by distribution: sweep.py scenarios --family <random family> (tools/bds-sweep/random_ticks.py): a 16 x 16 field of identical cells is laid out on the superflat floor without block updates (`build`, offsets from the field origin, the floor at y=-1), `randomtickspeed` is set to `speed`, and every `watch` position is read every `read_every` ticks; `reads` holds, per read, how many watched positions held each [block, states] (`minecraft:` left out). The replay test lays out the same field in unastar with a seeded random source and compares the histograms with a chi-square test.",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "r3-random-a",
+     "items": 26,
+     "runs": [
+      {
+       "items": 26,
+       "seconds": 774.6,
+       "started": "20261111T023728Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-random-b",
+     "items": 3,
+     "runs": [
+      {
+       "items": 3,
+       "seconds": 316.7,
+       "started": "20261111T032009Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-random-c",
+     "items": 11,
+     "runs": [
+      {
+       "items": 11,
+       "seconds": 162.6,
+       "started": "20261111T032109Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
+  "redstone": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "redstone/blocks.json",
+     "rows": 1625,
+     "sha256": "bc08255f462f2ff8cda57d987ac59b0a407f4896b99a717f0efd045ec82945d3"
+    },
+    {
+     "path": "redstone/redstone_burnout.json",
+     "rows": 7,
+     "sha256": "23234511617e59cba6be13925f7b616037296995bb368afa2c23cc9de815d539"
+    },
+    {
+     "path": "redstone/redstone_comparators.json",
+     "rows": 160,
+     "sha256": "5371e8c4113005f8861009ea23789c1edac03f88addbed2af516d532d24857ae"
+    },
+    {
+     "path": "redstone/redstone_conductors.json",
+     "rows": 1448,
+     "sha256": "f45ae9e380596e71aebaa15d0f689a8ae51f0e6f3b8984c921d8700559cc80b6"
+    },
+    {
+     "path": "redstone/redstone_consumers.json",
+     "rows": 162,
+     "sha256": "236995ba2bfaeff7881ba41d26d05b8dd084e2638fbf6e045100ed632ab3ed9b"
+    },
+    {
+     "path": "redstone/redstone_dust.json",
+     "rows": 74,
+     "sha256": "dc3dd13b9eeba82a4de3196292b52dc199a4f6fe70de33c940c3fbfa085dbc7f"
+    },
+    {
+     "path": "redstone/redstone_dust_blocks.json",
+     "rows": 1625,
+     "sha256": "f16bb76f2456bf43f18544e97a39058286dbe6f86f2834928fba0b5bee188788"
+    },
+    {
+     "path": "redstone/redstone_dust_cut.json",
+     "rows": 1448,
+     "sha256": "b608cef44aa9bf577654bdfdd85578305f23c961a885c65ae6f61ba31c25a89f"
+    },
+    {
+     "path": "redstone/redstone_observer_timing.json",
+     "rows": 26,
+     "sha256": "28387b01180c92ae941ca96769b522549f558e2d8b1abf52f3930379dc718d3f"
+    },
+    {
+     "path": "redstone/redstone_observers.json",
+     "rows": 12,
+     "sha256": "7be416ff50b26480bc22fc378d4015539a15b74d5d579e0bc1ba54a047ae0b6b"
+    },
+    {
+     "path": "redstone/redstone_power.json",
+     "rows": 16,
+     "sha256": "646e6416d32e5c4dc00daefa3f1200b2f964da0eec3cccea1f56aec49e54fc90"
+    },
+    {
+     "path": "redstone/redstone_repeaters.json",
+     "rows": 46,
+     "sha256": "c921dde4a2456c4f6738b3725b28406f380bfbca92ecae841f03144b1dd987a4"
+    },
+    {
+     "path": "redstone/redstone_switches.json",
+     "rows": 16,
+     "sha256": "3cf57178578a59a72eb705e1e15c004b5762819af838278db84ec84598ea3be0"
+    },
+    {
+     "path": "redstone/redstone_torches.json",
+     "rows": 6,
+     "sha256": "51a20793340492ab666ed55c35c71864c52b2f76bbec848a7358a10e0091ff93"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 4e56e688749f6c155bcfe3de661d64950aa8376c",
+   "method": "redstone circuits replayed tick by tick: sweep.py scenarios --family <redstone family> (tools/bds-sweep/circuits.py): each circuit is built in a cell of its own with block updates (`build`), left `wait` ticks, then run for a `timeline` of N server ticks in which `events` ([tick, event]) are applied at their tick and every `watch` offset is read once per tick after them. `trace` lists [tick, watch index, block, states] for the first read and every change. `witness` is the tick (2 or 3) at which a dust beside a redstone block set at tick 0 outside the cells lit in the same wave: BDS works redstone every other tick, and an update shows at the reads whose tick has the parity of `witness`. Offsets are relative to the cell origin on the superflat grass (the floor is y=-1); `minecraft:` is left out of block names.",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "r3-redstone-a",
+     "items": 476,
+     "runs": [
+      {
+       "items": 476,
+       "seconds": 86.9,
+       "started": "20261111T014504Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-b2",
+     "items": 3073,
+     "runs": [
+      {
+       "items": 3073,
+       "seconds": 97.3,
+       "started": "20261111T015411Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-conductors2",
+     "items": 1448,
+     "runs": [
+      {
+       "items": 1448,
+       "seconds": 47.4,
+       "started": "20261111T015426Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-c",
+     "items": 33,
+     "runs": [
+      {
+       "items": 33,
+       "seconds": 34.3,
+       "started": "20261111T022720Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "r3-redstone-d",
+     "items": 16,
+     "runs": [
+      {
+       "items": 16,
+       "seconds": 80.2,
+       "started": "20261111T030522Z",
+       "status": "done"
       }
      ]
     }
