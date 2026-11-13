@@ -62,7 +62,7 @@ Each joined session SHALL have an outbound queue of 1024 packets. `PlayerSession
 Evidence: crates/unastar/src/entity/components/player.rs (`PlayerSession::send`, `packets_dropped`), crates/unastar/src/server/runtime.rs (`OUTBOUND_CHANNEL_CAPACITY`), crates/unastar/src/network/mod.rs (`run_network_loop`, `terminates_connection`), crates/unastar/src/server/game/mod.rs (test `player_spawn_sets_join_chunk_gate_without_network_io`)
 
 ### Requirement: Player movement is simulated and judged by the server
-The server SHALL keep its own copy of each player's movement, simulate every `PlayerAuthInput` on it and judge the reported position with the acceptance rules in `docs/quirks/bds.md` (Entities / player movement authority, pull, horizontal take), answering a refused report with `CorrectPlayerMovePrediction` carrying the copy's state after that input. The copy MUST be the player's position for viewers, falls, `MOVING` and exhaustion. An input with a non-finite value MUST be rejected whole: the player stays where it was and none of its block actions are processed.
+The server SHALL keep its own copy of each player's movement, simulate every `PlayerAuthInput` on it and judge the reported position with the acceptance rules in `docs/quirks/bds.md` (Entities / player movement authority, pull, horizontal take), answering a refused report with `CorrectPlayerMovePrediction` carrying the copy's state after that input. The copy MUST be the player's position for viewers, falls, `MOVING` and exhaustion. An input with a non-finite value MUST be rejected whole.
 
 #### Scenario: Teleport-sized jump
 - **WHEN** a `PlayerAuthInput` reports a position 100 blocks from the server's copy of a standing player
@@ -86,7 +86,7 @@ The server SHALL keep its own copy of each player's movement, simulate every `Pl
 
 #### Scenario: Non-finite input
 - **WHEN** a `PlayerAuthInput` carries a NaN position or rotation
-- **THEN** it is rejected whole with the warning `Rejected non-finite PlayerAuthInput` and the player does not move
+- **THEN** it is rejected whole with the warning `Rejected non-finite PlayerAuthInput` and the player does not move and none of its block actions are processed
 
 Evidence: crates/unastar-rules/src/movement/mod.rs (`step`), crates/unastar-rules/src/movement/authority.rs (`Authority::judge`), crates/unastar/src/entity/player_life/authority.rs (`PlayerMotion::input`), crates/unastar/src/server/game/movement.rs (`process_auth_input`, test `non_finite_positions_and_rotations_are_rejected`), crates/unastar/src/entity/player_life/tests/authority.rs (`the_copy_moves_and_corrects_like_bds`, `close_positions_bds_keeps_are_taken`, `cheated_falls_hurt_like_bds`, `a_teleport_sized_jump_is_corrected`), crates/unastar/src/entity/player_life/testdata/bds-1.26.51-authority.json
 
