@@ -2170,7 +2170,6 @@ async fn run_session<T: Transport>(
                         play.send_packet(packet).await?;
                     }
                 }
-                }
             }
             control = async {
                 match link.as_mut() {
