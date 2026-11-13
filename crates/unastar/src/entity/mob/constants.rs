@@ -271,8 +271,17 @@ pub const KNOCKBACK_VERTICAL_CAP: f64 = 0.4;
 pub const KNOCKBACK_RETAIN: f64 = 0.5;
 /// A native zombie spawns with a knockback resistance drawn uniformly from
 /// `[0, this)`, which scales the push and the lift of every knockback it
-/// takes (five BDS 1.26.51 zombies: 0.0150, 0.0306, 0.0434, 0.0472, 0.0493).
+/// takes (five BDS 1.26.51 zombies: 0.0150, 0.0306, 0.0434, 0.0472, 0.0493;
+/// the 1,160 zombies, husks, drowned and zombified piglins of the spawn-bonus
+/// sweep all saved one in `[0.0001, 0.0499]`).
 pub const ZOMBIE_KNOCKBACK_RESISTANCE_BONUS: f64 = 0.05;
+/// The zombie classes' follow-range bonus draw: uniform below this, kept
+/// only above [`FOLLOW_RANGE_BONUS_THRESHOLD`] (BDS 1.26.51 spawn-bonus
+/// sweep: 403 of 1,160 saved one, amounts 1.0014 to 1.4997;
+/// `mob::spawn_bonus`).
+pub const FOLLOW_RANGE_BONUS_DRAW_MAX: f32 = 1.5;
+/// See [`FOLLOW_RANGE_BONUS_DRAW_MAX`].
+pub const FOLLOW_RANGE_BONUS_THRESHOLD: f32 = 1.0;
 /// The body is removed (and XP spawned) this many ticks after death.
 pub const DEATH_TICKS: u32 = 20;
 /// Experience orb sizes, largest first.
@@ -373,8 +382,11 @@ pub const CLIMATE_VARIANT_PROPERTY: &str = "minecraft:climate_variant";
 
 /// Orbs are removed this many ticks after spawning.
 pub const XP_ORB_LIFETIME_TICKS: u64 = 6000;
-/// Gravity subtracted before the move.
-pub const XP_ORB_GRAVITY: f64 = 0.03;
+/// Gravity subtracted before the move (BDS 1.26.51: an orb summoned with an
+/// upward velocity of 0.1204 rose 0.0804 in its first tick, then
+/// `0.0804 × 0.98 − 0.04`; `net/testdata/bds-1.26.51-replication.json`,
+/// trial `xp_orb|fall-32|natural`).
+pub const XP_ORB_GRAVITY: f64 = 0.04;
 /// Per-tick velocity multiplier (block friction also applies on the ground).
 pub const XP_ORB_DRAG: f64 = 0.98;
 /// Spawn velocity: x/z uniform in `±XP_ORB_SPAWN_HORIZONTAL`, y uniform in
@@ -426,6 +438,20 @@ pub const LEGACY_ITEM_NAMES: [(&str, &str); 1] = [("minecraft:muttonRaw", "minec
 /// The legacy loot item name that picks its wool item by data value
 /// (the palette colour): `minecraft:wool` with data 14 is red wool.
 pub const LEGACY_WOOL: &str = "minecraft:wool";
+/// The legacy loot item name that picks its head item by data value: the
+/// vanilla wither skeleton table drops `minecraft:skull` with data 1.
+pub const LEGACY_SKULL: &str = "minecraft:skull";
+/// Head item of each legacy skull data value. Provisional: pmmp's
+/// BedrockItemUpgradeSchema, as for [`LEGACY_ITEM_NAMES`].
+pub const SKULL_ITEMS: [&str; 7] = [
+    "minecraft:skeleton_skull",
+    "minecraft:wither_skeleton_skull",
+    "minecraft:zombie_head",
+    "minecraft:player_head",
+    "minecraft:creeper_head",
+    "minecraft:dragon_head",
+    "minecraft:piglin_head",
+];
 
 // --- Palette colours ------------------------------------------------------------
 

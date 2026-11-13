@@ -38,6 +38,8 @@ pub struct PlayerBundle {
     pub breaking_state: BreakingState,
     pub spatial_chunk: SpatialChunk,
     pub last_broadcast: LastBroadcastPosition,
+    /// The players this player is shown to (`server::player_view`).
+    pub viewers: ActorViewers,
     // Chunk streaming components (Phase 7: included at spawn to avoid archetype changes)
     pub chunk_loader: ChunkLoader,
     pub last_publisher_state: LastPublisherState,

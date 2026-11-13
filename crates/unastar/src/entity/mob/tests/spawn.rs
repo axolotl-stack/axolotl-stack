@@ -83,6 +83,7 @@ fn spawned_adult_cow_add_actor_matches_native_summon() {
         world.get::<Position>(cow).unwrap().0,
         world.get::<Velocity>(cow).unwrap().0,
         &rotation,
+        true,
         world.get::<EntityMetadata>(cow).unwrap(),
         world.get::<ActorProperties>(cow).unwrap(),
         world.get::<ActorAttributes>(cow).unwrap(),

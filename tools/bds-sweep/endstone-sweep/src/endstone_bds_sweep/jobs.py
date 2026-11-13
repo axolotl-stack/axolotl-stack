@@ -511,9 +511,25 @@ def find_actor(ctx: Context, runtime_id: int):
     return None
 
 
+def spawned_by(ctx: Context, actor_type: str, commands: list[str]):
+    """Runs `commands` (a powered dispenser, say) and waits for the first new
+    actor of `actor_type` they make; returns it."""
+    before = {actor.runtime_id for actor in ctx.dimension.actors}
+    for line in commands:
+        ctx.must(line)
+    for _ in range(40):
+        for actor in ctx.dimension.actors:
+            if actor.type == actor_type and actor.runtime_id not in before and actor.is_valid:
+                return actor
+        yield 1
+    raise RuntimeError(f'no {actor_type} came out of {commands}')
+
+
 def knockback(ctx: Context, job: dict):
     """Knockback and movement of a mob the sweep player hits. Per item: the
-    `setup` commands run, a fresh `mob` is spawned at `at` (x, y, z, yaw),
+    `setup` commands run, a fresh `mob` is spawned at `at` (x, y, z, yaw)
+    (or, with `spawn_commands`, the first new actor of that type those
+    commands make is followed instead),
     with `frozen` given Slowness 255 so its AI cannot accelerate it and then
     the `effects` commands run; it settles for `settle` ticks; then each of
     `hits` lands `tick` ticks later: three ticks before it the player
@@ -554,7 +570,10 @@ def knockback(ctx: Context, job: dict):
             spot = item['observer']
             ctx.must(f'tp "{observer}" {spot[0]} {spot[1]} {spot[2]} {spot[3]} 0')
         yield 5
-        mob = ctx.dimension.spawn_actor(Location(ctx.dimension, at[0], at[1], at[2], 0.0, at[3]), item['mob'])
+        if item.get('spawn_commands'):
+            mob = yield from spawned_by(ctx, item['mob'], item['spawn_commands'])
+        else:
+            mob = ctx.dimension.spawn_actor(Location(ctx.dimension, at[0], at[1], at[2], 0.0, at[3]), item['mob'])
         runtime_id = mob.runtime_id
         if item.get('frozen'):
             ctx.must(f'effect @e[type={item["mob"]}] slowness 100000 255 true')
@@ -599,7 +618,7 @@ def knockback(ctx: Context, job: dict):
             'frozen': bool(item.get('frozen')),
             'tool': item.get('tool'),
             'spec': {k: item[k] for k in ('at', 'hits', 'settle', 'tail', 'player', 'setup', 'effects',
-                                          'observer', 'actions') if k in item},
+                                          'observer', 'actions', 'spawn_commands') if k in item},
             'first_tick': first_tick,
             'orders': orders,
             'knockbacks': [k for k in ctx.plugin.knockbacks if k['actor'] == runtime_id],
@@ -671,6 +690,147 @@ def knockback_reload(ctx: Context, job: dict):
         ctx.record({'key': item['key'], 'mob': item['mob'], 'phase': item['phase'],
                     **(yield from hit(actor, item))})
         yield 5
+
+
+def spawn_marker(ctx: Context, marker: dict):
+    """A still actor for `send_range`: an item (`minecraft:item`, a stick)
+    is dropped, anything else is spawned facing `at[3]`."""
+    from endstone.inventory import ItemStack
+    from endstone.level import Location
+    at = marker['at']
+    where = Location(ctx.dimension, at[0], at[1], at[2], 0.0, at[3] if len(at) > 3 else 0.0)
+    if marker['type'] == 'minecraft:item':
+        return ctx.dimension.drop_item(where, ItemStack('minecraft:stick', 1))
+    return ctx.dimension.spawn_actor(where, marker['type'])
+
+
+def send_range(ctx: Context, job: dict):
+    """Which actors BDS sends to a viewer, by where it stands. Per item: the
+    sweep player stands at `center` (it is a marker too: the observer sees
+    it as a player), the `markers` are spawned (cows frozen) and settle for
+    `settle` ticks, then the observer walks `path` ([x, z] per step, on the
+    ground) and stays `ticks` ticks on each step. Every tick it gets a chat
+    line `bds-sweep:mark <key> <step> <tick>`, so each actor packet in its
+    capture can be put on a tick; each step's observer state is recorded.
+    The markers are removed at the end of the item. Needs `--observer`."""
+    name, observer = job['player'], job['observer']
+    ground = job['arena']['player'][1]
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        watcher = ctx.server.get_player(observer)
+        if watcher is None:
+            raise RuntimeError(f'observer {observer} left')
+        center, path = item['center'], item['path']
+        ctx.must(f'tp "{name}" {center[0]} {ground} {center[1]} 0 0')
+        ctx.must(f'tp "{observer}" {path[0][0]} {ground} {path[0][1]} 0 0')
+        yield 20
+        markers = [(marker, spawn_marker(ctx, marker)) for marker in item['markers']]
+        ctx.cmd('effect @e[type=minecraft:cow] slowness 100000 255 true')
+        yield int(item.get('settle', 40))
+        placed = []
+        for marker, actor in markers:
+            placed.append({**marker, 'runtime_id': actor.runtime_id,
+                           'unique_id': getattr(actor, 'id', None), 'state': actor_state(actor)})
+        steps = []
+        for step, (x, z) in enumerate(path):
+            ctx.must(f'tp "{observer}" {x} {ground} {z} 0 0')
+            first_tick = ctx.plugin.ticks
+            for tick in range(int(item['ticks'])):
+                watcher.send_message(f'bds-sweep:mark {item["key"]} {step} {ctx.plugin.ticks}')
+                yield 1
+            steps.append({'step': step, 'tick': first_tick, 'observer': actor_state(watcher)})
+        ended = []
+        for marker, actor in markers:
+            ended.append(actor_state(actor) if actor.is_valid else None)
+            if actor.is_valid:
+                actor.remove()
+        ctx.record({'key': item['key'], 'center': center, 'player': actor_state(ctx.player),
+                    'player_runtime_id': ctx.player.runtime_id, 'observer_runtime_id': watcher.runtime_id,
+                    'markers': placed, 'ended': ended, 'steps': steps, 'ticks': item['ticks']})
+        yield 5
+
+
+def spawn_bonus(ctx: Context, job: dict):
+    """Spawns `count` of each item's `mob` on a grid around the sweep player
+    (with `via: summon`, by `/summon`), frozen (slowness 255) so they stay
+    near it, and leaves them in the world:
+    run with `--keep-world`, then read their saved attributes from the kept
+    world's actor records. Each spawned actor's runtime and unique ids are
+    recorded with its grid spot."""
+    from endstone.level import Location
+    center = job['arena']['player']
+    index = 0
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        spawned = []
+        for n in range(int(item['count'])):
+            gx, gz = index % 40, index // 40
+            index += 1
+            x, z = center[0] - 20 + gx, center[2] + 3 + gz
+            spot = [x + 0.5, center[1], z + 0.5]
+            if item.get('via') == 'summon':
+                ctx.must(f'summon {item["mob"]} {spot[0]} {spot[1]} {spot[2]}')
+                spawned.append({'at': spot})
+            else:
+                actor = ctx.dimension.spawn_actor(Location(ctx.dimension, *spot, 0.0, 0.0), item['mob'])
+                spawned.append({'runtime_id': actor.runtime_id, 'unique_id': getattr(actor, 'id', None),
+                                'at': spot})
+            if n % 20 == 19:
+                yield 1
+        ctx.cmd(f'effect @e[type={item["mob"]}] slowness 100000 255 true')
+        yield 2
+        ctx.record({'key': item['key'], 'mob': item['mob'], 'spawned': spawned})
+    yield int(job.get('linger', 100))
+
+
+def walk(ctx: Context, job: dict):
+    """How BDS relays a player's movement to another player. Per item: the
+    sweep player stands at `start` (x, y, z, yaw) and the observer at
+    `observer` (x, y, z, yaw); a frozen cow with an odd yaw (`cow`, x, y, z,
+    yaw) is spawned for its `AddActor` rotation; then the sweep player gets
+    `bds-sweep:walk <order>` and both players are sampled for `ticks` ticks,
+    the observer getting a `bds-sweep:mark` chat line every tick."""
+    from endstone.level import Location
+    name, observer = job['player'], job['observer']
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.begin(item)
+        watcher = ctx.server.get_player(observer)
+        if watcher is None:
+            raise RuntimeError(f'observer {observer} left')
+        start, spot = item['start'], item['observer']
+        ctx.must(f'tp "{name}" {start[0]} {start[1]} {start[2]} {start[3]} 0')
+        ctx.must(f'tp "{observer}" {spot[0]} {spot[1]} {spot[2]} {spot[3]} 0')
+        yield 20
+        cow = None
+        if item.get('cow'):
+            at = item['cow']
+            cow = ctx.dimension.spawn_actor(Location(ctx.dimension, at[0], at[1], at[2], 0.0, at[3]),
+                                            'minecraft:cow')
+            ctx.cmd('effect @e[type=minecraft:cow] slowness 100000 255 true')
+        yield 10
+        samples = []
+        ctx.player.send_message(f'bds-sweep:walk {item["order"]}')
+        for t in range(int(item['ticks'])):
+            watcher.send_message(f'bds-sweep:mark {item["key"]} {t} {ctx.plugin.ticks}')
+            samples.append({'t': t, 'tick': ctx.plugin.ticks, 'player': actor_state(ctx.player),
+                            'observer': actor_state(watcher)})
+            yield 1
+        if cow is not None and cow.is_valid:
+            cow_state = actor_state(cow)
+            cow_runtime = cow.runtime_id
+            cow.remove()
+        else:
+            cow_state, cow_runtime = None, None
+        ctx.record({'key': item['key'], 'order': item['order'], 'start': start, 'observer': spot,
+                    'player_runtime_id': ctx.player.runtime_id, 'cow': cow_state, 'cow_runtime_id': cow_runtime,
+                    'samples': samples})
+        yield 10
 
 
 # Superflat layers under the scenario cells, restored after every wave.
@@ -945,4 +1105,5 @@ def item_blocks(ctx: Context, job: dict):
 
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'armor_wear': armor_wear,
         'attack': attack, 'fuel': fuel, 'mining': mining, 'scenarios': scenarios, 'placements': placements,
-        'item_blocks': item_blocks, 'knockback': knockback, 'knockback_reload': knockback_reload}
+        'item_blocks': item_blocks, 'knockback': knockback, 'knockback_reload': knockback_reload,
+        'send_range': send_range, 'spawn_bonus': spawn_bonus, 'walk': walk}

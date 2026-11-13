@@ -18,10 +18,11 @@ use crate::entity::mob::{MobKind, MobSpawnError, SpawnCause, derive_entity, spaw
 
 use super::save::current_tick;
 use super::{
-    HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, LoadedActorIds, MobUniqueId,
-    SPAWN_BONUS_MODIFIER,
+    FOLLOW_RANGE_ATTRIBUTE, HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, LoadedActorIds,
+    MobUniqueId, SPAWN_BONUS_MODIFIER,
 };
 use crate::entity::mob::combat::knockback::KnockbackResistance;
+use crate::entity::mob::spawn_bonus::FollowRangeBonus;
 
 /// Why stored actor NBT could not be turned back into a mob.
 #[derive(Debug, thiserror::Error)]
@@ -266,31 +267,37 @@ fn restore_state(
     };
     let health = attribute(HEALTH_ATTRIBUTE)
         .map(|attribute| (float(attribute, "Current"), float(attribute, "Max")));
-    // The spawn resistance is the `RandomSpawnBonus` addition; a record
-    // without it keeps none (the attribute's base is 0).
-    let spawn_resistance = attribute(KNOCKBACK_RESISTANCE_ATTRIBUTE).and_then(|attribute| {
-        let Some(NBTTag::List(modifiers)) = attribute.get("Modifiers") else {
-            return None;
-        };
-        modifiers.0.iter().find_map(|modifier| {
-            let NBTTag::Compound(modifier) = modifier else {
+    // A spawn bonus is the attribute's `RandomSpawnBonus` modifier with the
+    // given operation; a record without it keeps none.
+    let spawn_bonus = |name: &str, operation: i32| {
+        attribute(name).and_then(|attribute| {
+            let Some(NBTTag::List(modifiers)) = attribute.get("Modifiers") else {
                 return None;
             };
-            let named = matches!(
-                modifier.0.get("Name"),
-                Some(NBTTag::String(name)) if name.0 == SPAWN_BONUS_MODIFIER
-            );
-            let adds = matches!(
-                modifier.0.get("Operation"),
-                Some(NBTTag::Int(operation)) if operation.0 == 0
-            );
-            if named && adds {
-                float(&modifier.0, "Amount")
-            } else {
-                None
-            }
+            modifiers.0.iter().find_map(|modifier| {
+                let NBTTag::Compound(modifier) = modifier else {
+                    return None;
+                };
+                let named = matches!(
+                    modifier.0.get("Name"),
+                    Some(NBTTag::String(name)) if name.0 == SPAWN_BONUS_MODIFIER
+                );
+                let operates = matches!(
+                    modifier.0.get("Operation"),
+                    Some(NBTTag::Int(found)) if found.0 == operation
+                );
+                if named && operates {
+                    float(&modifier.0, "Amount")
+                } else {
+                    None
+                }
+            })
         })
-    });
+    };
+    // The resistance is an addition to base 0, the follow range a
+    // multiplier.
+    let spawn_resistance = spawn_bonus(KNOCKBACK_RESISTANCE_ATTRIBUTE, 0);
+    let follow_range_bonus = spawn_bonus(FOLLOW_RANGE_ATTRIBUTE, 2);
     let properties = match fields.0.get("properties") {
         None => None,
         Some(NBTTag::Compound(properties)) => Some(&properties.0),
@@ -322,6 +329,9 @@ fn restore_state(
     let mut entity = world.entity_mut(mob);
     if let Some(resistance) = spawn_resistance {
         entity.insert(KnockbackResistance(f64::from(resistance)));
+    }
+    if let Some(bonus) = follow_range_bonus {
+        entity.insert(FollowRangeBonus(bonus));
     }
     if let Some((current, max)) = health
         && let Some(mut component) = entity.get_mut::<Health>()

@@ -47,15 +47,35 @@ pub fn apply_movement(
     exhaustion: Res<super::hunger::ExhaustionValues>,
     mut players: MovingPlayers,
     mut hungry: Query<(&mut Hunger, &GameMode)>,
+    mut relayed: Option<ResMut<crate::server::player_view::RelayedMoves>>,
 ) {
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
+                // The rotation before this input: what the relayed move
+                // carries as the player's pitch and yaw.
+                let before = players
+                    .get(entity)
+                    .ok()
+                    .map(|(_, rotation, ..)| (rotation.pitch, rotation.yaw));
                 // A rejected input is rejected whole, block actions included.
                 let Some(moved) = process_auth_input(entity, &pk, &mut players, &mut events) else {
                     continue;
                 };
+                // Every accepted input is relayed to the player's viewers.
+                if let (Some(relayed), Some((pitch, yaw)), Ok((position, rotation, ..))) =
+                    (relayed.as_mut(), before, players.get(entity))
+                {
+                    relayed.0.push(crate::server::player_view::RelayedMove {
+                        player: entity,
+                        position: position.0,
+                        pitch,
+                        yaw,
+                        head_yaw: rotation.head_yaw,
+                        tick: pk.client_tick.inputtick,
+                    });
+                }
                 if let Ok((mut hunger, mode)) = hungry.get_mut(entity)
                     && !matches!(mode, GameMode::Creative | GameMode::Spectator)
                 {

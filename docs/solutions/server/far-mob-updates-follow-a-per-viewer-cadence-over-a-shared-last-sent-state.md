@@ -48,12 +48,24 @@ capture cannot show.
   --view-distance 10 --tick-distance 10` gives every actor two viewers. Traps: BDS refuses a
   second loopback login right after the first ("ip recently connected"), so the observer starts a
   few seconds after the sweep player spawned; a player "joined" is not yet spawned, so commands
-  naming it fail for a while; BDS sent actors only about four chunks around a viewer whatever the
-  view distance; a cow more than 128 blocks from every player despawns at once; a reloaded world
+  naming it fail for a while; BDS sends actors only within a 17-square chunk circle of a viewer
+  whatever the view distance (round 3 measured it:
+  `actors-are-sent-within-a-chunk-circle-whatever-the-view-distance.md`); a cow more than 128
+  blocks from every player despawns at once; a reloaded world
   must start above peaceful or its zombies vanish, and a zombie near the world spawn despawns
   while the player is still joining (put test mobs 200 blocks away). Packets that share the
   `AddActor` batch belong to the spawn tick's update (sample 1); tie unmatched packets to the
   matched deltas on both sides, not by rounding elapsed time from the last one.
+- **Round 3 replays found more.** A vehicle's `is_moving` values (minecarts, boats: 0 / 0) follow
+  whether it moved in the tick *before*: the first update of a fall from rest still carries the
+  default band (`ticks` 10 at 32 blocks), every later one goes every tick. A minecart is sent 0.35
+  and a boat 0.375 above the position Endstone reports, so match their deltas with that offset. An
+  experience orb moves like a mob (deltas at 10 / 80, never `MoveActorAbsolute`), counts as on the
+  ground until its first move, falls with gravity 0.04 (unastar had 0.03), and its first
+  `SetActorMotion` is measured from zero, not from its `AddActor` velocity. An arrow stops exactly
+  where its flight entered the block, grounded, motion 0. Every `AddActor` rotation is cut to whole
+  rotation bytes. A settling actor moves less than the 2e-5 matching tolerance per tick, so match a
+  delta to the *closest* sample, not the first within tolerance.
 - **Not understood yet.** Under Slowness I a tempted mob's airborne speed runs target, 0.9 ×
   target, then 0.2125 alternating with 0.2125 + 0.1 × target (cow and pig); no single cap rule
   fits all five measured runs, so it stays unmodelled.

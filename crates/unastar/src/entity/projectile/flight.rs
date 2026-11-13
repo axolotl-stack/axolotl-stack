@@ -200,6 +200,12 @@ fn step(
         };
     next.y -= rules.gravity;
     let (yaw, pitch) = heading(velocity);
+    // A projectile that stuck in a block this tick stays where it met it,
+    // on the ground with no motion and its rotation as it was (`hit::stick`;
+    // BDS 1.26.51 falling and dispensed arrows).
+    if world.get::<super::Stuck>(projectile).is_some() {
+        return;
+    }
     let mut entity = world.entity_mut(projectile);
     entity.insert((Position(to), Velocity(next)));
     // The head yaw stays as spawned (0): BDS 1.26.51 never sends a

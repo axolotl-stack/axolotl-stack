@@ -22,6 +22,12 @@
 //! * `bds-sweep:drop inventory SLOT COUNT`: open the native inventory, wait
 //!   for `ContainerOpen`, then drop from main-inventory index 0..35;
 //! * `bds-sweep:close-inventory`: close the inventory opened by this client.
+//! * `bds-sweep:walk DX DY DZ DYAW TICKS FLAGS [DPITCH]`: for the next
+//!   `TICKS` inputs, move the reported position by (`DX`, `DY`, `DZ`)
+//!   thousandths of a block and turn the yaw (and head yaw) by `DYAW` and the
+//!   pitch by `DPITCH` thousandths of a degree each input; `FLAGS` bit 0 also
+//!   reports forward movement (`Up`, move vector (0, 1)), bit 1 reports
+//!   `VerticalCollision` (standing on the ground);
 //! * `bds-sweep:press FLAG...`: add these `PlayerAuthInput` input flags
 //!   (lower-case names, `startsneaking`) to the next input only;
 //! * `bds-sweep:hold FLAG...` / `bds-sweep:release FLAG...`: add them to
@@ -177,6 +183,7 @@ enum Order {
     Attack(u64),
     Drop(DropOrder),
     CloseInventory,
+    Walk(Walk),
     /// Input flags for the next `PlayerAuthInput` only.
     Press(Vec<EnumsPlayerAuthInputPacketPayloadInputData>),
     /// Input flags for every `PlayerAuthInput` until released.
@@ -191,6 +198,18 @@ enum Order {
     /// Use the held stack on a block face.
     Use(UseOrder),
     Sign(SignOrder),
+}
+
+/// A scripted walk: per-input position and yaw steps, in thousandths of a
+/// block and of a degree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Walk {
+    step: [i64; 3],
+    turn: i64,
+    tilt: i64,
+    remaining: u32,
+    forward: bool,
+    grounded: bool,
 }
 
 /// The input flags the `press`, `hold` and `release` orders can name.
@@ -293,6 +312,22 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
+        "walk" => {
+            let values = numbers(words.by_ref(), 6)?;
+            // The optional pitch step; whatever follows the order otherwise.
+            let tilt = words
+                .next()
+                .and_then(|word| numbers(std::iter::once(word), 1))
+                .map_or(0, |tilt| tilt[0]);
+            Some(Order::Walk(Walk {
+                step: [values[0], values[1], values[2]],
+                turn: values[3],
+                tilt,
+                remaining: u32::try_from(values[4]).ok()?,
+                forward: values[5] & 1 != 0,
+                grounded: values[5] & 2 != 0,
+            }))
+        }
         "press" => Some(Order::Press(input_flags(words)?)),
         "hold" => Some(Order::Hold(input_flags(words)?)),
         "use" => {
@@ -413,6 +448,7 @@ struct Player {
     inventory_window: Option<(u8, u8)>,
     pending_drop: Option<DropOrder>,
     next_request_id: i32,
+    walk: Option<Walk>,
     /// The block-actor data the server last sent per position.
     actors: HashMap<[i32; 3], Vec<u8>>,
     /// Input flags sent with every input (`hold`) and with the next one
@@ -485,6 +521,7 @@ impl Player {
             Order::Use(order) => return Ok(vec![self.use_on_block(order)]),
             Order::Sign(order) => return Ok(self.edit_sign(&order).into_iter().collect()),
             Order::Drop(drop) => return self.drop_order(drop),
+            Order::Walk(walk) => self.walk = Some(walk),
             Order::CloseInventory => {
                 ensure!(
                     self.pending_drop.is_none(),
@@ -823,6 +860,34 @@ impl Player {
                 input_data.push(flag);
             }
         }
+        let mut move_vector = Vec2::default();
+        if let Some(walk) = &mut self.walk {
+            let thousandths = |value: i64| value as f32 / 1000.0;
+            self.position.x += thousandths(walk.step[0]);
+            self.position.y += thousandths(walk.step[1]);
+            self.position.z += thousandths(walk.step[2]);
+            self.rotation.y += thousandths(walk.turn);
+            self.rotation.x += thousandths(walk.tilt);
+            if walk.forward {
+                move_vector = Vec2 { x: 0.0, y: 1.0 };
+            }
+            let walk_flags = [
+                (walk.forward, EnumsPlayerAuthInputPacketPayloadInputData::Up),
+                (
+                    walk.grounded,
+                    EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision,
+                ),
+            ];
+            for (_, flag) in walk_flags.into_iter().filter(|(on, _)| *on) {
+                if !input_data.contains(&flag) {
+                    input_data.push(flag);
+                }
+            }
+            walk.remaining = walk.remaining.saturating_sub(1);
+            if walk.remaining == 0 {
+                self.walk = None;
+            }
+        }
         let player_block_actions = if actions.is_empty() {
             None
         } else {
@@ -842,6 +907,9 @@ impl Player {
                 inputtick: self.tick,
             },
             player_block_actions,
+            move_vector: move_vector.clone(),
+            analog_move_vector: move_vector.clone(),
+            raw_move_vector: move_vector,
             ..Default::default()
         })
     }
@@ -1056,6 +1124,7 @@ async fn run_session<T: Transport>(
         inventory_window: None,
         pending_drop: None,
         next_request_id: -1,
+        walk: None,
         actors: HashMap::new(),
         held: Vec::new(),
         pressed: Vec::new(),
@@ -1152,12 +1221,32 @@ mod tests {
             inventory_window: None,
             pending_drop: None,
             next_request_id: -1,
+            walk: None,
             actors: HashMap::new(),
             held: Vec::new(),
             pressed: Vec::new(),
             quit: false,
             pending_equip: None,
         }
+    }
+
+    #[test]
+    fn walk_orders_step_position_and_yaw_each_input() {
+        let order = parse_order(r#"{ message: "bds-sweep:walk 200 0 -100 10000 2 3" }"#).unwrap();
+        let mut player = player();
+        player.order(order).unwrap();
+        for _ in 0..3 {
+            player.auth_input();
+        }
+        assert!((player.position.x - 0.4).abs() < 1e-6);
+        assert!((player.position.z + 0.2).abs() < 1e-6);
+        assert!((player.rotation.y - 20.0).abs() < 1e-4);
+        assert!(player.walk.is_none(), "the walk ends after its inputs");
+        let tilted = parse_order("bds-sweep:walk 0 0 0 0 2 2 -1500").unwrap();
+        player.order(tilted).unwrap();
+        player.auth_input();
+        player.auth_input();
+        assert!((player.rotation.x + 3.0).abs() < 1e-4);
     }
 
     #[test]

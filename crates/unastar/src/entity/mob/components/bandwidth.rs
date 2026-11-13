@@ -1,8 +1,8 @@
 //! `minecraft:conditional_bandwidth_optimization`: how often a viewer far
-//! from the mob gets its position updates (applied by
+//! from the actor gets its position updates (applied by
 //! `mob::net::network::sync_mob_viewers`).
 //!
-//! A viewer `d` blocks from the mob (eye to the mob's position) may go
+//! A viewer `d` blocks from the actor (eye to the actor's position) may go
 //! `⌊min(d, max_optimized_distance) / max_optimized_distance ×
 //! max_dropped_ticks⌋` ticks without a `MoveActorDelta`, measured on BDS
 //! 1.26.51 for the empty component (defaults 10 / 80), 7 / 100 (snowball),
@@ -11,13 +11,23 @@
 //! `docs/quirks/bds.md`, "Entities / movement replication"). No
 //! `MotionPredictionHints` packet was seen from any actor with
 //! `use_motion_prediction_hints`, so the field is kept but sends nothing.
-//! `conditional_values` select other values by filters; the vanilla ones (the
-//! minecarts' and boats' `is_moving`, which BDS answers with 0 / 0 while the
-//! cart moves) ask a test the mob runtime cannot answer, so they are rejected.
+//!
+//! `conditional_values` replace the defaults while their filter holds; the
+//! first entry that holds wins. The vanilla entries (minecarts and boats:
+//! 0 / 0 while `is_moving`) test the actor itself, answered by whether it
+//! moved in the previous tick: on BDS a minecart's and a boat's first update
+//! after resting uses the defaults, and every later one while it falls is
+//! sent every tick with `ticks` 0. A filter testing anything else is
+//! rejected, as the network sync cannot answer it.
+
+use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
 use thiserror::Error;
 use unastar_data::actor_components::body;
+use unastar_rules::filter::{
+    BuiltinTest, Fact, Filter, FilterContext, FilterRegistry, FilterTest, Subject,
+};
 
 use super::common::insert;
 use crate::entity::definition::{ComponentError, ComponentKindsBuilder, DefinitionError};
@@ -26,13 +36,19 @@ use crate::entity::definition::{ComponentError, ComponentKindsBuilder, Definitio
 /// compiled.
 #[derive(Debug, Error)]
 pub enum BandwidthError {
-    #[error(
-        "conditional bandwidth values are not implemented (their filters, such as is_moving, \
-         are not answerable)"
-    )]
-    ConditionalValues,
     #[error("max_dropped_ticks {0} is negative")]
     NegativeDroppedTicks(i32),
+    #[error("a conditional bandwidth entry has no filter")]
+    MissingFilter,
+    #[error("conditional bandwidth filter: {0}")]
+    Filter(#[from] unastar_rules::ParseError),
+    #[error("conditional bandwidth filter diagnostics {0:?}")]
+    Diagnostics(Vec<unastar_rules::Diagnostic>),
+    #[error(
+        "conditional bandwidth filter test {test} on {subject} is not answerable (only is_moving \
+         on the actor itself is)"
+    )]
+    Unanswerable { test: String, subject: &'static str },
 }
 
 impl ComponentError for BandwidthError {}
@@ -60,38 +76,72 @@ impl BandwidthValues {
         let share = distance.min(max_distance) / max_distance;
         (share * f64::from(self.max_dropped_ticks)).floor() as u64
     }
+
+    fn new(
+        max_dropped_ticks: i32,
+        max_optimized_distance: f32,
+        use_motion_prediction_hints: bool,
+    ) -> Result<Self, BandwidthError> {
+        Ok(Self {
+            max_dropped_ticks: u32::try_from(max_dropped_ticks)
+                .map_err(|_| BandwidthError::NegativeDroppedTicks(max_dropped_ticks))?,
+            max_optimized_distance,
+            use_motion_prediction_hints,
+        })
+    }
 }
 
 impl TryFrom<body::BandwidthValues> for BandwidthValues {
     type Error = BandwidthError;
 
     fn try_from(values: body::BandwidthValues) -> Result<Self, BandwidthError> {
-        Ok(Self {
-            max_dropped_ticks: u32::try_from(values.max_dropped_ticks)
-                .map_err(|_| BandwidthError::NegativeDroppedTicks(values.max_dropped_ticks))?,
-            max_optimized_distance: values.max_optimized_distance,
-            use_motion_prediction_hints: values.use_motion_prediction_hints,
-        })
+        Self::new(
+            values.max_dropped_ticks,
+            values.max_optimized_distance,
+            values.use_motion_prediction_hints,
+        )
+    }
+}
+
+/// What the network sync knows about an actor when it picks its values.
+struct NetFacts {
+    /// The actor moved in the previous tick.
+    moving: bool,
+}
+
+impl FilterContext for NetFacts {
+    fn fact(&self, subject: Subject, test: &FilterTest) -> Option<Fact> {
+        match (test.builtin()?, subject) {
+            (BuiltinTest::IsMoving, Subject::Self_) => Some(Fact::Bool(self.moving)),
+            _ => None,
+        }
     }
 }
 
 /// `minecraft:conditional_bandwidth_optimization`: the values every viewer's
-/// position updates follow. A mob without it sends every update to every
+/// position updates follow. An actor without it sends every update to every
 /// viewer.
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-pub struct BandwidthOptimization(pub BandwidthValues);
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct BandwidthOptimization {
+    /// `default_values`, or the published defaults (10 ticks over 80 blocks,
+    /// no hints) when absent.
+    pub default: BandwidthValues,
+    /// `conditional_values` in authored order: each filter selects its
+    /// values instead of [`Self::default`] while it holds.
+    pub conditional: Arc<[(Filter, BandwidthValues)]>,
+}
 
 impl BandwidthOptimization {
-    /// The component's values: `default_values`, or the published defaults
-    /// (10 ticks over 80 blocks, no hints) when it is empty.
-    pub fn compile(body: body::ConditionalBandwidthOptimization) -> Result<Self, BandwidthError> {
-        if body
-            .conditional_values
-            .is_some_and(|values| !values.is_empty())
-        {
-            return Err(BandwidthError::ConditionalValues);
+    /// Unconditional values.
+    pub fn constant(values: BandwidthValues) -> Self {
+        Self {
+            default: values,
+            conditional: Arc::from([]),
         }
-        let values = body.default_values.unwrap_or(body::BandwidthValues {
+    }
+
+    pub fn compile(body: body::ConditionalBandwidthOptimization) -> Result<Self, BandwidthError> {
+        let default = body.default_values.unwrap_or(body::BandwidthValues {
             max_dropped_ticks:
                 unastar_data::actor_components::provisional::BANDWIDTH_MAX_DROPPED_TICKS,
             max_optimized_distance:
@@ -99,8 +149,62 @@ impl BandwidthOptimization {
             use_motion_prediction_hints:
                 unastar_data::actor_components::provisional::BANDWIDTH_USE_MOTION_PREDICTION_HINTS,
         });
-        Ok(Self(values.try_into()?))
+        let conditional = body
+            .conditional_values
+            .unwrap_or_default()
+            .into_iter()
+            .map(|entry| {
+                let json = entry
+                    .conditional_values
+                    .as_ref()
+                    .ok_or(BandwidthError::MissingFilter)?;
+                Ok((
+                    answerable_filter(json)?,
+                    BandwidthValues::new(
+                        entry.max_dropped_ticks,
+                        entry.max_optimized_distance,
+                        entry.use_motion_prediction_hints,
+                    )?,
+                ))
+            })
+            .collect::<Result<Vec<_>, BandwidthError>>()?;
+        Ok(Self {
+            default: default.try_into()?,
+            conditional: conditional.into(),
+        })
     }
+
+    /// The values in force for an actor that did (`moving`) or did not move
+    /// in the previous tick.
+    pub fn values(&self, moving: bool) -> BandwidthValues {
+        let facts = NetFacts { moving };
+        self.conditional
+            .iter()
+            .find(|(filter, _)| filter.evaluate(&facts))
+            .map_or(self.default, |(_, values)| *values)
+    }
+}
+
+/// Parse a conditional entry's filter; every test must be one
+/// [`NetFacts`] answers.
+fn answerable_filter(json: &serde_json::Value) -> Result<Filter, BandwidthError> {
+    let mut diagnostics = unastar_rules::Diagnostics::default();
+    let filter = Filter::parse(json, FilterRegistry::vanilla(), "filters", &mut diagnostics)?;
+    if !diagnostics.items.is_empty() {
+        return Err(BandwidthError::Diagnostics(diagnostics.items));
+    }
+    let mut failure = None;
+    filter.for_each_test(&mut |test| {
+        let answerable =
+            test.builtin() == Some(BuiltinTest::IsMoving) && test.subject == Subject::Self_;
+        if !answerable && failure.is_none() {
+            failure = Some(BandwidthError::Unanswerable {
+                test: test.name.clone(),
+                subject: test.subject.name(),
+            });
+        }
+    });
+    failure.map_or(Ok(filter), Err)
 }
 
 /// Register the `minecraft:conditional_bandwidth_optimization` kind.
@@ -138,5 +242,58 @@ mod tests {
         assert_eq!(snowball.dropped_ticks(57.37), 4);
         assert_eq!(values(0, 80.0).dropped_ticks(50.0), 0);
         assert_eq!(values(20, 0.0).dropped_ticks(50.0), 0);
+    }
+
+    fn compiled(identifier: &str) -> BandwidthOptimization {
+        let definition = unastar_data::actor_definitions::get(identifier).unwrap();
+        BandwidthOptimization::compile(
+            serde_json::from_value(
+                definition.components["minecraft:conditional_bandwidth_optimization"].clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+    }
+
+    /// Every vanilla vehicle's `is_moving` entry compiles: 0 / 0 while it
+    /// moves, its defaults (20 ticks over 60 blocks) at rest.
+    #[test]
+    fn vehicles_send_every_tick_only_while_moving() {
+        for identifier in [
+            "minecraft:minecart",
+            "minecraft:boat",
+            "minecraft:chest_boat",
+            "minecraft:tnt_minecart",
+            "minecraft:hopper_minecart",
+            "minecraft:chest_minecart",
+            "minecraft:command_block_minecart",
+        ] {
+            let bandwidth = compiled(identifier);
+            let resting = bandwidth.values(false);
+            assert_eq!(
+                (resting.max_dropped_ticks, resting.max_optimized_distance),
+                (20, 60.0),
+                "{identifier}"
+            );
+            let moving = bandwidth.values(true);
+            assert_eq!(moving.dropped_ticks(50.0), 0, "{identifier}");
+            assert_eq!(resting.dropped_ticks(32.29), 10, "{identifier}");
+        }
+    }
+
+    #[test]
+    fn filters_the_sync_cannot_answer_are_rejected() {
+        let body: body::ConditionalBandwidthOptimization =
+            serde_json::from_value(serde_json::json!({
+                "conditional_values": [{
+                    "conditional_values": [{"test": "is_baby"}],
+                    "max_dropped_ticks": 0
+                }]
+            }))
+            .unwrap();
+        assert!(matches!(
+            BandwidthOptimization::compile(body),
+            Err(BandwidthError::Unanswerable { .. })
+        ));
     }
 }
