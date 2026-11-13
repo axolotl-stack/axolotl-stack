@@ -486,7 +486,22 @@ class EffectTrials(unittest.TestCase):
         self.assertEqual(len(bats), 4)
         self.assertEqual(bats[0]['setup'][-1], 'summon minecraft:bat 20.5 -56 0.5 0 0')
         self.assertEqual(bats[0]['cleanup'][-2:], sweep.UNROOM)
-        self.assertEqual(len(sweep.tadpole_items(self.args('all'))), 4)
+        low = sweep.bat_items(self.args('low'))
+        self.assertEqual(len(low), 8)
+        self.assertEqual([action['t'] for action in low[0]['actions']], [20, 120, 220, 320])
+        self.assertEqual(low[0]['cleanup'][-2:], sweep.UNLOW)
+        canopy = sweep.bat_items(self.args('canopy'))
+        self.assertEqual(canopy[1]['actions'][0]['commands'], ['tp "BDSSweep" 18.4 -60 0.5'])
+        tadpoles = sweep.tadpole_items(self.args('all'))
+        self.assertEqual(len(tadpoles), 7)
+        # The tadpole's grow-up event has no namespace.
+        self.assertEqual(tadpoles[-1]['setup'][-1], 'summon minecraft:tadpole 11.5 -57 0.5 90 0 ageable_grow_up')
+        self.assertEqual(tadpoles[-1]['track'], ['minecraft:tadpole', 'minecraft:frog'])
+        vexes = sweep.vex_items(self.args('all'))
+        self.assertEqual([item['key'] for item in vexes],
+                         ['vex|idle-0', 'vex|idle-1', 'vex|charge-0', 'vex|charge-1', 'vex|decay-0'])
+        self.assertTrue(vexes[-1]['setup'][-1].endswith('minecraft:add_damage_timer'))
+        self.assertEqual(len(sweep.ghast_items(self.args('all'))), 2)
         with self.assertRaises(SystemExit):
             sweep.polar_bear_items(self.args('nothing'))
 
@@ -501,10 +516,17 @@ class EffectTrials(unittest.TestCase):
                     'target_runtime_id': {'actor_runtime_id': 7}, 'actor_data': {'data': [word]}}}),
                 (6, {'name': 'ActorEventPacket', 'packet': {
                     'target_runtime_id': {'actor_runtime_id': 7}, 'event_id': 'StartAttacking', 'data': 0}})]
-        out = mob_fixture.actor_packets(rows, {7})[7]
+        out = mob_fixture.actor_packets(rows, {7}, {})[7]
         self.assertEqual(out['added'], 3)
         self.assertEqual(out['flag_changes'], [{'t': 5, 'flag': 39, 'set': True}])
         self.assertEqual(out['events'], [{'t': 6, 'event': 'StartAttacking', 'data': 0}])
+        # An AddActor before the item's first mark still gives the flags
+        # its changes are counted from.
+        adds = mob_fixture.added_flags([rows[0][1]])
+        self.assertEqual(adds, {7: 0})
+        late = mob_fixture.actor_packets(rows[1:], {7}, adds)[7]
+        self.assertEqual(late['flags'], '0')
+        self.assertEqual(late['flag_changes'], [{'t': 5, 'flag': 39, 'set': True}])
 
     def test_mooshroom_items_interact_twice_with_the_held_item(self):
         items = sweep.mooshroom_items(self.args())

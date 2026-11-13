@@ -14,6 +14,7 @@ mod break_door;
 mod control;
 mod eat_block;
 mod flee_sun;
+pub mod fly;
 mod goals;
 pub mod hop;
 mod melee;
@@ -21,6 +22,7 @@ mod nearby;
 mod path;
 mod pickup;
 mod ranged;
+pub mod roost;
 pub mod sensing;
 pub mod silverfish;
 mod targeting;
@@ -44,7 +46,8 @@ use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
 use super::components::{
-    BasicMovementConfig, HopMovementConfig, JumpConfig, Pushable, WalkNavigationConfig,
+    BasicMovementConfig, FloatNavigation, HopMovementConfig, JumpConfig, Pushable,
+    WalkNavigationConfig,
 };
 use super::constants::{
     DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
@@ -82,6 +85,18 @@ impl MobBrain {
     /// Whether the mob currently follows a path.
     pub fn is_navigating(&self) -> bool {
         !self.nav.is_done()
+    }
+
+    /// The float control's state (tests).
+    #[cfg(test)]
+    pub fn fly(&self) -> &fly::FlyState {
+        &self.states.fly
+    }
+
+    /// The float control's state, to pin a wander (tests).
+    #[cfg(test)]
+    pub fn fly_mut(&mut self) -> &mut fly::FlyState {
+        &mut self.states.fly
     }
 }
 
@@ -358,6 +373,29 @@ fn think(
         }
         Turn::Think(false) => {}
     }
+    let bat = kind.0.native.bat;
+    let resting = bat.is_some()
+        && mob
+            .get::<ActorFlags>()
+            .is_some_and(|f| f.get(actor_flags::RESTING).unwrap_or(false));
+    if let (Some(class), true) = (bat, resting) {
+        // A resting bat neither thinks nor moves; it only checks whether
+        // to wake (`roost`).
+        let velocity = match roost::rest(world, nearby, &class, &ctx.body) {
+            roost::Rest::Hold(velocity) => velocity,
+            roost::Rest::Wake => {
+                ctx.effects.resting = Some(false);
+                DVec3::ZERO
+            }
+        };
+        return Some(Output {
+            yaw: rotation.yaw,
+            head_yaw: rotation.head_yaw,
+            velocity,
+            swimming: false,
+            effects,
+        });
+    }
     ctx.check_unheld_target();
     selector.tick(&mut ctx);
     let goal_jump = ctx.jump;
@@ -396,6 +434,28 @@ fn think(
             yaw: hop.yaw,
             head_yaw: hop.yaw,
             velocity,
+            swimming: false,
+            effects,
+        });
+    }
+
+    if mob.contains::<FloatNavigation>() {
+        // A float-navigating mob never paths: its control pushes it at the
+        // point its goal wants.
+        movement.wanted = None;
+        let flight = states
+            .fly
+            .control(f64::from(body.movement), feet, rotation.yaw, velocity);
+        if let Some(class) = bat
+            && roost::settles(world, &class, feet, &mut rng.0)
+        {
+            effects.resting = Some(true);
+            states.fly.reset();
+        }
+        return Some(Output {
+            yaw: flight.yaw,
+            head_yaw: flight.yaw,
+            velocity: flight.velocity,
             swimming: false,
             effects,
         });
@@ -543,6 +603,9 @@ fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Defer
     }
     if let Some(standing) = effects.standing {
         set_flag(&mut mob, actor_flags::STANDING, standing);
+    }
+    if let Some(resting) = effects.resting {
+        set_flag(&mut mob, actor_flags::RESTING, resting);
     }
     if let Some(request) = effects.mate
         && let Some(mut messages) = world.get_resource_mut::<Messages<MateRequest>>()

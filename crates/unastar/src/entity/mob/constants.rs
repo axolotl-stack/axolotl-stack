@@ -921,3 +921,22 @@ pub const SLIME_CLIENT_EVENT_LANDED: i8 = 1;
 /// 1.26.51: the native magma cube summon; its definition's fall damage
 /// sensor deals none either way).
 pub const MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER: f32 = 0.0;
+
+// --- Flyers (`mob::ai::fly`, the bat) -------------------------------------------
+
+/// The bat class's vertical air drag is this times the 0.91 every axis of a
+/// float-navigating flyer keeps (BDS 1.26.51, `sweep.py bat`: the bat's
+/// vertical motion kept 0.546 a tick on every tick it did not push).
+pub const BAT_FLIGHT_VERTICAL_FACTOR: f64 = 0.6;
+/// The chance per tick that a flying bat under a solid block starts resting
+/// (BDS 1.26.51, `sweep.py bat --items low`: 21 bats in a room one block
+/// tall settled after 3 to 288 ticks, and two had not after 280; the rate
+/// they fit is about 1 in 90).
+pub const BAT_REST_CHANCE: f32 = 0.01;
+/// A resting bat wakes when a player's eyes come closer than this to its
+/// feet (BDS 1.26.51, `sweep.py bat --items wake,canopy`).
+pub const BAT_WAKE_RANGE: f64 = 4.0;
+/// The bat class starts with this `FALL_DAMAGE_MULTIPLIER` (BDS 1.26.51:
+/// the native bat summon; its definition's fall damage sensor deals none
+/// either way).
+pub const BAT_FALL_DAMAGE_MULTIPLIER: f32 = 0.0;

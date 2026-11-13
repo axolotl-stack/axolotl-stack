@@ -1047,16 +1047,34 @@ UNPEN = ['fill -1 -60 -1 0 -59 1 air']
 # z -9..9) and how to take it down again.
 ROOM = ['fill 10 -61 -10 30 -50 10 glass hollow']
 UNROOM = ['fill 10 -61 -10 30 -50 10 air', 'fill 10 -61 -10 30 -61 10 grass_block']
+# A closed stone room east of the arena (inside x 11..17, y -60..-58,
+# z -3..3): dark, with a ceiling three blocks over the floor.
+CAVE = ['fill 10 -61 -4 18 -57 4 stone hollow']
+UNCAVE = ['fill 10 -61 -4 18 -57 4 air', 'fill 10 -61 -4 18 -61 4 grass_block']
+# Stone rooms one block tall (inside y -60, the ceiling at y -59): `LOW`
+# (inside x 11..17, z -3..3) and `NARROW` (inside x 13..16, z -1..1, so a
+# player outside its east wall stands 3.8 blocks from its middle).
+LOW = ['fill 10 -61 -4 18 -59 4 stone hollow']
+UNLOW = ['fill 10 -61 -4 18 -59 4 air', 'fill 10 -61 -4 18 -61 4 grass_block']
+# A stone roof over the floor with a gap two blocks tall under it (y -58,
+# x 8..20, z -3..3): a bat at y -59 rests under it in a player's sight.
+CANOPY = ['fill 8 -58 -3 20 -58 3 stone']
+UNCANOPY = ['fill 8 -58 -3 20 -58 3 air']
+NARROW = ['fill 12 -61 -2 17 -59 2 stone hollow']
+UNNARROW = ['fill 12 -61 -2 17 -59 2 air', 'fill 12 -61 -2 17 -61 2 grass_block']
 
 
 def track_row(kind: str, key: str, mob: str, event: str | None, at, player, ticks: int, setup=(), cleanup=(),
               actions=(), track=None) -> dict:
     """One item of the generic per-tick job: `mob` summoned at `at` (x, y, z,
-    yaw), with the spawn `event` when given, and every actor of a `track`
-    type (the mob's by default) sampled every tick."""
+    yaw), with the spawn `event` when given (`minecraft:` is added unless
+    the name has a namespace or starts with `:`, for an event named without
+    one), and every actor of a `track` type (the mob's by default) sampled
+    every tick."""
     summon = f'summon minecraft:{mob} {at[0]} {at[1]} {at[2]} {at[3]} 0'
     if event:
-        summon += f' minecraft:{event}'
+        summon += ' ' + (event[1:] if event.startswith(':') else
+                         event if ':' in event else f'minecraft:{event}')
     clean = ['kill @e[type=minecraft:item]', 'kill @e[type=minecraft:xp_orb]']
     return {'key': f'{kind}|{key}', 'mob': None, 'at': None, 'player': list(player), 'frozen': False,
             'ticks': ticks, 'setup': list(setup) + [summon], 'cleanup': clean + list(cleanup),
@@ -1076,13 +1094,50 @@ def bat_items(args) -> list[dict]:
     """`bat`: a bat summoned (its definition has no events) and sampled
     every tick while the creative player stands outside. `--items room`
     (a closed glass room, `ROOM`, 1,200 ticks, four times), `open` (the
-    open sky over the floor, 600 ticks, twice) or `all`."""
+    open sky over the floor, 600 ticks, twice), `cave` (a dark stone room
+    three blocks tall, `CAVE`, 2,400 ticks, three times), `wake` (the cave
+    with the player teleported into its middle on tick 1,500, creative
+    then survival), `low` (a stone room one block tall, `LOW`, the bat
+    hurt by 1 on ticks 20, 120, 220 and 320 so it wakes and settles again,
+    eight times), `near` (the bat resting in a narrower one-block room and
+    the creative or survival player teleported beside it on tick 40, 3.85
+    to 6 blocks east of it), `unroof` (the block over a resting bat removed
+    on tick 40), `canopy` (the bat resting under a stone roof two blocks
+    over the floor, `CANOPY`, the player teleported on tick 40 to 3.75 to
+    4.1 blocks east of it, in clear sight) or `all`."""
     far = [0.5, -60, -24.5, 0]
+    target = f'"{PLAYER}"'
+    inside = f'tp {target} 14.5 -60 0.5'
     sets = {
         'room': [track_row('bat', f'room-{n}', 'bat', None, [20.5, -56, 0.5, 0], far, 1200,
                            setup=ROOM, cleanup=UNROOM) for n in range(4)],
         'open': [track_row('bat', f'open-{n}', 'bat', None, [20.5, -52, 0.5, 0], far, 600)
                  for n in range(2)],
+        'cave': [track_row('bat', f'cave-{n}', 'bat', None, [14.5, -59, 0.5, 0], far, 2400,
+                           setup=CAVE, cleanup=UNCAVE) for n in range(3)],
+        'wake': [track_row('bat', f'wake-{mode}', 'bat', None, [14.5, -59, 0.5, 0], far, 2400,
+                           setup=CAVE + [f'gamemode {mode} {target}'],
+                           cleanup=UNCAVE + [f'gamemode creative {target}'],
+                           actions=[{'t': 1500, 'commands': [inside]}])
+                 for mode in ('creative', 'survival')],
+        'low': [track_row('bat', f'low-{n}', 'bat', None, [14.5, -60, 0.5, 0], far, 400,
+                          setup=LOW, cleanup=UNLOW,
+                          actions=[{'t': t, 'commands': ['damage @e[type=minecraft:bat] 1']}
+                                   for t in (20, 120, 220, 320)]) for n in range(8)],
+        'near': [track_row('bat', f'near-{mode}-{d}', 'bat', None, [14.5, -60, 0.5, 0], far, 160,
+                           setup=NARROW + [f'gamemode {mode} {target}'],
+                           cleanup=UNNARROW + [f'gamemode creative {target}'],
+                           actions=[{'t': 40, 'commands': [f'tp {target} {14.5 + d / 100} -60 0.5']}])
+                 for mode in ('creative', 'survival') for d in (385, 395, 405, 450, 600)],
+        'canopy': [track_row('bat', f'canopy-{mode}-{d}', 'bat', None, [14.5, -59, 0.5, 0], far, 100,
+                             setup=CANOPY + [f'gamemode {mode} {target}'],
+                             cleanup=UNCANOPY + [f'gamemode creative {target}'],
+                             actions=[{'t': 40, 'commands': [f'tp {target} {14.5 + d / 100} -60 0.5']}])
+                   for mode, d in (('survival', 375), ('survival', 390), ('survival', 398), ('survival', 410),
+                                   ('creative', 390), ('creative', 410))],
+        'unroof': [track_row('bat', f'unroof-{n}', 'bat', None, [14.5, -60, 0.5, 0], far, 100,
+                             setup=LOW, cleanup=UNLOW,
+                             actions=[{'t': 40, 'commands': ['setblock 14 -59 0 air']}]) for n in range(2)],
     }
     return pick_set('bat', sets, args.items)
 
@@ -1142,12 +1197,51 @@ def polar_bear_items(args) -> list[dict]:
 
 def tadpole_items(args) -> list[dict]:
     """`tadpole`: a tadpole summoned in the glass pool (`POOL`) and sampled
-    every tick while the creative player stands outside, 600 ticks, four
-    times (`--items swim` or `all`)."""
+    every tick while the creative player stands outside: `--items swim`
+    (600 ticks, four times), `grow` (summoned with `ageable_grow_up`, the
+    tadpole and the frog it turns into sampled, 60 ticks, three times) or
+    `all`."""
     far = [0.5, -60, -24.5, 0]
     sets = {'swim': [track_row('tadpole', f'swim-{n}', 'tadpole', None, [11.5, -57, 0.5, 90], far, 600,
-                               setup=POOL, cleanup=UNPOOL) for n in range(4)]}
+                               setup=POOL, cleanup=UNPOOL) for n in range(4)],
+            'grow': [track_row('tadpole', f'grow-{n}', 'tadpole', ':ageable_grow_up', [11.5, -57, 0.5, 90], far,
+                               60, setup=POOL, cleanup=['kill @e[type=minecraft:frog]'] + UNPOOL,
+                               track=['minecraft:tadpole', 'minecraft:frog']) for n in range(3)]}
     return pick_set('tadpole', sets, args.items)
+
+
+def ghast_items(args) -> list[dict]:
+    """`ghast`: a ghast summoned high over the floor and sampled every tick
+    while the creative player stands far away (`--items open`, 600 ticks,
+    twice, or `all`): how a second `navigation.float` flyer drags."""
+    far = [0.5, -60, -24.5, 0]
+    sets = {'open': [track_row('ghast', f'open-{n}', 'ghast', None, [20.5, -30, 0.5, 0], far, 600)
+                     for n in range(2)]}
+    return pick_set('ghast', sets, args.items)
+
+
+def vex_items(args) -> list[dict]:
+    """`vex`: a vex summoned and sampled every tick. `--items idle` (in the
+    closed glass room, `ROOM`, the creative player outside, 400 ticks,
+    twice), `charge` (the survival player 8 blocks away, Health Boost X and
+    Regeneration V, no Resistance, 300 ticks, twice), `decay` (summoned with
+    `minecraft:add_damage_timer`, the creative player outside, 2,800
+    ticks: when its hurting starts and how often it hurts) or `all`."""
+    target = f'"{PLAYER}"'
+    alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+             f'effect {target} regeneration 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    far = [0.5, -60, -24.5, 0]
+    sets = {
+        'idle': [track_row('vex', f'idle-{n}', 'vex', None, [20.5, -56, 0.5, 0], far, 400,
+                           setup=ROOM, cleanup=UNROOM) for n in range(2)],
+        'charge': [track_row('vex', f'charge-{n}', 'vex', None, [8.5, -58, 0.5, 90], [0.5, -60, 0.5, -90], 300,
+                             setup=alive, cleanup=restore, actions=[heal]) for n in range(2)],
+        'decay': [track_row('vex', 'decay-0', 'vex', 'add_damage_timer', [20.5, -56, 0.5, 0], far, 2800,
+                            setup=ROOM, cleanup=UNROOM)],
+    }
+    return pick_set('vex', sets, args.items)
 
 
 def witch_items(args) -> list[dict]:
@@ -1314,7 +1408,7 @@ def build_job(args, out: Path) -> dict:
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
     elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'slime', 'drowned',
-                       'witch', 'bat', 'polar-bear', 'tadpole'):
+                       'witch', 'bat', 'polar-bear', 'tadpole', 'ghast', 'vex'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
@@ -1323,7 +1417,7 @@ def build_job(args, out: Path) -> dict:
                         'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
                         'creeper': creeper_items, 'slime': slime_items, 'drowned': drowned_items,
                         'witch': witch_items, 'bat': bat_items, 'polar-bear': polar_bear_items,
-                        'tadpole': tadpole_items}[args.kind](args)
+                        'tadpole': tadpole_items, 'ghast': ghast_items, 'vex': vex_items}[args.kind](args)
     elif args.kind == 'slime-spawn':
         job['kind'] = 'spawn_watch'
         job['items'] = slime_spawn_items(args)
@@ -1353,7 +1447,7 @@ def main() -> int:
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
                                          'silverfish', 'creeper', 'slime', 'slime-spawn', 'drowned', 'witch',
-                                         'bat', 'polar-bear', 'tadpole'])
+                                         'bat', 'polar-bear', 'tadpole', 'ghast', 'vex'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

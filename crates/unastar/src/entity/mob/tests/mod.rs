@@ -1,5 +1,6 @@
 //! End-to-end mob tests through a real `GameServer`: spawning and the
 //! AddActor wire form ([`spawn`]), the chicken and its egg ([`chicken`]),
+//! the bat replayed against BDS sweeps ([`bat`]),
 //! the creeper's fuse sensor replayed against BDS sweeps ([`creeper`]),
 //! player interactions ([`interaction`]), the other passive mobs
 //! ([`passive`]), the zombie ([`zombie`]), the other hostile mobs
@@ -13,6 +14,7 @@
 //! ([`facets`]).
 
 mod anger;
+mod bat;
 mod chicken;
 mod creeper;
 mod doors;

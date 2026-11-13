@@ -564,6 +564,17 @@ stand-downs and hits on BDS's ticks, and its horizontal drag in water.
 judged after the physics step (decision 0068). `water_movement` sets the
 horizontal drag in water.
 
+The bat (`sweep.py bat --client-capture`: bats under the open sky, resting in
+one-block rooms, hurt, unroofed and approached, distilled by
+`tools/bds-sweep/mob_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-bat.json`) is replayed by
+`src/entity/mob/tests/bat.rs`: its summon, its pushes tick by tick, its wander
+lengths and idle draws by distribution, and its resting (born resting,
+settling about once in 100 ticks under a roof, waking by roof, player and
+hurt). A float-navigating mob flies straight at the point its goal wants, with
+no path search and no gravity (`mob::ai::fly`, decision 0069); the bat's
+resting is native (`mob::ai::roost`).
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

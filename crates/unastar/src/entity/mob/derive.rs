@@ -10,7 +10,7 @@ use jolyne::valentine::actor_flags;
 
 use super::MobKind;
 use super::archetype::MobArchetype;
-use super::components::WalkNavigationConfig;
+use super::components::{FloatNavigation, WalkNavigationConfig};
 use crate::entity::components::{AirSupply, Health, PhysicsBody};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::attributes::{ActorAttributes, AttributeValue};
@@ -21,6 +21,7 @@ use crate::entity::definition::components::{
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::effects::EffectModifiers;
+use crate::entity::mob::constants::LIVING_FRICTION_FACTOR;
 
 /// Inputs of the derived state, gathered from the current composition.
 #[allow(clippy::type_complexity)]
@@ -30,6 +31,7 @@ type DeriveInputs<'a> = (
     Option<&'a ScaleConfig>,
     Option<&'a PhysicsConfig>,
     Option<&'a WalkNavigationConfig>,
+    Option<&'a FloatNavigation>,
     Option<&'a Health>,
     Option<&'a MovementConfig>,
     Option<&'a UnderwaterMovementConfig>,
@@ -59,9 +61,20 @@ struct Derived {
 }
 
 fn derive(
-    (kind, collision, scale, physics, walk, health, movement, underwater, water, air, modifiers): DeriveInputs<
-        '_,
-    >,
+    (
+        kind,
+        collision,
+        scale,
+        physics,
+        walk,
+        floats,
+        health,
+        movement,
+        underwater,
+        water,
+        air,
+        modifiers,
+    ): DeriveInputs<'_>,
 ) -> Derived {
     let scale = scale.map_or(1.0, |s| s.value);
     // Published rule: negative collision dimensions count as zero.
@@ -74,13 +87,21 @@ fn derive(
     if !gravity {
         body.gravity = 0.0;
     }
+    if floats.is_some() {
+        // A float-navigating flyer has no gravity whatever its physics
+        // says, and air drags it alike on every axis (BDS 1.26.51: a
+        // ghast's motion kept 0.91 a tick on x, y and z, and so did a
+        // bat's on x and z, its native vertical factor aside).
+        body.gravity = 0.0;
+        body.vertical_drag = LIVING_FRICTION_FACTOR * kind.0.native.flight_vertical_factor;
+    }
     Derived {
         body,
         scale,
         box_size: (width, height),
         gravity,
         collision: has_collision,
-        can_walk: walk.is_some_and(|w| w.can_walk),
+        can_walk: walk.is_some_and(|w| w.can_walk) || floats.is_some_and(|f| f.can_walk),
         health: health.map(|h| (h.current, h.max)),
         movement: movement.map(|m| m.value),
         underwater: underwater.map(|u| u.value),

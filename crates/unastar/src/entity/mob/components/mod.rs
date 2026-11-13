@@ -23,6 +23,7 @@ pub mod damage_sensor;
 pub mod despawn;
 pub mod doors;
 pub mod equipment;
+pub mod flight;
 pub mod goals;
 pub mod hostile;
 pub mod hurt_on_condition;
@@ -56,6 +57,7 @@ pub use despawn::DespawnConfig;
 pub use equipment::{
     EquipItemConfig, EquipItemGoal, EquipmentConfig, PickupItemsGoal, ShareablesConfig,
 };
+pub use flight::{FloatNavigation, FloatWanderGoal};
 pub use goals::{
     BreedGoal, EatBlockGoal, EatBlockPair, FleeSunGoal, FloatGoal, FollowParentGoal, GoalBase,
     LookAtPlayerGoal, PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
@@ -183,6 +185,7 @@ pub fn register_component_kinds(
     items: &Arc<ItemRegistry>,
 ) -> Result<(), DefinitionError> {
     goals::register_component_kinds(builder)?;
+    flight::register_component_kinds(builder)?;
     movement::register_component_kinds(builder)?;
     body::register_component_kinds(builder)?;
     hurt_on_condition::register_component_kinds(builder)?;
