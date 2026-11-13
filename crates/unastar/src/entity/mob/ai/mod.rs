@@ -11,6 +11,7 @@
 
 mod avoid;
 mod break_door;
+pub(crate) mod carry;
 mod climb;
 mod control;
 mod eat_block;
@@ -26,7 +27,7 @@ pub mod sensing;
 pub mod silverfish;
 mod targeting;
 
-pub(crate) use targeting::Candidate;
+pub(crate) use targeting::{Candidate, untargetable_player};
 
 #[cfg(test)]
 mod tests;
@@ -121,6 +122,8 @@ struct Deferred {
     target_changes: Vec<TargetChange>,
     /// Silverfish merging into blocks and waking their friends.
     silverfish: Vec<(Entity, silverfish::SilverfishWork)>,
+    /// Blocks taken and put down.
+    carry: Vec<(Entity, carry::CarryWork)>,
 }
 
 type BrainQuery = (Entity, Ref<'static, DefinitionState>, Has<Dead>);
@@ -227,6 +230,9 @@ pub fn tick_mob_ai(
     }
     for (entity, work) in deferred.silverfish.drain(..) {
         super::life::infested::finish(world, entity, work);
+    }
+    for (entity, work) in deferred.carry.drain(..) {
+        carry::finish(world, entity, work);
     }
     for change in deferred.target_changes.drain(..) {
         fire_target_trigger(world, change);
@@ -507,6 +513,9 @@ fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Defer
     if let Some(work) = effects.silverfish {
         deferred.silverfish.push((entity, work));
     }
+    if let Some(work) = effects.carry {
+        deferred.carry.push((entity, work));
+    }
     if effects.swell_started
         && let Some(head) = super::life::anger::head(world, entity)
     {
@@ -649,6 +658,11 @@ fn warn_of_target(world: &mut World, mob: Entity) {
 pub(crate) fn target_centre(world: &World, actor: Entity) -> Option<DVec3> {
     targeting::Candidate::of(world, actor)
         .map(|candidate| (candidate.aabb.min + candidate.aabb.max) / 2.0)
+}
+
+/// The feet of a living target's box; `None` for a dead or missing actor.
+pub(crate) fn target_feet(world: &World, actor: Entity) -> Option<DVec3> {
+    targeting::Candidate::of(world, actor).map(|candidate| candidate.aabb.feet())
 }
 
 pub(crate) fn wire_actor_id(world: &World, actor: Entity) -> i64 {

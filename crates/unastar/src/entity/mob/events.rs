@@ -121,6 +121,19 @@ impl MobFacts<'_> {
         )
     }
 
+    /// `in_contact_with_water`: water overlaps the actor's box (the liquid
+    /// rule of the living physics step). Weather is not implemented, so
+    /// rain never counts.
+    fn touches_water(&self, entity: Entity) -> Option<bool> {
+        let feet = self.feet(entity)?;
+        let body = self.world.get::<PhysicsBody>(entity)?;
+        let aabb = crate::registry::collision::Aabb::from_feet(feet, body.width, body.height);
+        Some(
+            crate::entity::systems::physics::living_liquid(self.world, aabb)
+                == Some(crate::registry::block::LiquidKind::Water),
+        )
+    }
+
     /// Where the actor breathes: a player's eye, a mob's head at
     /// [`MOB_EYE_HEIGHT_RATIO`](super::constants::MOB_EYE_HEIGHT_RATIO) of
     /// its box height above the feet.
@@ -284,8 +297,10 @@ impl FilterContext for MobFacts<'_> {
             BuiltinTest::IsSnowCovered => Fact::Bool(self.snow_covered(entity)?),
             BuiltinTest::InWater => Fact::Bool(self.in_liquid(entity, false)?),
             BuiltinTest::IsUnderwater => Fact::Bool(self.under_water(entity)?),
+            BuiltinTest::InContactWithWater => Fact::Bool(self.touches_water(entity)?),
             // Riding is not implemented: no actor ever has a vehicle.
             BuiltinTest::IsVehicleFamily => Fact::Matches(false),
+            BuiltinTest::IsRiding => Fact::Bool(false),
             BuiltinTest::IsBaby => Fact::Bool(
                 self.world
                     .get::<ActorFlags>(entity)
@@ -354,19 +369,8 @@ impl FilterContext for MobFacts<'_> {
             BuiltinTest::HasEquipment => {
                 let want = super::components::ItemMatcher::parse(test.value.as_str()?).ok()?;
                 let domain = test.domain_str().unwrap_or("any");
-                if self.world.get::<MobKind>(entity).is_some() {
-                    let slots = super::gear::domain_slots(domain)?;
-                    return Some(Fact::Matches(super::gear::has_equipment(
-                        self.world, entity, slots, &want,
-                    )));
-                }
-                if !matches!(domain, "hand" | "any") {
-                    return None;
-                }
-                let stack = held_item(self.world, entity);
-                Fact::Matches(
-                    stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
-                )
+                let slots = super::gear::domain_slots(domain)?;
+                Fact::Matches(super::gear::has_equipment(self.world, entity, slots, &want))
             }
             BuiltinTest::InBlock => Fact::Matches(self.in_block(entity, test.value.as_str()?)?),
             BuiltinTest::IsUnderground => Fact::Bool(self.underground(entity)?),

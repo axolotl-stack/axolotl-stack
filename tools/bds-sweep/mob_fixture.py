@@ -1,10 +1,11 @@
 """Distil `sweep.py spider` / `sweep.py enderman` runs (`--client-capture`)
 into a committed mob fixture.
 
-    python tools/bds-sweep/mob_fixture.py OUT.json LABEL=SWEEP_DIR [LABEL=SWEEP_DIR ...]
+    python tools/bds-sweep/mob_fixture.py OUT.json [--skip PREFIX,...] LABEL=SWEEP_DIR [LABEL=SWEEP_DIR ...]
 
 `LABEL` names the run (its difficulty, say: `normal`); items are keyed
 `<label>/<item>` and a later run's item replaces one of the same key.
+`--skip` leaves out the items whose name starts with one of the prefixes.
 Decodes each run's `client/packets.jsonl` with `bds-extractor --decode`
 (cargo build -p bds-extractor first). Per item it keeps the spec (where the
 mob and the player stood, whether the mob was frozen, the setup commands and
@@ -14,8 +15,12 @@ its tick (`t`, the sample whose `bds-sweep:mark` precedes the packet): the
 mob's `TARGET` (whether it is the player), every change of its flag bits and
 of its other actor data, its sounds and actor events, its `RemoveActor`, the
 player's `MobEffect`s, the block updates, the items that appeared, the level
-events and the damage the job recorded. Only observed values are kept: no
-packet bytes, no login data.
+events and the damage the job recorded; also the mob's `MobEquipment` (the
+enderman's carried block), its forced moves (a `MoveActorDelta` with
+`force_move`: a teleport), the generic level events (the teleport trail; not
+the sleep counter, 9801) and the other actors added and removed (arrows).
+The player's timed `tp` actions are also kept as structured turns (feet,
+yaw, pitch). Only observed values are kept: no packet bytes, no login data.
 """
 
 from __future__ import annotations
@@ -28,7 +33,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 EXTRACTOR = REPO / 'target' / 'debug' / ('bds-extractor.exe' if sys.platform == 'win32' else 'bds-extractor')
 PACKETS = ['TextPacket', 'SetActorDataPacket', 'AddActorPacket', 'LevelSoundEventPacket', 'LevelEventPacket',
-           'RemoveActorPacket', 'MobEffectPacket', 'ActorEventPacket', 'UpdateBlockPacket', 'AddItemActorPacket']
+           'RemoveActorPacket', 'MobEffectPacket', 'ActorEventPacket', 'UpdateBlockPacket', 'AddItemActorPacket',
+           'MobEquipmentPacket', 'LevelEventGenericPacket', 'MoveActorDeltaPacket']
 TARGET = 6
 # Actor data that changes on its own every tick or two and says nothing here:
 # the flag words (kept as bit changes), the air supply and the target.
@@ -81,6 +87,8 @@ def distil(result: dict, rows: list[tuple[int, dict]], label: str) -> dict:
     runtime_id = result['runtime_id']
     player_id = result['player_runtime_id']
     unique_id = None
+    # Other actors (arrows) seen during the item: unique id -> type.
+    others: dict[int, str] = {}
     events: list[dict] = []
     flags = None
     data: dict[int, object] = {}
@@ -92,6 +100,26 @@ def distil(result: dict, rows: list[tuple[int, dict]], label: str) -> dict:
             flags = flag_word(items)
             data = {k: v for k, v in items.items() if k not in SKIPPED_DATA}
             events.append({'t': t, 'event': 'add'})
+        elif name == 'AddActorPacket' and packet['actor_type'] != result['mob']:
+            others[packet['target_actor_id']['actor_unique_id']] = packet['actor_type']
+            events.append({'t': t, 'event': 'actor', 'type': packet['actor_type'],
+                           'at': rounded(packet['position'].values()), 'velocity': rounded(packet['velocity'].values())})
+        elif name == 'RemoveActorPacket' and packet['target_actor_id']['actor_unique_id'] in others:
+            events.append({'t': t, 'event': 'actor_removed',
+                           'type': others[packet['target_actor_id']['actor_unique_id']]})
+        elif name == 'MobEquipmentPacket' and packet['target_runtime_id']['actor_runtime_id'] == runtime_id:
+            item = packet['item']
+            events.append({'t': t, 'event': 'equipment', 'container': packet['container_id'], 'slot': packet['slot'],
+                           'item': item['id'], 'count': item['stacksize'], 'block': item['block_runtime_id']})
+        elif name == 'MoveActorDeltaPacket' and packet['move_data']['actor_runtime_id']['actor_runtime_id'] == runtime_id:
+            move = packet['move_data']
+            if move['force_move']:
+                events.append({'t': t, 'event': 'forced_move', 'ticks': move['ticks'],
+                               'on_ground': move['is_on_ground']})
+        elif name == 'LevelEventGenericPacket' and packet['event_id'] != 9801:
+            events.append({'t': t, 'event': 'level_event_generic', 'id': packet['event_id'],
+                           'data': {k: round(v, 4) if isinstance(v, float) else v
+                                    for k, v in packet['__ctd__'].items()}})
         elif name == 'SetActorDataPacket' and packet['target_runtime_id']['actor_runtime_id'] == runtime_id:
             items = data_items(packet['actor_data']['data'])
             if TARGET in items:
@@ -143,6 +171,14 @@ def distil(result: dict, rows: list[tuple[int, dict]], label: str) -> dict:
             feet.append([sample['t']] + player)
             last_feet = player
     first = result['first_tick']
+    # The sweep moves and turns the player with `tp "<player>" x y z yaw pitch`.
+    turns = []
+    for action in spec.get('actions', []):
+        for command in action['commands']:
+            words = command.split()
+            if len(words) == 7 and words[0] == 'tp' and words[1].startswith('"'):
+                turns.append({'t': action['t'], 'feet': [float(w) for w in words[2:5]],
+                              'yaw': float(words[5]), 'pitch': float(words[6])})
     return {
         'key': f'{label}/{result["key"].split("|")[1]}',
         'mob': result['mob'],
@@ -157,6 +193,8 @@ def distil(result: dict, rows: list[tuple[int, dict]], label: str) -> dict:
         'moves': moves,
         # [t, x, y, z] of the player's feet whenever they changed.
         'player_feet': feet,
+        # Every timed `tp` of the player: where it stood and looked.
+        'player_turns': turns,
         'damage': [{'t': d[0] - first, 'actor': d[1], 'amount': round(d[2], 4), 'cause': d[3]}
                    for d in result['damage']],
         'events': events,
@@ -168,13 +206,19 @@ def main() -> int:
         print(__doc__)
         return 2
     out = Path(sys.argv[1])
+    args = sys.argv[2:]
+    skip: tuple[str, ...] = ()
+    if args[:1] == ['--skip']:
+        skip, args = tuple(args[1].split(',')), args[2:]
     items: dict[str, dict] = {}
-    for arg in sys.argv[2:]:
+    for arg in args:
         label, sweep = arg.split('=', 1)
         sweep = Path(sweep)
         rows = marked(decoded(sweep / 'client' / 'packets.jsonl'))
         for line in (sweep / 'results.jsonl').read_text(encoding='utf-8').splitlines():
             result = json.loads(line)
+            if result['key'].split('|')[1].startswith(skip):
+                continue
             item = distil(result, rows.get(result['key'], []), label)
             items[item['key']] = item
     fixture = {'source': 'BDS 1.26.51, tools/bds-sweep/sweep.py --client-capture, distilled by '

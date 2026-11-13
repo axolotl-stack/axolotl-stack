@@ -278,6 +278,16 @@ fn spawn_unattached(
         if let Some(kind) = archetype.native.variant {
             metadata.set_int(jolyne::valentine::actor_data_i_ds::VARIANT, kind);
         }
+        if archetype.native.carried_block_data {
+            let air = *crate::world::chunk::blocks::AIR;
+            let hash = crate::registry::BlockRegistry::vanilla()
+                .network_hash(air)
+                .expect("air has a network hash");
+            metadata.set_int(
+                jolyne::valentine::actor_data_i_ds::DEPRECATED_CARRY_BLOCK_RUNTIME_ID,
+                hash as i32,
+            );
+        }
         metadata
     };
     let launched_tick = world

@@ -6,14 +6,30 @@ use glam::{DVec3, IVec3};
 use crate::entity::systems::physics::{BlockSource, collect_block_boxes};
 use crate::registry::collision::Aabb;
 
-/// Whether the segment `from`–`to` passes no block collision box. Blocks
-/// are visited along the segment (voxel traversal) and each block's boxes
-/// are tested against it; an unloaded block blocks sight.
+/// What a segment meets first along its way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sight {
+    /// No block collision box.
+    Clear,
+    /// A collision box of the block at this position.
+    Block(IVec3),
+    /// An unloaded block, which blocks sight.
+    Unloaded,
+}
+
+/// Whether the segment `from`–`to` passes no block collision box.
 pub fn can_see(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> bool {
+    first_hit(blocks, from, to) == Sight::Clear
+}
+
+/// The first block whose collision boxes the segment `from`–`to` meets:
+/// blocks are visited along the segment (voxel traversal) and each block's
+/// boxes are tested against it.
+pub fn first_hit(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> Sight {
     let delta = to - from;
     let length = delta.length();
     if !length.is_finite() {
-        return false;
+        return Sight::Unloaded;
     }
     let mut cell = from.floor().as_ivec3();
     let end = to.floor().as_ivec3();
@@ -46,32 +62,32 @@ pub fn can_see(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> bool {
     let mut boxes = Vec::new();
     loop {
         if blocks.block_at(cell).is_none() {
-            return false;
+            return Sight::Unloaded;
         }
         let min = cell.as_dvec3();
         boxes.clear();
         collect_block_boxes(blocks, Aabb::new(min, min + DVec3::ONE), &mut boxes);
         if boxes.iter().any(|b| segment_hits(from, delta, b)) {
-            return false;
+            return Sight::Block(cell);
         }
         if cell == end {
-            return true;
+            return Sight::Clear;
         }
         if next.x <= next.y && next.x <= next.z {
             if next.x > 1.0 {
-                return true;
+                return Sight::Clear;
             }
             cell.x += step.x;
             next.x += width.x;
         } else if next.y <= next.z {
             if next.y > 1.0 {
-                return true;
+                return Sight::Clear;
             }
             cell.y += step.y;
             next.y += width.y;
         } else {
             if next.z > 1.0 {
-                return true;
+                return Sight::Clear;
             }
             cell.z += step.z;
             next.z += width.z;

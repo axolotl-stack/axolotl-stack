@@ -1,6 +1,6 @@
 //! Movement and navigation components: `minecraft:navigation.walk`,
-//! `minecraft:navigation.climb`, `minecraft:movement.basic` and
-//! `minecraft:jump.static`.
+//! `minecraft:navigation.climb`, `minecraft:movement.basic`,
+//! `minecraft:jump.static` and `minecraft:variable_max_auto_step`.
 
 use bevy_ecs::prelude::*;
 use unastar_data::actor_components::body;
@@ -63,6 +63,14 @@ pub struct JumpConfig {
     pub jump_power: f32,
 }
 
+/// `minecraft:variable_max_auto_step`: how high the mob steps up without
+/// jumping (the physics body's step height, `mob::derive`).
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AutoStepConfig {
+    /// Blocks, on any block that lets it jump.
+    pub base: f32,
+}
+
 /// Register the movement and navigation component kinds.
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
@@ -73,6 +81,11 @@ pub fn register_component_kinds(
     insert_infallible(builder, |b: body::NavigationClimb| WalkNavigationConfig {
         climbs_walls: true,
         ..WalkNavigationConfig::from(&b.0)
+    })?;
+    // `controlled_value` needs a rider and `jump_prevented_value` a block
+    // that prevents jumping (honey); neither exists on the server.
+    insert_infallible(builder, |b: body::VariableMaxAutoStep| AutoStepConfig {
+        base: b.base_value,
     })?;
     insert_infallible(builder, |b: body::MovementBasic| BasicMovementConfig {
         max_turn: b.max_turn,

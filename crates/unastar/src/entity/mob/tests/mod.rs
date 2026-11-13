@@ -6,7 +6,9 @@
 //! ([`hostile`]), door breaking ([`doors`]), environment sensors and
 //! timers ([`sensors`]), anger replayed against BDS captures ([`anger`]),
 //! projectile actors replayed against BDS captures ([`projectiles`]), the
-//! silverfish replayed against BDS sweeps ([`silverfish`]), and
+//! silverfish replayed against BDS sweeps ([`silverfish`]), the enderman's
+//! stare, teleports and carried blocks against BDS sweeps ([`enderman`]),
+//! and
 //! shared behaviour checked mob by mob for every spawnable mob that uses it
 //! ([`facets`]).
 
@@ -15,6 +17,7 @@ mod bds_mob;
 mod chicken;
 mod creeper;
 mod doors;
+mod enderman;
 mod facets;
 mod hostile;
 mod interaction;

@@ -74,6 +74,9 @@ pub struct MobNetState {
     /// It moved between the two syncs before this one: the `is_moving` its
     /// bandwidth values are picked by.
     moving: bool,
+    /// It teleported this tick: the next update goes to every viewer at
+    /// once, with `force_move`.
+    teleported: bool,
 }
 
 /// What a mob's `AddActor` carries in the tick it spawned.
@@ -131,6 +134,12 @@ impl MobNetState {
     /// shows the spawn state and its first move follows at once.
     pub fn in_spawn_tick(&self) -> bool {
         self.spawned.is_some()
+    }
+
+    /// The actor teleported: its next `MoveActorDelta` goes to every viewer
+    /// at once with `force_move` (BDS 1.26.51 enderman teleports).
+    pub fn teleported(&mut self) {
+        self.teleported = true;
     }
 
     /// The spawn tick's sync is done.
@@ -335,7 +344,9 @@ pub fn replicate_movement(
     let moved_sq = position.distance_squared(net.position);
     let settling = moved_sq > 1.0e-6 && movement.velocity.length_squared() < 1.0e-6;
     let ground_changed = movement.on_ground != net.on_ground;
-    if turned_degrees > constants::NET_ROTATION_THRESHOLD
+    let teleported = std::mem::take(&mut net.teleported);
+    if teleported
+        || turned_degrees > constants::NET_ROTATION_THRESHOLD
         || moved_sq > constants::NET_POSITION_THRESHOLD_SQ
         || settling
     {
@@ -350,6 +361,7 @@ pub fn replicate_movement(
             rotation_y: turned(1),
             rotation_y_head: turned(2),
             is_on_ground: movement.on_ground,
+            force_move: teleported,
             ..Default::default()
         };
         let mut delivered = false;
@@ -362,10 +374,14 @@ pub fn replicate_movement(
             let waiting = net
                 .last_delivery(*viewer)
                 .is_some_and(|last| now.saturating_sub(last) < dropped);
-            if waiting && !ground_changed {
+            if waiting && !ground_changed && !teleported {
                 continue;
             }
-            move_data.ticks = if ground_changed { 0 } else { dropped };
+            move_data.ticks = if ground_changed || teleported {
+                0
+            } else {
+                dropped
+            };
             send(
                 *viewer,
                 &McpePacket::from(MoveActorDeltaPacket {

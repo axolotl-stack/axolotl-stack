@@ -10,7 +10,7 @@ use jolyne::valentine::actor_flags;
 
 use super::MobKind;
 use super::archetype::MobArchetype;
-use super::components::WalkNavigationConfig;
+use super::components::{AutoStepConfig, WalkNavigationConfig};
 use crate::entity::components::{AirSupply, Health, PhysicsBody};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::attributes::{ActorAttributes, AttributeValue};
@@ -29,6 +29,7 @@ type DeriveInputs<'a> = (
     Option<&'a ScaleConfig>,
     Option<&'a PhysicsConfig>,
     Option<&'a WalkNavigationConfig>,
+    Option<&'a AutoStepConfig>,
     Option<&'a Health>,
     Option<&'a MovementConfig>,
     Option<&'a AirSupply>,
@@ -54,7 +55,9 @@ struct Derived {
 }
 
 fn derive(
-    (kind, collision, scale, physics, walk, health, movement, air, modifiers): DeriveInputs<'_>,
+    (kind, collision, scale, physics, walk, step, health, movement, air, modifiers): DeriveInputs<
+        '_,
+    >,
 ) -> Derived {
     let scale = scale.map_or(1.0, |s| s.value);
     // Published rule: negative collision dimensions count as zero.
@@ -64,6 +67,9 @@ fn derive(
     let mut body = PhysicsBody::living(f64::from(width * scale), f64::from(height * scale));
     body.wing_flap_drag = kind.0.native.wing_flap_drag;
     body.wall_climber = walk.is_some_and(|w| w.climbs_walls);
+    if let Some(step) = step {
+        body.step_height = f64::from(step.base);
+    }
     if !gravity {
         body.gravity = 0.0;
     }

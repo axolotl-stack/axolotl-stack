@@ -626,7 +626,9 @@ impl GameServer {
                 crate::entity::mob::life::sensors::tick_environment_sensors,
                 crate::entity::mob::life::sensors::tick_target_nearby_sensors,
                 crate::entity::mob::life::sensors::tick_timers,
+                crate::entity::mob::life::looked_at::tick_looked_at,
                 crate::entity::mob::life::anger::tick_anger,
+                crate::entity::mob::life::teleport::tick_random_teleports,
             )
                 .chain()
                 .in_set(EntityLogicSet)

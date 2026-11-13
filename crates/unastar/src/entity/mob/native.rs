@@ -42,6 +42,10 @@ pub struct NativeTraits {
     /// The class rolls a follow-range bonus at spawn and saves its
     /// `minecraft:follow_range` (`mob::attributes::FollowRange`).
     pub follow_range_bonus: bool,
+    /// The class sends the deprecated carried-block actor data, always air
+    /// (the enderman: BDS 1.26.51's summon carries air's network hash, and a
+    /// taken block shows as the main-hand item instead).
+    pub carried_block_data: bool,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -75,6 +79,7 @@ impl NativeTraits {
             None
         };
         let follow_range_bonus = zombie_bonuses;
+        let carried_block_data = matches!(actor_type, ActorType::Enderman);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -86,6 +91,7 @@ impl NativeTraits {
                 variant,
                 knockback_resistance_bonus,
                 follow_range_bonus,
+                carried_block_data,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -97,6 +103,7 @@ impl NativeTraits {
                 variant,
                 knockback_resistance_bonus,
                 follow_range_bonus,
+                carried_block_data,
             },
         }
     }

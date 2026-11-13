@@ -213,6 +213,10 @@ fn hurt_mob_with(world: &mut World, target: Entity, hit: Hit, animate: bool) -> 
         health.damage(to_health);
         health.is_dead()
     };
+    // BDS sends the teleport before the hurt animation, in the same batch.
+    if !dead {
+        crate::entity::mob::life::teleport::teleport_on_hurt(world, target);
+    }
     if full && animate {
         send_actor_event(
             world,
