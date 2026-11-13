@@ -100,6 +100,15 @@ Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
 is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
 generated (8 chunks per player per tick bound the generated case).
 
+After `StartGame` the player gets the rest of the BDS 1.26.51 join in BDS order
+(`server/game/join.rs`): the fixed packets byte-identical to the member join
+capture, then `SetHealth` right before `PlayStatus(PlayerSpawn)`. The game mode
+travels in `StartGame` only. Each player's `PlayerList` entry (skin, platform,
+colour) is built from its validated login (`server/game/roster.rs`); online
+players get the sleeping-player count, the newcomer's entry and the adventure
+settings before its `AddPlayer`, and the count and a removal when a player
+leaves, as measured with `tools/bds-sweep/capture.py --pair`.
+
 A player's actor data follows BDS 1.26.51 (`entity/player_life/actor_data.rs`):
 its own join `SetActorData` and the `AddPlayer` other players get carry every
 row BDS sends (72 and 79), from the state the player's viewers last received;

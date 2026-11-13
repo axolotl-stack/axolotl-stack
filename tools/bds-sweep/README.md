@@ -11,6 +11,9 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `bds_runtime.py` | Starts/stops the BDS of one runtime, `BDS_RUNTIME` on `BDS_PORT` (plain or under Endstone): refuses when a `bedrock_server` from that runtime's `server/` runs or the port is bound, backs up and restores `server.properties`, harness-owned world names only, graceful `stop` |
 | `capture.py` | T1: two `bds-extractor --capture-dir` sessions on plain BDS (member join; operator join + `/summon` of every summonable identifier) into `<runtime>/captures/1.26.51/<UTC>/`; `--commands FILE` runs one operator session of scripted commands instead (`operator-commands/command-outputs.json`, plus `console-outputs.json`: BDS's console lines by step, typed for `!console` steps; `allowlist.json`, `permissions.json` and `keys/` are restored afterwards) |
 | `command-script.txt` | The vanilla command feedback script for `capture.py --commands` (`# segment: NAME` groups lines that unastar's tests replay together; every segment leaves the world as it found it; `!console COMMAND` runs on the server console, `!join NAME` / `!leave NAME` bring a second player in and out) |
+| `capture.py --pair FILE` | Two or more overlapping operator sessions on one fresh world: `host/` runs FILE, guests join and leave during it (`--guests N`, one after the other or `--guest-gap S` seconds apart and online together); for what BDS sends online players when others join and leave |
+| `roster_probe.py` | Player-colour reuse probe: a guest leaves before the next one joins (schedule in its docstring) |
+| `commit_roster_fixtures.py` | Copies the roster packets of `--pair`/probe runs into `crates/bds-extractor/captures/1.26.51/roster/` |
 | `command_digest.py` | `command-outputs.json` to a readable per-command `digest.md` (CommandOutput fields, key fields of every other packet) |
 | `commit_fixtures.py` | Copies the committed subset of a capture into `crates/bds-extractor/captures/1.26.51/` (see the crate README); `--commands CAPTURE` commits a command session's `feedback.json` |
 | `scripts/command-order.txt` | A `bds-sweep-client --script` script: block commands sent right before (or one input before) the input that starts breaking the block, on plain BDS (flat world, survival, operator) |
@@ -77,6 +80,10 @@ To create a slot, copy `bds-runtime/server` without `worlds/`, `logs/` and
 `captures/` and `sweeps/`, and link the venv:
 `mklink /J <slot>\venv C:\Users\jvigu\orca\bds-runtime\venv`. Slots hold the
 same BDS 1.26.51 build; the launcher checks `version.txt` either way.
+
+Each `bds-extractor` debug process needs a few hundred MB: about 20 guests at
+once ran this machine out of memory (2026-11-11), so keep `--guests` with
+`--guest-gap` around 12 or fewer.
 
 ## Scripted client controls
 
