@@ -14,12 +14,14 @@
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
+use jolyne::valentine::actor_flags;
 use rand::Rng;
 
 use super::control::Body;
 use super::nearby::Nearby;
 use crate::entity::components::GameMode;
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
+use crate::entity::mob::MobKind;
 use crate::entity::mob::native::BatClass;
 use crate::entity::systems::physics::BlockSource;
 
@@ -72,9 +74,9 @@ fn player_near(world: &World, nearby: &Nearby, class: &BatClass, feet: DVec3) ->
 pub fn wake_hurt(world: &mut World, entity: Entity) {
     let mut mob = world.entity_mut(entity);
     if mob
-        .get::<crate::entity::mob::MobKind>()
+        .get::<MobKind>()
         .is_some_and(|kind| kind.0.native.bat.is_some())
     {
-        super::set_flag(&mut mob, jolyne::valentine::actor_flags::RESTING, false);
+        super::set_flag(&mut mob, actor_flags::RESTING, false);
     }
 }

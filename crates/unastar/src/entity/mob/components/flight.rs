@@ -17,6 +17,9 @@ use crate::entity::mob::constants::TICKS_PER_SECOND;
 pub enum FlightError {
     #[error("behavior.float_wander float_duration {min}..{max} is not an ordered range of seconds")]
     Duration { min: f32, max: f32 },
+    /// The published schema requires at least 1 block.
+    #[error("behavior.float_wander {field} {value} is below 1")]
+    Distance { field: &'static str, value: i32 },
     /// A field whose behaviour no measured flyer shows.
     #[error("behavior.float_wander {0} is not implemented")]
     Unmeasured(&'static str),
@@ -89,6 +92,11 @@ fn compile_float_wander(b: body::BehaviorFloatWander) -> Result<FloatWanderGoal,
             return Err(FlightError::Unmeasured(field));
         }
     }
+    for (value, field) in [(b.xz_dist, "xz_dist"), (b.y_dist, "y_dist")] {
+        if value < 1 {
+            return Err(FlightError::Distance { field, value });
+        }
+    }
     let native = if b.float_wander_has_move_control {
         GoalControls::MOVE
     } else {
@@ -97,8 +105,8 @@ fn compile_float_wander(b: body::BehaviorFloatWander) -> Result<FloatWanderGoal,
     Ok(FloatWanderGoal {
         priority: b.priority,
         controls: controls(&b.control_flags, native),
-        xz_dist: f64::from(b.xz_dist.max(1)),
-        y_dist: f64::from(b.y_dist.max(1)),
+        xz_dist: f64::from(b.xz_dist),
+        y_dist: f64::from(b.y_dist),
         y_offset: f64::from(b.y_offset),
         duration_ticks: (min * TICKS_PER_SECOND, max * TICKS_PER_SECOND),
     })
@@ -112,4 +120,36 @@ pub fn register_component_kinds(
         can_walk: b.0.can_walk,
     })?;
     insert(builder, compile_float_wander)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn compile(body: serde_json::Value) -> Result<FloatWanderGoal, FlightError> {
+        compile_float_wander(
+            unastar_data::actor_components::decode(&body).expect("float_wander body decodes"),
+        )
+    }
+
+    #[test]
+    fn float_wander_rejects_distances_below_one_and_unmeasured_options() {
+        let bat = serde_json::json!({"float_duration": [0.1, 0.35], "random_reselect": true});
+        assert!(compile(bat.clone()).is_ok());
+        let mut flat = bat.clone();
+        flat["y_dist"] = 0.into();
+        assert!(matches!(
+            compile(flat),
+            Err(FlightError::Distance {
+                field: "y_dist",
+                value: 0
+            })
+        ));
+        let mut reaching = bat;
+        reaching["must_reach"] = true.into();
+        assert!(matches!(
+            compile(reaching),
+            Err(FlightError::Unmeasured("must_reach"))
+        ));
+    }
 }

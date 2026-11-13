@@ -450,6 +450,7 @@ fn think(
             && roost::settles(world, &class, feet, &mut rng.0)
         {
             effects.resting = Some(true);
+            states.fly.reset();
         }
         return Some(Output {
             yaw: flight.yaw,

@@ -68,6 +68,12 @@ impl FlyState {
         Flight { yaw, velocity }
     }
 
+    /// Forget the current wander: a bat that settles starts a new one when
+    /// it wakes.
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+
     /// The point the current wander flies at (tests).
     #[cfg(test)]
     pub fn point(&self) -> Option<DVec3> {

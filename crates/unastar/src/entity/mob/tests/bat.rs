@@ -520,19 +520,34 @@ fn a_resting_bat_wakes_when_hurt_unroofed_or_approached() {
     hurt_mob(a.world(), bat, hit(1.0));
     assert!(!resting(a.world(), bat));
 
-    let mut a = low_room(7);
-    let bat = bat_at(&mut a, feet);
-    a.ticks(5);
-    a.set_block(IVec3::new(14, -59 + DY as i32, 0), "minecraft:air");
-    a.ticks(1);
-    assert!(!resting(a.world(), bat));
-
     let fixture = fixture();
+    // BDS's unroofed bats woke on the tick the block went (40); ours on its
+    // next tick, as its AI runs before the command's effects are seen.
+    for item in fixture.items("unroof") {
+        assert_eq!(
+            item.actors[0].rests().first(),
+            Some(&(40, false)),
+            "{}",
+            item.key
+        );
+        let mut a = low_room(7);
+        let bat = bat_at(&mut a, feet);
+        a.ticks(40);
+        assert!(resting(a.world(), bat), "{}", item.key);
+        a.set_block(IVec3::new(14, -59 + DY as i32, 0), "minecraft:air");
+        a.ticks(1);
+        assert!(!resting(a.world(), bat), "{}", item.key);
+    }
+
     for item in fixture.items("canopy") {
         let player = item.player_ticks.last().unwrap();
-        let bds = &item.actors[0];
-        let woke = bds.rests().contains(&(40, false));
-        let mut a = canopy(8);
+        let woke = item.actors[0].rests().contains(&(40, false));
+        let mode = if item.key.starts_with("canopy-creative") {
+            GameMode::Creative
+        } else {
+            GameMode::Survival
+        };
+        let mut a = canopy(8, mode);
         let bat = bat_at(&mut a, DVec3::new(14.5, -59.0 + DY, 0.5));
         a.ticks(20);
         assert!(resting(a.world(), bat), "{}", item.key);
@@ -540,21 +555,24 @@ fn a_resting_bat_wakes_when_hurt_unroofed_or_approached() {
         a.ticks(1);
         assert_eq!(!resting(a.world(), bat), woke, "{}", item.key);
     }
+
+    // A spectator never wakes it, even beside it.
+    let mut a = canopy(9, GameMode::Spectator);
+    let bat = bat_at(&mut a, DVec3::new(14.5, -59.0 + DY, 0.5));
+    a.ticks(20);
+    a.move_player(DVec3::new(15.5, -60.0 + DY, 0.5));
+    a.ticks(5);
+    assert!(resting(a.world(), bat));
 }
 
 /// The sweep's canopy (`sweep.py`'s `CANOPY`, raised by [`DY`]): stone at
 /// y -58, x 8..20, z -3..3.
-fn canopy(seed: u64) -> Arena {
+fn canopy(seed: u64, mode: GameMode) -> Arena {
     let stone = block("minecraft:stone");
-    arena(
-        seed,
-        Difficulty::Normal,
-        GameMode::Survival,
-        move |pos: IVec3| {
-            let (x, y, z) = (pos.x, pos.y - DY as i32, pos.z);
-            ((8..=20).contains(&x) && y == -58 && (-3..=3).contains(&z)).then_some(stone)
-        },
-    )
+    arena(seed, Difficulty::Normal, mode, move |pos: IVec3| {
+        let (x, y, z) = (pos.x, pos.y - DY as i32, pos.z);
+        ((8..=20).contains(&x) && y == -58 && (-3..=3).contains(&z)).then_some(stone)
+    })
 }
 
 /// How long a bat that was woken flies before it settles again, BDS's and
