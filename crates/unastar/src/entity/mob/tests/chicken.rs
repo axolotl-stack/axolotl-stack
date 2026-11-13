@@ -573,15 +573,15 @@ fn thrown_egg_follows_its_arc_breaks_on_the_floor_and_uses_one_egg() {
     assert!((wire(&add.velocity) - launch).abs().max_element() < 1e-6);
     assert_eq!(add.y_head_rotation, 0.0);
 
-    // 1.5 blocks per tick along the view, no thrower velocity. It first
-    // moves in the tick after the throw (BDS 1.26.51 announces it at the
-    // eye with its launch velocity, throwables capture); each move keeps
-    // 0.99 of the velocity and loses 0.03 (the definition's f32 values).
+    // 1.5 blocks per tick along the view, no thrower velocity; one tick
+    // flown: the position moved by it, the velocity kept 0.99 and lost 0.03
+    // (the definition's f32 values).
     let (inertia, gravity) = (f64::from(0.99f32), f64::from(0.03f32));
     let pitch = 10f64.to_radians();
     let mut velocity = DVec3::new(0.0, -pitch.sin(), pitch.cos()) * 1.5;
-    let mut expected = eye;
-    let mut flown = 0;
+    let mut expected = eye + velocity;
+    velocity = velocity * inertia - DVec3::Y * gravity;
+    let mut flown = 1;
     loop {
         let world = h.server.ecs.world_mut();
         let position = world.get::<Position>(egg).unwrap().0;
@@ -597,7 +597,7 @@ fn thrown_egg_follows_its_arc_breaks_on_the_floor_and_uses_one_egg() {
             let flags = world.get::<ActorFlags>(egg).unwrap();
             assert!(
                 !flags.get(actor_flags::INVISIBLE).unwrap(),
-                "visible from its second move"
+                "visible from tick 2"
             );
         }
         if world.get_entity(egg).is_err() {

@@ -178,6 +178,17 @@ fn step(
         }
     }
     if removed {
+        // One that breaks before it showed shows where it hit: BDS 1.26.51
+        // plays its `reappeared` there, after the hit sound (throwables
+        // capture: a snowball thrown at the floor).
+        if let Some(&(t, _)) = hits.first()
+            && ticks <= PROJECTILE_VISIBLE_TICK
+        {
+            world
+                .entity_mut(projectile)
+                .insert(Position(from + velocity * t));
+            set_invisible(world, projectile, false);
+        }
         world.despawn(projectile);
         return;
     }

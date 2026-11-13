@@ -314,6 +314,18 @@ pub fn launch_with(
     }
     let velocity = direction * spec.speed.unwrap_or(rules.power);
     let (yaw, pitch) = heading(velocity);
+    if feet != eye {
+        // It turned invisible where it spawned; BDS plays that sound where
+        // it is launched from.
+        let half = world
+            .get::<RawCollisionBox>(projectile)
+            .map_or(0.0, |b| f64::from(b.height.max(0.0)) / 2.0);
+        crate::entity::mob::net::sound::move_synced_sounds(
+            world,
+            projectile,
+            feet + DVec3::Y * half,
+        );
+    }
     let mut entity = world.entity_mut(projectile);
     // A projectile's head yaw stays 0 (its BDS 1.26.51 `AddActor`).
     entity.insert((
