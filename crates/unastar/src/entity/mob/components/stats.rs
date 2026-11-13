@@ -117,10 +117,8 @@ fn set_hitbox_data(entity: &mut EntityWorldMut<'_>, boxes: &[HitBox]) {
 pub struct MobEffectImmunity(pub Arc<[EffectType]>);
 
 /// `minecraft:spell_effects`: effects given to and taken from the mob when
-/// the component is added. Effect names the game does not know are dropped,
-/// as BDS drops them: the zombie villager's cure gives `heal`, which is not
-/// an effect name (instant health is `instant_health`), so the cure heals
-/// nothing.
+/// the component is added. An effect name the game does not know fails the
+/// definition, except `heal` ([`DROPPED_SPELL_EFFECTS`]).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpellEffectsConfig {
     /// `(effect, amplifier, duration ticks)`.
@@ -164,7 +162,7 @@ pub fn register_component_kinds(
             .unwrap_or_default()
             .iter()
             .map(|name| {
-                crate::server::game::effects::effect_by_name(name)
+                EffectType::from_name(name)
                     .ok_or_else(|| StatsError::UnknownEffect(name.clone()))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -177,11 +175,41 @@ pub fn register_component_kinds(
     )
 }
 
+/// The non-effect names vanilla `spell_effects` use, which BDS drops: the
+/// zombie villager's cure gives `heal`, which is no effect name (instant
+/// health is `instant_health`), so the cure heals nothing (docs/quirks/bds.md).
+/// Every other unknown name fails the definition.
+const DROPPED_SPELL_EFFECTS: [&str; 1] = ["heal"];
+
+/// Provisional cap on a `spell_effects` duration: `i32::MAX` ticks, the
+/// longest finite `MobEffect` duration (a longer one would wrap to the
+/// infinite sentinel -1). BDS's own clamp is not measured
+/// (docs/parity/entities.toml, `minecraft:zombie_villager_v2/spell_effects`).
+const MAX_SPELL_EFFECT_TICKS: u32 = i32::MAX as u32;
+
+/// The effect a `spell_effects` name gives; `None` for a name BDS drops.
+fn spell_effect(name: &str) -> Result<Option<EffectType>, StatsError> {
+    match EffectType::from_name(name) {
+        Some(effect) => Ok(Some(effect)),
+        None if DROPPED_SPELL_EFFECTS.contains(&name) => Ok(None),
+        None => Err(StatsError::UnknownEffect(name.to_owned())),
+    }
+}
+
+/// The ticks of a `spell_effects` duration in seconds, capped at
+/// [`MAX_SPELL_EFFECT_TICKS`].
+fn spell_effect_ticks(seconds: f32) -> Result<u32, StatsError> {
+    if !seconds.is_finite() || seconds < 0.0 {
+        return Err(StatsError::SpellDuration(seconds));
+    }
+    let ticks = f64::from(seconds) * f64::from(crate::entity::mob::constants::TICKS_PER_SECOND);
+    Ok(ticks.min(f64::from(MAX_SPELL_EFFECT_TICKS)) as u32)
+}
+
 fn compile_spell_effects(b: body::SpellEffects) -> Result<SpellEffectsConfig, StatsError> {
-    use crate::server::game::effects::effect_by_name;
     let mut add = Vec::new();
     for spell in b.add_effects.unwrap_or_default() {
-        let Some(effect) = effect_by_name(&spell.effect) else {
+        let Some(effect) = spell_effect(&spell.effect)? else {
             continue;
         };
         if matches!(
@@ -190,18 +218,13 @@ fn compile_spell_effects(b: body::SpellEffects) -> Result<SpellEffectsConfig, St
         ) {
             return Err(StatsError::InstantSpellEffect(spell.effect));
         }
-        if !spell.duration.is_finite() || spell.duration < 0.0 {
-            return Err(StatsError::SpellDuration(spell.duration));
-        }
-        let ticks = (spell.duration * crate::entity::mob::constants::TICKS_PER_SECOND) as u32;
+        let ticks = spell_effect_ticks(spell.duration)?;
         add.push((effect, spell.amplifier.clamp(0, 255) as u8, ticks));
     }
-    let remove = b
-        .remove_effects
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|name| crate::server::game::effects::effect_by_name(name))
-        .collect::<Vec<_>>();
+    let mut remove = Vec::new();
+    for name in b.remove_effects.unwrap_or_default() {
+        remove.extend(spell_effect(&name)?);
+    }
     Ok(SpellEffectsConfig {
         add: add.into(),
         remove: remove.into(),
@@ -246,4 +269,48 @@ fn compile_hit_test(b: body::CustomHitTest) -> Result<CustomHitTest, StatsError>
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(CustomHitTest(boxes.into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spell_effects(json: serde_json::Value) -> Result<SpellEffectsConfig, StatsError> {
+        compile_spell_effects(serde_json::from_value(json).expect("spell_effects body"))
+    }
+
+    #[test]
+    fn unknown_spell_effect_names_fail_the_definition() {
+        let added = spell_effects(serde_json::json!({
+            "add_effects": [{ "effect": "not_an_effect", "duration": 5 }]
+        }));
+        assert!(matches!(added, Err(StatsError::UnknownEffect(name)) if name == "not_an_effect"));
+        let removed = spell_effects(serde_json::json!({ "remove_effects": ["nope"] }));
+        assert!(matches!(removed, Err(StatsError::UnknownEffect(name)) if name == "nope"));
+    }
+
+    #[test]
+    fn the_cures_heal_is_dropped_and_levitation_resolves() {
+        let config = spell_effects(serde_json::json!({
+            "add_effects": [
+                { "effect": "heal", "duration": 0 },
+                { "effect": "levitation", "duration": 2, "amplifier": 1 }
+            ],
+            "remove_effects": ["heal", "weakness"]
+        }))
+        .unwrap();
+        assert_eq!(&*config.add, &[(EffectType::LEVITATION, 1, 40)]);
+        assert_eq!(&*config.remove, &[EffectType::WEAKNESS]);
+    }
+
+    #[test]
+    fn a_huge_spell_effect_duration_stays_finite() {
+        let config = spell_effects(serde_json::json!({
+            "add_effects": [{ "effect": "strength", "duration": 1.0e30 }]
+        }))
+        .unwrap();
+        let ticks = config.add[0].2;
+        assert_eq!(ticks, i32::MAX as u32);
+        assert_ne!(ticks as i32, -1, "never the infinite MobEffect duration");
+    }
 }
