@@ -16,7 +16,7 @@ path = "src/dump.rs"
 jolyne = { workspace = true, features = ["client", "raknet"] }
 client-diff = { path = "../client-diff" }
 unastar-data = { path = "../unastar-data" }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync"] }
 clap.workspace = true
 anyhow.workspace = true
 uuid.workspace = true

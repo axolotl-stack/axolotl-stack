@@ -27,6 +27,8 @@ import native  # noqa: E402
 import player_fixture  # noqa: E402
 import player_relay_fixture  # noqa: E402
 import player_script  # noqa: E402
+import pvp_fixture  # noqa: E402
+import pvp_items  # noqa: E402
 import range_fixture  # noqa: E402
 import scenarios  # noqa: E402
 import spawn_bonus_fixture  # noqa: E402
@@ -790,6 +792,67 @@ class PlayerRelayFixture(unittest.TestCase):
         path = Path(tempfile.mkdtemp()) / 'packets.jsonl'
         path.write_text(json.dumps({'t_ms': 0, 'dir': 'c2s', 'id': 144, 'hex': body.hex()}) + '\n', encoding='utf-8')
         self.assertEqual(player_relay_fixture.inputs(path), {800: {'pitch': -2.0, 'yaw': 5.0, 'head': 5.0}})
+
+
+class PvpItems(unittest.TestCase):
+    def test_sets_repeat_every_item_under_its_own_key(self):
+        items = pvp_items.pvp_items('hurt', 2, False)
+        keys = [item['key'] for item in items]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertIn('burst|up|batch#1', keys)
+        burst = next(item for item in items if item['key'] == 'burst|up|batch#0')
+        self.assertEqual(burst['script']['5'], '[o0=select:1,a0>1,o0=select:2,a0>1,o0=select:3,a0>1,'
+                                               'o0=select:4,a0>1,o0=select:5,a0>1,i0] i1 i2')
+
+    def test_strict_reach_items_are_named_apart_and_unknown_keys_refused(self):
+        keys = {item['key'] for item in pvp_items.pvp_items('reach', 1, True)}
+        self.assertIn('strict|reach|survival|6.7#0', keys)
+        with self.assertRaises(SystemExit):
+            pvp_items.pvp_items('nonsense', 1, False)
+        self.assertEqual([i['key'] for i in pvp_items.pvp_items('weapon|hand', 1, False)], ['weapon|hand#0'])
+
+
+class PvpFixture(unittest.TestCase):
+    def test_server_packets_decode_to_values(self):
+        motion = varint(2) + struct.pack('<3f', 0.4, 0.4, 0.0) + varint(273)
+        self.assertEqual(pvp_fixture.decode_out(40, motion),
+                         {'packet': 'SetActorMotion', 'about': 2, 'motion': [0.400000006, 0.400000006, 0.0],
+                          'tick': 273})
+        self.assertEqual(pvp_fixture.decode_out(27, bytes([2, 2, 4, 0])),
+                         {'packet': 'ActorEvent', 'about': 2, 'event': 2, 'data': 2})
+        animate = varint(4) + varint(2) + struct.pack('<f', 55.0)
+        self.assertEqual(pvp_fixture.decode_out(44, animate),
+                         {'packet': 'Animate', 'about': 2, 'action': 4, 'data': 55.0})
+        sound = varint(13) + b'attack.strong' + struct.pack('<3f', 0.5, -59.1, 0.5)
+        self.assertEqual(pvp_fixture.decode_out(123, sound)['sound'], 'attack.strong')
+
+    def test_an_attack_joins_its_lines_input_or_the_next(self):
+        result = {'spec': {'script': {'5': 'a0>1 i0 i1 i2', '6': 'i0 a0>1 i1 i2', '8': 'o0=select:3 a0>1 i0'}},
+                  'names': ['A', 'B', 'C'], 'first_tick': 0, 'events': [], 'fired': []}
+        consumption = {'A': {5: 6, 7: 8, 8: 10}, 'B': {}, 'C': {}}
+        attempts = pvp_fixture.attempts_of(result, consumption, [])
+        self.assertEqual([(a['joins'], a['consumed'], a['slot']) for a in attempts],
+                         [(5, 6, 0), (7, 8, 0), (8, 10, 3)])
+        self.assertEqual([a['t'] for a in attempts], [5, 7, 9])
+
+    def test_landed_hits_keep_bds_order_within_a_tick(self):
+        result = {'spec': {'script': {'5': 'a0>1 i0 a2>1 i2 i1'}}, 'names': ['A', 'B', 'C'], 'first_tick': 0,
+                  'events': [], 'fired': []}
+        consumption = {'A': {5: 6}, 'B': {}, 'C': {5: 6}}
+        hits = [{'t': 6, 'attacker': 'A', 'victim': 'B'}, {'t': 6, 'attacker': 'C', 'victim': 'B'}]
+        attempts = pvp_fixture.attempts_of(result, consumption, hits)
+        self.assertEqual([(a['attacker'], a['landed']) for a in attempts], [('A', 0), ('C', 1)])
+        attempts = pvp_fixture.attempts_of(result, consumption, hits[1:])
+        self.assertEqual([(a['attacker'], a['landed'], a['t']) for a in attempts], [('C', 0, 6), ('A', None, 6)])
+
+    def test_trials_take_their_own_run_of_marked_inputs(self):
+        rows = [(-89.99, [], 1, [0.0, 0.0, 0.0]), (-89.98, ['Sprinting'], 2, [0.0, 0.0, 0.0]),
+                (-90.0, [], 3, [0.0, 0.0, 0.0]), (-89.99, [], 4, [0.0, 0.0, 0.0]),
+                (-89.98, [], 5, [0.0, -0.0784, 0.0])]
+        inputs = pvp_fixture.Inputs(rows)
+        self.assertEqual({line: row[2] for line, row in inputs.take(-90.0, 40).items()}, {0: 1, 1: 2})
+        self.assertEqual({line: row[2] for line, row in inputs.take(-90.0, 40).items()}, {0: 4, 1: 5})
+        self.assertEqual(inputs.by_tick[2][1], ['Sprinting'])
 
 
 if __name__ == '__main__':

@@ -154,14 +154,13 @@ pub fn player_attack(
     }
 }
 
-/// Damage of a player's melee hit with `held` (`None`: empty hand): the
-/// item's measured BDS damage plus 1.25 per Sharpness level, truncated to
-/// whole points as BDS deals it (a diamond sword with Sharpness I-V hits for
-/// 9, 10, 11, 13 and 14, not 9.25 ... 14.25; `docs/quirks/bds.md`).
+/// Damage of a player's melee hit with `held` (`None`: empty hand), on a mob
+/// or a player: the item's measured BDS damage plus Sharpness
+/// ([`unastar_rules::melee::melee_damage`]; `docs/quirks/bds.md`).
 pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
     let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
     let sharpness = held.map_or(0, |stack| stack.enchantment_level(Enchantment::Sharpness));
-    (base + 1.25 * f32::from(sharpness)).floor()
+    unastar_rules::melee::melee_damage(base, sharpness)
 }
 
 /// The eye position of a player that may attack this tick.

@@ -37,6 +37,7 @@ import circuits  # noqa: E402
 import coral  # noqa: E402
 import native  # noqa: E402
 import placements  # noqa: E402
+import pvp_items  # noqa: E402
 import random_ticks  # noqa: E402
 import scenarios  # noqa: E402
 
@@ -48,6 +49,10 @@ PLAYER = 'BDSSweep'
 WATCHER = 'BDSWatch'
 # The second client of `--observer` (a second viewer of the job's actors).
 OBSERVER_NAME = 'BDSOther'
+# The lockstep clients of `pvp` after the sweep player (B, then C).
+PVP_OTHERS = ['BDSOther', 'BDSThird']
+PVP_SETUP = ['gamerule pvp true', 'gamerule keepinventory true', 'gamerule naturalregeneration false',
+             'gamerule doimmediaterespawn true', 'gamerule falldamage true']
 STOP_REQUEST = 'stop.request'
 # Superflat: grass top at y=-61, so the player stands at y=-60.
 # `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
@@ -676,6 +681,9 @@ def build_job(args, out: Path) -> dict:
             raise SystemExit('range needs --observer')
         job['kind'] = 'send_range'
         job['items'] = range_items(args)
+    elif args.kind == 'pvp':
+        job.update(others=PVP_OTHERS, pvp_setup=PVP_SETUP,
+                   items=pvp_items.pvp_items(args.items, args.repeats, args.entity_interactions_strict))
     if args.observer:
         job['observer'] = OBSERVER_NAME
     return job
@@ -685,7 +693,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'armor-wear', 'attack',
                                          'fuel', 'scenarios', 'placements', 'item-blocks', 'knockback',
-                                         'knockback-reload', 'range', 'bonus', 'walk'])
+                                         'knockback-reload', 'range', 'bonus', 'walk', 'pvp'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -717,6 +725,9 @@ def main() -> int:
     parser.add_argument('--tick-distance', type=int, default=4, help='server simulation distance in chunks (4-12)')
     parser.add_argument('--difficulty', default='easy', choices=['easy', 'normal', 'hard'],
                         help='knockback, knockback-reload, bonus: the difficulty set before the job')
+    parser.add_argument('--repeats', type=int, default=3, help='pvp: runs of each item')
+    parser.add_argument('--entity-interactions-strict', action='store_true',
+                        help='pvp: run BDS with server-authoritative-entity-interactions-strict=true')
     parser.add_argument('--keep-world', action='store_true',
                         help='copy the world to <out>/world after BDS stops (it is deleted otherwise)')
     parser.add_argument('--world-from', type=Path,
@@ -757,6 +768,11 @@ def main() -> int:
     properties = bds_runtime.base_properties(
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty=difficulty,
         default_player_permission_level='operator', **distances)
+    if args.kind == 'pvp':
+        # Three lockstep clients; strict entity interactions on request.
+        properties['max-players'] = 1 + len(PVP_OTHERS)
+        properties['server-authoritative-entity-interactions-strict'] = str(
+            args.entity_interactions_strict).lower()
     env = {'BDS_SWEEP_JOB': str(job_path),
            # One capture folder per run: the capture plugin stops BDS when its
            # files exist, which would end every resumed run.
@@ -774,6 +790,10 @@ def main() -> int:
         # The client records both directions: BDS's answer to every click,
         # the stack descriptors BDS sends.
         client_command += ['--capture-dir', str(out / 'client-capture')]
+    if args.kind == 'pvp':
+        # One process for all three, so the plugin orders their packets.
+        for other in PVP_OTHERS:
+            client_command += ['--also', other]
     watcher_command = None
     if job.get('watcher'):
         watcher_command = [str(args.client), '--addr', bds_runtime.ADDR, '--name', job['watcher'],
