@@ -5625,6 +5625,440 @@
       ]
     },
     {
+      "description": "Random seed 14 (movement-diff random): found that a sprint needs at least 0.8 forward to start.",
+      "inputs": [
+        {
+          "ticks": 5
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 4,
+          "turn": 6.0,
+          "yaw": 75.0
+        },
+        {
+          "forward": -1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 10
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 11,
+          "yaw": 150.0
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 11
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 10
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 11
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 6,
+          "yaw": 60.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 9
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_14",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:soul_sand"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [0, 101, 10],
+          "to": [2, 101, 12]
+        },
+        {
+          "block": {
+            "name": "minecraft:ice",
+            "states": {}
+          },
+          "from": [0, 102, 4],
+          "to": [0, 102, 6]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [-1, 102, 7],
+          "to": [-1, 102, 9]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [-2, 101, 6],
+          "to": [-2, 101, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:honey_block",
+            "states": {}
+          },
+          "from": [3, 101, 6],
+          "to": [3, 101, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [-3, 101, 2],
+          "to": [-2, 101, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {
+              "minecraft:vertical_half": "top"
+            }
+          },
+          "from": [4, 102, 6],
+          "to": [6, 102, 8]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 0
+            }
+          },
+          "from": [-3, 102, 1],
+          "to": [-3, 103, 3]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 135 (movement-diff random): found that a sprint stopping with the jump gives the jump no push.",
+      "inputs": [
+        {
+          "ticks": 3
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.30000001192092896,
+          "ticks": 3,
+          "turn": -3.0,
+          "yaw": 0.0
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 7,
+          "yaw": -82.5
+        },
+        {
+          "forward": -1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 10
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 0.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": 1.0,
+          "ticks": 9,
+          "yaw": 0.0
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_135",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:stone"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:smooth_stone_slab",
+            "states": {}
+          },
+          "from": [-3, 101, 2],
+          "to": [-2, 101, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [-4, 101, 3],
+          "to": [-3, 101, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:blue_ice",
+            "states": {}
+          },
+          "from": [-4, 101, 2],
+          "to": [-3, 102, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:slime",
+            "states": {}
+          },
+          "from": [-3, 100, 1],
+          "to": [-2, 101, 3]
+        },
+        {
+          "block": {
+            "name": "minecraft:blue_ice",
+            "states": {}
+          },
+          "from": [-4, 102, 5],
+          "to": [-3, 102, 7]
+        },
+        {
+          "block": {
+            "name": "minecraft:stone",
+            "states": {}
+          },
+          "from": [-1, 101, 9],
+          "to": [1, 102, 10]
+        }
+      ]
+    },
+    {
+      "description": "Random seed 66 (movement-diff random): a sneak let go while pressing forward on ice; not matched yet.",
+      "inputs": [
+        {
+          "ticks": 4
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": true,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 7,
+          "turn": 6.0,
+          "yaw": -7.5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 11,
+          "yaw": 22.5
+        },
+        {
+          "forward": 0.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": -1.0,
+          "ticks": 13,
+          "yaw": 15.0
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 13,
+          "yaw": -7.5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 3
+        },
+        {
+          "forward": 0.5,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.0,
+          "ticks": 8
+        },
+        {
+          "forward": 1.0,
+          "jump": true,
+          "sneak": false,
+          "sprint": true,
+          "strafe": -1.0,
+          "ticks": 5
+        },
+        {
+          "forward": 1.0,
+          "jump": false,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0.30000001192092896,
+          "ticks": 7,
+          "yaw": -15.0
+        },
+        {
+          "ticks": 10
+        }
+      ],
+      "name": "random_66",
+      "start": {
+        "feet": [0.5, 100, -2.5]
+      },
+      "world": [
+        {
+          "block": {
+            "name": "minecraft:ice"
+          },
+          "from": [-8, 99, -8],
+          "to": [8, 99, 40]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [-1, 102, 7],
+          "to": [-1, 102, 9]
+        },
+        {
+          "block": {
+            "name": "minecraft:web",
+            "states": {}
+          },
+          "from": [2, 100, 9],
+          "to": [2, 100, 10]
+        },
+        {
+          "block": {
+            "name": "minecraft:packed_ice",
+            "states": {}
+          },
+          "from": [-2, 101, 3],
+          "to": [0, 101, 4]
+        },
+        {
+          "block": {
+            "name": "minecraft:soul_sand",
+            "states": {}
+          },
+          "from": [-2, 100, 4],
+          "to": [-1, 100, 5]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 0
+            }
+          },
+          "from": [0, 101, 10],
+          "to": [1, 101, 10]
+        },
+        {
+          "block": {
+            "name": "minecraft:trapdoor",
+            "states": {}
+          },
+          "from": [-2, 101, 10],
+          "to": [0, 102, 10]
+        },
+        {
+          "block": {
+            "name": "minecraft:oak_stairs",
+            "states": {
+              "weirdo_direction": 2
+            }
+          },
+          "from": [2, 100, 4],
+          "to": [3, 100, 4]
+        }
+      ]
+    },
+    {
       "name": "bubble_column_up",
       "description": "Ride an upward bubble column (water over soul sand, formed by BDS). Played last: the column leaves water in the second layer, which clearing the area does not remove.",
       "world": [

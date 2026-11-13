@@ -76,6 +76,8 @@ const SNEAK_IMPULSE: f32 = 0.3;
 /// Default `minecraft:movement`, and its sprinting value (×1.3).
 pub const WALK_SPEED: f32 = 0.1;
 pub const SPRINT_MULTIPLIER: f32 = 1.3;
+/// The forward part of the move vector a sprint needs to start.
+const SPRINT_START_FORWARD: f32 = 0.8;
 /// Penetrations this small count as touching.
 const EPSILON: f32 = 1.0e-7;
 /// Water: input acceleration, drag, sink rate, jump push.
@@ -610,8 +612,12 @@ pub fn update_state(
     // The sprint key starts a sprint; it lasts while the player keeps moving
     // forward without sneaking (BDS answers a stop sent while still moving
     // forward with the unchanged sprint).
+    // A sprint starts only with the move vector at least 0.8 forward (BDS
+    // 1.26.51, `random_14`: a sprint key held with half a forward vector
+    // walks), and lasts while it is forward at all.
     let can_sprint = controls.forward > 0.0 && !body.sneaking;
-    let want_sprint = can_sprint && (controls.sprint || body.sprinting);
+    let want_sprint = can_sprint
+        && (body.sprinting || (controls.sprint && controls.forward >= SPRINT_START_FORWARD));
     if want_sprint && !body.sprinting {
         body.sprinting = true;
         body.movement_speed = body.sprint_speed();
@@ -680,7 +686,7 @@ pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Cha
     } else if body.gliding {
         glide_tick(body, controls, terrain);
     } else {
-        land_tick(body, controls, terrain, &mut changes);
+        land_tick(body, controls, terrain, pending.sprint, &mut changes);
     }
     body.fall_distance = if body.on_ground || body.in_water || body.in_lava {
         0.0
@@ -821,7 +827,15 @@ fn landing_block(body: &Body, terrain: &impl Terrain) -> Block {
     }
 }
 
-fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, changes: &mut Changes) {
+/// One tick on land or in the air; `stopping` is whether the sprint stops
+/// after this move.
+fn land_tick(
+    body: &mut Body,
+    controls: &Controls,
+    terrain: &impl Terrain,
+    stopping: bool,
+    changes: &mut Changes,
+) {
     let mut friction = AIR_FRICTION;
     let mut speed = if body.sprinting {
         AIR_SPEED_SPRINTING
@@ -850,7 +864,10 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         }
         body.velocity[1] = body.velocity[1].max(jump);
         body.jump_delay = JUMP_DELAY;
-        if body.sprinting {
+        // A sprint that stops after this move still accelerates as a
+        // sprint, but its jump gets no push (BDS 1.26.51, `random_135`: the
+        // forward key let go with the jump).
+        if body.sprinting && !stopping {
             let yaw = controls.yaw * 0.017_453_292;
             body.velocity[0] -= table_sin(yaw) * SPRINT_JUMP;
             body.velocity[2] += table_cos(yaw) * SPRINT_JUMP;

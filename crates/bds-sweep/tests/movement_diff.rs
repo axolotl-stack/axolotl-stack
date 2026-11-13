@@ -41,6 +41,16 @@ const KNOWN_GAPS: &[(&str, u32, &str)] = &[
         "powder snow's freezing slowdown (a movement modifier growing each tick) is not simulated",
     ),
     (
+        "random_14",
+        54,
+        "4 ULP on x velocity late in a random scenario (soul sand, strafing sprint jumps)",
+    ),
+    (
+        "random_66",
+        12,
+        "a sneak let go while pressing forward on ice still sneaks through that move on BDS, not in unastar; the rule is not found yet",
+    ),
+    (
         "sprint_turn_jump",
         17,
         "1 ULP on x on the landing of a turning sprint jump",
@@ -268,13 +278,18 @@ fn other_bds_runs_give_the_committed_traces() {
     }
     let mut failures = Vec::new();
     for run in &checks.runs {
-        assert_eq!(
-            run.digests.len(),
-            bds.scenarios.len(),
+        // The runs played the corpus of the committed run md-r5-h; scenarios
+        // added from other runs since (the random seeds) are not in them.
+        assert!(
+            run.digests.len() >= 144,
             "{} did not play the whole corpus",
             run.run
         );
-        for (name, trace) in &bds.scenarios {
+        for (name, digest) in &run.digests {
+            let trace = bds
+                .scenarios
+                .get(name)
+                .unwrap_or_else(|| panic!("{name} of {} is not in the committed run", run.run));
             let committed = trace.velocities();
             let velocities_agree = run.velocities.get(name).is_some_and(|theirs| {
                 theirs.iter().all(|(tick, v)| {
@@ -283,7 +298,7 @@ fn other_bds_runs_give_the_committed_traces() {
                         .is_none_or(|ours| ours.0.map(f32::to_bits) == v.0.map(f32::to_bits))
                 })
             });
-            let same = run.digests.get(name) == Some(&trace.digest()) && velocities_agree;
+            let same = *digest == trace.digest() && velocities_agree;
             let listed = run.differs.contains_key(name);
             if same == listed {
                 failures.push(format!(

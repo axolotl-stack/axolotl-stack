@@ -1,6 +1,6 @@
-# Movement differential: BDS 1.26.51, unastar, bedsim
+# Movement differential: BDS 1.26.51, unastar, bedsim, acacia-physics
 
-- **bds**: BDS 1.26.51, run md-r5-h
+- **bds**: BDS 1.26.51, run md-r5-h; random_14, random_135 and random_66 from run md-r5-random
 - **unastar**: unastar_rules::movement
 - **bedsim**: oomph-ac/bedsim v0.1.7-0.20261007160526-9c12b344afde
 - **acacia**: acacia-rs/acacia acacia-physics @ 97ec4c7ce23e5abb7cde1e66026363d3c2e6fbf0
@@ -87,6 +87,9 @@
 | powder_snow_fall | 50 | equal | differs t13 position.y (runner world) | differs t13 position.y | differs t13 position.y | differs t13 position.y | differs t13 position.y |
 | powder_snow_jump | 45 | equal | differs t1 position.x (runner world) | equal | differs t1 position.x | differs t1 position.x | equal |
 | powder_snow_walk_into | 55 | differs t18 position.z | differs t17 position.z (runner world) | differs t38 position.z | differs t17 position.z | differs t17 position.z | differs t18 position.z |
+| random_135 | 45 | equal | differs t6 velocity.z | differs t4 position.x | differs t6 velocity.z | differs t4 position.x | differs t4 position.x |
+| random_14 | 87 | differs t54 velocity.x | differs t2 position.y (runner world) | differs t31 position.x | differs t2 position.y | differs t2 position.y | differs t31 position.x |
+| random_66 | 81 | differs t12 position.x | differs t12 position.x (runner world) | differs t60 position.x | differs t36 velocity.z | differs t12 position.x | differs t12 position.x |
 | scaffolding_climb | 75 | equal | differs t1 position.z (runner world) | differs t36 velocity.y | differs t1 position.z | differs t1 position.z | differs t36 velocity.y |
 | scaffolding_sneak_down | 55 | equal | differs t6 position.y (runner world) | differs t2 position.y | differs t6 position.y | differs t2 position.y | differs t2 position.y |
 | scaffolding_walk_into | 50 | equal | differs t12 position.z (runner world) | equal | differs t12 position.z | differs t12 position.z | equal |
@@ -151,13 +154,13 @@
 | water_walk | 45 | equal | equal | equal | equal | equal | equal |
 | weeping_vines_climb | 65 | equal | differs t1 position.z (runner world) | equal | differs t1 position.z | differs t1 position.z | equal |
 | weeping_vines_walk_into | 50 | equal | differs t12 position.z (runner world) | equal | differs t12 position.z | differs t12 position.z | equal |
-| **equal** | 144 | 134 | 97 | 103 | 90 | 80 | 95 |
+| **equal** | 147 | 135 | 97 | 103 | 90 | 80 | 95 |
 
 ## Runner world fidelity
 
 Scenarios whose world a runner builds differently from unastar's (BDS 1.26.51's shapes and friction). Their divergences above are marked "runner world": they come from the runner, not from the library's physics.
 
-- **bedsim**: 36 scenarios
+- **bedsim**: 38 scenarios
   - `bubble_column_down`: 8 cells, e.g. 0,101,2 minecraft:bubble_column: a plain full cube of friction 0.6 to bedsim only
   - `bubble_column_up`: 9 cells, e.g. 0,100,2 minecraft:soul_sand: a plain full cube of friction 0.6 to bedsim only
   - `cave_vines_climb`: 7 cells, e.g. 0,100,2 minecraft:cave_vines: a plain full cube of friction 0.6 to bedsim only
@@ -172,6 +175,8 @@ Scenarios whose world a runner builds differently from unastar's (BDS 1.26.51's 
   - `powder_snow_fall`: 18 cells, e.g. -1,100,-1 minecraft:powder_snow: a plain full cube of friction 0.6 to bedsim only
   - `powder_snow_jump`: 18 cells, e.g. -1,100,-1 minecraft:powder_snow: a plain full cube of friction 0.6 to bedsim only
   - `powder_snow_walk_into`: 136 cells, e.g. -1,100,3 minecraft:powder_snow: a plain full cube of friction 0.6 to bedsim only
+  - `random_14`: 844 cells, e.g. -1,99,-1 minecraft:soul_sand: a plain full cube of friction 0.6 to bedsim only
+  - `random_66`: 10 cells, e.g. -1,100,4 minecraft:soul_sand: a plain full cube of friction 0.6 to bedsim only
   - `scaffolding_climb`: 5 cells, e.g. 0,100,2 minecraft:scaffolding: a plain full cube of friction 0.6 to bedsim only
   - `scaffolding_sneak_down`: 5 cells, e.g. 0,100,2 minecraft:scaffolding: a plain full cube of friction 0.6 to bedsim only
   - `scaffolding_walk_into`: 5 cells, e.g. 0,100,2 minecraft:scaffolding: a plain full cube of friction 0.6 to bedsim only
@@ -411,6 +416,23 @@ Scenarios whose world a runner builds differently from unastar's (BDS 1.26.51's 
 - `powder_snow_walk_into` unastar vs bedsim: first tick 17 position.z: 2.8308897 vs 2.7 (diff 0.131, 548991 ULP); 39 of 55 ticks differ; largest tick 45 position.z: 5.5341005 vs 2.7 (diff 2.83, 8669837 ULP)
 - `powder_snow_walk_into` acacia vs bedsim: first tick 17 position.z: 2.8308897 vs 2.7 (diff 0.131, 548991 ULP); 39 of 55 ticks differ; largest tick 45 position.z: 5.278599 vs 2.7 (diff 2.58, 8134011 ULP)
 - `powder_snow_walk_into` acacia vs unastar: first tick 18 position.z: 3.0247734 vs 3.0466661 (diff 0.0219, 91825 ULP); 38 of 55 ticks differ; largest tick 45 position.z: 5.278599 vs 5.5341005 (diff 0.256, 535826 ULP)
+- `random_135` bedsim vs bds: first tick 6 velocity.z: 0.117241286 vs 0.1172413 (diff 1.49e-08, 2 ULP); 25 of 45 ticks differ; largest tick 45 position.x: 1.6119807 vs 1.469682 (diff 0.142, 1193688 ULP)
+- `random_135` acacia vs bds: first tick 4 position.x: 0.5438208 vs 0.5429444 (diff 0.000876, 14704 ULP); 42 of 45 ticks differ; largest tick 43 position.z: -1.4736526 vs -1.4970133 (diff 0.0234, 195964 ULP)
+- `random_135` unastar vs bedsim: first tick 6 velocity.z: 0.1172413 vs 0.117241286 (diff 1.49e-08, 2 ULP); 39 of 45 ticks differ; largest tick 45 position.x: 1.469682 vs 1.6119807 (diff 0.142, 1193688 ULP)
+- `random_135` acacia vs bedsim: first tick 4 position.x: 0.5438208 vs 0.5429444 (diff 0.000876, 14704 ULP); 42 of 45 ticks differ; largest tick 45 position.x: 1.4796314 vs 1.6119807 (diff 0.132, 1110226 ULP)
+- `random_135` acacia vs unastar: first tick 4 position.x: 0.5438208 vs 0.5429444 (diff 0.000876, 14704 ULP); 42 of 45 ticks differ; largest tick 43 position.z: -1.4736526 vs -1.4970133 (diff 0.0234, 195964 ULP)
+- `random_14` unastar vs bds: first tick 54 velocity.x: -0.061980594 vs -0.06198058 (diff 1.49e-08, 4 ULP); 23 of 87 ticks differ; largest tick 67 position.z: -3.191203 vs -3.1912036 (diff 4.77e-07, 2 ULP)
+- `random_14` bedsim vs bds: first tick 2 position.y: 101.62001 vs 101.54161 (diff 0.0784, 10276 ULP); 86 of 87 ticks differ; largest tick 3 position.y: 101.62001 vs 101.49501 (diff 0.125, 16384 ULP)
+- `random_14` acacia vs bds: first tick 31 position.x: 0.80518925 vs 0.80529284 (diff 0.000104, 1738 ULP); 57 of 87 ticks differ; largest tick 87 position.x: -2.9781826 vs -4.5773907 (diff 1.6, 5496689 ULP)
+- `random_14` unastar vs bedsim: first tick 2 position.y: 101.54161 vs 101.62001 (diff 0.0784, 10276 ULP); 86 of 87 ticks differ; largest tick 3 position.y: 101.49501 vs 101.62001 (diff 0.125, 16384 ULP)
+- `random_14` acacia vs bedsim: first tick 2 position.y: 101.54161 vs 101.62001 (diff 0.0784, 10276 ULP); 86 of 87 ticks differ; largest tick 87 position.x: -2.9781826 vs -4.6799517 (diff 1.7, 5711775 ULP)
+- `random_14` acacia vs unastar: first tick 31 position.x: 0.80518925 vs 0.80529284 (diff 0.000104, 1738 ULP); 57 of 87 ticks differ; largest tick 87 position.x: -2.9781826 vs -4.5773907 (diff 1.6, 5496689 ULP)
+- `random_66` unastar vs bds: first tick 12 position.x: 0.4913932 vs 0.497418 (diff 0.00602, 202158 ULP); 70 of 81 ticks differ; largest tick 81 position.z: 7.0467353 vs 6.9122996 (diff 0.134, 281932 ULP)
+- `random_66` bedsim vs bds: first tick 12 position.x: 0.4913932 vs 0.497418 (diff 0.00602, 202158 ULP); 70 of 81 ticks differ; largest tick 81 position.z: 7.0467353 vs 6.9122996 (diff 0.134, 281932 ULP)
+- `random_66` acacia vs bds: first tick 60 position.x: -2.4266887 vs -2.4263258 (diff 0.000363, 1522 ULP); 22 of 81 ticks differ; largest tick 81 position.z: 6.6787534 vs 6.9122996 (diff 0.234, 489782 ULP)
+- `random_66` unastar vs bedsim: first tick 36 velocity.z: 0.011441614 vs 0.011441613 (diff 9.31e-10, 1 ULP); 33 of 81 ticks differ; largest tick 48 position.z: 0.296633 vs 0.29663286 (diff 1.49e-07, 5 ULP)
+- `random_66` acacia vs bedsim: first tick 12 position.x: 0.497418 vs 0.4913932 (diff 0.00602, 202158 ULP); 70 of 81 ticks differ; largest tick 81 position.z: 6.6787534 vs 7.0467353 (diff 0.368, 771714 ULP)
+- `random_66` acacia vs unastar: first tick 12 position.x: 0.497418 vs 0.4913932 (diff 0.00602, 202158 ULP); 70 of 81 ticks differ; largest tick 81 position.z: 6.6787534 vs 7.0467353 (diff 0.368, 771714 ULP)
 - `scaffolding_climb` bedsim vs bds: first tick 1 position.z: 3.3 vs 2.5 (diff 0.8, 3355443 ULP); 75 of 75 ticks differ; largest tick 40 position.y: 101.741295 vs 105.37005 (diff 3.63, 475628 ULP)
 - `scaffolding_climb` acacia vs bds: first tick 36 velocity.y: -0.15 vs -0.14700001 (diff 0.003, 201326 ULP); 9 of 75 ticks differ; largest tick 63 position.y: 101.92001 vs 101.62001 (diff 0.3, 39322 ULP)
 - `scaffolding_climb` unastar vs bedsim: first tick 1 position.z: 2.5 vs 3.3 (diff 0.8, 3355443 ULP); 75 of 75 ticks differ; largest tick 40 position.y: 105.37005 vs 101.741295 (diff 3.63, 475628 ULP)
@@ -526,7 +548,7 @@ Scenarios whose world a runner builds differently from unastar's (BDS 1.26.51's 
 
 ## How close are bedsim and acacia-physics to BDS?
 
-On the 144-scenario corpus (committed BDS run md-r5-h), unastar matches BDS bit for bit in 134
+On the 147-scenario corpus (committed BDS run md-r5-h, and three random seeds from md-r5-random), unastar matches BDS bit for bit in 135
 scenarios, bedsim in 97 and acacia-physics in 103.
 
 **bedsim's runner world.** In 36 scenarios bedsim's runner builds a different world from
@@ -558,3 +580,31 @@ The round-4 assessment of acacia still holds on the old scenarios: three undocum
 from bedsim (the diagonal move vector, the sprint's end on key release, the tiny-velocity
 cut-off). On the new families acacia does better than bedsim: honey's slide, sweet berry bushes,
 the sneak timing.
+
+## Velocity on every input
+
+BDS corrects a far-reporting client at most every sixth input, so the committed run reads BDS's
+velocity on one input in six. A run of 30 scenarios, each shifted by one to five idle inputs
+(md-r5-shift), moved the correction phase over the same movement. In 29 of them the shifted
+copies moved exactly as the originals, and together they give BDS's velocity on 1450 of their
+1484 inputs (`crates/bds-sweep/testdata/bds-1.26.51-movement-diff-velocities.json`).
+`soul_sand_walk` did not: its idle start sinks into the soul sand. unastar's velocity equals
+BDS's on every one of those inputs. Velocity cannot be read exactly from consecutive positions:
+the wire position is rounded to `f32` after the 1.62001 offset is added, which loses several ULPs
+at y 100.
+
+## Randomised testing
+
+`movement-diff random --first 1 --last 150` generated 150 random scenarios: random floors (stone,
+ice, blue ice, slime, soul sand), random boxes of 16 kinds of blocks, and random keys, yaw and
+turns. They were played on BDS as run md-r5-random.
+
+- The setup check rejected 48 of them. The generator had placed carpets and snow layers in the
+  air, and BDS dropped them. Both are now off the generator's list.
+- On the 102 that played as written, unastar first matched BDS in 7. Two rules found there are
+  fixed and committed as regression scenarios:
+  - a sprint needs at least 0.8 of the move vector forward to start (`random_14`);
+  - a jump in the tick a sprint stops gets no push (`random_135`).
+- unastar now matches 10 of the 102. Most of the rest first differ on the input where the keys
+  change, often right after a sneak is let go (`random_66`, kept as a known gap). The rule is
+  still open, and fixing it is the next round's main work.

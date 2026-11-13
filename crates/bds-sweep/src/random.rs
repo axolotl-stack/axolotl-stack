@@ -34,7 +34,9 @@ impl Rng {
 
 /// Blocks a random world is built from: their states are ones BDS keeps as
 /// placed (no neighbour-computed connections, nothing that falls, flows or
-/// needs support), each as `(name, states)`.
+/// needs support: the first batch of 150 seeds placed carpets and snow in
+/// the air, and the setup check rejected 48 of them), each as
+/// `(name, states)`.
 const BLOCKS: &[(&str, &str)] = &[
     ("minecraft:stone", "{}"),
     ("minecraft:glass", "{}"),
@@ -51,8 +53,6 @@ const BLOCKS: &[(&str, &str)] = &[
     ("minecraft:slime", "{}"),
     ("minecraft:honey_block", "{}"),
     ("minecraft:soul_sand", "{}"),
-    ("minecraft:white_carpet", "{}"),
-    ("minecraft:snow_layer", r#"{"height": 3}"#),
     ("minecraft:trapdoor", "{}"),
     ("minecraft:web", "{}"),
 ];
