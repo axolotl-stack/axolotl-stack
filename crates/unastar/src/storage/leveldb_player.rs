@@ -79,20 +79,6 @@ impl PlayerProvider for LevelDBPlayerProvider {
         .map_err(|e| StorageError::Database(format!("Join error: {e}")))?
     }
 
-    async fn delete(&self, uuid: Uuid) -> StorageResult<()> {
-        let db = self.db.clone();
-        let key = uuid.as_bytes().to_vec();
-
-        task::spawn_blocking(move || {
-            let write_opts = WriteOptions::new();
-            db.delete(&key, &write_opts)
-                .map_err(|e| StorageError::Database(e.to_string()))?;
-            Ok(())
-        })
-        .await
-        .map_err(|e| StorageError::Database(format!("Join error: {e}")))?
-    }
-
     async fn close(&self) -> StorageResult<()> {
         // Database is closed when Arc is dropped
         Ok(())

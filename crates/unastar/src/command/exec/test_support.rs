@@ -1,10 +1,10 @@
 //! A headless game server with players for executor tests.
 
-use crate::command::{CommandOutput, CommandSource, Operator, execute};
+use crate::command::{CommandOutput, Operator};
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, Experience, GameMode, HeldSlot, MainInventory, OffhandSlot, Player,
+    ArmourInventory, Experience, GameMode, Health, HeldSlot, MainInventory, OffhandSlot, Player,
     PlayerName, PlayerSession, PlayerUi, PlayerUuid, RuntimeEntityId,
 };
 use crate::server::game::{GameServer, ServerConfig};
@@ -48,7 +48,8 @@ impl Harness {
         self.server.ecs.world_mut()
     }
 
-    /// A survival player with empty inventories, feet at (3.5, 64, 3.5).
+    /// A survival player with full health and empty inventories, feet at
+    /// (3.5, 64, 3.5).
     pub fn player(&mut self, name: &str, operator: bool) -> Entity {
         self.player_at(name, operator, DVec3::new(3.5, 64.0, 3.5))
     }
@@ -76,6 +77,7 @@ impl Harness {
                 OffhandSlot::default(),
                 PlayerUi::default(),
                 HeldSlot(0),
+                Health::default(),
             ))
             .id();
         if operator {
@@ -85,11 +87,10 @@ impl Harness {
         entity
     }
 
-    /// Runs a command as `player`.
+    /// Runs a command as `player`, as the server does for a typed command
+    /// (with the operators' broadcast).
     pub fn run(&mut self, player: Entity, line: &str) -> CommandOutput {
-        let world = self.world();
-        let source = CommandSource::player(world, player).expect("a player");
-        execute(world, source, line)
+        crate::command::run_as_player(self.world(), player, line).expect("a player")
     }
 
     /// Everything sent to `player` so far.

@@ -215,11 +215,11 @@
 #    elytra with 2 durability left, gliding again.
 3760 /replaceitem entity @s slot.armor.chest 0 elytra
 3765 /tp @s 0.5 90 0.5 -90 0
-3770 glide
+3770 flags Startgliding
 4160 /tp @s 0.5 -60 0.5 -90 0
 4170 /replaceitem entity @s slot.armor.chest 0 elytra 1 430
 4172 /tp @s 0.5 90 0.5 -90 0
-4175 unglide
-4180 glide
+4175 flags Stopgliding
+4180 flags Startgliding
 4360 /tp @s 0.5 -60 0.5 -90 0
 4370 exit

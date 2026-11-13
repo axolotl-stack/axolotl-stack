@@ -653,10 +653,22 @@ pub fn wildflowers_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
 /// facing on any solid ground except leaves (vanilla litter needs a full top
 /// face; the scatter around a tree reaches 2 blocks up, which must not put
 /// litter on the canopy).
+///
+/// Placing litter takes no draws from the feature random: in the natural
+/// seed-12345 BDS world the tree chain after a 96-iteration litter scatter
+/// lines up only that way (see "Roofed forest draw order" in the codegen
+/// README), while BDS litter still shows every amount and facing. Which
+/// random supplies them is unmeasured; we derive them from the position.
 pub fn leaf_litter_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
-    place_segmented(ctx, pos, &LEAF_LITTER, |id| {
-        props::is_solid(id) && !bb::leaves(id)
-    })
+    let below = ctx.get(pos.below());
+    if !bb::air(ctx.get(pos)) || !props::is_solid(below) || bb::leaves(below) {
+        return None;
+    }
+    let seed = (pos.x.wrapping_mul(3_129_871) ^ pos.z.wrapping_mul(116_129_781) ^ pos.y) as u32;
+    let mut states = BedrockRandom::new(seed);
+    let growth = states.next_int(4) as usize;
+    let facing = states.next_int(4) as usize;
+    ctx.set(pos, LEAF_LITTER[growth][facing]).then_some(pos)
 }
 
 // ---------------------------------------------------------------------------

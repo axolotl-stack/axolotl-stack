@@ -8,6 +8,14 @@ use super::blocks::{
 use super::random::{BitSource, FeatureRandom, WorldgenRandom};
 use super::values::weighted_pick;
 
+/// Bees a generated nest stores (`BeehiveDecorator`): each occupant's
+/// `ticks_in_hive`, in storage order. Nests hold two or three bees.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HiveOccupants {
+    pub count: u8,
+    pub ticks: [u16; 3],
+}
+
 /// Block entity contents produced by generation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlockEntityData {
@@ -17,27 +25,39 @@ pub struct BlockEntityData {
     pub spawner_entity: Option<&'static str>,
     /// Full Java template identity, typed source NBT and native save normalization.
     pub template_nbt: Option<crate::structures::native_actor::TemplateActor>,
+    /// Bees stored in a generated nest.
+    pub bees: Option<HiveOccupants>,
+    /// End gateway exit position and whether teleports land exactly on it.
+    pub gateway_exit: Option<(BlockPos, bool)>,
 }
 
 impl BlockEntityData {
+    /// No generated contents.
+    pub const NONE: Self = Self {
+        loot: None,
+        spawner_entity: None,
+        template_nbt: None,
+        bees: None,
+        gateway_exit: None,
+    };
+
     /// Loot table only.
     pub const fn loot(table: &'static str, seed: i64) -> Self {
         Self {
             loot: Some((table, seed)),
-            spawner_entity: None,
-            template_nbt: None,
+            ..Self::NONE
         }
     }
 
     /// Spawner entity only.
     pub const fn spawner(entity: &'static str) -> Self {
         Self {
-            loot: None,
             spawner_entity: Some(entity),
-            template_nbt: None,
+            ..Self::NONE
         }
     }
 }
+
 /// Java `WorldGenLevel` as seen by features, in Java block-state space.
 ///
 /// Implemented by the generator runtime over the 3x3 decoration region. Reads

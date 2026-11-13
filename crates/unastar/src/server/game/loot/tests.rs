@@ -37,7 +37,7 @@ fn counts(name: &str, ctx: &LootContext<'_>, seeds: u64) -> Vec<Vec<LootDrop>> {
 #[test]
 fn stone_drops_cobblestone_unless_silk_touched() {
     let pick = stack("minecraft:iron_pickaxe", 1);
-    let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
+    let silk = with_enchantments(&pick, [(Enchantment::SilkTouch, 1)]);
     let mut rng = StdRng::seed_from_u64(1);
     let plain = roll(
         table("blocks/stone"),
@@ -67,7 +67,7 @@ fn stone_drops_cobblestone_unless_silk_touched() {
 #[test]
 fn fortune_multiplies_ore_drops_within_vanilla_bounds() {
     let pick = stack("minecraft:iron_pickaxe", 1);
-    let fortune = with_enchantments(&pick, &[(Enchantment::Fortune, 3)]);
+    let fortune = with_enchantments(&pick, [(Enchantment::Fortune, 3)]);
     let plain = counts(
         "blocks/diamond_ore",
         &block_ctx("minecraft:diamond_ore", Some(&pick)),
@@ -192,8 +192,8 @@ fn crops_drop_produce_only_when_mature() {
 #[test]
 fn block_tables_only_use_supported_features() {
     let pick = stack("minecraft:diamond_pickaxe", 1);
-    let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
-    let fortune = with_enchantments(&pick, &[(Enchantment::Fortune, 3)]);
+    let silk = with_enchantments(&pick, [(Enchantment::SilkTouch, 1)]);
+    let fortune = with_enchantments(&pick, [(Enchantment::Fortune, 3)]);
     let shears = stack("minecraft:shears", 1);
     let registry = BlockRegistry::vanilla();
     let mut items = crate::registry::ItemRegistry::new();

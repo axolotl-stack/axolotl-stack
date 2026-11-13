@@ -23,6 +23,28 @@ the BDS fidelity fixture proves compact spellings, comparison aliases and
 unknown-filter false behaviour. Owning contexts must separately prove facts
 and subject resolution, including non-actor subjects.
 
+## Enchantments
+
+`ids::Enchantment` is the workspace's one enchantment type (decision
+[0052](../../docs/decisions/0052-generate-one-enchantment-type.md)), generated
+by `build/enchantments.rs`. Ids and names come from the BDS 1.26.51
+AvailableCommands capture (`unastar-data/output/available_commands.json`, enum
+`Enchant`, id = index); the per-enchantment rules (weights, slots, costs,
+exclusive groups, lists, treasure, max levels, lang keys) come from
+`unastar-data/data/measured/enchantments.json`. The build fails when the
+capture disagrees with Mojang's bedrock-protocol-docs `Enchant__Type`, the
+vanilla `mojang-enchantments.json` data module or `en_US.lang`, or when the data
+file misses or adds an enchantment. To change a rule, edit the data file;
+never add a Rust table or a name `match`.
+
+Conversions: checked `TryFrom<i16>` (`UnknownEnchantment::Id`),
+`From<Enchantment> for i16`, `FromStr` accepting `sharpness`,
+`minecraft:sharpness` and the vanilla aliases (`bow_infinity`) and rejecting
+other namespaces (`UnknownEnchantment::Name`), `Display` and serde as the
+`minecraft:` identifier. `ids::Enchantments` is a per-item level table indexed
+by the enum; `enchanting` holds random enchanting and the add-to-item rule over
+ordered `EnchantmentInstance` lists.
+
 ## Events
 
 `EventNode` parses sequence/randomize/first_valid trees and leaf actions.
@@ -78,8 +100,13 @@ cargo clippy -p unastar-rules --all-targets --all-features -- -D warnings
 owned typed data. `LootTables` accepts rows/overrides before it is shared
 immutably. `loot::roll(&tables, &table, &dyn LootContext, &mut impl rand::Rng)`
 returns owned `LootDrop { item_id, count, data, nbt }`; callers construct stacks
-through their item registry. `LootContext` supplies tool identity, pre-resolved
-enchantment ids, block-state matching, player-kill and looting facts. No ECS or
+through their item registry. `LootContext` supplies tool identity, the tool's
+level of an `Enchantment`, block-state matching, player-kill and looting facts.
+Enchantment names in `match_tool`, `table_bonus`, `apply_bonus` and
+`specific_enchants` decode through `Enchantment`'s serde at load: an unknown
+name is a `ParseError` naming the table, so the embedded vanilla tables fail the
+`unastar-data` build. `specific_enchants` is decoded but not rolled yet
+(`Unsupported`). No ECS or
 item-stack implementation is imported here.
 
 Each `LootFunction` retains its typed `conditions` and `kind`; guards run before

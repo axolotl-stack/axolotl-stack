@@ -159,7 +159,8 @@ fn process_auth_input_block_actions(
                     event_buffer.push(ServerEvent::PlayerStartBreak {
                         entity: player_entity,
                         position,
-                        face: 0,
+                        // Checked to be 0..=5 above.
+                        face: face as u8,
                     });
                 }
                 if !creative {
@@ -546,7 +547,6 @@ enum BlockUse {
 /// An interactive block's `use` (crafting table, container) runs before item
 /// placement unless the player is sneaking with an item in hand.
 fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
-    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let block_use = block_at(world, clicked).and_then(|runtime_id| {
         let entry = world
             .get_resource::<super::types::BlockRegistryResource>()?
@@ -559,15 +559,22 @@ fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<
                 .map(|_| BlockUse::Container)
         }
     })?;
+    (!sneaking_with_item(world, entity)).then_some(block_use)
+}
+
+/// A player sneaking with an item in hand places it (or uses it) instead of
+/// using the clicked block.
+fn sneaking_with_item(world: &World, entity: Entity) -> bool {
+    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let sneaking = world
         .get::<PlayerState>(entity)
         .is_some_and(|state| state.sneaking);
-    let holding = world
-        .get::<HeldSlot>(entity)
-        .zip(world.get::<MainInventory>(entity))
-        .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
-        .is_some_and(|stack| !stack.is_empty());
-    (!(sneaking && holding)).then_some(block_use)
+    sneaking
+        && world
+            .get::<HeldSlot>(entity)
+            .zip(world.get::<MainInventory>(entity))
+            .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
+            .is_some_and(|stack| !stack.is_empty())
 }
 
 /// Resolve placeable content exclusively from the server's selected stack.
@@ -588,10 +595,13 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     if stack.count > item.max_stack_size() {
         return None;
     }
-    let block = world
+    let registry = &world
         .get_resource::<super::types::BlockRegistryResource>()?
-        .0
-        .get_by_name(stack.item_id())?;
+        .0;
+    let block = super::placement::item_block_override(stack.item_id())
+        .and_then(|name| registry.get_by_name(name))
+        .or_else(|| registry.get_by_name(stack.item_id()))
+        .or_else(|| super::placement::item_placed_block(registry, stack.item_id()))?;
     Some((block.default_state_id, stack, item.network_id()))
 }
 
@@ -635,6 +645,8 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             entity,
             position,
             block_id,
+            clicked,
+            face,
             ..
         } => {
             let upper = if can_interact(world, *entity, *position) {
@@ -646,11 +658,62 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 reject_block_event(world, event);
                 return;
             };
-            place_block(world, position.0, position.1, position.2, *block_id);
+            let pos = IVec3::new(position.0, position.1, position.2);
+            let held_block = held_block(world, *entity).map(|(_, stack, _)| stack.runtime_id);
+            let merged_slab = block_at(world, *position)
+                .is_some_and(|current| current != *blocks::AIR)
+                && upper.is_none()
+                && world
+                    .get_resource::<super::types::BlockRegistryResource>()
+                    .and_then(|r| r.0.get_by_runtime_id(*block_id))
+                    .is_some_and(|placed| {
+                        placed.string_id.ends_with("double_slab")
+                            || placed.string_id.contains("double_cut_copper_slab")
+                    });
+            let onto = block_at(world, *position)
+                .filter(|current| *current != *blocks::AIR)
+                .and_then(|current| {
+                    let registry = &world
+                        .get_resource::<super::types::BlockRegistryResource>()?
+                        .0;
+                    Some(registry.get_by_runtime_id(current)?.string_id.clone())
+                });
+            let held_item = held_item(world, *entity).map(|stack| stack.item_id().to_owned());
+            set_block(world, pos, *block_id, false);
             if let Some((above, upper_state)) = upper {
-                place_block(world, above.x, above.y, above.z, upper_state);
+                set_block(world, above, upper_state, false);
             }
-            super::containers::placed(world, IVec3::new(position.0, position.1, position.2));
+            // BDS plays a bed's place sound at its head (a straw bed's at its
+            // foot).
+            let sound_at = match upper {
+                Some((head, head_state))
+                    if is_bed(world, head_state) && named(world, head_state, "minecraft:bed") =>
+                {
+                    head
+                }
+                _ => pos,
+            };
+            let clicked_pos = IVec3::new(clicked.0, clicked.1, clicked.2);
+            let measured = held_item.as_deref().is_some_and(|item| {
+                super::place_sounds::play(
+                    world,
+                    item,
+                    *block_id,
+                    pos,
+                    onto.as_deref(),
+                    clicked_pos,
+                    *face,
+                )
+            });
+            if !measured {
+                place_sound(world, sound_at, *block_id, held_block, merged_slab);
+            }
+            super::containers::placed(world, pos);
+            super::block_actors::placed(world, *entity, pos);
+            if let Some((other, _)) = upper {
+                super::block_actors::placed(world, *entity, other);
+            }
+            super::block_use::placed(world, pos);
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -667,18 +730,131 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
                 *item = item.grow(-1);
             }
             super::inventory::resync_inventory(world, *entity);
-            correct_block(world, *entity, *position);
+            click_corrections(
+                world,
+                *entity,
+                IVec3::new(clicked.0, clicked.1, clicked.2),
+                *face,
+            );
         }
         _ => {}
+    }
+}
+
+/// The block corrections BDS sends the clicking player after every block
+/// click, placed or refused: the clicked block and the block on the clicked
+/// face, each followed by the blocks above and below it
+/// (`testdata/bds-placements.json`).
+fn click_corrections(world: &World, entity: Entity, clicked: IVec3, face: u8) {
+    let target = clicked + super::placement::face_offset(face).unwrap_or(IVec3::ZERO);
+    for pos in [
+        clicked,
+        clicked + IVec3::Y,
+        clicked - IVec3::Y,
+        target,
+        target + IVec3::Y,
+        target - IVec3::Y,
+    ] {
+        correct_block(world, entity, (pos.x, pos.y, pos.z));
+    }
+}
+
+/// The sound of a player placement, as BDS plays it: `place` at the block's
+/// centre with the held item's block (its default state, whatever state was
+/// placed); for an item that is not a block item the placed state (a bed or
+/// straw bed: its first state, whichever way it faces), at the block's corner
+/// for doors, beds, signs and redstone wire and at its centre for the others;
+/// `item.use.on` with the double slab when two slabs merge
+/// (`testdata/bds-placements.json`).
+fn place_sound(world: &World, pos: IVec3, placed: u32, held_block: Option<i32>, merged_slab: bool) {
+    let centre = pos.as_vec3() + glam::Vec3::splat(0.5);
+    let (name, data, at) = match held_block
+        .and_then(|id| u32::try_from(id).ok())
+        .filter(|id| *id != 0)
+    {
+        _ if merged_slab => ("item.use.on", placed, centre),
+        Some(item_block) => ("place", item_block, centre),
+        None if is_bed(world, placed) => {
+            let first = world
+                .get_resource::<super::types::BlockRegistryResource>()
+                .and_then(|registry| registry.0.get_by_runtime_id(placed))
+                .map_or(placed, |bed| bed.default_state_id);
+            ("place", first, pos.as_vec3())
+        }
+        None if sound_at_corner(world, placed) => ("place", placed, pos.as_vec3()),
+        None => ("place", placed, centre),
+    };
+    level_sound(world, pos, name, data, at);
+}
+
+/// Whether BDS plays the place sound of `placed` at the block's corner:
+/// doors, beds, signs of every kind and redstone wire (the other items that
+/// are not block items, such as hoppers, cakes and frames, play it at the
+/// centre).
+fn sound_at_corner(world: &World, placed: u32) -> bool {
+    world
+        .get_resource::<super::types::BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(placed))
+        .is_some_and(|block| {
+            block.state_value(placed, "door_hinge_bit").is_some()
+                || block.state_value(placed, "head_piece_bit").is_some()
+                || block.string_id.ends_with("_sign")
+                || block.string_id == "minecraft:redstone_wire"
+        })
+}
+
+fn named(world: &World, state: u32, name: &str) -> bool {
+    world
+        .get_resource::<super::types::BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(state))
+        .is_some_and(|block| block.string_id == name)
+}
+
+fn is_bed(world: &World, state: u32) -> bool {
+    world
+        .get_resource::<super::types::BlockRegistryResource>()
+        .and_then(|registry| registry.0.get_by_runtime_id(state))
+        .is_some_and(|block| block.state_value(state, "head_piece_bit").is_some())
+}
+
+/// Send `LevelSoundEvent` `name` with `block` (a canonical state) at `at` to
+/// the viewers of the chunk holding `pos`.
+fn level_sound(world: &World, pos: IVec3, name: &str, block: u32, at: glam::Vec3) {
+    use jolyne::valentine::LevelSoundEventPacket;
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let Some(chunk) = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz))
+    else {
+        return;
+    };
+    let Some(viewers) = world.get::<ChunkViewers>(chunk) else {
+        return;
+    };
+    let packet = LevelSoundEventPacket {
+        sound_event: name.into(),
+        position: Vec3 {
+            x: at.x,
+            y: at.y,
+            z: at.z,
+        },
+        data: super::types::block_network_ids(world).to_wire(block) as i32,
+        actor_identifier: "".into(),
+        is_baby: false,
+        is_global: false,
+        actor_unique_id: -1,
+        fire_at_position: None,
+    };
+    for viewer in viewers.iter() {
+        if let Some(session) = world.get::<PlayerSession>(viewer) {
+            let _ = session.send(McpePacket::from(packet.clone()));
+        }
     }
 }
 
 pub(crate) fn reject_block_event(world: &mut World, event: &ServerEvent) {
     match event {
         ServerEvent::BlockBreak {
-            entity, position, ..
-        }
-        | ServerEvent::BlockPlace {
             entity, position, ..
         } => {
             if let Some(mut breaking) = world.get_mut::<BreakingState>(*entity)
@@ -687,6 +863,20 @@ pub(crate) fn reject_block_event(world: &mut World, event: &ServerEvent) {
                 breaking.completing = None;
             }
             correct_block(world, *entity, *position);
+            super::inventory::resync_inventory(world, *entity);
+        }
+        ServerEvent::BlockPlace {
+            entity,
+            clicked,
+            face,
+            ..
+        } => {
+            click_corrections(
+                world,
+                *entity,
+                IVec3::new(clicked.0, clicked.1, clicked.2),
+                *face,
+            );
             super::inventory::resync_inventory(world, *entity);
         }
         _ => {}
@@ -829,6 +1019,9 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
     if let Some(broken) = broken {
         super::containers::drop_contents(world, IVec3::new(x, y, z), broken);
     }
+    // Neighbours react after the break itself (the other half of a door, a
+    // torch that stood on the block).
+    super::block_update::world_changed(world, IVec3::new(x, y, z), false);
 }
 
 /// What a break shows its viewers right away: the destroy particles (whose
@@ -972,9 +1165,12 @@ fn handle_block_click(
     else {
         return;
     };
+    let clicked_pos = IVec3::new(clicked.0, clicked.1, clicked.2);
     if !can_interact(world, entity, clicked) {
-        correct_block(world, entity, clicked);
-        correct_block(world, entity, position);
+        // BDS answers a click out of reach with the corrections and the
+        // player's inventory; a refused placement in reach gets only the
+        // corrections.
+        click_corrections(world, entity, clicked_pos, data.face);
         super::inventory::resync_inventory(world, entity);
         return;
     }
@@ -997,6 +1193,16 @@ fn handle_block_click(
             return;
         }
         None => {}
+    }
+    // Signs (and the other blocks a click acts on) answer before placement.
+    if let Some(changed) = interact_with_block(world, entity, clicked_pos) {
+        // BDS answers a use with the player's inventory, and a use that
+        // changed something also with the click corrections.
+        super::inventory::resync_inventory(world, entity);
+        if changed {
+            click_corrections(world, entity, clicked_pos, data.face);
+        }
+        return;
     }
     // Spawn eggs spawn their mob on the clicked face instead of placing.
     let main_hand_selected = data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
@@ -1026,24 +1232,8 @@ fn handle_block_click(
         return;
     }
     let held = held_block(world, entity);
-    let block_ids = super::types::block_network_ids(world);
-    let matches_held = held.as_ref().is_some_and(|(_, stack, network_id)| {
-        data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
-            && world
-                .get::<crate::entity::components::HeldSlot>(entity)
-                .is_some_and(|slot| data.slot == i32::from(slot.0))
-            && i32::from(data.item.id) == *network_id
-            && data.item.stacksize == u16::from(stack.count)
-            && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
-            && crate::item::user_data::stored_user_data(
-                stack.item_id(),
-                &data.item.user_data_buffer,
-            ) == stack.nbt
-            && u32::try_from(stack.runtime_id)
-                .ok()
-                .map(|id| block_ids.item_block_to_wire(i32::from(data.item.id), id))
-                == Some(data.item.block_runtime_id)
-    });
+    let names_held_stack = click_names_held_stack(world, entity, data);
+    let matches_held = held.is_some() && names_held_stack;
     let placement = held
         .as_ref()
         .filter(|_| matches_held)
@@ -1066,6 +1256,9 @@ fn handle_block_click(
                 ),
                 yaw: rotation.yaw,
                 pitch: rotation.pitch,
+                eye: world
+                    .get::<crate::entity::components::Position>(entity)
+                    .map_or(glam::DVec3::ZERO, |position| position.0),
             };
             super::placement::resolve_placement(world, held_entry, &input)
         });
@@ -1075,13 +1268,16 @@ fn handle_block_click(
             placement.position.y,
             placement.position.z,
         );
-        can_interact(world, entity, clicked)
-            && can_interact(world, entity, target)
-            && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
+        // BDS places into a clicked air position too.
+        can_interact(world, entity, clicked) && can_interact(world, entity, target)
     }) else {
-        correct_block(world, entity, clicked);
-        correct_block(world, entity, position);
-        super::inventory::resync_inventory(world, entity);
+        click_corrections(world, entity, clicked_pos, data.face);
+        // BDS answers a refused placement with the corrections alone; a click
+        // claiming a stack the player does not hold also gets the inventory
+        // back.
+        if !names_held_stack {
+            super::inventory::resync_inventory(world, entity);
+        }
         return;
     };
     let target = (
@@ -1090,9 +1286,7 @@ fn handle_block_click(
         placement.position.z,
     );
     if placement_upper(world, entity, target, placement.state).is_none() {
-        correct_block(world, entity, clicked);
-        correct_block(world, entity, target);
-        super::inventory::resync_inventory(world, entity);
+        click_corrections(world, entity, clicked_pos, data.face);
         return;
     }
     let player_id = world
@@ -1105,8 +1299,61 @@ fn handle_block_click(
             player_id,
             position: target,
             block_id: placement.state,
+            clicked,
+            face: data.face,
         });
     }
+}
+
+/// A click acting on the clicked block itself (round 2 of the blocks lane:
+/// `testdata/bds-placements-*.json`): `None` when the block does not react
+/// to this click, else whether the click changed something (BDS then sends
+/// the click corrections).
+fn interact_with_block(world: &mut World, entity: Entity, clicked: IVec3) -> Option<bool> {
+    if sneaking_with_item(world, entity) {
+        return None;
+    }
+    let held = held_item(world, entity).filter(|stack| !stack.is_empty());
+    let held_id = held.as_ref().map(|stack| stack.item_id().to_owned());
+    super::signs::used(world, entity, clicked, held_id.as_deref())
+        .or_else(|| super::block_use::used(world, entity, clicked))
+}
+
+/// Whether the click's item is the stack in the player's selected hotbar
+/// slot as the server described it (item, count, data, user data and block),
+/// or an empty hand for an empty slot.
+fn click_names_held_stack(
+    world: &World,
+    entity: Entity,
+    data: &jolyne::valentine::types::ItemUseInventoryTransaction,
+) -> bool {
+    use crate::entity::components::{HeldSlot, MainInventory};
+    let Some(slot) = world.get::<HeldSlot>(entity).map(|slot| slot.0) else {
+        return false;
+    };
+    if data.hand != jolyne::valentine::EnumsHandSlot::Mainhand || data.slot != i32::from(slot) {
+        return false;
+    }
+    let stack = world
+        .get::<MainInventory>(entity)
+        .and_then(|inventory| inventory.0.item(usize::from(slot)))
+        .filter(|stack| !stack.is_empty());
+    let Some(stack) = stack else {
+        return data.item.id == 0;
+    };
+    let block_ids = super::types::block_network_ids(world);
+    stack
+        .item()
+        .is_some_and(|item| i32::from(data.item.id) == item.network_id())
+        && data.item.stacksize == u16::from(stack.count)
+        && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
+        && crate::item::user_data::stored_user_data(stack.item_id(), &data.item.user_data_buffer)
+            .as_ref()
+            == stack.nbt()
+        && u32::try_from(stack.runtime_id)
+            .ok()
+            .map(|id| block_ids.item_block_to_wire(i32::from(data.item.id), id))
+            == Some(data.item.block_runtime_id)
 }
 
 /// Validate placing `state` at `position` with the player's held block and
@@ -1137,27 +1384,20 @@ fn placement_upper(
     let merging_slab = double_slab(&registry, held).is_some_and(|double| {
         double.string_id == placed.string_id && current.string_id == held.string_id
     });
-    let fills_free_space =
-        placed.string_id == held.string_id && is_replaceable(current, current_state);
+    // Stacking blocks and candle cakes go into the block that is there.
+    let grows = (super::placement::stacks(placed)
+        && current.string_id == placed.string_id
+        && current_state != state)
+        || (current.string_id == "minecraft:cake" && placed.string_id.ends_with("candle_cake"));
+    let fills_free_space = super::placement::places_as(held, placed)
+        && (is_replaceable(current, current_state) || grows);
     if !(merging_slab || fills_free_space) {
         return None;
     }
-    let upper = match placed.state_value(state, "upper_block_bit") {
-        Some(crate::registry::block::StateValue::Byte(0)) => {
-            let above = (position.0, position.1 + 1, position.2);
-            let above_state = block_at(world, above)?;
-            if !is_replaceable(registry.get_by_runtime_id(above_state)?, above_state) {
-                return None;
-            }
-            let upper_state = placed.with_state_value(
-                state,
-                "upper_block_bit",
-                crate::registry::block::StateValue::Byte(1),
-            )?;
-            Some((pos + IVec3::Y, upper_state))
-        }
-        Some(_) => return None,
-        None => None,
+    let upper = if merging_slab {
+        None
+    } else {
+        super::placement::second_block(&*world, placed, pos, state)?
     };
     let mut boxes = placed_boxes(&registry, pos, state);
     if let Some((above, upper_state)) = upper {
@@ -1169,27 +1409,31 @@ fn placement_upper(
     Some(upper)
 }
 
-/// Place a block at world coordinates: update chunk and broadcast with the
-/// place sound.
-fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32) {
-    set_block(world, IVec3::new(x, y, z), block_runtime_id, true);
+/// Set a block at world coordinates, broadcast the change to the chunk's
+/// viewers (with the place sound when `place_sound`), schedule gravity
+/// checks for the block and the one above it, and run the block updates the
+/// change causes (neighbour-dependent states, unsupported neighbours; see
+/// [`super::block_update`]).
+pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    write_block(world, pos, block_runtime_id, place_sound);
+    super::block_update::world_changed(world, pos, true);
 }
 
-/// Set a block at world coordinates, broadcast the change to the chunk's
-/// viewers (with the place sound when `place_sound`) and schedule gravity
-/// checks for the block and the one above it.
-pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
-    set_block_sending(world, pos, block_runtime_id, place_sound, true);
+/// [`set_block`] without block updates: store the block, broadcast it and
+/// schedule gravity checks.
+pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    write_block_sending(world, pos, block_runtime_id, place_sound, true);
 }
 
 /// [`set_block`] whose update reaches the viewers only with the tick's
 /// batched block updates, after what the server sends meanwhile (BDS answers
 /// a flint and steel click with its corrections first).
 pub(crate) fn set_block_batched(world: &mut World, pos: IVec3, block_runtime_id: u32) {
-    set_block_sending(world, pos, block_runtime_id, false, false);
+    write_block_sending(world, pos, block_runtime_id, false, false);
+    super::block_update::world_changed(world, pos, true);
 }
 
-fn set_block_sending(
+fn write_block_sending(
     world: &mut World,
     pos: IVec3,
     block_runtime_id: u32,
@@ -1272,7 +1516,7 @@ fn set_block_sending(
             actor_identifier: "".into(),
             is_baby: false,
             is_global: false,
-            actor_unique_id: 0,
+            actor_unique_id: -1,
             fire_at_position: None,
         });
 
@@ -1282,6 +1526,48 @@ fn set_block_sending(
                 if let Some(sound) = &sound_packet {
                     let _ = session.send(McpePacket::from(sound.clone()));
                 }
+            }
+        }
+    }
+}
+
+/// Break the block `state` at `pos`, which can no longer stay where it is
+/// (its support or soil is gone): viewers see the break particles, the block
+/// becomes air without block updates of its own (the update pass that found
+/// it runs them) and it drops what it drops by hand, without the correct-tool
+/// requirement (a popped grindstone drops itself), plus any container
+/// contents.
+pub(crate) fn pop_block(world: &mut World, pos: IVec3, state: u32) {
+    break_particles(world, pos, state);
+    let broken = super::containers::breaking(world, pos);
+    write_block(world, pos, *blocks::AIR, false);
+    for stack in super::block_drops::popped_drops(world, state) {
+        super::block_drops::pop_resource(world, pos, stack);
+    }
+    if let Some(broken) = broken {
+        super::containers::drop_contents(world, pos, broken);
+    }
+}
+
+/// Send the destroy particles of `state` at `pos` to the chunk's viewers.
+fn break_particles(world: &World, pos: IVec3, state: u32) {
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz));
+    if let Some(viewers) = chunk.and_then(|chunk| world.get::<ChunkViewers>(chunk)) {
+        let particles = LevelEventPacket {
+            event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
+            position: Vec3 {
+                x: pos.x as f32 + 0.5,
+                y: pos.y as f32 + 0.5,
+                z: pos.z as f32 + 0.5,
+            },
+            data: super::types::block_network_ids(world).to_wire(state) as i32,
+        };
+        for viewer in viewers.iter() {
+            if let Some(session) = world.get::<PlayerSession>(viewer) {
+                let _ = session.send(McpePacket::from(particles.clone()));
             }
         }
     }
@@ -1298,32 +1584,14 @@ pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
     if original == *blocks::AIR {
         return;
     }
-    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
-    let chunk = world
-        .get_resource::<ChunkManager>()
-        .and_then(|chunks| chunks.get_by_coords(cx, cz));
-    if let Some(viewers) = chunk.and_then(|chunk| world.get::<ChunkViewers>(chunk)) {
-        let particles = LevelEventPacket {
-            event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
-            position: Vec3 {
-                x: pos.x as f32 + 0.5,
-                y: pos.y as f32 + 0.5,
-                z: pos.z as f32 + 0.5,
-            },
-            data: super::types::block_network_ids(world).to_wire(original) as i32,
-        };
-        for viewer in viewers.iter() {
-            if let Some(session) = world.get::<PlayerSession>(viewer) {
-                let _ = session.send(McpePacket::from(particles.clone()));
-            }
-        }
-    }
+    break_particles(world, pos, original);
     let broken = super::containers::breaking(world, pos);
-    set_block(world, pos, *blocks::AIR, false);
+    write_block(world, pos, *blocks::AIR, false);
     super::block_drops::drop_block_items(world, pos, original, None);
     if let Some(broken) = broken {
         super::containers::drop_contents(world, pos, broken);
     }
+    super::block_update::world_changed(world, pos, false);
 }
 
 #[cfg(test)]
@@ -1610,12 +1878,11 @@ mod tests {
             .0
             .clone();
         let door_item = items.get_by_name("minecraft:wooden_door").unwrap();
-        let stack = crate::item::test_support::stack("minecraft:wooden_door", 1)
-            .with_runtime_id(door.default_state_id as i32);
+        // A door is not a block item: its stack describes no block.
+        let stack = crate::item::test_support::stack("minecraft:wooden_door", 1);
         data.item.id = door_item.network_id() as i16;
         data.item.stacksize = 1;
-        data.item.block_runtime_id =
-            crate::registry::block::BlockNetworkIds::Hashed.to_wire(door.default_state_id);
+        data.item.block_runtime_id = 0;
         world
             .get_mut::<MainInventory>(player)
             .unwrap()
@@ -1639,9 +1906,10 @@ mod tests {
             door.state_value(upper, "upper_block_bit"),
             Some(StateValue::Byte(1))
         );
+        // Looking east (yaw 270) gives a door facing south, as on BDS.
         assert_eq!(
             door.state_value(lower, "minecraft:cardinal_direction"),
-            Some(StateValue::Str("east"))
+            Some(StateValue::Str("south"))
         );
     }
 
@@ -1959,17 +2227,22 @@ mod tests {
             .entity_mut(player)
             .insert(PlayerSession::new(1, "test".into(), None, None, tx));
         handle_block_click(&mut world, player, &data);
-        let McpePacketData::UpdateBlockPacket(clicked) = rx.try_recv().unwrap().data else {
-            panic!("clicked block correction")
-        };
-        assert_eq!(clicked.block_position, data.position);
+        // The clicked block and the target, each with the blocks above and
+        // below it, as BDS corrects every click.
         let ids = crate::registry::block::BlockNetworkIds::Hashed;
-        assert_eq!(clicked.block_runtime_id, ids.to_wire(*blocks::STONE));
-        let McpePacketData::UpdateBlockPacket(placed) = rx.try_recv().unwrap().data else {
-            panic!("predicted block correction")
-        };
-        assert_eq!(placed.block_position, BlockPos { x: 1, y: 65, z: 1 });
-        assert_eq!(placed.block_runtime_id, ids.to_wire(*blocks::AIR));
+        let mut corrections = Vec::new();
+        for _ in 0..6 {
+            let McpePacketData::UpdateBlockPacket(update) = rx.try_recv().unwrap().data else {
+                panic!("block correction")
+            };
+            let at = update.block_position;
+            corrections.push(((at.x, at.y, at.z), update.block_runtime_id));
+        }
+        let (stone, air) = (ids.to_wire(*blocks::STONE), ids.to_wire(*blocks::AIR));
+        assert_eq!(corrections[0], ((1, 64, 1), stone));
+        assert_eq!(corrections[3], ((1, 65, 1), air));
+        // The click claimed a stack the player does not hold: the inventory
+        // is sent back too.
         let McpePacketData::InventoryContentPacket(inventory) = rx.try_recv().unwrap().data else {
             panic!("inventory correction")
         };

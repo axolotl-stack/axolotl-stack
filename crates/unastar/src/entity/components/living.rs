@@ -82,6 +82,7 @@ impl EffectType {
     pub const ABSORPTION: Self = Self(22);
     pub const SATURATION: Self = Self(23);
     pub const LEVITATION: Self = Self(24);
+    pub const CONDUIT_POWER: Self = Self(26);
     pub const SLOW_FALLING: Self = Self(27);
     pub const WEAVING: Self = Self(33);
 

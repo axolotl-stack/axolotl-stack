@@ -79,9 +79,17 @@ Negotiations SHALL be keyed by (remote network ID, connection ID), so a signal f
 - **AND** a candidate that does not parse is ignored and the session continues
 
 #### Scenario: Listener admission limits
-- **WHEN** a `CONNECTREQUEST` arrives while the listener tracks `max_pending_connections` (default 64) negotiations or connections, or its SDP exceeds `max_sdp_size` (default 64 KiB)
+- **WHEN** a `CONNECTREQUEST` arrives while the listener has `max_pending_connections` (default 64) negotiations not yet handed to `accept()`, or its SDP exceeds `max_sdp_size` (default 64 KiB)
 - **THEN** the listener replies `CONNECTERROR` 16 or 17 respectively and creates no session
 - **AND** a tracked entry is released only when its negotiation fails or its transport closes, and a stale cleanup never removes a replacement for the same key
+
+#### Scenario: Accepted connections do not use up the limit
+- **WHEN** `max_pending_connections` is 1 and one peer's connection has been accepted
+- **THEN** a second peer can still negotiate and connect, while the accepted connection's tuple keeps routing `CONNECTERROR` and candidates
+
+#### Scenario: Bounded rejection replies
+- **WHEN** an offer flood is rejected faster than signaling can send the 16/17 replies
+- **THEN** at most 16 replies are in flight, further replies are dropped (leaving those dialers to their own timeout), and admission never blocks on a reply
 
 #### Scenario: Dialer admission limits
 - **WHEN** 64 dials are pending, or an incoming signal's data exceeds 1 MiB, or more than 32 candidates arrive before the answer
@@ -91,7 +99,24 @@ Negotiations SHALL be keyed by (remote network ID, connection ID), so a signal f
 - **WHEN** a peer sends `CONNECTERROR` for a negotiation the listener is still completing
 - **THEN** that connection is closed and no later timeout `CONNECTERROR` is sent for the same key
 
-Evidence: crates/tokio-nethernet/src/dialer.rs (`CandidateBudget`, `add_candidate`, tests `rejects_signals_from_other_networks`, `inline_and_trickled_candidates_share_a_nonwrapping_budget`, `invalid_trickled_candidate_is_ignored`), crates/tokio-nethernet/src/listener.rs (tests `stale_cleanup_does_not_remove_replacement_connection`, `remote_cancellation_suppresses_pending_timeout_reply`), crates/tokio-nethernet/PARITY.md (rows D1, D3, N5)
+Evidence: crates/tokio-nethernet/src/dialer.rs (`CandidateBudget`, `add_candidate`, tests `rejects_signals_from_other_networks`, `inline_and_trickled_candidates_share_a_nonwrapping_budget`, `invalid_trickled_candidate_is_ignored`), crates/tokio-nethernet/src/dialer.rs (tests `dial_admission_is_bounded`, `pre_answer_candidate_buffer_is_bounded`), crates/tokio-nethernet/src/listener.rs (`ListenerActor::negotiating`, `reject`, `MAX_PENDING_REJECTIONS`, tests `stale_cleanup_does_not_remove_replacement_connection`, `remote_cancellation_suppresses_pending_timeout_reply`, `negotiation_limit_rejects_with_incoming_connection_ignored`, `accepted_connections_do_not_count_against_negotiation_limit`, `connected_peer_does_not_use_up_the_negotiation_limit`, `oversized_sdp_rejects_with_parsing_failure`, `rejection_replies_are_bounded`), crates/tokio-nethernet/PARITY.md (rows D1, D3, N5, S8)
+
+### Requirement: Listener answers offers off the actor
+The listener actor SHALL do only local admission work for an offer (limits, SDP parse, opening the session) and MUST run identity verification, credential lookup, candidate gathering and the answer in a per-offer task under `connection_timeout`, so one slow offer never delays other peers. A failed answer MUST reply one terminal `CONNECTERROR`: 2 on timeout, 37 for a rejected identity, 11 for any other failure, 35 for a panic. These codes are our choice; see PARITY.md row S8.
+
+#### Scenario: Slow offer does not block others
+- **WHEN** one peer's offer stalls in its token verifier and another peer then offers
+- **THEN** the second peer connects while the first is still stalled
+
+#### Scenario: Answer-phase timeout
+- **WHEN** an offer's answer phase (identity check, credentials, gathering, sending the answer) exceeds `connection_timeout`
+- **THEN** the listener replies `CONNECTERROR <id> 2`, bounded to 2 s, and releases the negotiation
+
+#### Scenario: Other answer failure
+- **WHEN** creating or sending the answer fails for a reason other than identity, timeout or a panic
+- **THEN** the listener replies `CONNECTERROR <id> 11`
+
+Evidence: crates/tokio-nethernet/src/listener.rs (`handle_connect_request`, `Offer::negotiate`, `Offer::answer`, tests `slow_offer_does_not_block_other_peers`, `slow_offer_timeout_replies_connecterror`, `slow_answer_delivery_still_connects`, `negotiation_panic_fails_only_that_offer_with_typed_error`), crates/tokio-nethernet/src/signaling.rs (`SignalErrorCode`), crates/tokio-nethernet/PARITY.md (row S8)
 
 ### Requirement: SDP identity assertions
 Dialers and listeners SHALL require a valid `a=identity` assertion from the peer unless the peer is explicitly allowed to omit it (`allow_identityless_server` / `allow_identityless_client`), or the signaling's `requires_identity()` is false and no token verifier is configured. A present assertion MUST always be verified: ES384 over the DTLS fingerprints with the token's `cpk` key. A listener that rejects a client identity MUST reply `CONNECTERROR <id> 37`.
@@ -111,7 +136,8 @@ Dialers and listeners SHALL require a valid `a=identity` assertion from the peer
 
 #### Scenario: Rejected client identity
 - **WHEN** a listener that requires identities receives an offer without one
-- **THEN** it replies `CONNECTERROR <id> 37` within 2 s and creates no session
+- **THEN** it replies `CONNECTERROR <id> 37` within 2 s and sends no answer
+- **AND** the session opened for the offer during admission is closed and released (the cost is bounded by `max_pending_connections`)
 
 #### Scenario: Default listener identity
 - **WHEN** a listener whose signaling requires identities has no configured `identity`
@@ -251,7 +277,16 @@ Verified by: `cargo test -p tokio-nethernet --features discovery`
 - **WHEN** a LAN dialer and listener negotiate
 - **THEN** offer and answer carry their candidates inline and no `CANDIDATEADD` is sent
 
-Evidence: crates/tokio-nethernet/src/discovery/mod.rs (`DiscoveryListener`, `request_destinations`, tests `large_sdp_survives_udp_receive`, `bounded_state_and_full_signal_queue_do_not_block`, `recipient_filter_and_response_expiry`, `expiry_keeps_addresses_60s_and_servers_5s`, `requests_do_not_make_a_peer_addressable`, `directed_broadcasts_follow_interfaces`), crates/tokio-nethernet/tests/discovery_test.rs (`test_discovery_connect_flow`, `lan_offers_and_answers_carry_inline_candidates`, `announcing_listener_sends_no_requests`, `test_discovery_broadcast`), crates/tokio-nethernet/PARITY.md (rows L9-L17, N1, N7, S9)
+#### Scenario: Receive errors never stop listening
+- **WHEN** `recv_from` fails on any platform
+- **THEN** ICMP-unreachable (connection reset or refused), interrupted and, on Windows, truncated-datagram errors are ignored, any other error is logged and retried after a backoff from 10 ms doubling to 1 s, and the receive loop keeps running for the listener's lifetime
+
+#### Scenario: Pong data updates are never dropped
+- **WHEN** `set_pong_data` is called while a discovery reply is reading the current server data
+- **THEN** the update still lands, because the data sits behind a synchronous lock that is never held across an await
+- **AND** on the HTTP endpoint `Client`, which has no pong data, the call is ignored with a debug log instead of panicking
+
+Evidence: crates/tokio-nethernet/src/discovery/mod.rs (`DiscoveryListener`, `request_destinations`, `recv_error_action`, `RECV_ERROR_INITIAL_BACKOFF`, `RECV_ERROR_MAX_BACKOFF`, tests `receive_errors_never_stop_listening`, `contended_pong_data_update_is_not_dropped`, `large_sdp_survives_udp_receive`, `bounded_state_and_full_signal_queue_do_not_block`, `recipient_filter_and_response_expiry`, `expiry_keeps_addresses_60s_and_servers_5s`, `requests_do_not_make_a_peer_addressable`, `directed_broadcasts_follow_interfaces`), crates/tokio-nethernet/tests/discovery_test.rs (`test_discovery_connect_flow`, `lan_offers_and_answers_carry_inline_candidates`, `announcing_listener_sends_no_requests`, `test_discovery_broadcast`), crates/tokio-nethernet/PARITY.md (rows L9-L17, N1, N7, S9)
 Verified by: `cargo test -p tokio-nethernet --features discovery`
 
 ### Requirement: HTTP endpoint signaling
@@ -270,7 +305,7 @@ The `endpoint` feature SHALL implement go-nethernet's HTTP signaling: `GET`/`HEA
 - **WHEN** a credential provider is configured
 - **THEN** it is called for each negotiation and its errors fail that negotiation
 
-Evidence: crates/tokio-nethernet/src/endpoint.rs (`Handler::handle_request`, `Client`, `parse_url`, tests `handler_serves_sdp_answer_and_cleans_pending`, `handler_rejects_bad_offers_and_full_admission_queue`, `negotiation_timeout_cleans_pending_and_notifies_listener`, `client_accepts_any_success_status`, `client_rejects_empty_numeric_and_oversized_answers`, `endpoint_urls_require_explicit_port_and_no_path`, `credentials_are_requested_each_time_and_errors_propagate`, `subscriptions_are_bounded_and_dropped_receivers_unregister`, `ping_method_mismatch_is_405`, `status_json_and_raknet_round_trip`), crates/tokio-nethernet/PARITY.md (rows H1, H2)
+Evidence: crates/tokio-nethernet/src/endpoint.rs (`Handler::handle_request`, `Client`, `parse_url`, tests `client_pong_data_is_a_no_op`, `handler_serves_sdp_answer_and_cleans_pending`, `handler_rejects_bad_offers_and_full_admission_queue`, `negotiation_timeout_cleans_pending_and_notifies_listener`, `client_accepts_any_success_status`, `client_rejects_empty_numeric_and_oversized_answers`, `endpoint_urls_require_explicit_port_and_no_path`, `credentials_are_requested_each_time_and_errors_propagate`, `subscriptions_are_bounded_and_dropped_receivers_unregister`, `ping_method_mismatch_is_405`, `status_json_and_raknet_round_trip`), crates/tokio-nethernet/PARITY.md (rows H1, H2)
 Verified by: `cargo test -p tokio-nethernet --features endpoint`
 
 ### Requirement: Franchise WebSocket signaling
@@ -292,5 +327,9 @@ The `xbox-signaling` feature SHALL provide `XboxSignaling::connect_with_url`, co
 - **WHEN** a `CONNECTERROR` has non-numeric data or a signal's data exceeds 64 KiB
 - **THEN** sending fails without writing a frame
 
-Evidence: crates/tokio-nethernet/src/xbox_signaling.rs (`XboxSignaling::connect_with_url`, tests `retained_socket_routes_signals_and_refreshes_shared_credentials`, `retained_signal_envelope_preserves_string_recipient`, `legacy_credentials_default_and_explicit_expiration`, `credentials_expire_and_wait_for_shared_refresh`, `malformed_or_oversized_signals_are_rejected`)
+#### Scenario: Full inbound queue
+- **WHEN** signals arrive while the 256-signal inbound queue is full
+- **THEN** each new signal is dropped without stalling the socket or its heartbeat, `XboxSignaling::dropped_signals()` counts it, and a warning is logged on the 1st, 2nd, 4th, 8th… drop
+
+Evidence: crates/tokio-nethernet/src/xbox_signaling.rs (`XboxSignaling::connect_with_url`, `dropped_signals`, tests `full_inbound_queue_counts_dropped_signals`, `retained_socket_routes_signals_and_refreshes_shared_credentials`, `retained_signal_envelope_preserves_string_recipient`, `legacy_credentials_default_and_explicit_expiration`, `credentials_expire_and_wait_for_shared_refresh`, `malformed_or_oversized_signals_are_rejected`)
 Verified by: `cargo test -p tokio-nethernet --features xbox-signaling`

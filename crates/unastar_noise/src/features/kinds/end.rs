@@ -2,14 +2,13 @@
 //! `minecraft:end_platform`, `minecraft:end_spike`,
 //! `minecraft:void_start_platform` and `minecraft:chorus_plant`.
 //!
-//! Block entities and entities are not created here: the end gateway's exit
-//! (block-entity data) and the end crystals on top of the spikes (entities)
-//! are set up by the runtime from the configs; these functions only write
-//! block states and keep Java's random draws.
+//! Entities are not created here: the end crystals on top of the spikes are
+//! set up by the runtime from the configs; these functions write block states
+//! and block-entity data and keep Java's random draws.
 
 use crate::features::blocks::{BlockPos, Direction, JavaState};
 use crate::features::config::{EndGatewayConfig, EndSpike, EndSpikeConfig};
-use crate::features::eval::FeatureWorld;
+use crate::features::eval::{BlockEntityData, FeatureWorld};
 use crate::features::java_blocks::{blocks as b, states, tags};
 use crate::features::random::{FeatureRandom, LegacyRandom};
 
@@ -17,13 +16,12 @@ use crate::features::random::{FeatureRandom, LegacyRandom};
 
 /// Java `EndGatewayFeature.place` (`minecraft:end_gateway`).
 ///
-/// Writes the gateway block in a 3x5x3 bedrock frame (air around it). The
-/// gateway's exit position and `exact` flag from `cfg` are block-entity data
-/// and are set by the runtime, not here.
+/// Writes the gateway block in a 3x5x3 bedrock frame (air around it) and sets
+/// the configured exit and `exact` flag on the gateway's block entity.
 pub fn place_end_gateway<W: FeatureWorld + ?Sized>(
     world: &mut W,
     _rng: &mut FeatureRandom,
-    _cfg: &EndGatewayConfig,
+    cfg: &EndGatewayConfig,
     origin: BlockPos,
 ) -> bool {
     for dz in -1..=1 {
@@ -48,6 +46,16 @@ pub fn place_end_gateway<W: FeatureWorld + ?Sized>(
                 world.set_state(pos, state);
             }
         }
+    }
+    if let Some([x, y, z]) = cfg.exit {
+        let exit = Some((BlockPos::new(x, y, z), cfg.exact));
+        world.set_block_entity(
+            origin,
+            BlockEntityData {
+                gateway_exit: exit,
+                ..BlockEntityData::NONE
+            },
+        );
     }
     true
 }

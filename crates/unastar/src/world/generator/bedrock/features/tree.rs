@@ -1369,8 +1369,10 @@ fn acacia(
     };
     let (mut x, mut z) = (0, 0);
     for i in 0..h {
-        // The bottom layer never moves off its ground.
-        if i >= lean_start.max(1) && steps > 0 {
+        // The bottom layer never moves off its ground. Wide trunks without
+        // diagonal growth (dark oak) draw their lean but grow straight
+        // (natural seed-12345 BDS roofed forests).
+        if i >= lean_start.max(1) && steps > 0 && (diagonal || w == 1) {
             if !diagonal && w == 1 {
                 plan.log(origin.offset(x, i, z), block, DECO_VINES)?;
             }

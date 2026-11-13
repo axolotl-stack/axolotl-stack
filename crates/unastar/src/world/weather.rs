@@ -68,6 +68,74 @@ impl Weather {
     }
 }
 
+/// How far rain and lightning have faded in or out.
+///
+/// Measured on BDS 1.26.51: `/weather query` reports these levels, not the
+/// weather last set: 12 ticks after `/weather clear` ends a thunderstorm it
+/// still answers thunder, and 12 ticks after `/toggledownfall` stops rain it
+/// still answers rain, while a thunderstorm started and stopped 12 ticks
+/// apart has faded out 12 ticks later. Both levels move a fixed step per
+/// tick towards 1 while it rains (thunders) and 0 otherwise. [INFERENCE] The
+/// step is 0.01, as in Java Edition; the captures only show that fading in
+/// and out take equally long.
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Default)]
+pub struct WeatherLevels {
+    rain: f32,
+    lightning: f32,
+    since_tick: u64,
+    rain_target: f32,
+    lightning_target: f32,
+}
+
+impl WeatherLevels {
+    const STEP_PER_TICK: f32 = 0.01;
+
+    /// `(rain, lightning)` at `tick`.
+    pub fn at(&self, tick: u64) -> (f32, f32) {
+        let moved = tick.saturating_sub(self.since_tick) as f32 * Self::STEP_PER_TICK;
+        let toward = |from: f32, to: f32| {
+            if from < to {
+                (from + moved).min(to)
+            } else {
+                (from - moved).max(to)
+            }
+        };
+        (
+            toward(self.rain, self.rain_target),
+            toward(self.lightning, self.lightning_target),
+        )
+    }
+
+    /// Starts fading towards `state` at `tick`.
+    pub fn retarget(&mut self, tick: u64, state: WeatherState) {
+        let (rain, lightning) = self.at(tick);
+        *self = Self {
+            rain,
+            lightning,
+            since_tick: tick,
+            rain_target: if state == WeatherState::Clear {
+                0.0
+            } else {
+                1.0
+            },
+            lightning_target: if state == WeatherState::Thunder {
+                1.0
+            } else {
+                0.0
+            },
+        };
+    }
+
+    /// What `/weather query` answers at `tick`.
+    pub fn reported(&self, tick: u64) -> WeatherState {
+        match self.at(tick) {
+            (_, lightning) if lightning > 0.0 => WeatherState::Thunder,
+            (rain, _) if rain > 0.0 => WeatherState::Rain,
+            _ => WeatherState::Clear,
+        }
+    }
+}
+
 /// Weather events for a joining player: none in clear weather (the client
 /// starts clear), otherwise the events `/weather` sends.
 pub fn join_packets(world: &World) -> Vec<LevelEventPacket> {

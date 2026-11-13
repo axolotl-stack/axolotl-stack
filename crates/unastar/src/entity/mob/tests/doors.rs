@@ -1,6 +1,6 @@
-//! Zombies and doors through a real `GameServer`: a door-breaking zombie
-//! chasing a player behind a closed oak door breaks it after the native time
-//! on Hard and never on Normal; an iron door is never broken; a zombie
+//! Zombies and doors through a real `GameServer`: a door-breaking zombie (or
+//! husk) chasing a player behind a closed oak door breaks it after the
+//! native time on Hard and never on Normal; an iron door is never broken; a zombie
 //! without `minecraft:can_break_doors` does not path through the door.
 
 use bevy_ecs::prelude::*;
@@ -158,12 +158,16 @@ impl Harness {
     /// An adult zombie west of the wall; with `breaker` it also gets the
     /// `minecraft:can_break_doors` group through its definition stack.
     fn zombie(&mut self, breaker: bool) -> Entity {
+        self.mob("minecraft:zombie", breaker)
+    }
+
+    /// [`Self::zombie`] for any mob with a `minecraft:can_break_doors` group.
+    fn mob(&mut self, identifier: &str, breaker: bool) -> Entity {
         let world = self.world();
         let feet = DVec3::new(0.5, 64.0, 0.5);
         let zombie = (0..400)
             .find_map(|_| {
-                let mob =
-                    spawn_mob(world, "minecraft:zombie", feet, 0.0, SpawnCause::Spawned).unwrap();
+                let mob = spawn_mob(world, identifier, feet, 0.0, SpawnCause::Spawned).unwrap();
                 apply_pending_definitions(world);
                 let flags = world.get::<ActorFlags>(mob).unwrap();
                 let plain = !flags.get(actor_flags::BABY).unwrap()
@@ -175,14 +179,13 @@ impl Harness {
                     None
                 }
             })
-            .expect("a plain adult zombie in 400 spawns");
+            .unwrap_or_else(|| panic!("a plain adult {identifier} in 400 spawns"));
         if breaker {
-            let group = world
-                .get::<MobKind>(zombie)
-                .unwrap()
-                .0
-                .definition
+            // The zombie villager's group has no `minecraft:` prefix.
+            let definition = &world.get::<MobKind>(zombie).unwrap().0.definition;
+            let group = definition
                 .group("minecraft:can_break_doors")
+                .or_else(|| definition.group("can_break_doors"))
                 .unwrap();
             queue_group_change(world, zombie, GroupChange::Add(group)).unwrap();
             apply_pending_definitions(world);
@@ -266,6 +269,18 @@ impl Harness {
 
 #[test]
 fn breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard() {
+    // The husk and the zombie villager share the zombie's
+    // `minecraft:can_break_doors` group.
+    for identifier in [
+        "minecraft:zombie",
+        "minecraft:husk",
+        "minecraft:zombie_villager_v2",
+    ] {
+        breaks_a_closed_oak_door_on_hard(identifier);
+    }
+}
+
+fn breaks_a_closed_oak_door_on_hard(identifier: &str) {
     let mut h = harness(7, "minecraft:wooden_door", Difficulty::Hard);
     let air = BlockRegistry::vanilla()
         .default_state_id_by_name("minecraft:air")
@@ -273,25 +288,29 @@ fn breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard() {
     let oak_default = BlockRegistry::vanilla()
         .default_state_id_by_name("minecraft:wooden_door")
         .unwrap();
-    let zombie = h.zombie(true);
+    let zombie = h.mob(identifier, true);
     h.provoke(zombie);
     let (events, east, _) = h.run(zombie, 900);
 
     let start = events
         .iter()
         .find(|(_, id, _)| *id == LEVEL_EVENT_START_BLOCK_CRACKING)
-        .expect("the zombie starts cracking the door");
+        .unwrap_or_else(|| panic!("the {identifier} starts cracking the door"));
     // (1 / 240) × 65535, truncated.
     assert_eq!(start.2, 273);
     let crash = events
         .iter()
         .find(|(_, id, _)| *id == LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH)
-        .unwrap_or_else(|| panic!("the door breaks: {events:?}"));
+        .unwrap_or_else(|| panic!("the {identifier} breaks the door: {events:?}"));
     let last_start = events
         .iter()
         .rfind(|(tick, id, _)| *id == LEVEL_EVENT_START_BLOCK_CRACKING && *tick <= crash.0)
         .unwrap();
-    assert_eq!(crash.0 - last_start.0, BREAK_TICKS, "{events:?}");
+    assert_eq!(
+        crash.0 - last_start.0,
+        BREAK_TICKS,
+        "{identifier}: {events:?}"
+    );
     let oak_wire = crate::registry::block::BlockNetworkIds::Hashed.to_wire(oak_default) as i32;
     assert!(
         events.contains(&(
@@ -305,7 +324,10 @@ fn breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard() {
     assert_eq!(h.block(DOOR), air);
     assert_eq!(h.block(DOOR + IVec3::Y), air);
     assert_eq!(h.door_items(), 0, "a broken door drops nothing");
-    assert!(east > f64::from(DOOR.x) + 1.0, "walked through: {east}");
+    assert!(
+        east > f64::from(DOOR.x) + 1.0,
+        "{identifier} walked through: {east}"
+    );
     let flags = h.world().get::<ActorFlags>(zombie).unwrap();
     assert!(!flags.get(actor_flags::BREAKING_OBSTRUCTION).unwrap());
 }

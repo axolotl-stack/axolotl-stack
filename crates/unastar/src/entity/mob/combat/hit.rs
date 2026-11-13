@@ -39,8 +39,8 @@ use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::collision::Aabb;
+use unastar_rules::ids::Enchantment;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.
@@ -78,9 +78,10 @@ pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
 /// transaction are not trusted.
 ///
 /// Spectators, dead players and players whose eye is farther than
-/// [`constants::MELEE_REACH`] from the mob's box cannot hit, nor can an item
-/// whose attack cooldown runs (`crate::item::cooldown`). Creative players
-/// deal normal melee damage.
+/// [`constants::MELEE_REACH`] from the mob's box (or, with
+/// `minecraft:custom_hit_test`, from every one of its boxes) cannot hit, nor
+/// can an item whose attack cooldown runs (`crate::item::cooldown`). Creative
+/// players deal normal melee damage.
 pub fn player_attack(
     world: &mut World,
     player: Entity,
@@ -97,9 +98,18 @@ pub fn player_attack(
         return;
     };
     let mob_box = Aabb::from_feet(feet, body.width, body.height);
-    if eye.distance_squared(eye.clamp(mob_box.min, mob_box.max))
-        > constants::MELEE_REACH * constants::MELEE_REACH
-    {
+    let distance_sq = |aabb: &Aabb| eye.distance_squared(eye.clamp(aabb.min, aabb.max));
+    // `minecraft:custom_hit_test` boxes count as much as the collision box.
+    let nearest_sq = world
+        .get::<crate::entity::mob::components::stats::CustomHitTest>(target)
+        .map_or(distance_sq(&mob_box), |hit_test| {
+            hit_test
+                .0
+                .iter()
+                .map(|hitbox| distance_sq(&hitbox.at(feet)))
+                .fold(distance_sq(&mob_box), f64::min)
+        });
+    if nearest_sq > constants::MELEE_REACH * constants::MELEE_REACH {
         return;
     }
     let held = held_item(world, player).cloned();
@@ -150,7 +160,7 @@ pub fn player_attack(
 /// 9, 10, 11, 13 and 14, not 9.25 ... 14.25; `docs/quirks/bds.md`).
 pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
     let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
-    let sharpness = held.map_or(0, |stack| enchantment_level(stack, Enchantment::Sharpness));
+    let sharpness = held.map_or(0, |stack| stack.enchantment_level(Enchantment::Sharpness));
     (base + 1.25 * f32::from(sharpness)).floor()
 }
 
@@ -170,11 +180,16 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// returns the health actually removed (0 when the hit was ignored). A hit
 /// that empties the mob's health starts its death. Zero damage still counts
 /// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
+/// A fire-immune mob ignores the [`constants::FIRE_IMMUNE_CAUSES`] before
+/// anything else looks at the hit.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
+        return 0.0;
+    }
+    if constants::FIRE_IMMUNE_CAUSES.contains(&hit.cause) && fire_immune(world, target) {
         return 0.0;
     }
     let (hit, sensor_trigger) = match damage_sensor::sense(world, target, hit) {
@@ -243,6 +258,17 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     applied
 }
 
+/// Whether `entity` carries the `FIRE_IMMUNE` flag (`minecraft:fire_immune`).
+pub fn fire_immune(world: &World, entity: Entity) -> bool {
+    world
+        .get::<crate::entity::definition::flags::ActorFlags>(entity)
+        .is_some_and(|flags| {
+            flags
+                .get(jolyne::valentine::actor_flags::FIRE_IMMUNE)
+                .unwrap_or(false)
+        })
+}
+
 /// Push `target` away from `from` (horizontally).
 fn apply_knockback(world: &mut World, target: Entity, from: DVec3, power: KnockbackPower) {
     let Some(feet) = world.get::<Position>(target).map(|p| p.0) else {
@@ -257,6 +283,9 @@ fn apply_knockback(world: &mut World, target: Entity, from: DVec3, power: Knockb
             .gen_range(0.0..std::f64::consts::TAU);
         away = DVec2::from_angle(angle);
     }
+    let power = world
+        .get::<super::knockback::KnockbackResistance>(target)
+        .map_or(power, |resistance| resistance.resist(power));
     if let Some(mut velocity) = world.get_mut::<Velocity>(target) {
         velocity.0 = knockback_velocity(velocity.0, away.normalize(), power);
     }

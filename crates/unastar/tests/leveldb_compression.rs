@@ -208,7 +208,7 @@ fn data_handles(table: &[u8]) -> Vec<(usize, usize)> {
 async fn provider_writes_independently_decodable_raw_zlib_tables() {
     let directory = tempfile::tempdir().unwrap();
     {
-        let provider = LevelDBWorldProvider::open(directory.path(), 0).unwrap();
+        let provider = LevelDBWorldProvider::open(directory.path()).unwrap();
         let mut chunk = Chunk::new(0, 0);
         let stone = unastar::registry::BlockRegistry::vanilla()
             .default_state_id_by_name("minecraft:stone")
@@ -244,7 +244,7 @@ async fn provider_writes_independently_decodable_raw_zlib_tables() {
         raw_blocks > 0,
         "compressible chunk data must actually use raw-zlib id 4"
     );
-    let provider = LevelDBWorldProvider::open(directory.path(), 0).unwrap();
+    let provider = LevelDBWorldProvider::open(directory.path()).unwrap();
     let restored = provider
         .load_column(ChunkPos::new(0, 0), 0)
         .await

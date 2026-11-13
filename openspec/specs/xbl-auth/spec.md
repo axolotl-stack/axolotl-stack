@@ -10,7 +10,7 @@ Xbox Live and Minecraft authentication on both sides of a Bedrock connection. `c
 
 #### Scenario: Control responses
 - **WHEN** a poll is answered HTTP 400 with `authorization_pending` or `slow_down`
-- **THEN** `poll` returns `Ok(None)` or `Err(AuthorizationSlowDown)`, and `wait_for_auth` adds 5 s to its interval after a slow-down
+- **THEN** `poll` returns `Ok(None)` or `Err(AuthorizationSlowDown)`, and `wait_for_auth` adds 5 s to its interval after each slow-down for the rest of the wait, never polling past the device code's lifetime (`DeviceCodeExpired`)
 
 #### Scenario: Token-shaped error body
 - **WHEN** a poll is answered HTTP 500 with a body containing `access_token` and `refresh_token`
@@ -22,9 +22,9 @@ Xbox Live and Minecraft authentication on both sides of a Bedrock connection. `c
 
 #### Scenario: Refresh keeps the refresh token
 - **WHEN** a refresh response omits `refresh_token`
-- **THEN** the returned token keeps the refresh token that was sent
+- **THEN** the returned token keeps the refresh token that was sent, and a response that carries a new one replaces it
 
-Evidence: crates/axolotl-xbl/src/auth/mod.rs (`MINECRAFT_CLIENT_ID`, `XBL_SCOPE`), crates/axolotl-xbl/src/auth/device_code.rs (`pending_and_slow_down_are_protocol_control_responses`, `non_success_token_body_is_not_accepted`, `overflowing_oauth_lifetime_is_rejected`, `expired_device_code_does_not_poll_network`, `DeviceCodeAuth::refresh_at`)
+Evidence: crates/axolotl-xbl/src/auth/mod.rs (`MINECRAFT_CLIENT_ID`, `XBL_SCOPE`), crates/axolotl-xbl/src/auth/device_code.rs (`pending_and_slow_down_are_protocol_control_responses`, `non_success_token_body_is_not_accepted`, `overflowing_oauth_lifetime_is_rejected`, `expired_device_code_does_not_poll_network`, `DeviceCodeAuth::refresh_at`, `refresh_keeps_the_refresh_token_unless_replaced`, `slow_down_backs_off_by_five_seconds_each_time`, `slow_down_stops_at_the_device_code_lifetime`)
 
 ### Requirement: Xbox token acquisition
 `XblTokenClient` SHALL obtain a ProofOfPossession device token, a SISU authorization (title, user and Xbox Live tokens) and per-relying-party XSTS tokens, signing each request with one P-256 proof key. Every service token MUST be valid for more than 60 s and carry a user hash, or acquisition fails. Tokens MUST be cached per relying party until 60 s before expiry, and `invalidate_token` MUST drop only the rejected token.
@@ -77,6 +77,15 @@ Credential-bearing values SHALL never appear in an error's `Display` or `Debug`,
 
 Evidence: crates/axolotl-xbl/src/error.rs (`XblError`), crates/axolotl-xbl/tests/auth_tests.rs (`credentials_are_redacted_from_debug`, `malformed_response_error_does_not_disclose_credentials`), crates/axolotl-xbl/src/auth/device_code.rs (`oauth_failure_description_cannot_leak_token`, `malformed_success_response_is_redacted`), crates/axolotl-xbl/src/auth/xbl_token.rs (`acquisition_http_status_errors_never_expose_remote_secrets`, `malformed_claims_do_not_panic_or_leak`), crates/axolotl-xbl/src/playfab.rs (`secret_response_debug_is_redacted`), crates/axolotl-xbl/src/discovery.rs (`discovery_checks_status_and_redacts_malformed_responses`), crates/axelerator/src/token_cache.rs (`cached_debug_redacts_credentials`), crates/jolyne/src/proto/tests.rs (`failure_disconnects_never_send_internal_error_text`)
 
+### Requirement: Client constructors never panic
+`axolotl-xbl` client constructors (`DeviceCodeAuth`, `XblTokenClient`, `FriendsClient`, `PresenceClient`, `PlayFabClient`, `GalleryClient`, `SessionClient`, `DiscoveryClient`) MUST NOT build an HTTP client or panic. The `reqwest::Client` SHALL be built on first request; a build failure (for example TLS initialisation) MUST return `XblError::HttpClientBuild`, distinct from the network error `XblError::Http`, and the next call SHALL retry the build.
+
+#### Scenario: Client build failure
+- **WHEN** building the HTTP client fails
+- **THEN** the call that needed it returns `XblError::HttpClientBuild`, not `XblError::Http(None)`, and nothing is sent
+
+Evidence: crates/axolotl-xbl/src/http.rs (`LazyClient`, `build_error`, test `a_build_failure_is_not_reported_as_a_network_error`), crates/axolotl-xbl/src/error.rs (`XblError::HttpClientBuild`), crates/axolotl-xbl/src/auth/device_code.rs, crates/axolotl-xbl/src/auth/xbl_token.rs, crates/axolotl-xbl/src/friends.rs, crates/axolotl-xbl/src/presence.rs, crates/axolotl-xbl/src/playfab.rs, crates/axolotl-xbl/src/gallery.rs, crates/axolotl-xbl/src/session.rs, crates/axolotl-xbl/src/discovery.rs
+
 ### Requirement: Private, atomic token cache
 `TokenCache` SHALL persist the OAuth token by writing a new temporary file created owner-only before any credential byte is written (Unix mode `0600`; Windows a protected DACL granting only the current user), syncing it and renaming it over the destination. A failed write MUST remove the temporary file and leave the destination intact.
 
@@ -117,11 +126,15 @@ The server SHALL decode `LoginPacket.connection_request` as `[i32 LE length][Aut
 Evidence: crates/jolyne/src/auth/mod.rs (`decode_login_request`, `authenticate_login_requires_auth_type`, `authenticate_login_rejects_unknown_auth_type`, `authenticate_login_requires_token_for_full`, `login_request_round_trip_preserves_length_prefixed_values`), crates/jolyne/src/auth/security_tests.rs (`malformed_envelopes_never_panic`, `malformed_tokens_and_client_data_never_panic`)
 
 ### Requirement: Online trust comes only from published provider keys
-In online mode the server SHALL verify the multiplayer `Token` only against keys from Minecraft build discovery: the discovery URL for `GAME_VERSION` names the production issuer, whose `.well-known/openid-configuration` MUST name the same issuer and the `jwks_uri`. Keys or URLs from the login (JWT `x5u`/`x5c` headers) MUST never be trusted. Fetches MUST be HTTPS-only.
+In online mode the server SHALL verify the multiplayer `Token` only against keys from its `OpenIdProvider`: by default Minecraft build discovery, where the discovery URL for `GAME_VERSION` names the production issuer, whose `.well-known/openid-configuration` MUST name the same issuer and the `jwks_uri`. `BedrockListenerConfig::key_provider` MAY replace that provider. Keys or URLs from the login (JWT `x5u`/`x5c` headers) MUST never be trusted. Fetches MUST be HTTPS-only.
 
 #### Scenario: Discovery chain
 - **WHEN** the production key source fetches over a stubbed HTTP client
 - **THEN** it requests build discovery, then the issuer's OpenID configuration, then its `jwks_uri`, and fails with `InvalidIssuer` when the configuration names another issuer
+
+#### Scenario: Listener-supplied provider
+- **WHEN** a listener's `key_provider` is set and an online login is verified
+- **THEN** a token signed by that provider's issuer is accepted and one signed by any other key is rejected; with `key_provider: None` the shared `OpenIdProvider::minecraft()` is used
 
 #### Scenario: Self-signed token
 - **WHEN** a token is signed by a key that is not in the trusted JWKS
@@ -131,7 +144,7 @@ In online mode the server SHALL verify the multiplayer `Token` only against keys
 - **WHEN** the JWKS mixes a malformed key with valid ones
 - **THEN** the malformed key is skipped and the valid ones verify; a set with no usable key is an error
 
-Evidence: crates/jolyne/src/auth/openid.rs (`MinecraftDiscovery`, `OpenIdVerifier::from_jwks`, `HTTP_CLIENT`), crates/jolyne/src/auth/provider_tests.rs (`minecraft_discovery_follows_build_discovery_to_the_jwks`), crates/jolyne/src/auth/security_tests.rs (`rs256_jwks_validates_provider_tokens`, `self_signed_header_key_is_not_online_trust`, `malformed_jwks_keys_are_skipped_not_fatal`)
+Evidence: crates/jolyne/src/auth/openid.rs (`MinecraftDiscovery`, `OpenIdVerifier::from_jwks`, `HTTP_CLIENT`), crates/jolyne/src/auth/provider_tests.rs (`minecraft_discovery_follows_build_discovery_to_the_jwks`), crates/jolyne/src/auth/security_tests.rs (`rs256_jwks_validates_provider_tokens`, `self_signed_header_key_is_not_online_trust`, `malformed_jwks_keys_are_skipped_not_fatal`, `listener_key_provider_verifies_online_logins`), crates/jolyne/src/config.rs (`BedrockListenerConfig::key_provider`), crates/jolyne/src/stream/server/mod.rs (`verify_login`)
 
 ### Requirement: Multiplayer token claim validation
 A provider token SHALL verify only with a trusted key of the same algorithm (and the same `kid` when the token names one). `iss` MUST equal the discovered issuer, `aud` MUST be `api://auth-minecraft-services/multiplayer`, `exp` MUST be present, `nbf` MUST be checked when present, and the clock leeway MUST be 60 s. The token MUST carry an identity key (`cpk`) and an int64 `xid`.

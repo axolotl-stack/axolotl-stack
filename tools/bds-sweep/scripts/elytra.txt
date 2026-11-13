@@ -16,34 +16,34 @@
 30 /tp @s 0.5 -60 0.5 -90 0
 
 # 1. Gliding on the ground, and in the air without an elytra.
-40 glide
-50 unglide
+40 flags Startgliding
+50 flags Stopgliding
 60 /tp @s 0.5 40 0.5 -90 0
-70 glide
-80 unglide
+70 flags Startgliding
+80 flags Stopgliding
 90 /tp @s 0.5 -60 0.5 -90 0
 
 # 2. A new elytra: 100 blocks up, falling for 10 inputs, then gliding (level,
 #    facing east) until it lands; a stop after 200 inputs if it has not.
 100 /replaceitem entity @s slot.armor.chest 0 elytra
 110 /tp @s 0.5 40 0.5 -90 0
-120 glide
-320 unglide
+120 flags Startgliding
+320 flags Stopgliding
 330 /tp @s 0.5 -60 0.5 -90 0
 
 # 3. An elytra with 2 durability left (damage 430 of 432), gliding the same
 #    way.
 340 /replaceitem entity @s slot.armor.chest 0 elytra 1 430
 350 /tp @s 0.5 40 0.5 -90 0
-360 glide
-560 unglide
+360 flags Startgliding
+560 flags Stopgliding
 570 /tp @s 0.5 -60 0.5 -90 0
 
 # 4. A broken elytra (1 durability left, damage 431).
 580 /replaceitem entity @s slot.armor.chest 0 elytra 1 431
 590 /tp @s 0.5 40 0.5 -90 0
-600 glide
-700 unglide
+600 flags Startgliding
+700 flags Stopgliding
 710 /tp @s 0.5 -60 0.5 -90 0
 
 # 5. Potions drunk facing south (yaw 0), north (yaw 180) and down (pitch 60),

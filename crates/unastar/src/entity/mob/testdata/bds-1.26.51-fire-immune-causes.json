@@ -1,0 +1,271 @@
+{
+  "description": "Which /damage causes hurt a fire_immune mob. Each mob takes `/damage @e[type=<mob>] 1 <cause>` once per cause from an operator (player origin), 1.5 s apart, at midnight on easy, with fresh mobs every 12 causes; `true` means BDS answered commands.damage.success, `false` commands.damage.failed. zombie_pigman and wither_skeleton declare minecraft:fire_immune; zombie and skeleton are the controls of the same native classes.",
+  "server": "BDS 1.26.51 (plain bedrock_server, no Endstone), seed 12345 harness world",
+  "source": {
+    "capture": "tools/bds-sweep/capture.py --commands, 2026-11-10, operator-commands/command-outputs.json",
+    "command_outputs_sha256": "7a84de9883300cca8f0db241679ec70fb85243318bce9a16211bad33f20a0ca4",
+    "commands_sha256": "1fe2acc46fae5fab8988d296aed12dd97964ca96cb0966125a3db00f4ea507ac"
+  },
+  "fire_immune": [
+    "minecraft:zombie_pigman",
+    "minecraft:wither_skeleton"
+  ],
+  "controls": [
+    "minecraft:zombie",
+    "minecraft:skeleton"
+  ],
+  "causes": [
+    {
+      "cause": "piston",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "lava",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": false,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": false
+    },
+    {
+      "cause": "campfire",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "fire",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": false,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": false
+    },
+    {
+      "cause": "anvil",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "magma",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": false,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": false
+    },
+    {
+      "cause": "soul_campfire",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "wither",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "falling_block",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "fireworks",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "thorns",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "none",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "contact",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "sonic_boom",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "override",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "entity_attack",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "projectile",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "suffocation",
+      "minecraft:skeleton": false,
+      "minecraft:wither_skeleton": false,
+      "minecraft:zombie": false,
+      "minecraft:zombie_pigman": false
+    },
+    {
+      "cause": "mace_smash",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "fall",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "starve",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "ram_attack",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "fire_tick",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": false,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": false
+    },
+    {
+      "cause": "stalactite",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "drowning",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "block_explosion",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "entity_explosion",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "void",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "self_destruct",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "magic",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "charging",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "stalagmite",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "fly_into_wall",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "lightning",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "freezing",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    },
+    {
+      "cause": "temperature",
+      "minecraft:skeleton": true,
+      "minecraft:wither_skeleton": true,
+      "minecraft:zombie": true,
+      "minecraft:zombie_pigman": true
+    }
+  ]
+}

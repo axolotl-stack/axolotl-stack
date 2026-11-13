@@ -1,5 +1,6 @@
 use super::*;
 use crate::ParseError;
+use serde::Deserialize;
 use serde_json::Value;
 
 type Result<T, E = ParseError> = std::result::Result<T, E>;
@@ -74,17 +75,37 @@ fn bare(name: &str) -> &str {
     name.strip_prefix("minecraft:").unwrap_or(name)
 }
 
-// The existing evaluator only used these enchantments. Resolve their public
-// Bedrock protocol ids once; retain unknown names so evaluation can reject them.
-fn enchantment_id(name: &str) -> Option<i16> {
-    Some(match bare(name) {
-        "aqua_affinity" => 8,
-        "looting" => 14,
-        "efficiency" => 15,
-        "silk_touch" => 16,
-        "unbreaking" => 17,
-        "fortune" => 18,
-        _ => return None,
+/// An enchantment by name. An unknown name rejects the table at load (and
+/// fails the build for the embedded vanilla tables).
+fn enchantment(v: &Value, path: &str) -> Result<Enchantment> {
+    Enchantment::deserialize(v).map_err(|e| ParseError::new(path, e.to_string()))
+}
+
+/// An enchantment level: a non-negative integer that fits `u8`.
+fn level(v: &Value, path: &str) -> Result<u8> {
+    uint(v, path)?
+        .try_into()
+        .map_err(|_| ParseError::new(path, "enchantment level outside u8"))
+}
+
+/// `specific_enchants` entry: `{"id": name, "level": n | [min, max]}`
+/// (level 1 when absent).
+fn specific_enchant(v: &Value, path: &str) -> Result<SpecificEnchant> {
+    let (min_level, max_level) = match v.get("level") {
+        None => (1, 1),
+        Some(Value::Array(range)) => match range.as_slice() {
+            [min, max] => (level(min, path)?, level(max, path)?),
+            _ => return Err(ParseError::new(path, "level range must be [min, max]")),
+        },
+        Some(single) => {
+            let level = level(single, path)?;
+            (level, level)
+        }
+    };
+    Ok(SpecificEnchant {
+        enchantment: enchantment(&v["id"], path)?,
+        min_level,
+        max_level,
     })
 }
 
@@ -106,30 +127,20 @@ fn condition(v: &Value, path: &str) -> Result<LootCondition> {
                 .map(|v| text(v, path).map(str::to_owned))
                 .transpose()?,
             enchantments: array(v.get("enchantments"), path, |e, at| {
-                let name = text(&e["enchantment"], at)?.to_owned();
-                let level = |key: &str, default| -> Result<u8> {
-                    e["levels"].get(key).map_or(Ok(default), |v| {
-                        uint(v, at)?
-                            .try_into()
-                            .map_err(|_| ParseError::new(at, "enchantment level outside u8"))
-                    })
+                let bound = |key: &str, default| -> Result<u8> {
+                    e["levels"].get(key).map_or(Ok(default), |v| level(v, at))
                 };
                 Ok(EnchantmentRequirement {
-                    id: enchantment_id(&name),
-                    enchantment: name,
-                    min_level: level("range_min", 1)?,
-                    max_level: level("range_max", u8::MAX)?,
+                    enchantment: enchantment(&e["enchantment"], at)?,
+                    min_level: bound("range_min", 1)?,
+                    max_level: bound("range_max", u8::MAX)?,
                 })
             })?,
         },
-        "table_bonus" => {
-            let enchantment = text(&v["enchantment"], path)?.to_owned();
-            LootCondition::TableBonus {
-                id: enchantment_id(&enchantment),
-                enchantment,
-                chances: array(v.get("chances"), path, float)?,
-            }
-        }
+        "table_bonus" => LootCondition::TableBonus {
+            enchantment: enchantment(&v["enchantment"], path)?,
+            chances: array(v.get("chances"), path, float)?,
+        },
         "block_state_property" => {
             let properties = v["properties"]
                 .as_object()
@@ -220,7 +231,7 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
             limit: v.get("limit").map_or(Ok(0), |v| uint(v, path))?,
         },
         "apply_bonus" => {
-            let enchantment = text(&v["enchantment"], path)?.to_owned();
+            let enchantment = enchantment(&v["enchantment"], path)?;
             let parameters = &v["parameters"];
             let formula = match text(&v["formula"], path)? {
                 "ore_drops" => BonusFormula::OreDrops,
@@ -239,11 +250,13 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
                 }
             };
             LootFunctionKind::ApplyBonus {
-                id: enchantment_id(&enchantment),
                 enchantment,
                 formula,
             }
         }
+        "specific_enchants" => LootFunctionKind::SpecificEnchants {
+            enchants: array(v.get("enchants"), path, specific_enchant)?,
+        },
         "limit_count" => LootFunctionKind::LimitCount {
             min: v["limit"].get("min").map(|v| float(v, path)).transpose()?,
             max: v["limit"].get("max").map(|v| float(v, path)).transpose()?,

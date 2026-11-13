@@ -66,6 +66,23 @@ The generator MUST fail rather than guess a wire type when input contains an uns
 
 Evidence: crates/valentine_gen/src/parser/protocolgen.rs (`lower_primitive`, tests `rejects_asymmetric_fields`, `rejects_asymmetric_union_variants`, `rejects_enum_variants_with_ignored_payloads`, `rejects_discriminants_outside_the_declared_primitive_range`, `rejects_reachable_unresolved_nodes`), crates/valentine_gen/src/parser/mojang.rs
 
+### Requirement: A type id keeps one shape
+When the protocolgen manifest reuses a type id with a shape other than the one first registered, generation MUST fail. The only exception SHALL be an id listed in `ALLOWED_ENUM_NARROWINGS` (each entry with its reason) whose two shapes are both enums over the same underlying primitive; that later use SHALL be inlined. Distinct ids with identical wire shapes SHALL stay distinct named types.
+
+#### Scenario: Unlisted reuse
+- **WHEN** a manifest reuses an id that is not allowlisted with a different struct shape
+- **THEN** parsing fails naming the type id
+
+#### Scenario: Allowlisted id with a different primitive
+- **WHEN** an allowlisted id such as `enums/GameType` is reused as an enum over a different primitive, or as a struct
+- **THEN** parsing still fails
+
+#### Scenario: Allowlisted enum narrowing
+- **WHEN** `enums/GameType` is reused as an enum over the same primitive with fewer variants
+- **THEN** the first use stays a reference to the registered type and the later use is inlined with its own variant list
+
+Evidence: crates/valentine_gen/src/parser/protocolgen.rs (`ALLOWED_ENUM_NARROWINGS`, `check_type_id_reuse`, tests `rejects_a_type_id_reused_with_a_different_shape`, `allowlisted_enum_narrowing_is_inlined`, `preserves_distinct_named_types_with_identical_wire_shapes`)
+
 ### Requirement: Input corrections are pinned and fail-closed
 Corrections to inputs SHALL be applied in memory while lowering; pinned inputs MUST NOT be edited. Each protocolgen correction SHALL pin the packet, field, primitive code and encoding it replaces and the protocol version that proves it, and generation MUST fail if the pinned node changed or if a manifest for the verified protocol lacks the corrected field. Mojang and Endstone override operations MUST fail when they match nothing.
 
@@ -89,7 +106,7 @@ The generator SHALL build Rust output as `proc_macro2::TokenStream` values with 
 Evidence: crates/valentine_gen/src/generator/emitter.rs (`format_tokens`, `write_rust_file`, `GENERATED_HEADER`)
 
 ### Requirement: Atomic formatted writes
-Generated Rust modules MUST be fully parsed and formatted before their destination is touched, then written to a uniquely named sibling temporary file and atomically renamed over the destination. A format or write failure MUST leave the previous file unchanged and remove the temporary file.
+Generated Rust modules MUST be fully parsed and formatted before their destination is touched. Every generated file, the version crate's and `valentine`'s `Cargo.toml` included, MUST be written to a uniquely named sibling temporary file and atomically renamed over the destination. A format or write failure MUST leave the previous file unchanged and remove the temporary file.
 
 #### Scenario: Invalid tokens preserve existing output
 - **WHEN** `write_rust_file` is called with invalid tokens for a path that already holds generated code
@@ -99,7 +116,11 @@ Generated Rust modules MUST be fully parsed and formatted before their destinati
 - **WHEN** `write_rust_file` is called with valid tokens
 - **THEN** the file contains exactly the generated header followed by the formatted code
 
-Evidence: crates/valentine_gen/src/generator/emitter.rs (tests `invalid_tokens_preserve_existing_file`, `valid_tokens_replace_existing_file`)
+#### Scenario: Manifests are replaced, not rewritten in place
+- **WHEN** the version crate is generated over an existing `Cargo.toml` that another path hard-links to
+- **THEN** the hard link still sees the old contents, the destination holds the complete new manifest, and no staging file is left behind
+
+Evidence: crates/valentine_gen/src/generator/emitter.rs (`write_file_atomic`, tests `invalid_tokens_preserve_existing_file`, `valid_tokens_replace_existing_file`), crates/valentine_gen/src/main.rs (`write_version_crate`, `update_valentine_manifest_at`, test `manifests_are_written_atomically`)
 
 ### Requirement: Updates merge existing version crates
 When generation rewrites the Valentine surface (`src/bedrock/{mod,protocol/mod,version}.rs`) and `Cargo.toml`, the generator SHALL retain every version declared in the existing `version.rs` whose `bedrock_versions/<module>` crate directory still exists, and SHALL drop declarations whose crate directory is gone. It MUST NOT replace an existing `default` feature; it SHALL seed `default` only when the manifest has none. Non-generated features SHALL be preserved.
