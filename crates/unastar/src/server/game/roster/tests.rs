@@ -339,7 +339,12 @@ mod server {
         );
 
         server.despawn_player(2);
-        let left = drain(&mut host);
+        // The guest's RemoveActor goes out through its viewers' removal hook,
+        // not with the roster packets this test is about.
+        let left: Vec<_> = drain(&mut host)
+            .into_iter()
+            .filter(|packet| !matches!(packet, McpePacketData::RemoveActorPacket(_)))
+            .collect();
         assert_eq!(
             left,
             [

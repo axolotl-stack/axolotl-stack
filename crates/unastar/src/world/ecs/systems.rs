@@ -96,6 +96,17 @@ impl LastPublisherState {
 #[derive(Component, Debug, Default)]
 pub struct AwaitingSpawnStatus;
 
+/// A player waiting for its spawn status, with what the status packets need.
+type SpawnStatusPlayer = (
+    Entity,
+    &'static PlayerSession,
+    &'static LastPublisherState,
+    Option<&'static crate::entity::components::Health>,
+    &'static crate::entity::components::PlayerName,
+    &'static crate::entity::components::PlayerUuid,
+    Option<&'static crate::command::exec::UnlockedRecipes>,
+);
+
 /// System: Send `PlayStatus(PlayerSpawn)` once, after this tick's publisher
 /// update and chunks. The client then loads the terrain still streaming in
 /// and sends `SetLocalPlayerAsInitialized` when it is ready.
@@ -112,18 +123,7 @@ pub struct AwaitingSpawnStatus;
 /// `PlayStatus(PlayerSpawn)` in the member join capture).
 pub fn send_spawn_status(
     mut commands: Commands,
-    players: Query<
-        (
-            Entity,
-            &PlayerSession,
-            &LastPublisherState,
-            Option<&crate::entity::components::Health>,
-            &crate::entity::components::PlayerName,
-            &crate::entity::components::PlayerUuid,
-            Option<&crate::command::exec::UnlockedRecipes>,
-        ),
-        With<AwaitingSpawnStatus>,
-    >,
+    players: Query<SpawnStatusPlayer, With<AwaitingSpawnStatus>>,
     mut events: Option<ResMut<crate::ecs::events::EventBuffer>>,
 ) {
     for (player_entity, session, publisher_state, health, name, uuid, unlocked) in players.iter() {
