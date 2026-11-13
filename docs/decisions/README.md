@@ -51,5 +51,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0062](0062-hopping-mobs-move-through-a-hop-control.md) | Hopping mobs move through a hop control, not the path follower | 2026-11-12 | proposed | |
 | [0065](0065-swimming-mobs-follow-a-pulled-swim-path.md) | Swimming mobs follow a pulled swim path with no gravity | 2026-11-12 | proposed | |
 | [0068](0068-stomp-is-a-melee-reach-judged-after-the-move.md) | The stomp attack is a reach of the one melee goal, judged after the move | 2026-11-12 | proposed | |
+| [0069](0069-flyers-push-straight-at-their-point.md) | Float-navigating flyers push straight at their point, with no path and no gravity | 2026-11-12 | proposed | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

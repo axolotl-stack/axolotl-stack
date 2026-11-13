@@ -227,6 +227,7 @@ fn hurt_mob_with(world: &mut World, target: Entity, hit: Hit, animate: bool) -> 
         health.damage(to_health);
         health.is_dead()
     };
+    crate::entity::mob::ai::roost::wake_hurt(world, target);
     if full && animate {
         send_actor_event(
             world,

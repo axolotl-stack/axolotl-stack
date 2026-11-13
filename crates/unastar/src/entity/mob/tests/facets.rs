@@ -76,6 +76,17 @@ pub(super) fn arena(
     mode: GameMode,
     build: impl Fn(IVec3) -> Option<u32>,
 ) -> Arena {
+    arena_of(seed, difficulty, mode, 1, build)
+}
+
+/// [`arena`] over chunks `-chunks..=chunks` on x and z.
+pub(super) fn arena_of(
+    seed: u64,
+    difficulty: Difficulty,
+    mode: GameMode,
+    chunks: i32,
+    build: impl Fn(IVec3) -> Option<u32>,
+) -> Arena {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -104,8 +115,8 @@ pub(super) fn arena(
         ))
         .id();
     let grass = block("minecraft:grass_block");
-    for cx in -1..=1 {
-        for cz in -1..=1 {
+    for cx in -chunks..=chunks {
+        for cz in -chunks..=chunks {
             let mut column = Chunk::new(cx, cz);
             for lx in 0u8..16 {
                 for lz in 0u8..16 {
@@ -180,7 +191,7 @@ impl Arena {
         }
     }
 
-    fn set_block(&mut self, pos: IVec3, name: &str) {
+    pub(super) fn set_block(&mut self, pos: IVec3, name: &str) {
         let state = block(name);
         let world = self.world();
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(pos.x, pos.z);

@@ -345,6 +345,12 @@ fn spawn_unattached(
             .update(actor_flags::USES_LEGACY_FRICTION, true)
             .expect("catalogue flag index");
     }
+    if archetype.native.bat.is_some() {
+        // A bat is born resting (its BDS 1.26.51 summon's `AddActor`).
+        flags
+            .update(actor_flags::RESTING, true)
+            .expect("catalogue flag index");
+    }
     let metadata = if archetype.projectile {
         // Turned invisible once its definition applies
         // (`projectile::derive_projectile`).

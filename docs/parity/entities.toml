@@ -312,7 +312,7 @@
 "minecraft:wither/boss" = { status = "missing", gaps = "not implemented: needs bosses" }
 "minecraft:wither/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; wither cannot spawn yet" }
 "minecraft:wither/can_climb" = { status = "partial", owner = "entities", gaps = "the CANCLIMB flag is replicated; mobs do not climb ladders, vines or scaffolding; wither cannot spawn yet" }
-"minecraft:wither/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:wither/can_fly" = { status = "partial", owner = "entities", gaps = "the CANFLY flag is replicated (verified on the bat); the wither cannot spawn yet" }
 "minecraft:wither/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet" }
 "minecraft:wither/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; wither cannot spawn yet" }
 "minecraft:wither/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but wither cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -759,12 +759,12 @@
 "minecraft:evocation_illager/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but evocation_illager cannot spawn yet" }
 "minecraft:ghast" = { status = "missing", gaps = "not spawnable: needs behavior.float_wander, behavior.ranged_attack, can_fly, cannot_be_attacked, follow_range, navigation.float (+1 more)" }
 "minecraft:ghast/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
-"minecraft:ghast/behavior.float_wander" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:ghast/behavior.float_wander" = { status = "partial", owner = "entities", gaps = "implemented and replayed on the bat; the ghast authors must_reach (rejected, unmeasured) and cannot spawn yet" }
 "minecraft:ghast/behavior.hurt_by_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/behavior.nearest_attackable_target" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/behavior.ranged_attack" = { status = "missing", gaps = "not implemented: needs ranged attacks and arrows" }
 "minecraft:ghast/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; ghast cannot spawn yet" }
-"minecraft:ghast/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:ghast/can_fly" = { status = "partial", owner = "entities", gaps = "the CANFLY flag is replicated (verified on the bat); the ghast cannot spawn yet" }
 "minecraft:ghast/cannot_be_attacked" = { status = "missing", gaps = "not implemented: needs persistence and misc actor state" }
 "minecraft:ghast/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; ghast cannot spawn yet" }
@@ -779,7 +779,7 @@
 "minecraft:ghast/loot" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet; loot conditions not implemented: damaged_by_entity, killed_by_entity (an unsupported function or condition fails the roll)" }
 "minecraft:ghast/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; ghast cannot spawn yet" }
-"minecraft:ghast/navigation.float" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:ghast/navigation.float" = { status = "partial", owner = "entities", gaps = "implemented and replayed on the bat (straight flight, no gravity, air drag 0.91 on every axis, which a BDS ghast showed too); the ghast cannot spawn yet" }
 "minecraft:ghast/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
 "minecraft:ghast/pushable_by_block" = { status = "partial", owner = "entities", gaps = "presence is recorded, but nothing pushes actors (no piston actor pushing); ghast cannot spawn yet" }
 "minecraft:ghast/pushable_by_entity" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but ghast cannot spawn yet" }
@@ -2032,7 +2032,7 @@
 "minecraft:allay/behavior.random_look_around" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but allay cannot spawn yet" }
 "minecraft:allay/behavior.stay_near_noteblock" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:allay/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; allay cannot spawn yet" }
-"minecraft:allay/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:allay/can_fly" = { status = "partial", owner = "entities", gaps = "the CANFLY flag is replicated (verified on the bat); the allay cannot spawn yet" }
 "minecraft:allay/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but allay cannot spawn yet" }
 "minecraft:allay/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; allay cannot spawn yet" }
 "minecraft:allay/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but allay cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -2151,27 +2151,27 @@
 "minecraft:axolotl/underwater_movement" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:axolotl/uses_legacy_friction" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
 "minecraft:axolotl/variant" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but axolotl cannot spawn yet" }
-"minecraft:bat" = { status = "missing", gaps = "not spawnable: needs behavior.float_wander, can_fly, navigation.float" }
-"minecraft:bat/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/behavior.float_wander" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:bat/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; bat cannot spawn yet" }
-"minecraft:bat/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:bat/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; bat cannot spawn yet" }
-"minecraft:bat/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:bat/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
+"minecraft:bat" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::spawned_bat_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/bat.rs::a_flying_bat_pushes_at_its_point_like_bds", "crates/unastar/src/entity/mob/tests/bat.rs::bat_wanders_match_bds_by_distribution", "crates/unastar/src/entity/mob/tests/bat.rs::a_resting_bat_wakes_when_hurt_unroofed_or_approached"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/bat.bin", notes = "Sub-row gaps: no natural spawning replay, no ambient or wake sounds checked, a woken bat is not turned by its 1-in-200 head turns (unmeasured), and BDS once kept a hurt bat resting (1 of 24 hurts). Flight and resting replayed against BDS 1.26.51 (crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-bat.json). Prior art: Jviguy/stab-ent-m5 503bf672 (flyer components compiled, no AI)." }
+"minecraft:bat/behavior.float" = { status = "partial", owner = "entities", gaps = "the goal runs, but a float-navigating mob ignores its jump in liquids; untested on the bat" }
+"minecraft:bat/behavior.float_wander" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::bat_wanders_match_bds_by_distribution", "crates/unastar/src/entity/mob/tests/bat.rs::float_wander_draws_stay_in_the_authored_box"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-bat.json", notes = "Wanders of float_duration x 20 ticks cut to whole ticks plus one (3 to 7), a point drawn uniformly in the authored box each tick until one is not in a solid block. must_reach, navigate_around_surface, additional_collision_buffer, allow_navigating_through_liquids and random_reselect false are rejected (unmeasured)." }
+"minecraft:bat/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate" }
+"minecraft:bat/can_fly" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::spawned_bat_add_actor_matches_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/bat.bin", notes = "The CANFLY flag; no path search reads it (the float navigation searches none)." }
+"minecraft:bat/collision_box" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::spawned_bat_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/bat.rs::a_bat_is_born_resting_and_wakes_without_a_roof"] }
+"minecraft:bat/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates" }
+"minecraft:bat/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
+"minecraft:bat/despawn" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat" }
 "minecraft:bat/game_event_movement_tracking" = { status = "missing", gaps = "game events and vibrations are not implemented; no movement vibrations are emitted" }
-"minecraft:bat/health" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet", notes = "Unconfirmed natively: an omitted health.max is taken to equal value (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
-"minecraft:bat/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; bat cannot spawn yet" }
-"minecraft:bat/navigation.float" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:bat/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
-"minecraft:bat/spawn_rules" = { status = "partial", gaps = "bat cannot spawn yet, so drawn entries spawn nothing; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
-"minecraft:bat/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bat cannot spawn yet" }
+"minecraft:bat/health" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::spawned_bat_add_actor_matches_native_summon"] }
+"minecraft:bat/hurt_on_condition" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat" }
+"minecraft:bat/is_hidden_when_invisible" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat" }
+"minecraft:bat/jump.static" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat" }
+"minecraft:bat/movement" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::a_flying_bat_pushes_at_its_point_like_bds"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-bat.json", notes = "The push of the float control is the movement speed." }
+"minecraft:bat/movement.basic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat" }
+"minecraft:bat/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected" }
+"minecraft:bat/navigation.float" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::a_flying_bat_pushes_at_its_point_like_bds"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-bat.json", notes = "Straight at the point, no path search; no gravity, air drag 0.91 on every axis (the bat 0.546 on y, a native factor)." }
+"minecraft:bat/physics" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/bat.rs::a_flying_bat_pushes_at_its_point_like_bds", "crates/unastar/src/entity/mob/tests/bat.rs::a_bat_is_born_resting_and_wakes_without_a_roof"], evidence = "crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-bat.json", notes = "HAS_GRAVITY is replicated, yet the float navigation removes gravity (as BDS)." }
+"minecraft:bat/spawn_rules" = { status = "partial", gaps = "the bat can spawn, but no test replays its natural spawning; no weather, so adjust_for_weather has no effect; brightness is sky light only" }
+"minecraft:bat/type_family" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, not on the bat" }
 "minecraft:bee" = { status = "missing", gaps = "not spawnable: needs behavior.go_home, behavior.move_to_block, behavior.move_towards_home_restriction, behavior.random_hover, behavior.timer_flag_1, block_sensor (+8 more)" }
 "minecraft:bee/ageable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
@@ -2194,7 +2194,7 @@
 "minecraft:bee/block_sensor" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:bee/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; bee cannot spawn yet" }
 "minecraft:bee/breedable" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
-"minecraft:bee/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:bee/can_fly" = { status = "partial", owner = "entities", gaps = "the CANFLY flag is replicated (verified on the bat); the bee cannot spawn yet" }
 "minecraft:bee/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet" }
 "minecraft:bee/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; bee cannot spawn yet" }
 "minecraft:bee/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but bee cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -2779,7 +2779,7 @@
 "minecraft:happy_ghast/ambient_sound_interval" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/behavior.float" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/behavior.float_tempt" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
-"minecraft:happy_ghast/behavior.float_wander" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:happy_ghast/behavior.float_wander" = { status = "partial", owner = "entities", gaps = "implemented and replayed on the bat; the happy ghast authors must_reach, navigate_around_surface and additional_collision_buffer (rejected, unmeasured) and cannot spawn yet" }
 "minecraft:happy_ghast/behavior.follow_mob" = { status = "missing", gaps = "not implemented: needs swimming and water movement" }
 "minecraft:happy_ghast/behavior.panic" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet", notes = "Unconfirmed natively: the default damage_sources list is the 18-cause legacy list (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
 "minecraft:happy_ghast/behavior.player_ride_tamed" = { status = "missing", gaps = "not implemented: needs mob inventories and mount gear" }
@@ -2788,7 +2788,7 @@
 "minecraft:happy_ghast/body_rotation_always_follows_head" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:happy_ghast/body_rotation_blocked" = { status = "missing", gaps = "component behaviour not implemented" }
 "minecraft:happy_ghast/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; happy_ghast cannot spawn yet" }
-"minecraft:happy_ghast/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:happy_ghast/can_fly" = { status = "partial", owner = "entities", gaps = "the CANFLY flag is replicated (verified on the bat); the happy ghast cannot spawn yet" }
 "minecraft:happy_ghast/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }
@@ -2813,7 +2813,7 @@
 "minecraft:happy_ghast/movement" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/movement.hover" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:happy_ghast/nameable" = { status = "partial", owner = "entities", gaps = "compiled only: name tags cannot rename mobs and always_show is not applied; definitions with name_actions are rejected; happy_ghast cannot spawn yet" }
-"minecraft:happy_ghast/navigation.float" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:happy_ghast/navigation.float" = { status = "partial", owner = "entities", gaps = "implemented and replayed on the bat (straight flight, no gravity, air drag 0.91 on every axis, which a BDS ghast showed too); the happy ghast cannot spawn yet" }
 "minecraft:happy_ghast/navigation.hover" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
 "minecraft:happy_ghast/offspring" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
 "minecraft:happy_ghast/physics" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but happy_ghast cannot spawn yet" }
@@ -3212,7 +3212,7 @@
 "minecraft:parrot/behavior.stay_while_sitting" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:parrot/behavior.teleport_to_owner" = { status = "missing", gaps = "not implemented: needs taming and owners" }
 "minecraft:parrot/breathable" = { status = "partial", owner = "entities", gaps = "only the air supply pool and air actor data; mobs never drown or suffocate; parrot cannot spawn yet" }
-"minecraft:parrot/can_fly" = { status = "missing", gaps = "not implemented: needs flying and hovering" }
+"minecraft:parrot/can_fly" = { status = "partial", owner = "entities", gaps = "the CANFLY flag is replicated (verified on the bat); the parrot cannot spawn yet" }
 "minecraft:parrot/collision_box" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parrot cannot spawn yet" }
 "minecraft:parrot/conditional_bandwidth_optimization" = { status = "partial", owner = "entities", gaps = "implemented from the definition: compiled and applied to every viewer's position updates; parrot cannot spawn yet" }
 "minecraft:parrot/damage_sensor" = { status = "partial", owner = "entities", gaps = "implemented and tested on other mobs, but parrot cannot spawn yet", notes = "Unconfirmed natively: deals_damage defaults to yes (codegen default not yet confirmed natively; see docs/research/mob-runtime-constants.md)." }

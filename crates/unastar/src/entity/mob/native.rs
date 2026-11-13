@@ -4,9 +4,10 @@
 use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
-    ANIMAL_AMBIENT_SOUND_INTERVAL, CHICKEN_FALL_DAMAGE_MULTIPLIER, DEFAULT_AMBIENT_SOUND_INTERVAL,
-    MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER, MAGMA_CUBE_JUMP_PER_SIZE, WING_FLAP_VERTICAL_DRAG,
-    ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
+    ANIMAL_AMBIENT_SOUND_INTERVAL, BAT_FALL_DAMAGE_MULTIPLIER, BAT_FLIGHT_VERTICAL_FACTOR,
+    BAT_REST_CHANCE, BAT_WAKE_RANGE, CHICKEN_FALL_DAMAGE_MULTIPLIER,
+    DEFAULT_AMBIENT_SOUND_INTERVAL, MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER, MAGMA_CUBE_JUMP_PER_SIZE,
+    WING_FLAP_VERTICAL_DRAG, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS,
 };
 
 /// The native traits of one actor class.
@@ -46,6 +47,25 @@ pub struct NativeTraits {
     /// The slime classes (the slime and the magma cube): see
     /// [`SlimeClass`].
     pub slime: Option<SlimeClass>,
+    /// Multiplies a float-navigating flyer's vertical air drag (see
+    /// `mob::derive`): the bat's vertical motion keeps 0.6 of the 0.91
+    /// every axis keeps (BDS 1.26.51, `sweep.py bat`: 0.546 a tick on y
+    /// whenever it did not push, where the ghast's kept 0.91).
+    pub flight_vertical_factor: f64,
+    /// The bat class: see [`BatClass`].
+    pub bat: Option<BatClass>,
+}
+
+/// What the bat class does natively: it is born resting, rests hanging
+/// under solid blocks and wakes when its roof goes, a player comes near or
+/// it is hurt (`mob::ai::roost`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BatClass {
+    /// The chance per tick that a flying bat under a solid block settles.
+    pub rest_chance: f32,
+    /// A resting bat wakes when a player's eyes come this close to its
+    /// feet.
+    pub wake_range: f64,
 }
 
 /// What the slime classes do natively: they split into smaller copies when
@@ -94,6 +114,17 @@ impl NativeTraits {
             None
         };
         let follow_range_bonus = zombie_bonuses;
+        let bat = match actor_type {
+            ActorType::Bat => Some(BatClass {
+                rest_chance: BAT_REST_CHANCE,
+                wake_range: BAT_WAKE_RANGE,
+            }),
+            _ => None,
+        };
+        let flight_vertical_factor = match actor_type {
+            ActorType::Bat => BAT_FLIGHT_VERTICAL_FACTOR,
+            _ => 1.0,
+        };
         let slime = match actor_type {
             ActorType::Slime => Some(SlimeClass { jump_per_size: 0.0 }),
             ActorType::MagmaCube => Some(SlimeClass {
@@ -113,11 +144,14 @@ impl NativeTraits {
                 knockback_resistance_bonus,
                 follow_range_bonus,
                 slime,
+                flight_vertical_factor,
+                bat,
             },
             _ => Self {
                 wing_flap_drag: None,
                 fall_damage_multiplier: match actor_type {
                     ActorType::MagmaCube => MAGMA_CUBE_FALL_DAMAGE_MULTIPLIER,
+                    ActorType::Bat => BAT_FALL_DAMAGE_MULTIPLIER,
                     _ => 1.0,
                 },
                 spawn_class,
@@ -128,6 +162,8 @@ impl NativeTraits {
                 knockback_resistance_bonus,
                 follow_range_bonus,
                 slime,
+                flight_vertical_factor,
+                bat,
             },
         }
     }

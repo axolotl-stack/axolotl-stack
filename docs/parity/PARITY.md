@@ -12,8 +12,8 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 102 | 0 | 2 | 29 | 4 | 23.3% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 825 | 2654 | 433 | 124 | 46 | 13.8% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 101 | 0 | 2 | 30 | 4 | 24.1% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 812 | 2660 | 435 | 129 | 46 | 14.0% |
 | [Blocks](#blocks) | 1477 | 0 | 868 | 441 | 1 | 167 | 33.7% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
@@ -30,7 +30,7 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change doing the work, if any); remove it when you stop or when the change is archived. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 58 open rows free, 44 claimed.
+**Entities**: 58 open rows free, 43 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
@@ -43,7 +43,7 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 44 |
+| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 43 |
 
 **Blocks**: 381 open rows free, 487 claimed.
 
@@ -124,7 +124,7 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
 | hostile | 38 | 22 | 0 | 0 | 16 | 0 | 42.1% |
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
-| passive | 39 | 33 | 0 | 0 | 6 | 0 | 15.4% |
+| passive | 39 | 32 | 0 | 0 | 7 | 0 | 17.9% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | projectile | 18 | 13 | 0 | 1 | 4 | 0 | 27.8% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
@@ -135,15 +135,15 @@ Sub-rows by facet, most incomplete first (30 of 371):
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
 | type_family | 124 | 1 | 98 | 24 | 0 | 1 | 19.5% |
-| physics | 125 | 0 | 98 | 18 | 8 | 1 | 21.0% |
 | conditional_bandwidth_optimization | 116 | 1 | 96 | 2 | 16 | 1 | 15.7% |
-| collision_box | 124 | 0 | 96 | 18 | 9 | 1 | 22.0% |
+| physics | 125 | 0 | 97 | 18 | 9 | 1 | 21.8% |
+| collision_box | 124 | 0 | 95 | 19 | 9 | 1 | 22.8% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
 | pushable_by_entity | 109 | 0 | 92 | 17 | 0 | 0 | 15.6% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
 | is_hidden_when_invisible | 92 | 1 | 78 | 0 | 13 | 0 | 14.1% |
-| health | 94 | 1 | 74 | 11 | 7 | 1 | 19.4% |
-| movement | 92 | 0 | 74 | 10 | 8 | 0 | 19.6% |
+| health | 94 | 1 | 73 | 12 | 7 | 1 | 20.4% |
+| movement | 92 | 0 | 73 | 10 | 9 | 0 | 20.7% |
 | hurt_on_condition | 87 | 0 | 71 | 15 | 0 | 1 | 17.4% |
 | experience_reward | 80 | 0 | 65 | 15 | 0 | 0 | 18.8% |
 | loot | 78 | 0 | 63 | 14 | 0 | 1 | 18.2% |
@@ -190,7 +190,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **passive**
 
-- missing: `minecraft:allay`, `minecraft:armadillo`, `minecraft:axolotl`, `minecraft:bat`, `minecraft:bee`, `minecraft:camel`, `minecraft:camel_husk`, `minecraft:cat`, `minecraft:copper_golem`, `minecraft:dolphin`, `minecraft:donkey`, `minecraft:ender_crystal` and 21 more
+- missing: `minecraft:allay`, `minecraft:armadillo`, `minecraft:axolotl`, `minecraft:bee`, `minecraft:camel`, `minecraft:camel_husk`, `minecraft:cat`, `minecraft:copper_golem`, `minecraft:dolphin`, `minecraft:donkey`, `minecraft:ender_crystal`, `minecraft:fox` and 20 more
 
 **projectile**
 

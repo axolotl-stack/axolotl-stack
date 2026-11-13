@@ -19,7 +19,7 @@ use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
     AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
-    FloatGoal, FollowParentGoal, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal,
+    FloatGoal, FloatWanderGoal, FollowParentGoal, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal,
     HopRandomDirectionGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeAttackGoal,
     MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
     RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal, TemptGoal,
@@ -67,10 +67,11 @@ pub enum Goal {
     HopAttack,
     HopRandomDirection,
     HopKeepJumping,
+    FloatWander,
 }
 
 impl Goal {
-    const ALL: [Goal; 24] = [
+    const ALL: [Goal; 25] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -95,6 +96,7 @@ impl Goal {
         Goal::HopAttack,
         Goal::HopRandomDirection,
         Goal::HopKeepJumping,
+        Goal::FloatWander,
     ];
 
     pub fn id(self) -> GoalId {
@@ -106,8 +108,9 @@ impl Goal {
     }
 
     /// The goal kind's native controls; `behavior.eat_block`,
-    /// `behavior.pickup_items`, `behavior.equip_item`, `behavior.flee_sun`
-    /// and the silverfish goals may author their own.
+    /// `behavior.pickup_items`, `behavior.equip_item`, `behavior.flee_sun`,
+    /// `behavior.float_wander` and the silverfish goals may author their
+    /// own.
     fn controls(self) -> GoalControls {
         match self {
             Goal::Float => GoalControls::JUMP,
@@ -127,6 +130,7 @@ impl Goal {
             Goal::WakeUpFriends => GoalControls::NONE,
             Goal::HopFloat | Goal::HopKeepJumping => GoalControls::MOVE | GoalControls::JUMP,
             Goal::HopAttack | Goal::HopRandomDirection => GoalControls::LOOK,
+            Goal::FloatWander => GoalControls::NONE,
         }
     }
 }
@@ -177,6 +181,14 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
     if let Some(goal) = entity.get::<EatBlockGoal>() {
         out.push(GoalSpec {
             id: Goal::EatBlock.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<FloatWanderGoal>() {
+        out.push(GoalSpec {
+            id: Goal::FloatWander.id(),
             kind: GoalKind::Normal,
             priority: goal.priority,
             controls: goal.controls,
@@ -338,6 +350,8 @@ pub struct Effects {
     pub swell_started: bool,
     /// The `STANDING` flag changes (a stomp goal stopped while reared up).
     pub standing: Option<bool>,
+    /// The `RESTING` flag changes (a bat settles or wakes, `super::roost`).
+    pub resting: Option<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -384,6 +398,7 @@ pub struct GoalStates {
     pub(super) pickup: super::pickup::PickupState,
     pub(super) silverfish: super::silverfish::SilverfishState,
     pub(super) hop: super::hop::HopState,
+    pub(super) fly: super::fly::FlyState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -796,6 +811,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HopAttack => self.hop_attack_can_start(),
             Goal::HopRandomDirection => self.hop_direction_can_start(),
             Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
+            Goal::FloatWander => self.float_wander_can_start(),
         }
     }
 
@@ -811,6 +827,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HopAttack => self.hop_attack_can_continue(),
             Goal::HopRandomDirection => self.hop_direction_can_start(),
             Goal::HopKeepJumping => self.config::<HopKeepJumpingGoal>().is_some(),
+            Goal::FloatWander => self.float_wander_can_start(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return false;
@@ -943,7 +960,10 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MergeWithStone => self.merge_start(),
             Goal::WakeUpFriends => self.wake_start(),
             Goal::HopAttack => self.hop_attack_start(),
-            Goal::HopFloat | Goal::HopRandomDirection | Goal::HopKeepJumping => {}
+            Goal::HopFloat
+            | Goal::HopRandomDirection
+            | Goal::HopKeepJumping
+            | Goal::FloatWander => {}
             Goal::Swell => {
                 self.nav.stop(self.movement);
                 self.effects.swell_started = true;
@@ -963,6 +983,7 @@ impl GoalCallbacks for GoalContext<'_> {
             | Goal::HopAttack
             | Goal::HopRandomDirection
             | Goal::HopKeepJumping => {}
+            Goal::FloatWander => self.float_wander_stop(),
             Goal::FollowParent => {
                 self.nav.stop(self.movement);
                 self.states.parent = None;
@@ -1023,6 +1044,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::HopAttack => self.hop_attack_tick(),
             Goal::HopRandomDirection => self.hop_direction_tick(),
             Goal::HopKeepJumping => self.hop_keep_jumping_tick(),
+            Goal::FloatWander => self.float_wander_tick(),
             Goal::EatBlock => {
                 self.states.eat_ticks = self.states.eat_ticks.max(1) - 1;
                 if self.states.eat_ticks == 0 {

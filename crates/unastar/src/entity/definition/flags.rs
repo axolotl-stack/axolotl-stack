@@ -108,6 +108,8 @@ pub fn register_component_kinds(
     use unastar_data::actor_components::body;
     register_flag::<body::IsBaby, { actor_flags::BABY }>(builder)?;
     register_flag::<body::CanClimb, { actor_flags::CANCLIMB }>(builder)?;
+    // The bat's summon carries CANFLY (BDS 1.26.51).
+    register_flag::<body::CanFly, { actor_flags::CANFLY }>(builder)?;
     register_flag::<body::IsHiddenWhenInvisible, { actor_flags::HIDDEN_WHEN_INVISIBLE }>(builder)?;
     register_flag::<body::UsesLegacyFriction, { actor_flags::USES_LEGACY_FRICTION }>(builder)?;
     register_flag::<body::IsSaddled, { actor_flags::SADDLED }>(builder)?;
