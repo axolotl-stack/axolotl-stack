@@ -28,4 +28,4 @@
   the scenario moves the correction phase over the same movement, for scenarios that start at
   rest.
 
-These become [decision 0060](../../../docs/decisions/0060-validate-the-movement-harness-against-bds-itself.md).
+These become [decision 0060](../../../../docs/decisions/0060-validate-the-movement-harness-against-bds-itself.md).

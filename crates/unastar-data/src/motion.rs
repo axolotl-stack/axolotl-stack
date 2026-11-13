@@ -46,11 +46,10 @@ static TABLE: LazyLock<Vec<Block>> = LazyLock::new(|| {
             table[state as usize] = Block {
                 friction: block.friction,
                 kind,
-                liquid: liquid.and_then(|kind| {
-                    Some(LiquidState {
-                        kind,
-                        depth: liquid_depth(block, state)?,
-                    })
+                liquid: liquid.map(|kind| LiquidState {
+                    kind,
+                    depth: liquid_depth(block, state)
+                        .expect("every water and lava state has a liquid_depth in 0..=15"),
                 }),
             };
         }

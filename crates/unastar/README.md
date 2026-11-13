@@ -111,24 +111,24 @@ are trusted (`Trust`): the copy takes the client's position, its velocity
 (capped at 4 blocks a tick per axis) and its flags. How far a trusted input may
 move the copy depends on who brings the trust about.
 
-The server grants these; a trusted input more than 64 blocks from the copy is
-rejected whole:
+The server grants this one; a trusted input more than 64 blocks from the copy
+is rejected whole:
 - flying in a game mode that can fly, and spectators (a survival client's
-  `StartFlying` is ignored);
-- inputs under slowness or levitation. Speed, jump boost and slow falling
-  are simulated. Levitation's first ground contact is not yet BDS's, and
-  slowness waits for the movement attribute to carry the effect's modifier,
-  without which a vanilla client may not slow down.
+  `StartFlying` is ignored).
+
+Effects are judged: speed, slowness, jump boost, slow falling and levitation
+are simulated as BDS moves them, and the movement attribute carries BDS's
+speed and slowness modifiers.
 
 A client can seek these out, so they cover about one tick of movement (1.5
 blocks horizontally, 4 vertically) and never pass through a block the
 simulation reproduces; beyond that the copy judges the input:
 - inputs near blocks with movement rules the simulation does not reproduce
-  yet: twisting, weeping and cave vines, scaffolding, sweet berries, lava,
-  flowing water, bubble columns, beds and powder snow (`MotionTable`, both
-  block layers). Ladders, vines, honey, soul sand, slime, cobwebs and ice are
-  judged: the movement differential (`tools/movement-diff`) matches BDS on
-  them bit for bit;
+  yet: flowing water and lava, bubble columns, beds and powder snow
+  (`MotionTable`, both block layers; `Block::confirmed`). Ladders, vines and
+  the climbing plants, scaffolding, sweet berry bushes, honey, soul sand,
+  slime, cobwebs, ice and lava sources are judged: the movement differential
+  (`tools/movement-diff`) matches BDS on them bit for bit;
 - depth strider near water, swift sneak while sneaking, soul speed near soul
   sand or soil;
 - a riptide trident's spin started in water, for at most 20 inputs (up to 4
@@ -707,7 +707,7 @@ Implemented: `/clear`, `/clone`, `/deop`, `/difficulty`, `/effect`, `/enchant`,
 | `/give`, `/clear`, `/setblock`, `/fill` | Legacy names and data values (`wool 14`, `wool ["color"="red"]`) fail with "not implemented"; current identifiers (`red_wool`) work | No legacy item/block upgrade table in the repository yet |
 | `/give` | No `UnlockedRecipes`; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
 | `/gamemode` | Also resends `UpdateAbilities` | Unastar's join abilities depend on the game mode |
-| `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
+| `/effect` | No visible-effects actor data | Speed and slowness change the movement attribute with BDS's modifiers; the visible-effects row is not sent yet |
 | `/weather` | State and client events only; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/spawnpoint`, `/setworldspawn` | Not persisted; new joiners still use the config spawn rules | No level-data store |
 | `/op`, `/deop` | Not written back to the config file | Runtime-only operator list |

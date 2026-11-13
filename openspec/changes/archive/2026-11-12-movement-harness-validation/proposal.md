@@ -10,10 +10,10 @@ The server still trusted slowness, levitation, lava, scaffolding, sweet berry bu
 climbing plants. Each of these can be measured on BDS and simulated.
 
 Prior work:
-- [decision 0054](../../../docs/decisions/0054-measure-bds-movement-through-a-far-reporting-client.md)
+- [decision 0054](../../../../docs/decisions/0054-measure-bds-movement-through-a-far-reporting-client.md)
   and `docs/solutions/tooling/read-bds-movement-from-a-far-reporting-client.md`: the
   far-reporting method this change validates;
-- [decision 0040](../../../docs/decisions/0040-judge-player-movement-with-a-shared-simulation.md)
+- [decision 0040](../../../../docs/decisions/0040-judge-player-movement-with-a-shared-simulation.md)
   and the archived `server-authoritative-movement` change: the trust this change narrows;
 - `docs/quirks/bds.md`: the player movement rows this change extends.
 
