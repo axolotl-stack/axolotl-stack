@@ -189,14 +189,6 @@ pub fn pulses(base: u32, level: u8, remaining: u32) -> bool {
     interval == 0 || remaining.is_multiple_of(interval)
 }
 
-/// The effects that act once, on the first step after they are given.
-pub fn is_instant(effect: EffectType) -> bool {
-    matches!(
-        effect,
-        EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE | EffectType::SATURATION
-    )
-}
-
 /// The `ActorEvent` hurt data for a hit of `cause`: the cause's number
 /// (none -1, magic 14, wither 15, as BDS 1.26.51 sends them).
 pub fn hurt_event_data(cause: ActorDamageCause) -> i32 {
@@ -279,7 +271,7 @@ pub fn give(
     };
     send_mob_effect(world, entity, event, effect, &current);
     if given != Given::Kept {
-        if is_instant(effect) {
+        if effect.is_instant() {
             world
                 .entity_mut(entity)
                 .entry::<PendingInstant>()
@@ -692,7 +684,7 @@ fn step(world: &mut World, entity: Entity) {
         {
             break;
         }
-        if !is_instant(effect) || instant.contains(&effect) {
+        if !effect.is_instant() || instant.contains(&effect) {
             act(world, entity, effect, &state);
         }
         let ran_out = {

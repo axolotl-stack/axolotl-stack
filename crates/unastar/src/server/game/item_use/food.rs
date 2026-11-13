@@ -125,7 +125,7 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
                 if roll >= effect.chance {
                     continue;
                 }
-                let Some(effect_type) = effects::effect_by_name(&effect.name) else {
+                let Some(effect_type) = crate::entity::components::EffectType::from_name(&effect.name) else {
                     tracing::warn!(item = entry.identifier(), effect = %effect.name, "Food effect is not a known effect");
                     continue;
                 };
@@ -138,7 +138,7 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
                 );
             }
             for name in &food.remove_effects {
-                if let Some(effect_type) = effects::effect_by_name(name) {
+                if let Some(effect_type) = crate::entity::components::EffectType::from_name(name) {
                     effects::remove_effect(world, player, effect_type);
                 }
             }

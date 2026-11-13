@@ -15,15 +15,18 @@
 //! effects each tick. Instant effects act on the next effect step and stay
 //! listed for their duration (measured: `MobEffect` `Add` for 30 ticks when
 //! the seconds are left out, one second in the answer; for the given seconds
-//! as ticks otherwise, `instant_damage 1` one tick): instant health heals
+//! as ticks otherwise, `instant_damage 1` one tick; saturation counts as
+//! instant too, [INFERENCE] as the effect table marks it): instant health heals
 //! `4 << amplifier`, instant damage deals `6 << amplifier` magic damage,
 //! reversed for undead mobs. They stay listed for those ticks: BDS's
 //! `/effect @s clear` 24 ticks after `instant_health` sends its `Remove`.
 //! `clear` removes effects in ascending id order (measured once: instant
 //! health, 6, before regeneration, 10, which was given first).
 
+use crate::command::args::FromArg;
+use crate::command::parser::ArgValue;
 use crate::command::prelude::*;
-use crate::entity::components::{ActiveEffect, EffectType, Living, Player};
+use crate::entity::components::{ActiveEffect, EFFECT_NAMES, EffectType, Living, Player};
 
 /// BDS's limits for `seconds` and `amplifier`.
 const MAX_SECONDS: i32 = 1_000_000;
@@ -35,62 +38,19 @@ const DEFAULT_SECONDS: i32 = 30;
 /// for 1 tick and answers 0 seconds; the default answers 1).
 const INSTANT_TICKS: i32 = 30;
 
-arg_enum! {
-    /// The captured `Effect` enum.
-    pub enum EffectName in "Effect" {
-        Wither = "wither",
-        Speed = "speed",
-        Slowness = "slowness",
-        Haste = "haste",
-        MiningFatigue = "mining_fatigue",
-        Strength = "strength",
-        InstantHealth = "instant_health",
-        InstantDamage = "instant_damage",
-        JumpBoost = "jump_boost",
-        Nausea = "nausea",
-        Regeneration = "regeneration",
-        Resistance = "resistance",
-        FireResistance = "fire_resistance",
-        WaterBreathing = "water_breathing",
-        Invisibility = "invisibility",
-        Blindness = "blindness",
-        NightVision = "night_vision",
-        Hunger = "hunger",
-        Weakness = "weakness",
-        Poison = "poison",
-        HealthBoost = "health_boost",
-        Absorption = "absorption",
-        Saturation = "saturation",
-        Levitation = "levitation",
-        FatalPoison = "fatal_poison",
-        ConduitPower = "conduit_power",
-        SlowFalling = "slow_falling",
-        BadOmen = "bad_omen",
-        VillageHero = "village_hero",
-        Darkness = "darkness",
-        TrialOmen = "trial_omen",
-        WindCharged = "wind_charged",
-        Weaving = "weaving",
-        Oozing = "oozing",
-        Infested = "infested",
-        RaidOmen = "raid_omen",
-        BreathOfTheNautilus = "breath_of_the_nautilus",
-    }
-}
-
 overloads! {
     pub enum EffectArgs for "effect" {
-        0 => Clear { player: Target, mode: EnumValue = "Mode", effect: Option<EffectName> },
+        0 => Clear { player: Target, mode: EnumValue = "Mode", effect: Option<EffectType> },
         1 => Give {
             player: Target,
-            effect: EffectName,
+            effect: EffectType,
             seconds: Option<i32>,
             amplifier: Option<i32>,
             hide_particles: Option<bool> = "hideParticles",
         },
         2 => GiveInfinite {
             player: Target,
-            effect: EffectName,
+            effect: EffectType,
             mode: EnumValue = "Mode",
             amplifier: Option<i32>,
             hide_particles: Option<bool> = "hideParticles",
@@ -98,65 +58,34 @@ overloads! {
     }
 }
 
-impl EffectName {
-    /// The Bedrock mob effect id and the translation key BDS names it with.
-    ///
-    /// Ids 1–23 are unastar's [`EffectType`] constants and speed (1) is
-    /// measured; the rest follow the captured enum's order, which lists the
-    /// effects by id (wither, 20, first). [INFERENCE] Keys: `potion.*`
-    /// where the language has one (measured for speed), else the
-    /// `effect.*` key of the effect's name.
-    fn info(self) -> (EffectType, &'static str) {
-        let (id, key) = match self {
-            Self::Speed => (1, "potion.moveSpeed"),
-            Self::Slowness => (2, "potion.moveSlowdown"),
-            Self::Haste => (3, "potion.digSpeed"),
-            Self::MiningFatigue => (4, "potion.digSlowDown"),
-            Self::Strength => (5, "potion.damageBoost"),
-            Self::InstantHealth => (6, "potion.heal"),
-            Self::InstantDamage => (7, "potion.harm"),
-            Self::JumpBoost => (8, "potion.jump"),
-            Self::Nausea => (9, "potion.confusion"),
-            Self::Regeneration => (10, "potion.regeneration"),
-            Self::Resistance => (11, "potion.resistance"),
-            Self::FireResistance => (12, "potion.fireResistance"),
-            Self::WaterBreathing => (13, "potion.waterBreathing"),
-            Self::Invisibility => (14, "potion.invisibility"),
-            Self::Blindness => (15, "potion.blindness"),
-            Self::NightVision => (16, "potion.nightVision"),
-            Self::Hunger => (17, "potion.hunger"),
-            Self::Weakness => (18, "potion.weakness"),
-            Self::Poison => (19, "potion.poison"),
-            Self::Wither => (20, "potion.wither"),
-            Self::HealthBoost => (21, "potion.healthBoost"),
-            Self::Absorption => (22, "potion.absorption"),
-            Self::Saturation => (23, "potion.saturation"),
-            Self::Levitation => (24, "potion.levitation"),
-            Self::FatalPoison => (25, "potion.poison"),
-            Self::ConduitPower => (26, "potion.conduitPower"),
-            Self::SlowFalling => (27, "potion.slowFalling"),
-            Self::BadOmen => (28, "effect.badOmen"),
-            Self::VillageHero => (29, "effect.villageHero"),
-            Self::Darkness => (30, "effect.darkness"),
-            Self::TrialOmen => (31, "effect.trial_omen"),
-            Self::WindCharged => (32, "potion.windCharged"),
-            Self::Weaving => (33, "potion.weaving"),
-            Self::Oozing => (34, "potion.oozing"),
-            Self::Infested => (35, "potion.infested"),
-            Self::RaidOmen => (36, "effect.raid_omen"),
-            Self::BreathOfTheNautilus => (37, "effect.customNautilus"),
-        };
-        (EffectType(id), key)
+/// The captured `Effect` enum is the effect table's names
+/// ([`crate::entity::components::EFFECTS`]).
+impl ArgEnum for EffectType {
+    const ENUM: &'static str = "Effect";
+    const SPELLINGS: &'static [&'static str] = &EFFECT_NAMES;
+    fn from_value(value: &str) -> Option<Self> {
+        EffectType::from_name(value)
     }
+}
 
-    /// The `%key` parameter BDS puts in its messages.
-    fn param(self) -> String {
-        format!("%{}", self.info().1)
+impl FromArg for EffectType {
+    fn accepts(kind: &unastar_data::commands::ParamKind) -> bool {
+        matches!(kind, unastar_data::commands::ParamKind::Enum(e) if e == Self::ENUM)
     }
+    fn from_arg(value: &ArgValue) -> Option<Self> {
+        match value {
+            ArgValue::Enum(v) => Self::from_value(v),
+            _ => None,
+        }
+    }
+}
 
-    fn is_instant(self) -> bool {
-        matches!(self, Self::InstantHealth | Self::InstantDamage)
-    }
+/// The `%key` parameter BDS names `effect` with in its messages.
+fn param(effect: EffectType) -> String {
+    format!(
+        "%{}",
+        effect.info().expect("a command effect is in the table").translation_key
+    )
 }
 
 pub fn run(ctx: &mut CommandContext<'_>, args: EffectArgs) -> CommandResult {
@@ -254,14 +183,14 @@ fn targets(ctx: &mut CommandContext<'_>, player: &Target) -> Result<Vec<Entity>,
 fn give(
     ctx: &mut CommandContext<'_>,
     player: &Target,
-    effect: EffectName,
+    effect: EffectType,
     seconds: Option<i32>,
     instant_ticks: i32,
     amplifier: i32,
     hide_particles: bool,
 ) -> CommandResult {
     let targets = targets(ctx, player)?;
-    let (effect_type, _) = effect.info();
+    let effect_type = effect;
     let active = ActiveEffect {
         level: amplifier as u8,
         duration_ticks: seconds.map_or(0, |s| s as u32 * 20),
@@ -296,7 +225,7 @@ fn give(
             Some(seconds) => output.add_success(
                 "commands.effect.success",
                 vec![
-                    effect.param(),
+                    param(effect),
                     amplifier.to_string(),
                     name,
                     shown_seconds(seconds).to_string(),
@@ -304,7 +233,7 @@ fn give(
             ),
             None => output.add_success(
                 "commands.effect.success.infinite",
-                vec![effect.param(), amplifier.to_string(), name],
+                vec![param(effect), amplifier.to_string(), name],
             ),
         }
     }
@@ -313,16 +242,16 @@ fn give(
 
 /// `/effect <player> <effect> 0`: the effect is taken away, and every target
 /// answers `commands.effect.success.removed` whether it had it or not.
-fn remove(ctx: &mut CommandContext<'_>, player: &Target, effect: EffectName) -> CommandResult {
+fn remove(ctx: &mut CommandContext<'_>, player: &Target, effect: EffectType) -> CommandResult {
     let targets = targets(ctx, player)?;
-    let effect_type = effect.info().0;
+    let effect_type = effect;
     let mut output = CommandOutput::default();
     for target in targets {
         crate::entity::effects::take(ctx.world, target, effect_type);
         let name = ctx.name(target);
         output.add_success(
             "commands.effect.success.removed",
-            vec![effect.param(), name],
+            vec![param(effect), name],
         );
     }
     Ok(output)
@@ -332,7 +261,7 @@ fn remove(ctx: &mut CommandContext<'_>, player: &Target, effect: EffectName) -> 
 fn clear(
     ctx: &mut CommandContext<'_>,
     player: &Target,
-    effect: Option<EffectName>,
+    effect: Option<EffectType>,
 ) -> CommandResult {
     let targets = targets(ctx, player)?;
     let mut output = CommandOutput::default();
@@ -340,7 +269,7 @@ fn clear(
         let name = ctx.name(target);
         let removed: Vec<(EffectType, ActiveEffect)> = match effect {
             Some(effect) => {
-                let effect_type = effect.info().0;
+                let effect_type = effect;
                 crate::entity::effects::take(ctx.world, target, effect_type)
                     .map(|active| (effect_type, active))
                     .into_iter()
@@ -351,7 +280,7 @@ fn clear(
         match (effect, removed.is_empty()) {
             (Some(effect), true) => output.add_failure(
                 "commands.effect.failure.notActive",
-                vec![effect.param(), name],
+                vec![param(effect), name],
             ),
             (None, true) => {
                 output.add_failure("commands.effect.failure.notActive.all", vec![name]);
@@ -359,7 +288,7 @@ fn clear(
             (Some(effect), false) => {
                 output.add_success(
                     "commands.effect.success.removed",
-                    vec![effect.param(), name],
+                    vec![param(effect), name],
                 );
             }
             (None, false) => {
@@ -403,14 +332,14 @@ mod tests {
 
     #[test]
     fn effect_enum_covers_the_captured_values() {
-        crate::command::args::assert_covers::<EffectName>();
+        crate::command::args::assert_covers::<EffectType>();
     }
 
     #[test]
     fn every_effect_has_a_distinct_id() {
-        let mut ids: Vec<u8> = <EffectName as ArgEnum>::SPELLINGS
+        let mut ids: Vec<u8> = <EffectType as ArgEnum>::SPELLINGS
             .iter()
-            .map(|s| EffectName::from_value(s).unwrap().info().0.0)
+            .map(|s| EffectType::from_value(s).unwrap().0)
             .collect();
         ids.sort_unstable();
         assert_eq!(ids, (1..=37).collect::<Vec<u8>>());

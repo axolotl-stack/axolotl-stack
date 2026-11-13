@@ -53,9 +53,104 @@ impl Health {
     }
 }
 
-/// Status effect type ID.
+/// Status effect type: the Bedrock mob effect id. Every id BDS 1.26.51 has
+/// is in [`EFFECTS`], which names it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EffectType(pub u8);
+
+/// One Bedrock mob effect: its id, the name `/effect` and packs spell it
+/// with, the translation key BDS names it with in command answers, and
+/// whether it acts once (on the first effect step after it is given)
+/// instead of every tick.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EffectInfo {
+    pub effect: EffectType,
+    pub name: &'static str,
+    pub translation_key: &'static str,
+    pub instant: bool,
+}
+
+const fn effect(id: u8, name: &'static str, translation_key: &'static str) -> EffectInfo {
+    EffectInfo {
+        effect: EffectType(id),
+        name,
+        translation_key,
+        instant: false,
+    }
+}
+
+const fn instant(id: u8, name: &'static str, translation_key: &'static str) -> EffectInfo {
+    EffectInfo {
+        instant: true,
+        ..effect(id, name, translation_key)
+    }
+}
+
+/// Every mob effect BDS 1.26.51 has, indexed by id - 1: the one effect
+/// table every caller (commands, packs, food, mob components) uses.
+///
+/// Names and ids: the `Effect` enum of the BDS 1.26.51 AvailableCommands
+/// capture (`unastar-data/output/available_commands.json`) lists every
+/// effect name, by id after its leading `wither` (20); the `MobEffect` ids
+/// of the effects capture (`entity/effects/testdata/bds-1.26.51-effects.json`)
+/// confirm 1, 2, 6, 7, 10-12, 14 and 17-24 (levitation 24). Translation
+/// keys: `potion.*` where the language has one (measured for speed), else
+/// the `effect.*` key of the effect's name ([INFERENCE] for the unmeasured
+/// ones). Instant: instant health and instant damage (measured: they act
+/// once and stay listed for their duration) and saturation ([INFERENCE] it
+/// acts once like them).
+///
+/// A later cleanup replaces this table with a generated `MobEffect` enum.
+pub const EFFECTS: [EffectInfo; 37] = [
+    effect(1, "speed", "potion.moveSpeed"),
+    effect(2, "slowness", "potion.moveSlowdown"),
+    effect(3, "haste", "potion.digSpeed"),
+    effect(4, "mining_fatigue", "potion.digSlowDown"),
+    effect(5, "strength", "potion.damageBoost"),
+    instant(6, "instant_health", "potion.heal"),
+    instant(7, "instant_damage", "potion.harm"),
+    effect(8, "jump_boost", "potion.jump"),
+    effect(9, "nausea", "potion.confusion"),
+    effect(10, "regeneration", "potion.regeneration"),
+    effect(11, "resistance", "potion.resistance"),
+    effect(12, "fire_resistance", "potion.fireResistance"),
+    effect(13, "water_breathing", "potion.waterBreathing"),
+    effect(14, "invisibility", "potion.invisibility"),
+    effect(15, "blindness", "potion.blindness"),
+    effect(16, "night_vision", "potion.nightVision"),
+    effect(17, "hunger", "potion.hunger"),
+    effect(18, "weakness", "potion.weakness"),
+    effect(19, "poison", "potion.poison"),
+    effect(20, "wither", "potion.wither"),
+    effect(21, "health_boost", "potion.healthBoost"),
+    effect(22, "absorption", "potion.absorption"),
+    instant(23, "saturation", "potion.saturation"),
+    effect(24, "levitation", "potion.levitation"),
+    effect(25, "fatal_poison", "potion.poison"),
+    effect(26, "conduit_power", "potion.conduitPower"),
+    effect(27, "slow_falling", "potion.slowFalling"),
+    effect(28, "bad_omen", "effect.badOmen"),
+    effect(29, "village_hero", "effect.villageHero"),
+    effect(30, "darkness", "effect.darkness"),
+    effect(31, "trial_omen", "effect.trial_omen"),
+    effect(32, "wind_charged", "potion.windCharged"),
+    effect(33, "weaving", "potion.weaving"),
+    effect(34, "oozing", "potion.oozing"),
+    effect(35, "infested", "potion.infested"),
+    effect(36, "raid_omen", "effect.raid_omen"),
+    effect(37, "breath_of_the_nautilus", "effect.customNautilus"),
+];
+
+/// Every effect name in [`EFFECTS`], in id order.
+pub const EFFECT_NAMES: [&str; EFFECTS.len()] = {
+    let mut names = [""; EFFECTS.len()];
+    let mut i = 0;
+    while i < EFFECTS.len() {
+        names[i] = EFFECTS[i].name;
+        i += 1;
+    }
+    names
+};
 
 impl EffectType {
     pub const SPEED: Self = Self(1);
@@ -85,6 +180,32 @@ impl EffectType {
     pub const CONDUIT_POWER: Self = Self(26);
     pub const SLOW_FALLING: Self = Self(27);
     pub const WEAVING: Self = Self(33);
+
+    /// This effect's row of [`EFFECTS`]; `None` for an id BDS does not have.
+    pub fn info(self) -> Option<&'static EffectInfo> {
+        EFFECTS.get(usize::from(self.0).checked_sub(1)?)
+    }
+
+    /// The effect named `name`: `minecraft:` prefix optional and any case,
+    /// as pack JSON is lenient here (the one place effect names are read).
+    pub fn from_name(name: &str) -> Option<Self> {
+        let name = name.strip_prefix("minecraft:").unwrap_or(name);
+        EFFECTS
+            .iter()
+            .find(|info| info.name.eq_ignore_ascii_case(name))
+            .map(|info| info.effect)
+    }
+
+    /// The effect's name (`speed`, `instant_health`, ...).
+    pub fn name(self) -> Option<&'static str> {
+        self.info().map(|info| info.name)
+    }
+
+    /// Whether the effect acts once, on the first effect step after it is
+    /// given, instead of every tick.
+    pub fn is_instant(self) -> bool {
+        self.info().is_some_and(|info| info.instant)
+    }
 
     /// Whether the effect changes how the player moves. Only these effects
     /// carry the player's input tick in `MobEffect` (measured on BDS
@@ -297,6 +418,56 @@ impl DamageImmunity {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn effect_table_is_indexed_by_id() {
+        for (index, info) in EFFECTS.iter().enumerate() {
+            assert_eq!(usize::from(info.effect.0), index + 1, "{}", info.name);
+            assert_eq!(info.effect.info(), Some(info));
+        }
+        assert_eq!(EffectType(0).info(), None);
+        assert_eq!(EffectType(38).info(), None);
+    }
+
+    /// Every name of the captured `Effect` enum resolves, in any case and
+    /// with the `minecraft:` prefix, and names its effect back.
+    #[test]
+    fn every_captured_effect_name_resolves_and_round_trips() {
+        let captured = unastar_data::commands::vanilla()
+            .enum_named("Effect")
+            .expect("captured Effect enum");
+        assert_eq!(captured.values.len(), EFFECTS.len());
+        for name in &captured.values {
+            let effect = EffectType::from_name(name).unwrap_or_else(|| panic!("{name}"));
+            assert_eq!(effect.name(), Some(name.as_str()));
+            assert_eq!(
+                EffectType::from_name(&format!("minecraft:{}", name.to_uppercase())),
+                Some(effect)
+            );
+        }
+        assert_eq!(
+            EffectType::from_name("levitation"),
+            Some(EffectType::LEVITATION)
+        );
+        assert_eq!(EffectType::from_name("heal"), None);
+    }
+
+    #[test]
+    fn instant_effects_are_instant_health_damage_and_saturation() {
+        let instant: Vec<_> = EFFECTS
+            .iter()
+            .filter(|info| info.effect.is_instant())
+            .map(|info| info.effect)
+            .collect();
+        assert_eq!(
+            instant,
+            [
+                EffectType::INSTANT_HEALTH,
+                EffectType::INSTANT_DAMAGE,
+                EffectType::SATURATION
+            ]
+        );
+    }
 
     // ========== Health Tests ==========
 

@@ -290,11 +290,11 @@ fn run(world: &mut World, subject: Entity, command: &str) {
             clear(world, subject);
         }
         "effect" => {
-            let effect = crate::server::game::effects::effect_by_name(parts[2]).unwrap();
+            let effect = crate::entity::components::EffectType::from_name(parts[2]).unwrap();
             let seconds: u32 = parts[3].parse().unwrap();
             let state = ActiveEffect {
                 level: parts[4].parse().unwrap(),
-                duration_ticks: if is_instant(effect) {
+                duration_ticks: if effect.is_instant() {
                     seconds
                 } else {
                     seconds * 20
@@ -749,4 +749,42 @@ fn pulse_intervals_halve_per_level() {
         pulses(50, 6, 7),
         "an interval below one tick acts every tick"
     );
+}
+
+/// Instant health from item use goes through the shared step: it heals on
+/// the player's next effect step, and a level of 30 or more heals (the
+/// amount saturates at `4 << 30`) instead of wrapping to nothing.
+#[test]
+fn instant_health_from_item_use_heals_at_any_level() {
+    for level in [30, 31, 255] {
+        let (mut server, player, _rx) = server(true);
+        let world = server.ecs.world_mut();
+        world.get_mut::<Health>(player).unwrap().current = 5.0;
+        crate::server::game::effects::add_effect(
+            world,
+            player,
+            EffectType::INSTANT_HEALTH,
+            level,
+            1,
+        );
+        assert_eq!(world.get::<Health>(player).unwrap().current, 5.0);
+        server.tick();
+        let world = server.ecs.world_mut();
+        assert_eq!(world.get::<Health>(player).unwrap().current, 20.0, "level {level}");
+    }
+}
+
+/// Saturation from item use is instant like `/effect saturation`: it feeds
+/// once, on the next step.
+#[test]
+fn saturation_from_item_use_feeds_once() {
+    let (mut server, player, _rx) = server(true);
+    let world = server.ecs.world_mut();
+    world.get_mut::<Hunger>(player).unwrap().food_level = 10;
+    crate::server::game::effects::add_effect(world, player, EffectType::SATURATION, 1, 6);
+    for _ in 0..6 {
+        server.tick();
+    }
+    let world = server.ecs.world_mut();
+    assert_eq!(world.get::<Hunger>(player).unwrap().food_level, 12);
 }
