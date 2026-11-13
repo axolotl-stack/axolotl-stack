@@ -118,6 +118,16 @@ pub fn wear(
 /// Wear the item in the player's selected hotbar slot. Creative players'
 /// items never wear. Returns whether the item broke.
 pub fn wear_held(world: &mut World, player: Entity, points: i32) -> bool {
+    wear_held_sending(world, player, points, true)
+}
+
+/// [`wear_held`] without the slot update while the item lasts: the client
+/// predicts that wear (BDS sends none after flint and steel lights a block).
+pub fn wear_held_predicted(world: &mut World, player: Entity, points: i32) -> bool {
+    wear_held_sending(world, player, points, false)
+}
+
+fn wear_held_sending(world: &mut World, player: Entity, points: i32, send: bool) -> bool {
     if world.get::<GameMode>(player) == Some(&GameMode::Creative) {
         return false;
     }
@@ -145,7 +155,9 @@ pub fn wear_held(world: &mut World, player: Entity, points: i32) -> bool {
     if let Some(mut inventory) = world.get_mut::<MainInventory>(player) {
         let _ = inventory.0.set_item(slot, worn.clone());
     }
-    super::send_slot(world, player, slot, &worn);
+    if send || broke {
+        super::send_slot(world, player, slot, &worn);
+    }
     if broke {
         item_broke(world, player);
     }

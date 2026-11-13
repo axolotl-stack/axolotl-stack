@@ -126,6 +126,11 @@ fn hit(world: &mut World, player: Entity, stack: Option<&ItemStack>) -> (f32, i3
         feet.y + crate::entity::PLAYER_EYE_HEIGHT,
         feet.z,
     );
+    // The sweep spaced its spear hits past the attack cooldown
+    // (`--gap 20`); no tick passes here, so forget the last one.
+    world
+        .entity_mut(player)
+        .remove::<crate::item::cooldown::ItemCooldowns>();
     player_attack(world, player, pig, &Default::default());
     let lost = 100.0 - world.get::<Health>(pig).unwrap().current;
     world.despawn(pig);

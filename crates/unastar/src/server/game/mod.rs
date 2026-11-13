@@ -9,6 +9,8 @@ mod block_drops;
 pub(crate) mod block_update;
 mod block_use;
 pub(crate) mod blocks;
+#[cfg(test)]
+pub(crate) mod capture_replay;
 mod chunks;
 #[cfg(test)]
 mod command_order_tests;
@@ -18,6 +20,7 @@ mod commands;
 mod containers;
 pub mod durability;
 pub mod effects;
+pub mod elytra;
 mod falling;
 pub mod hunger;
 mod inventory;
@@ -25,6 +28,7 @@ pub mod item_use;
 mod items;
 pub(crate) mod join;
 mod join_data;
+pub mod jukebox;
 mod loot;
 mod mining;
 mod movement;
@@ -465,6 +469,8 @@ impl GameServer {
         ecs.world_mut()
             .add_observer(containers::register_chunk_tickers);
         ecs.world_mut().add_observer(containers::forget_replaced);
+        ecs.world_mut()
+            .add_observer(jukebox::drop_record_when_replaced);
         register_chunk_systems(ecs.schedule_mut());
 
         // Domain systems in PacketApplySet (movement, inventory, chunks run parallel)
@@ -476,6 +482,13 @@ impl GameServer {
                 commands::apply_chat_and_commands,
             )
                 .in_set(PacketApplySet),
+        );
+        // Gliding needs a usable elytra and wears it, right after the input
+        // that started or continued the glide.
+        ecs.schedule_mut().add_systems(
+            elytra::tick_gliding
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement),
         );
         // Command requests that arrived ahead of their player's inputs run
         // before every input system, like BDS (`commands::CommandOrder`).
@@ -626,6 +639,9 @@ impl GameServer {
                 .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
+        // Jukeboxes: ticks playing and the actor data changed last tick.
+        ecs.schedule_mut()
+            .add_systems(jukebox::tick_jukeboxes.in_set(EntityLogicSet));
         // Pressed buttons popping back up (exclusive: edits chunks).
         ecs.schedule_mut().add_systems(
             block_use::tick_scheduled_blocks

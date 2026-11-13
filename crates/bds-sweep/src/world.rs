@@ -162,6 +162,11 @@ impl Block {
         self.data.identifier
     }
 
+    /// The block network id (hash) a client sends for this state.
+    pub fn network_hash(&self) -> u32 {
+        self.data.network_hashes[(self.state - self.data.min_state_id) as usize]
+    }
+
     /// Water, still or flowing (layer 0 or the water of a waterlogged block).
     pub fn is_water(&self) -> bool {
         matches!(

@@ -1,0 +1,168 @@
+# Music discs in a jukebox, for packet captures of the same scripted player
+# against BDS and unastar (`bds-sweep-client --script
+# tools/bds-sweep/scripts/records.txt --capture-dir DIR`, an operator).
+# The jukebox stands at (2,-60,0); the player (feet (0.5,-60,0.5), facing
+# east) clicks its west face (4). Ticks are the client's input ticks.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 6 -61 4 stone
+26 /fill -4 -60 -4 6 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+30 /setblock 2 -60 0 jukebox
+
+# 1. Every disc: inserted from the hand, then taken out with the empty hand
+#    20 inputs later; the ejected disc is removed.
+40 /give @s music_disc_11
+45 use-on 2 -60 0 4
+65 use-on 2 -60 0 4
+75 /kill @e[type=item]
+76 /clear @s
+80 /give @s music_disc_13
+85 use-on 2 -60 0 4
+105 use-on 2 -60 0 4
+115 /kill @e[type=item]
+116 /clear @s
+120 /give @s music_disc_5
+125 use-on 2 -60 0 4
+145 use-on 2 -60 0 4
+155 /kill @e[type=item]
+156 /clear @s
+160 /give @s music_disc_blocks
+165 use-on 2 -60 0 4
+185 use-on 2 -60 0 4
+195 /kill @e[type=item]
+196 /clear @s
+200 /give @s music_disc_bounce
+205 use-on 2 -60 0 4
+225 use-on 2 -60 0 4
+235 /kill @e[type=item]
+236 /clear @s
+240 /give @s music_disc_cat
+245 use-on 2 -60 0 4
+265 use-on 2 -60 0 4
+275 /kill @e[type=item]
+276 /clear @s
+280 /give @s music_disc_chirp
+285 use-on 2 -60 0 4
+305 use-on 2 -60 0 4
+315 /kill @e[type=item]
+316 /clear @s
+320 /give @s music_disc_creator
+325 use-on 2 -60 0 4
+345 use-on 2 -60 0 4
+355 /kill @e[type=item]
+356 /clear @s
+360 /give @s music_disc_creator_music_box
+365 use-on 2 -60 0 4
+385 use-on 2 -60 0 4
+395 /kill @e[type=item]
+396 /clear @s
+400 /give @s music_disc_far
+405 use-on 2 -60 0 4
+425 use-on 2 -60 0 4
+435 /kill @e[type=item]
+436 /clear @s
+440 /give @s music_disc_lava_chicken
+445 use-on 2 -60 0 4
+465 use-on 2 -60 0 4
+475 /kill @e[type=item]
+476 /clear @s
+480 /give @s music_disc_mall
+485 use-on 2 -60 0 4
+505 use-on 2 -60 0 4
+515 /kill @e[type=item]
+516 /clear @s
+520 /give @s music_disc_mellohi
+525 use-on 2 -60 0 4
+545 use-on 2 -60 0 4
+555 /kill @e[type=item]
+556 /clear @s
+560 /give @s music_disc_otherside
+565 use-on 2 -60 0 4
+585 use-on 2 -60 0 4
+595 /kill @e[type=item]
+596 /clear @s
+600 /give @s music_disc_pigstep
+605 use-on 2 -60 0 4
+625 use-on 2 -60 0 4
+635 /kill @e[type=item]
+636 /clear @s
+640 /give @s music_disc_precipice
+645 use-on 2 -60 0 4
+665 use-on 2 -60 0 4
+675 /kill @e[type=item]
+676 /clear @s
+680 /give @s music_disc_relic
+685 use-on 2 -60 0 4
+705 use-on 2 -60 0 4
+715 /kill @e[type=item]
+716 /clear @s
+720 /give @s music_disc_stal
+725 use-on 2 -60 0 4
+745 use-on 2 -60 0 4
+755 /kill @e[type=item]
+756 /clear @s
+760 /give @s music_disc_strad
+765 use-on 2 -60 0 4
+785 use-on 2 -60 0 4
+795 /kill @e[type=item]
+796 /clear @s
+800 /give @s music_disc_tears
+805 use-on 2 -60 0 4
+825 use-on 2 -60 0 4
+835 /kill @e[type=item]
+836 /clear @s
+840 /give @s music_disc_wait
+845 use-on 2 -60 0 4
+865 use-on 2 -60 0 4
+875 /kill @e[type=item]
+876 /clear @s
+880 /give @s music_disc_ward
+885 use-on 2 -60 0 4
+905 use-on 2 -60 0 4
+915 /kill @e[type=item]
+916 /clear @s
+
+# 2. A disc in the hand used on the jukebox while it plays another (the
+#    second disc sits in slot 1), then again; an empty hand on the playing
+#    jukebox, and a stick on the empty one.
+920 /give @s music_disc_cat 2
+925 use-on 2 -60 0 4
+935 select 1
+937 use-on 2 -60 0 4
+947 use-on 2 -60 0 4
+955 /kill @e[type=item]
+956 select 0
+957 /clear @s
+960 use-on 2 -60 0 4
+964 /kill @e[type=item]
+965 /give @s stick
+970 use-on 2 -60 0 4
+975 /clear @s
+
+# 3. Creative: a disc inserted and taken out.
+980 /gamemode creative @s
+982 /give @s music_disc_ward
+985 use-on 2 -60 0 4
+1005 use-on 2 -60 0 4
+1015 /kill @e[type=item]
+1016 /gamemode survival @s
+1017 /clear @s
+
+# 4. Breaking the jukebox while it plays (the disc drops), then disc 11 to its
+#    end (71 seconds).
+1020 /give @s music_disc_mall
+1025 use-on 2 -60 0 4
+1035 /setblock 2 -60 0 air destroy
+1045 /kill @e[type=item]
+1050 /setblock 2 -60 0 jukebox
+1055 /give @s music_disc_11
+1060 use-on 2 -60 0 4
+2520 use-on 2 -60 0 4
+2530 /kill @e[type=item]
+2540 exit
