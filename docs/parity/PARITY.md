@@ -17,7 +17,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Blocks](#blocks) | 1477 | 0 | 510 | 503 | 297 | 167 | 61.1% |
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
-| [Commands](#commands) | 82 | 29 | 24 | 3 | 25 | 1 | 34.6% |
+| [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
 | [Protocol](#protocol) | 231 | 136 | 22 | 42 | 16 | 15 | 26.9% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
@@ -71,11 +71,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Item use | lane ITEMS | 2026-10-29 | 950 |
 
-**Commands**: 0 open rows free, 53 claimed.
+**Commands**: 0 open rows free, 43 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Commands | lane COMMANDS | 2026-10-29 | 53 |
+| Commands | lane COMMANDS | 2026-10-29 | 43 |
 
 **Protocol**: 158 open rows free, 0 claimed.
 
@@ -554,18 +554,18 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| admin | 7 | 5 | 2 | 0 | 0 | 0 | 0.0% |
+| admin | 7 | 3 | 1 | 1 | 2 | 0 | 42.9% |
 | any | 4 | 1 | 0 | 0 | 3 | 0 | 75.0% |
-| gamedirectors | 60 | 14 | 22 | 2 | 22 | 0 | 40.0% |
-| host | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| owner | 10 | 8 | 0 | 1 | 0 | 1 | 11.1% |
+| gamedirectors | 60 | 2 | 31 | 0 | 27 | 0 | 45.0% |
+| host | 1 | 0 | 1 | 0 | 0 | 0 | 0.0% |
+| owner | 10 | 2 | 2 | 1 | 4 | 1 | 55.6% |
 
 ### Commands gaps
 
 **admin**
 
-- `deop`, `op`: changes last until the server restarts: they are not written to the config or a permissions file
-- missing: `permission`, `place`, `reload`, `script`, `wsserver`
+- `permission`: visitor is applied as member (no visitor abilities); with an XUID the answer of set is not measured (unastar prints nothing, as BDS does without one)
+- missing: `place`, `script`, `wsserver`
 
 **any**
 
@@ -573,21 +573,23 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 **gamedirectors**
 
+- `aimassist`: set never applies aim assist: BDS checks the camera type the client reports and unastar learns none, so it always answers unsupportedCameraType (as BDS did for the capture's client); the join does not send BDS's aim assist definitions
+- `camera`: no camera splines exist (play_spline always fails, as on BDS without any); BDS's join also sends its aim assist definitions, which unastar does not
 - `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
 - `damage`: the hurt ActorEvent carries no damage cause (BDS sends the cause id, -1 for none)
-- `effect`: speed and slowness do not change movement and no visible-effect actor data is sent: BDS follows an effect with SetActorData and movement UpdateAttributes (no attribute-modifier system)
-- `event`: players have no actor definition in unastar, so every event on a player is refused (BDS refused the one captured)
-- `execute`: in nether and in the_end answer a not-implemented failure (unastar runs one dimension per world)
-- 17 more partial rows with other gaps (see [commands.toml](commands.toml))
-- missing: `aimassist`, `camera`, `controlscheme`, `dialogue`, `function`, `gametest`, `locate`, `loot`, `recipe`, `ride`, `schedule`, `spreadplayers` and 2 more
+- `dialogue`: no actor has the NPC component and no dialogue scenes are loaded, so open and change always answer noNpcComponent (or noTargetMatch and npcNotFound without a target)
+- 26 more partial rows with other gaps (see [commands.toml](commands.toml))
+- missing: `locate`, `ride`
 
 **host**
 
-- missing: `setmaxplayers`
+- `setmaxplayers`: the server list status keeps advertising the configured maximum
 
 **owner**
 
-- missing: `allowlist`, `changesetting`, `reloadconfig`, `reloadpacketlimitconfig`, `save`, `sendshowstoreoffer`, `serveridentity`, `transfer`
+- `changesetting`: the settings are only stored: BDS sends nothing when they change and their effect on the running world is not measured
+- `save`: hold does not pause the world's writes, and query lists unastar's own world files (worlds/default)
+- missing: `reloadconfig`, `reloadpacketlimitconfig`
 
 ## Protocol
 
