@@ -1243,7 +1243,8 @@ fn click_names_held_stack(
         && data.item.stacksize == u16::from(stack.count)
         && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
         && crate::item::user_data::stored_user_data(stack.item_id(), &data.item.user_data_buffer)
-            == stack.nbt
+            .as_ref()
+            == stack.nbt()
         && u32::try_from(stack.runtime_id)
             .ok()
             .map(|id| block_ids.item_block_to_wire(i32::from(data.item.id), id))

@@ -20,10 +20,12 @@ use unastar_data::actor_identifiers::ActorType;
 use zuri_nbt::{NBTTag, tag};
 
 use super::{ItemUsing, held, set_slot, start_using, stop_using, used_ticks};
+use unastar_rules::ids::Enchantment;
+
 use crate::entity::components::{GameMode, MainInventory, OffhandSlot, Position};
 use crate::entity::projectile::{LaunchSpec, launch_with};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level, item_tag, with_item_tag};
+use crate::item::enchant::{item_tag, with_item_tag};
 use crate::server::game::durability::wear_held;
 
 const ARROW: &str = "minecraft:arrow";
@@ -212,7 +214,7 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         return;
     };
     let creative = creative(world, player);
-    let infinity = enchantment_level(stack, Enchantment::Infinity) > 0;
+    let infinity = stack.enchantment_level(Enchantment::Infinity) > 0;
     let ammo = find_arrow(world, player);
     if ammo.is_none() && !creative {
         return;

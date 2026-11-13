@@ -634,7 +634,7 @@ fn same_stack(a: &ItemStack, b: &ItemStack) -> bool {
         || (a.item_id() == b.item_id()
             && a.count == b.count
             && a.damage == b.damage
-            && a.nbt == b.nbt
+            && a.nbt() == b.nbt()
             && a.net_id == b.net_id)
 }
 
@@ -1187,7 +1187,7 @@ fn can_burn(world: &World, container: &BlockContainer) -> bool {
     }
     if output.item_id() != result.item_id()
         || output.damage != result.damage
-        || output.nbt != result.nbt
+        || output.nbt() != result.nbt()
     {
         return false;
     }

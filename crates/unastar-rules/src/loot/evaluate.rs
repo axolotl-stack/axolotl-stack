@@ -1,5 +1,6 @@
 use super::*;
 use crate::enchanting::{self, EnchantmentInstance, ItemEnchanting};
+use crate::ids::Enchantment;
 use rand::Rng;
 
 const MAX_TABLE_DEPTH: u8 = 16;
@@ -7,12 +8,13 @@ const MAX_TABLE_DEPTH: u8 = 16;
 const GEAR_ENCHANT_BASE_LEVEL: f32 = 5.0;
 const GEAR_ENCHANT_LEVEL_SPREAD: i32 = 18;
 
-/// Facts supplied by the entity/item/block caller. Enchantment names are
-/// resolved to protocol ids at decode, so rolls do not parse item NBT or
-/// look up enchantment names. Context implementations may cache tool facts.
+/// Facts supplied by the entity/item/block caller. Enchantments are typed at
+/// decode, so rolls do not parse item NBT or look up enchantment names.
+/// Context implementations may cache tool facts.
 pub trait LootContext {
     fn tool_item(&self) -> Option<&str>;
-    fn enchantment_level(&self, id: i16) -> u8;
+    /// Level of `enchantment` on the tool, 0 without a tool.
+    fn enchantment_level(&self, enchantment: Enchantment) -> u8;
     fn block_state_matches(&self, property: &str, expected: &LootStateValue) -> bool;
     fn killed_by_player(&self) -> bool;
     /// The killer was a tamed mob a player owns (`killed_by_player_or_pets`).
@@ -108,11 +110,6 @@ fn binomial(n: u32, p: f32, rng: &mut impl Rng) -> u32 {
     (0..n).filter(|_| rng.r#gen::<f32>() < p).count() as u32
 }
 
-fn tool_level(ctx: &dyn LootContext, id: Option<i16>, name: &str) -> Result<u8, LootError> {
-    id.map(|id| ctx.enchantment_level(id))
-        .ok_or_else(|| LootError::Unsupported(name.to_owned()))
-}
-
 fn condition_passes(
     c: &LootCondition,
     ctx: &dyn LootContext,
@@ -134,7 +131,7 @@ fn condition_passes(
                 return Ok(false);
             }
             for requirement in enchantments {
-                let level = tool_level(ctx, requirement.id, &requirement.enchantment)?;
+                let level = ctx.enchantment_level(requirement.enchantment);
                 if level < requirement.min_level || level > requirement.max_level {
                     return Ok(false);
                 }
@@ -143,10 +140,9 @@ fn condition_passes(
         }
         LootCondition::TableBonus {
             enchantment,
-            id,
             chances,
         } => {
-            let level = usize::from(tool_level(ctx, *id, enchantment)?);
+            let level = usize::from(ctx.enchantment_level(*enchantment));
             let chance = chances
                 .get(level.min(chances.len().saturating_sub(1)))
                 .copied()
@@ -236,10 +232,9 @@ fn apply_functions(
             }
             LootFunctionKind::ApplyBonus {
                 enchantment,
-                id,
                 formula,
             } => {
-                let level = i64::from(tool_level(ctx, *id, enchantment)?);
+                let level = i64::from(ctx.enchantment_level(*enchantment));
                 if level > 0 {
                     match formula {
                         BonusFormula::OreDrops => {
@@ -305,6 +300,9 @@ fn apply_functions(
                         );
                     }
                 }
+            }
+            LootFunctionKind::SpecificEnchants { .. } => {
+                return Err(LootError::Unsupported("specific_enchants".to_owned()));
             }
             LootFunctionKind::Other { name, .. } => {
                 return Err(LootError::Unsupported(name.clone()));

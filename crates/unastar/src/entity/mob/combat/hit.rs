@@ -38,8 +38,8 @@ use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::collision::Aabb;
+use unastar_rules::ids::Enchantment;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
 /// of the hit that started it.
@@ -140,7 +140,7 @@ pub fn player_attack(
 /// 9, 10, 11, 13 and 14, not 9.25 ... 14.25; `docs/quirks/bds.md`).
 pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
     let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
-    let sharpness = held.map_or(0, |stack| enchantment_level(stack, Enchantment::Sharpness));
+    let sharpness = held.map_or(0, |stack| stack.enchantment_level(Enchantment::Sharpness));
     (base + 1.25 * f32::from(sharpness)).floor()
 }
 

@@ -13,6 +13,8 @@ the measurement method. The capture-derived tables (`recipe_legacy_identities.js
 `builtin_recipes.json`, `potion_types.json`, `block_name_keys.json`) are not
 sweep artefacts and record their source capture's SHA-256 inside the file
 instead.
+`enchantments.json` is not a sweep artefact either; it records its provenance in
+its `source` object.
 `tests/measured_manifest.rs` checks every listed hash and that no other file is
 missing from the manifest. Regenerate a family with `sweep.py` (exclusive BDS
 slot; resumable with `--out`) and then `summarize.py`, e.g.:
@@ -42,6 +44,7 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | `mining_ticks.json` | `{block state: {variant: {ticks: [trials], median, tool_item, commands, on_ground, in_water, wear}}}`; variants: tool key plus `+efficiencyN`, `+hasteN`, `+mining_fatigueN`, `+underwater`, and held items by name; `wear`: durability damage each break added to the held stack. Airborne is not measured (levitation lifts the player out of reach); the `+underwater` cells are unreliable (the water ran off the player's head between trials) | the scripted player keeps mining (Start/ContinueDestroyBlock); ticks from the click event to the break event (±1 tick); the held stack read back after every break |
 | `recipe_legacy_identities.json` | canonical input/output item and aux identities for legacy recipe spellings | pinned 1.26.51 CraftingData capture; `../../tools/extract_recipe_identities.py` |
 | `builtin_recipes.json` | native shaped/shapeless/user-data recipes absent from pack JSON, stable UUID groups/multi identities, result NBT and canonical block states (`null` explicitly means no block state) | same pinned capture; transient network ids/random UUID values discarded; source SHA-256 included |
+| `enchantments.json` | `{source, enchantments: {name: {lang_key, max_level, weight, primary_slots, secondary_slots, min_cost, exclusive_group, excludes, list, treasure, discoverable}}}`: the rules of every enchantment, keyed by the bare names of the BDS 1.26.51 `Enchant` command enum; slots are `0x` bit masks (`source.slot_bits` names them) | moved unchanged from the random-enchanting table in `unastar-rules` and the `/enchant` lang keys (provenance in `source`); not a sweep artefact. `unastar-rules/build.rs` generates the `Enchantment` type from it (decision 0052) |
 | `potion_types.json` | lowercase pack potion type identifier to measured aux | unique labelled-graph solution against all captured brewing edges; source SHA-256 included |
 | `block_name_keys.json` | block identifier to the translation key command feedback names it by (`minecraft:dirt` → `tile.dirt.default.name`); blocks the `Block` command enum refuses are absent | `capture.py --commands` session of `/testforblock 8 199 8 <block>` for every palette block (default state) against stone, `--command-wait 150`, answers paired in order; `commands.testforblock.failed.tile` names the expected block; source SHA-256 of the session's `command-outputs.json` included |
 

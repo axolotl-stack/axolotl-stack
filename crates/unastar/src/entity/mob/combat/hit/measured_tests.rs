@@ -49,15 +49,16 @@ fn held(row: &Row) -> Option<ItemStack> {
         .enchants
         .iter()
         .map(|(name, level)| {
-            let enchantment = Enchantment::from_name(name)
-                .unwrap_or_else(|| panic!("{name} is not a known enchantment"));
+            let enchantment = name
+                .parse::<Enchantment>()
+                .unwrap_or_else(|error| panic!("{name}: {error}"));
             (enchantment, *level)
         })
         .collect();
     Some(if enchants.is_empty() {
         stack
     } else {
-        with_enchantments(&stack, &enchants)
+        with_enchantments(&stack, enchants)
     })
 }
 
