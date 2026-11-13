@@ -54,7 +54,7 @@ impl Client {
     /// then a server tick; records every tick field received.
     fn input(&mut self, h: &mut Harness) {
         self.tick += 1;
-        let position = eyes(h.feet());
+        let position = reported(h.feet());
         h.route(PlayerAuthInputPacket {
             position: Vec3 {
                 x: position.x as f32,

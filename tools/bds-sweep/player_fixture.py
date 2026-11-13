@@ -17,7 +17,12 @@ A phase keeps the subject's inputs with client ticks LO..HI and, from the
 recording client, the named server packets about `subject_runtime_id` (or
 without an actor) between the first and last server packet about the
 subject stamped with a tick in LO..HI, and the subject's attribute values
-sent before that window (`attributes_before`). Login packets, names and
+sent before that window (`attributes_before`). `teleports` lists the
+teleports the subject was sent (`MovePlayer` in teleport mode) stamped
+LO..HI: the input tick each followed and the destination's eye position;
+`corrections` the `CorrectPlayerMovePrediction` packets it was sent for
+inputs LO..HI: the input tick, eye position, velocity and ground
+contact. Login packets, names and
 keys never enter the fixture; the capture directories are named in
 `sources` by their base name only.
 """
@@ -100,8 +105,46 @@ def phase(root: Path, spec: dict) -> dict:
         'capture': spec['capture'], 'client': spec['client'], 'subject': spec['subject'],
         'ticks': [lo, hi], 'seq_range': [first, last], 'subject_runtime_id': rid,
         'note': spec['note'], 'attributes_before': attributes_before(recording, rid, first),
-        'inputs': inputs, 'packets': packets,
+        'inputs': inputs, 'packets': packets, 'teleports': teleports(subject, rid, lo, hi),
+        'corrections': corrections(subject, lo, hi),
     }
+
+
+MOVE = re.compile(r'position: Vec3 \{ x: ([-\d.e]+), y: ([-\d.e]+), z: ([-\d.e]+) \}.*'
+                  r'position_mode: (\w+).*inputtick: (\d+)')
+
+
+CORRECTION = re.compile(r'pos: Vec3 \{ x: ([-\d.e]+), y: ([-\d.e]+), z: ([-\d.e]+) \}, '
+                        r'pos_delta: Vec3 \{ x: ([-\d.e]+), y: ([-\d.e]+), z: ([-\d.e]+) \}.*'
+                        r'on_ground: (\w+), tick: PlayerInputTick \{ inputtick: (\d+)')
+
+
+def corrections(subject: Path, lo: int, hi: int) -> list[list]:
+    """[tick, x, y, z, vx, vy, vz, on_ground] of each player correction the
+    subject's client got for an input lo..hi."""
+    out = []
+    for _seq, direction, _name, body in decoded(subject, ['CorrectPlayerMovePrediction']):
+        m = CORRECTION.search(body)
+        if direction != 's2c' or not m or 'prediction_type: Player' not in body:
+            continue
+        tick = int(m.group(8))
+        if lo <= tick <= hi:
+            out.append([tick, *(float(m.group(i)) for i in range(1, 7)), m.group(7) == 'true'])
+    return out
+
+
+def teleports(subject: Path, rid: int, lo: int, hi: int) -> list[list[float]]:
+    """[tick, x, y, z] of each teleport `MovePlayer` the subject's own client
+    got about itself stamped lo..hi: BDS moved it after input `tick`."""
+    out = []
+    for _seq, direction, _name, body in decoded(subject, ['MovePlayer']):
+        actor = ACTOR.search(body)
+        if direction != 's2c' or not actor or int(actor.group(1)) != rid:
+            continue
+        m = MOVE.search(body)
+        if m and m.group(4) == 'Teleport' and lo <= int(m.group(5)) <= hi:
+            out.append([int(m.group(5)), float(m.group(1)), float(m.group(2)), float(m.group(3))])
+    return out
 
 
 def attributes_before(recording: Path, rid: int, first: int) -> dict[str, float]:

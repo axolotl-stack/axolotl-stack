@@ -749,15 +749,17 @@ fn sprint_then(steps: &[&str]) -> Vec<[f32; 3]> {
 
 /// BDS 1.26.51 `sprint|hit_then_stop`: the attack, then the input that ends
 /// the sprint, in one tick: the sprint's extra push lands (two
-/// `SetActorMotion`, both (0.6, 0.32, 0) from rest).
+/// `SetActorMotion`, both (0.6, 0.32, 0) from rest). The server's copy of
+/// the sprinting attacker moves on from where its inputs say it stands, so
+/// the push's direction is checked by its length, not its axis.
 #[test]
 fn an_attack_before_the_input_that_ends_the_sprint_is_a_sprint_hit() {
     let pushes = sprint_then(&["attack", "stop"]);
     assert_eq!(pushes.len(), 2, "{pushes:?}");
     for push in pushes {
-        for (ours, bds) in push.iter().zip([0.6f32, 0.32, 0.0]) {
-            assert!((ours - bds).abs() < 1.0e-5, "{push:?}");
-        }
+        let horizontal = push[0].hypot(push[2]);
+        assert!((horizontal - 0.6).abs() < 1.0e-5, "{push:?}");
+        assert!((push[1] - 0.32).abs() < 1.0e-5, "{push:?}");
     }
 }
 

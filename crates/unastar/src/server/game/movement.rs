@@ -2,30 +2,60 @@
 //!
 //! Processes PlayerAuthInput and PlayerAction packets, updating position,
 //! rotation, input state, the sneak and flight flags and the fall the player
-//! life systems resolve. Each accepted input's move and the sprint, swim and
-//! glide toggles it asks for go to [`PlayerMoves`], which
-//! `player_life::motion::settle_moves` applies right after (acceptance,
-//! `MOVING`, food exhaustion). Forwards block actions from AuthInput to the
-//! block packet queue. (`PlayerAction` respawn is routed to
-//! `player_life::respawn` instead.)
+//! life systems resolve. The position is the server's own copy of the
+//! player: each input is simulated and the position the client reports is
+//! judged against it, as BDS 1.26.51 does (`player_life::authority`, which
+//! answers with `CorrectPlayerMovePrediction`); inputs the simulation does
+//! not cover are trusted within [`MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK`].
+//! A client's flight toggles count only in a game mode that can fly.
+//! Each input's move (the copy's) and the sprint, swim and glide toggles it
+//! asks for go to [`PlayerMoves`], which `player_life::motion::settle_moves`
+//! applies right after (acceptance, `MOVING`, food exhaustion). Forwards
+//! block actions from AuthInput to the block packet queue. (`PlayerAction`
+//! respawn is routed to `player_life::respawn` instead.)
 
 use bevy_ecs::prelude::*;
+use bevy_ecs::query::QueryData;
 use glam::DVec3;
 use tracing::trace;
 
-/// Farthest one `PlayerAuthInput` may move a player from its server-tracked position.
-const MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK: f64 = 64.0;
+/// Farthest one trusted `PlayerAuthInput` may move a player from its
+/// server-tracked position (from the server's copy, for a player that has
+/// one: [`MAX_TRUSTED_MOVE`]).
+const MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK: f64 = MAX_TRUSTED_MOVE as f64;
 
 use super::packet_queues::{
     BlockAction, BlockPacketQueue, MovementEvents, MovementInput, MovementPacketQueue,
 };
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
-use crate::entity::components::{PlayerInput, PlayerState};
+use crate::entity::components::{
+    ArmourInventory, Effects, GameMode, HeldSlot, MainInventory, PlayerInput, PlayerSession,
+    PlayerState,
+};
+use crate::entity::player_life::authority::{
+    LoadedBlocks, MAX_TRUSTED_MOVE, MotionTable, Outcome, PlayerMotion, Situation, WorldTerrain,
+    movement_effects_of, movement_gear_of,
+};
 use crate::entity::player_life::environment::PlayerFall;
-use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles};
+use crate::entity::player_life::motion::{Move, PlayerMoves, Toggles, has_elytra};
 use crate::entity::player_life::pvp::{InputStart, Swing};
+use crate::server::game::types::BlockRegistryResource;
+use crate::world::ChunkManager;
+use crate::world::ecs::ChunkData;
 use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
+use jolyne::valentine::{CorrectPlayerMovePredictionPacket, McpePacket};
+
+/// What the simulation reads about a player besides its movement.
+#[derive(QueryData)]
+pub(crate) struct Condition {
+    mode: &'static GameMode,
+    effects: Option<&'static Effects>,
+    /// An elytra, movement enchantments.
+    armour: Option<&'static ArmourInventory>,
+    /// The held item (a riptide trident).
+    hand: Option<(&'static MainInventory, &'static HeldSlot)>,
+}
 
 /// The player state the movement packets write.
 type MovingPlayers<'w, 's> = Query<
@@ -38,14 +68,39 @@ type MovingPlayers<'w, 's> = Query<
         &'static mut PlayerInput,
         Option<&'static mut PlayerFall>,
         Option<&'static mut PlayerMoves>,
+        Option<&'static mut PlayerMotion>,
+        Option<Condition>,
     ),
 >;
 
+/// The world the movement simulation reads, when the server has one.
+pub(crate) struct MovementWorld<'a, 'w, 's> {
+    chunks: Option<&'a ChunkManager>,
+    chunk_data: &'a Query<'w, 's, &'static ChunkData>,
+    registry: Option<&'a BlockRegistryResource>,
+    table: Option<&'a MotionTable>,
+}
+
+impl<'a, 'w, 's> MovementWorld<'a, 'w, 's> {
+    /// The blocks and the motion table, when the server has a world.
+    fn terrain_parts(&self) -> Option<(LoadedBlocks<'a, 'w, 's>, &'a MotionTable)> {
+        Some((
+            LoadedBlocks {
+                manager: self.chunks?,
+                chunks: self.chunk_data,
+                registry: &self.registry?.0,
+            },
+            self.table?,
+        ))
+    }
+}
+
 /// ECS system: drain movement packet queue and apply state changes.
 ///
-/// Runs in `PacketApplySet`. Can execute in parallel with inventory, chat, and chunks
-/// because it writes disjoint components (Position, Rotation, PlayerState, PlayerInput,
-/// PlayerFall, PlayerMoves).
+/// Runs in `PacketApplySet`. Writes the movement components (Position, Rotation,
+/// PlayerState, PlayerInput, PlayerFall, PlayerMoves, PlayerMotion), reads the loaded
+/// chunks the movement simulation collides with, and sends each correction through
+/// the player's session.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
@@ -54,11 +109,22 @@ pub fn apply_movement(
     mut item_use: Option<ResMut<super::item_use::ItemUseQueue>>,
     mut players: MovingPlayers,
     mut relayed: Option<ResMut<crate::server::player_view::RelayedMoves>>,
+    chunks: Option<Res<ChunkManager>>,
+    chunk_data: Query<&'static ChunkData>,
+    registry: Option<Res<BlockRegistryResource>>,
+    table: Option<Res<MotionTable>>,
+    sessions: Query<&PlayerSession>,
     mut starts: Query<&mut InputStart>,
     tick: Option<Res<crate::ecs::resources::TickCounter>>,
 ) {
     let now = tick.map_or(0, |tick| tick.current);
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
+    let world = MovementWorld {
+        chunks: chunks.as_deref(),
+        chunk_data: &chunk_data,
+        registry: registry.as_deref(),
+        table: table.as_deref(),
+    };
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
@@ -70,7 +136,7 @@ pub fn apply_movement(
                     .map(|(_, rotation, ..)| (rotation.pitch, rotation.yaw));
                 // Combat: the attacker's state an attack of this tick sees
                 // (`player_life::pvp`).
-                if let (Ok(mut start), Ok((position, _, state, input, fall, _))) =
+                if let (Ok(mut start), Ok((position, _, state, input, fall, ..))) =
                     (starts.get_mut(entity), players.get(entity))
                     && start.tick != now
                 {
@@ -85,8 +151,21 @@ pub fn apply_movement(
                     };
                 }
                 // A rejected input is rejected whole, block actions included.
-                if process_auth_input(entity, &pk, &mut players, &mut events).is_none() {
+                let Some(correction) =
+                    process_auth_input(entity, &pk, &mut players, &mut events, &world)
+                else {
                     continue;
+                };
+                if let Some(correction) = correction
+                    && let Ok(session) = sessions.get(entity)
+                {
+                    tracing::debug!(
+                        entity = ?entity,
+                        tick = correction.tick.inputtick,
+                        position = ?correction.pos,
+                        "Sent CorrectPlayerMovePrediction"
+                    );
+                    let _ = session.send(McpePacket::from(correction));
                 }
                 // Every accepted input is relayed to the player's viewers.
                 if let (Some(relayed), Some((pitch, yaw)), Ok((position, rotation, ..))) =
@@ -149,14 +228,18 @@ fn item_requests(
 
 /// Process a PlayerAuthInput packet: position, rotation, input flags, the
 /// sneak and flight toggles; the move and the other toggles go to
-/// [`PlayerMoves`].
+/// [`PlayerMoves`]. Returns the correction to send, if any, or `None` for
+/// an input rejected whole.
 fn process_auth_input(
     entity: Entity,
     pk: &jolyne::valentine::PlayerAuthInputPacket,
     players: &mut MovingPlayers,
     events: &mut ResMut<MovementEvents>,
-) -> Option<()> {
-    let Ok((mut pos, mut rot, mut state, mut input, fall, moves)) = players.get_mut(entity) else {
+    world: &MovementWorld<'_, '_, '_>,
+) -> Option<Option<CorrectPlayerMovePredictionPacket>> {
+    let Ok((mut pos, mut rot, mut state, mut input, fall, moves, motion, condition)) =
+        players.get_mut(entity)
+    else {
         return None;
     };
 
@@ -174,23 +257,26 @@ fn process_auth_input(
         return None;
     }
 
-    // Update position
-    let new_pos = DVec3::new(
-        pk.position.x as f64,
-        pk.position.y as f64,
-        pk.position.z as f64,
-    );
+    // The flight this input asks for, in a game mode that can fly (applied
+    // once the input is accepted): a flying player's input is trusted.
+    let input_data = &pk.input_data;
+    let has = |flag| input_data.contains(&flag);
+    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+    let may_fly = condition
+        .as_ref()
+        .is_some_and(|condition| condition.mode.allows_flight());
+    let flying = may_fly && (state.flying || has(Flag::Startflying)) && !has(Flag::Stopflying);
+
     let old_pos = pos.0;
-    if old_pos.distance(new_pos) > MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK {
-        tracing::warn!(
-            entity = ?entity,
-            from = ?old_pos,
-            to = ?new_pos,
-            "Rejected implausible PlayerAuthInput movement delta"
-        );
-        return None;
-    }
+    let situation = condition
+        .as_ref()
+        .map_or_else(Situation::default, |condition| {
+            situation_of(condition, flying)
+        });
+    let outcome = judge_position(entity, pk, old_pos, motion, &situation, world)?;
+    let new_pos = outcome.position;
     pos.0 = new_pos;
+    state.flying = flying;
 
     // Update rotation
     rot.pitch = pk.player_rotation.x;
@@ -198,7 +284,6 @@ fn process_auth_input(
     rot.head_yaw = pk.player_head_rotation;
 
     // Update input
-    let input_data = &pk.input_data;
     let was_jumping = input.jumping;
     input.move_x = pk.move_vector.x;
     input.move_z = pk.move_vector.y;
@@ -218,14 +303,12 @@ fn process_auth_input(
         DVec3::splat(-MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK),
         DVec3::splat(MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK),
     );
-    // Vertical collision: the move ended against the ground (or a ceiling).
-    input.on_ground =
-        input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
+    // The ground contact after the move: the copy's (a trusted input's
+    // vertical collision).
+    input.on_ground = outcome.on_ground;
 
-    // The sneak and flight toggles apply here; sprint, swim and glide are
-    // settled with the world at hand (`player_life::motion`).
-    let has = |flag| input_data.contains(&flag);
-    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+    // The sneak toggles apply here; sprint, swim and glide are settled with
+    // the world at hand (`player_life::motion`).
     let mut toggle_sneak = None;
     if has(Flag::Startsneaking) {
         state.sneaking = true;
@@ -234,12 +317,6 @@ fn process_auth_input(
     if has(Flag::Stopsneaking) {
         state.sneaking = false;
         toggle_sneak = Some(false);
-    }
-    if has(Flag::Startflying) {
-        state.flying = true;
-    }
-    if has(Flag::Stopflying) {
-        state.flying = false;
     }
 
     if let Some(mut fall) = fall {
@@ -254,7 +331,7 @@ fn process_auth_input(
         moves.record(
             Move {
                 delta: new_pos - old_pos,
-                jumped: has(Flag::Startjumping),
+                jumped: outcome.jumped,
                 on_ground: input.on_ground,
             },
             pk.move_vector.y > 0.0,
@@ -286,16 +363,74 @@ fn process_auth_input(
             is_sneaking,
         });
     }
-    Some(())
+    Some(outcome.correction)
+}
+
+/// The input's outcome: the server's copy judges it, or, for a player
+/// without one (no world to simulate in), the reported position is taken
+/// within [`MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK`] of `old_pos`. `None`
+/// rejects the input whole.
+fn judge_position(
+    entity: Entity,
+    pk: &jolyne::valentine::PlayerAuthInputPacket,
+    old_pos: DVec3,
+    motion: Option<Mut<PlayerMotion>>,
+    situation: &Situation,
+    world: &MovementWorld<'_, '_, '_>,
+) -> Option<Outcome> {
+    let reported = DVec3::new(
+        f64::from(pk.position.x),
+        f64::from(pk.position.y),
+        f64::from(pk.position.z),
+    );
+    let outcome = match (motion, world.terrain_parts()) {
+        (Some(mut motion), Some((blocks, table))) => {
+            let terrain = WorldTerrain {
+                blocks: &blocks,
+                table,
+            };
+            motion.input(pk, &terrain, situation)
+        }
+        _ => (old_pos.distance(reported) <= MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK)
+            .then(|| Outcome::reported(pk)),
+    };
+    if outcome.is_none() {
+        tracing::warn!(
+            entity = ?entity,
+            from = ?old_pos,
+            to = ?reported,
+            "Rejected implausible PlayerAuthInput movement delta"
+        );
+    }
+    outcome
+}
+
+/// What the movement authority reads about a player besides its movement;
+/// `flying` is the flight the input asks for, in a game mode that can fly.
+fn situation_of(condition: &ConditionItem<'_, '_>, flying: bool) -> Situation {
+    Situation {
+        flight: flying || *condition.mode == GameMode::Spectator,
+        glide: condition.armour.is_some_and(has_elytra),
+        effects: movement_effects_of(condition.effects),
+        gear: movement_gear_of(
+            condition.armour,
+            condition
+                .hand
+                .and_then(|(inventory, held)| inventory.hotbar(held.0)),
+        ),
+    }
 }
 
 /// Whether every value the server takes from a `PlayerAuthInput` (position, rotation,
-/// head yaw and move vector) is finite.
+/// head yaw, move vector and the velocity a trusted input reports) is finite.
 fn auth_input_is_finite(pk: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
     [
         pk.position.x,
         pk.position.y,
         pk.position.z,
+        pk.pos_delta.x,
+        pk.pos_delta.y,
+        pk.pos_delta.z,
         pk.player_rotation.x,
         pk.player_rotation.y,
         pk.player_head_rotation,
@@ -481,22 +616,17 @@ mod tests {
             ..Default::default()
         };
         moving.move_vector.x = f32::NAN;
-        let (pos, _) = apply(
-            &mut world,
-            player,
-            MovementInput::AuthInput(Box::new(moving.clone())),
-        );
-        assert_eq!(pos, START);
-        assert!(world.resource::<MovementEvents>().0.is_empty());
-        // A reported velocity is kept by knockbacks: it must be finite too.
-        moving.move_vector.x = 0.0;
-        moving.pos_delta.z = f32::INFINITY;
-        let (pos, _) = apply(
-            &mut world,
-            player,
-            MovementInput::AuthInput(Box::new(moving)),
-        );
-        assert_eq!(pos, START);
+        let mut falling = moving.clone();
+        falling.move_vector.x = 0.0;
+        falling.pos_delta.y = f32::NAN;
+        for input in [moving, falling] {
+            let (pos, _) = apply(
+                &mut world,
+                player,
+                MovementInput::AuthInput(Box::new(input)),
+            );
+            assert_eq!(pos, START);
+        }
         assert!(world.resource::<MovementEvents>().0.is_empty());
     }
 }

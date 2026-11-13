@@ -448,7 +448,9 @@ fn cause_id(cause: ActorDamageCause) -> i32 {
 /// input reported, which is what BDS simulates for it (at rest 0.0784
 /// down, so a netherite-clad victim leaves at 0.6 x 0.48 - 0.0392), or an
 /// earlier push of this tick. It goes to the player and its viewers as
-/// `SetActorMotion` and counts as the player's next move (`super::motion`).
+/// `SetActorMotion`, counts as the player's next move (`super::motion`) and
+/// is the velocity of the server's copy from the next input on
+/// (`super::authority`).
 /// The velocity kept and the velocity given are bounded by
 /// [`bounded_knockback`].
 fn knock_back(
@@ -489,6 +491,9 @@ fn knock_back(
     }
     if let Some(mut moves) = world.get_mut::<super::motion::PlayerMoves>(player) {
         moves.push(velocity);
+    }
+    if let Some(mut motion) = world.get_mut::<super::authority::PlayerMotion>(player) {
+        motion.pushed(velocity);
     }
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
         return;

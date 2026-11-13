@@ -50,6 +50,9 @@ use jolyne::valentine::types::{
 };
 use jolyne::valentine::{McpePacket, SetActorDataPacket, actor_data_i_ds as ids, actor_flags};
 
+use unastar_rules::movement::Pose;
+
+use super::authority::{MotionTable, WorldTerrain};
 use super::breath::PlayerBreath;
 use super::environment::Burning;
 use super::motion::PlayerMoves;
@@ -59,23 +62,17 @@ use crate::entity::components::{
     EffectType, Effects, GameMode, Player, PlayerState, Position, RuntimeEntityId, input_tick_of,
 };
 use crate::entity::definition::metadata::EntityMetadata;
-use crate::entity::systems::BlockSource;
-use crate::registry::collision::{Aabb, block_collision_aabbs, connected_state};
 use crate::server::game::item_use::ItemUsing;
 use crate::world::ecs::AwaitingSpawnStatus;
 
 /// Width of a living player's box (keys 53 and 130).
-const WIDTH: f32 = 0.6;
+const WIDTH: f32 = unastar_rules::movement::WIDTH;
 /// Height of a standing player's box (keys 54 and 130).
-const STANDING_HEIGHT: f32 = 1.8;
+const STANDING_HEIGHT: f32 = Pose::Standing.height();
 /// Height of a sneaking player's box.
-const SNEAKING_HEIGHT: f32 = 1.49;
+const SNEAKING_HEIGHT: f32 = Pose::Sneaking.height();
 /// Height of a crawling, swimming or gliding player's box.
-const CRAWLING_HEIGHT: f32 = 0.6;
-/// How far the crawl test's boxes are shrunk on every side: positions come
-/// from the client as `f32`, so feet on a floor can sit a hair below its
-/// top (eyes at 5.62f32 are 3.99999988 + 1.62).
-const CRAWL_TOLERANCE: f64 = 1.0e-5;
+const CRAWLING_HEIGHT: f32 = Pose::Low.height();
 /// Width and height of a dead player's box.
 const DEAD_SIZE: f32 = 0.2;
 /// The air supply a player's actor data starts with (keys 7 and 42).
@@ -314,43 +311,15 @@ fn player_flags2(data: &PlayerActorData, sneaking: bool, crawling: bool) -> i64 
     flags
 }
 
-/// Whether a block's collision box overlaps `area`; `None` while a block
-/// it covers is not loaded.
-fn blocks_overlap(world: &World, area: Aabb) -> Option<bool> {
-    let min = area.min.floor().as_ivec3();
-    let max = area.max.floor().as_ivec3();
-    let registry = world.registry();
-    // One layer below: fences and walls reach into the block above.
-    for y in (min.y - 1)..=max.y {
-        for x in min.x..=max.x {
-            for z in min.z..=max.z {
-                let pos = IVec3::new(x, y, z);
-                let state = world.block_at(pos)?;
-                let state = connected_state(registry, pos, state, |p| world.block_at(p));
-                let origin = pos.as_dvec3();
-                if block_collision_aabbs(state).any(|aabb| aabb.offset(origin).intersects(&area)) {
-                    return Some(true);
-                }
-            }
-        }
-    }
-    Some(false)
-}
-
-/// Whether `player` crawls: a block is in its standing box but not in its
-/// crawling box (BDS 1.26.51: stone, glass and oak leaves at eye height).
-/// `None` while the blocks there are not loaded.
+/// Whether `player` crawls (`None` while the blocks there are not loaded):
+/// the movement simulation's crawl test at its feet.
 fn crawls(world: &World, player: Entity) -> Option<bool> {
     let feet = world.get::<Position>(player)?.0 - DVec3::Y * PLAYER_EYE_HEIGHT;
-    let shrink = DVec3::splat(-CRAWL_TOLERANCE);
-    let standing =
-        Aabb::from_feet(feet, f64::from(WIDTH), f64::from(STANDING_HEIGHT)).inflate(shrink);
-    if !blocks_overlap(world, standing)? {
-        return Some(false);
-    }
-    let crawling =
-        Aabb::from_feet(feet, f64::from(WIDTH), f64::from(CRAWLING_HEIGHT)).inflate(shrink);
-    Some(!blocks_overlap(world, crawling)?)
+    let terrain = WorldTerrain {
+        blocks: world,
+        table: world.get_resource::<MotionTable>()?,
+    };
+    terrain.crawl_space(feet.as_vec3().to_array())
 }
 
 /// The current values of `player`'s changing keys.

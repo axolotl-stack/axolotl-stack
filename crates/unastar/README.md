@@ -80,8 +80,72 @@ still had queued beyond that tick's budget is dropped (the count is logged at de
 since the client has gone and there is no prediction left to keep in step.
 
 `PlayerAuthInput` is rejected whole (the player stays where it was) when its
-position, rotation, head yaw or move vector is not finite, or when the position is
-more than 64 blocks from the server-tracked one.
+position, rotation, head yaw or move vector is not finite.
+
+### Movement authority
+
+Player movement is server-authoritative, as in BDS 1.26.51
+(`entity/player_life/authority.rs`). The server keeps its own copy of each
+player and simulates every `PlayerAuthInput` on it with `unastar_rules::movement`,
+the `f32` simulation the sweep client runs on BDS. It then judges the reported
+position with BDS's rules (`unastar_rules::movement::authority`; the measured
+rules are in `docs/quirks/bds.md`, Entities / player movement authority, pull,
+teleport):
+
+- positions within a tenth of a block are taken;
+- other positions pull the copy towards the client;
+- positions out of reach, or ones the copy could not reach (too fast, through a
+  wall, hovering, claiming the ground while falling), are answered with
+  `CorrectPlayerMovePrediction` carrying the copy's state.
+
+The copy is what the player's viewers see, and what its falls, `MOVING` and
+exhaustion follow. A teleport (command, plugin, ender pearl, chorus fruit) leaves
+the copy at rest at the destination for the next input, so no input sent before
+the client saw it can undo it. A respawn places the copy at the spawn point, and
+a knockback becomes its velocity. Every other server-side move of a player must
+update the copy too (`PlayerMotion::teleported`), or the client's next input is
+corrected back.
+
+The simulation does not reproduce everything yet. Inputs it does not cover
+are trusted (`Trust`): the copy takes the client's position, its velocity
+(capped at 4 blocks a tick per axis) and its flags. How far a trusted input may
+move the copy depends on who brings the trust about.
+
+The server grants this one; a trusted input more than 64 blocks from the copy
+is rejected whole:
+- flying in a game mode that can fly, and spectators (a survival client's
+  `StartFlying` is ignored).
+
+Effects are judged: speed, slowness, jump boost, slow falling and levitation
+are simulated as BDS moves them, and the movement attribute carries BDS's
+speed and slowness modifiers.
+
+A client can seek these out, so they cover about one tick of movement (1.5
+blocks horizontally, 4 vertically) and never pass through a block the
+simulation reproduces; beyond that the copy judges the input:
+- inputs near blocks with movement rules the simulation does not reproduce
+  yet: flowing water and lava, bubble columns, beds and powder snow
+  (`MotionTable`, both block layers; `Block::confirmed`). Ladders, vines and
+  the climbing plants, scaffolding, sweet berry bushes, honey, soul sand,
+  slime, cobwebs, ice and lava sources are judged: the movement differential
+  (`tools/movement-diff`) matches BDS on them bit for bit;
+- depth strider near water, swift sneak while sneaking, soul speed near soul
+  sand or soil;
+- a riptide trident's spin started in water, for at most 20 inputs (up to 4
+  blocks per axis);
+- a crawl space at the copy's feet.
+
+Two more cases are covered:
+- A client only slower than the copy's simulation of its keys is taken (no
+  farther horizontally, level vertically). This covers an item in use and a
+  sprint key held at 6 food or less. It does not apply while a knockback plays
+  out, so refusing knockback is still corrected.
+- The first input after joining or respawning is trusted when it is within 2
+  blocks of the spawn point.
+
+A situation leaves the trusted list only with a BDS run of the sweep client that
+covers it without corrections. The movement replays in `entity/player_life/tests/` assert
+that the server sends exactly BDS's corrections and none that BDS did not send.
 
 ## Joining
 
@@ -754,7 +818,7 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/give`, `/clear`, `/setblock`, `/fill`, `/clone` | Legacy names with old block states map only for the colour families (and `/give`'s data values also for log, log2 and planks); other legacy names fail with "not implemented" | No full legacy item/block upgrade table yet |
 | `/give`, `/recipe` | Items reaching an inventory unlock no recipes (BDS follows a give with `UnlockedRecipes`); unlocked recipes are not saved; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
 | `/gamemode` | Also resends `UpdateAbilities`; `default` puts the player in the configured mode instead of keeping it on `default` | Unastar's join abilities depend on the game mode; no `default` player mode |
-| `/effect` | Speed/slowness do not change movement and send no movement attribute modifier | No attribute-modifier system yet |
+| `/effect` | No visible-effects actor data | Speed and slowness change the movement attribute with BDS's modifiers; the visible-effects row is not sent yet |
 | `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/setworldspawn`, `/scoreboard`, `/tickingarea`, `/structure`, `/mobevent` | The world spawn, objectives and scores, ticking areas, structures and mob event switches are not saved with the world (players' spawn points, tags and recipes, and mobs' tags, are) | No level-data store yet |
 | `/scoreboard` | `belowname` sends no score actor data | Not built |

@@ -97,9 +97,9 @@
 //!
 //! Exits successfully when the server closes the session.
 
+use bds_sweep::{physics, scenario, world};
+
 mod lockstep;
-mod physics;
-mod world;
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::Parser;
@@ -160,6 +160,21 @@ struct Args {
     /// rejoining player keeps its saved data.
     #[arg(long)]
     uuid: Option<uuid::Uuid>,
+    /// Play this movement corpus (`tools/movement-diff/corpus.json`) when
+    /// the `scenarios` order arrives.
+    #[arg(long)]
+    scenarios: Option<PathBuf>,
+    /// Where to write each scenario's runtime id and first input tick.
+    #[arg(long, requires = "scenarios")]
+    scenario_log: Option<PathBuf>,
+    /// How far off the scenario's reported position is, per axis
+    /// (`x,y,z`; harness validation reruns with other offsets).
+    #[arg(long, requires = "scenarios", value_delimiter = ',', num_args = 1,
+          allow_hyphen_values = true, default_values_t = SCENARIO_OFFSET)]
+    scenario_offset: Vec<f32>,
+    /// Where a scenario's derived input flags come from.
+    #[arg(long, requires = "scenarios", value_enum, default_value_t = FlagSource::Simulation)]
+    flag_source: FlagSource,
     /// Run the timed orders and commands of this file (see the crate docs).
     #[arg(long)]
     script: Option<PathBuf>,
@@ -176,6 +191,19 @@ struct Args {
     /// are sent (see the `lockstep` module).
     #[arg(long, default_value = "0")]
     lockstep_delay_ms: u64,
+}
+
+/// How a scenario input's derived flags (`StartSprinting`, `StartJumping`,
+/// the collisions...) are chosen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum FlagSource {
+    /// From the client's own simulation, as a vanilla client derives them
+    /// from its prediction.
+    Simulation,
+    /// From the keys alone, with no simulation: starts and stops on the
+    /// key edges, no collision or swim flags (harness validation: BDS's
+    /// copy must not depend on them).
+    Keys,
 }
 
 /// A mining order in progress.
@@ -306,6 +334,43 @@ enum Order {
     /// Use the held stack on a block face.
     Use(UseOrder),
     Sign(SignOrder),
+    /// How server teleports are taken from now on.
+    Teleports(TeleportMode),
+    /// Whether corrections are rewound.
+    Corrections(bool),
+    /// Report the position this far (thousandths of a block) from the body.
+    Offset([i64; 3]),
+    /// Grow the offset by this much (thousandths of a block) every input.
+    Drift([i64; 3]),
+    /// Play the movement corpus given with `--scenarios`.
+    Scenarios,
+}
+
+/// How the client takes a server teleport (`MovePlayer`, a respawn's
+/// position): the vanilla way, or a probe of what BDS does with the inputs
+/// sent before the acknowledgement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TeleportMode {
+    /// Move there and say `HandledTeleport` with the next input.
+    Follow,
+    /// Keep moving from where the player was for this many inputs, then
+    /// follow.
+    Late(u32),
+    /// Never move there, never say `HandledTeleport`.
+    Ignore,
+    /// Say `HandledTeleport` with the next input without moving there.
+    Fake,
+}
+
+/// A teleport a `Late` client has not followed yet.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct PendingTeleport {
+    /// Inputs left before it is followed.
+    inputs: u32,
+    position: [f32; 3],
+    on_ground: bool,
+    pitch: f32,
+    yaw: f32,
 }
 
 /// A scripted walk: per-input position and yaw steps, in thousandths of a
@@ -627,6 +692,40 @@ fn parse_order(text: &str) -> Option<Order> {
             }))
         }
         "close-inventory" | "close-inventory\"" => Some(Order::CloseInventory),
+        word if word.starts_with("scenarios") && !word[9..].starts_with(char::is_alphanumeric) => {
+            Some(Order::Scenarios)
+        }
+        "teleports" => {
+            let mode = words.next()?;
+            let mode: String = mode.chars().take_while(char::is_ascii_alphabetic).collect();
+            Some(Order::Teleports(match mode.as_str() {
+                "follow" => TeleportMode::Follow,
+                "ignore" => TeleportMode::Ignore,
+                "fake" => TeleportMode::Fake,
+                "late" => TeleportMode::Late(u32::try_from(numbers(words, 1)?[0]).ok()?),
+                _ => return None,
+            }))
+        }
+        "corrections" => {
+            let mode: String = words
+                .next()?
+                .chars()
+                .take_while(char::is_ascii_alphabetic)
+                .collect();
+            match mode.as_str() {
+                "follow" => Some(Order::Corrections(true)),
+                "ignore" => Some(Order::Corrections(false)),
+                _ => None,
+            }
+        }
+        "offset" => {
+            let values = numbers(words, 3)?;
+            Some(Order::Offset([values[0], values[1], values[2]]))
+        }
+        "drift" => {
+            let values = numbers(words, 3)?;
+            Some(Order::Drift([values[0], values[1], values[2]]))
+        }
         "walk" => {
             let values = numbers(words.by_ref(), 6)?;
             // The optional pitch step; whatever follows the order otherwise.
@@ -750,6 +849,8 @@ fn command_request(command: &str) -> McpePacket {
 struct Frame {
     tick: u64,
     controls: Controls,
+    /// A `walk` input: the feet moved by this step instead of the physics.
+    step: Option<[f32; 3]>,
     /// The body after this tick's move.
     after: Body,
 }
@@ -810,10 +911,267 @@ struct Player {
     pending_equip: Option<(u8, u8)>,
     /// `CorrectPlayerMovePrediction` packets received.
     corrections: u32,
+    /// How server teleports are taken, and one a `Late` client has not
+    /// followed yet.
+    teleport_mode: TeleportMode,
+    pending_teleport: Option<PendingTeleport>,
+    /// Corrections are rewound.
+    follow_corrections: bool,
+    /// The reported position's distance from the body's, and its growth
+    /// per input.
+    offset: [f32; 3],
+    drift: [f32; 3],
+    /// The movement corpus being played (`--scenarios`).
+    scenarios: Option<ScenarioScript>,
+    /// The controls of the last input.
+    previous_controls: Controls,
+    /// The login identity, the origin of the commands this client sends.
+    uuid: uuid::Uuid,
     /// Added to the position attacks claim (`claim`).
     claim_offset: [f32; 3],
     /// The hotbar slot attacks name instead of the held one (`claim-slot`).
     claim_slot: Option<u8>,
+}
+
+/// How far from its own simulation a scripted scenario reports the player,
+/// on every axis: over BDS's acceptance threshold, so BDS's copy is never
+/// moved towards the reported position and moves by its own simulation
+/// alone. Offsetting only the height is not enough: BDS takes a reported
+/// horizontal position within 0.1 of its copy on each horizontal axis even
+/// when the height is 3 blocks off.
+const SCENARIO_OFFSET: [f32; 3] = [3.0, 3.0, 3.0];
+
+/// The input flags a client with no simulation sends for `controls`, after
+/// `previous`: the keys and their edges only.
+fn key_flags(
+    controls: &Controls,
+    previous: &Controls,
+    glide: bool,
+    teleported: bool,
+) -> Vec<EnumsPlayerAuthInputPacketPayloadInputData> {
+    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+    let (forward, strafe) = (controls.forward, controls.strafe);
+    let sprinting = controls.sprint && forward > 0.0 && !controls.sneak;
+    let was_sprinting = previous.sprint && previous.forward > 0.0 && !previous.sneak;
+    [
+        (forward > 0.0, Flag::Up),
+        (forward < 0.0, Flag::Down),
+        (strafe > 0.0, Flag::Left),
+        (strafe < 0.0, Flag::Right),
+        (forward > 0.0 && strafe > 0.0, Flag::Upleft),
+        (forward > 0.0 && strafe < 0.0, Flag::Upright),
+        (forward < 0.0 && strafe > 0.0, Flag::Downleft),
+        (forward < 0.0 && strafe < 0.0, Flag::Downright),
+        (controls.sprint, Flag::Sprintdown),
+        (sprinting, Flag::Sprinting),
+        (sprinting && !was_sprinting, Flag::Startsprinting),
+        (!sprinting && was_sprinting, Flag::Stopsprinting),
+        (controls.sneak, Flag::Sneakdown),
+        (controls.sneak, Flag::Sneakcurrentraw),
+        (controls.sneak, Flag::Sneaking),
+        (controls.sneak && !previous.sneak, Flag::Startsneaking),
+        (controls.sneak && !previous.sneak, Flag::Sneakpressedraw),
+        (!controls.sneak && previous.sneak, Flag::Stopsneaking),
+        (!controls.sneak && previous.sneak, Flag::Sneakreleasedraw),
+        (glide, Flag::Startgliding),
+        (controls.jump, Flag::Jumpdown),
+        (controls.jump, Flag::Jumping),
+        (controls.jump, Flag::Jumpcurrentraw),
+        (controls.jump && !previous.jump, Flag::Jumppressedraw),
+        (!controls.jump && previous.jump, Flag::Jumpreleasedraw),
+        (controls.jump && !previous.jump, Flag::Startjumping),
+        (teleported, Flag::Handledteleport),
+    ]
+    .into_iter()
+    .filter_map(|(on, flag)| on.then_some(flag))
+    .collect()
+}
+/// Idle inputs between a scenario's last input and the next setup.
+const SCENARIO_LEAD: u32 = 3;
+/// Inputs to wait after a scenario's setup commands for their blocks.
+const SCENARIO_SETTLE: u32 = 20;
+/// Where the player waits while a scenario is built.
+const LOBBY: &str = "/tp @s -14.5 100 10.5 0 0";
+
+/// The movement corpus as the scripted client plays it, one scenario after
+/// the other: build it from the lobby, teleport to the start, and from the
+/// second input after the teleport (BDS rests the first) play its inputs.
+struct ScenarioScript {
+    scenarios: Vec<scenario::Scenario>,
+    /// The reported position's offset while a scenario plays.
+    offset: [f32; 3],
+    flags: FlagSource,
+    next: usize,
+    stage: Stage,
+    runs: Vec<scenario::ScenarioRun>,
+    log: Option<PathBuf>,
+}
+
+enum Stage {
+    /// Waiting for the `scenarios` order.
+    Waiting,
+    /// One command per input, then `settle` inputs for the blocks.
+    Setup {
+        /// Idle inputs before the first command: BDS may run a command
+        /// before it simulates an input that arrived in the same tick, so a
+        /// lobby teleport right after a scenario's last input could move the
+        /// player before that input's move.
+        lead: u32,
+        commands: VecDeque<String>,
+        settle: u32,
+    },
+    /// The start teleport was sent `waited` inputs ago.
+    Teleport { waited: u32 },
+    /// Teleported: the scenario's first input is input `first`.
+    Arrived { first: u64 },
+    Play {
+        first: u64,
+        inputs: Vec<scenario::TickInput>,
+    },
+    /// All played; quit after `linger` idle inputs (BDS relays the last
+    /// scenario input only if the player is still there).
+    Done { linger: u32 },
+}
+
+/// What the script does with one input.
+#[derive(Default)]
+struct ScenarioTick {
+    /// A scenario input: play it, reporting the far position.
+    input: Option<scenario::TickInput>,
+    /// Commands to send after the input.
+    commands: Vec<String>,
+    /// Turn to this yaw and pitch from the next input on.
+    look: Option<(f32, f32)>,
+}
+
+impl ScenarioScript {
+    fn load(
+        path: &std::path::Path,
+        log: Option<PathBuf>,
+        offset: [f32; 3],
+        flags: FlagSource,
+    ) -> Result<Self> {
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        Ok(Self {
+            scenarios: scenario::Corpus::parse(&text)?.scenarios,
+            offset,
+            flags,
+            next: 0,
+            stage: Stage::Waiting,
+            runs: Vec::new(),
+            log,
+        })
+    }
+
+    fn start(&mut self) -> Result<()> {
+        ensure!(
+            matches!(self.stage, Stage::Waiting),
+            "the scenarios already started"
+        );
+        self.setup_next()
+    }
+
+    /// Build the next scenario, or finish.
+    fn setup_next(&mut self) -> Result<()> {
+        let Some(scenario) = self.scenarios.get(self.next) else {
+            self.stage = Stage::Done { linger: 20 };
+            if let Some(log) = &self.log {
+                std::fs::write(log, serde_json::to_string_pretty(&self.runs)? + "\n")
+                    .with_context(|| format!("writing {}", log.display()))?;
+            }
+            info!(scenarios = self.runs.len(), "scenarios done");
+            return Ok(());
+        };
+        let mut commands = VecDeque::from([LOBBY.to_owned()]);
+        commands.extend(scenario.setup_commands()?);
+        info!(scenario = scenario.name, "setting up");
+        self.stage = Stage::Setup {
+            lead: SCENARIO_LEAD,
+            commands,
+            settle: SCENARIO_SETTLE,
+        };
+        Ok(())
+    }
+
+    fn done(&self) -> bool {
+        matches!(self.stage, Stage::Done { linger: 0 })
+    }
+
+    /// A teleport of this player after input `tick`.
+    fn teleported(&mut self, tick: u64) {
+        if let Stage::Teleport { .. } = self.stage {
+            // BDS rests the input after the teleport and simulates the next.
+            self.stage = Stage::Arrived { first: tick + 2 };
+        }
+    }
+
+    /// The script's part of input `tick`.
+    fn tick(&mut self, tick: u64, runtime_id: u64) -> Result<ScenarioTick> {
+        let mut out = ScenarioTick::default();
+        match &mut self.stage {
+            Stage::Waiting => {}
+            Stage::Done { linger } => *linger = linger.saturating_sub(1),
+            Stage::Setup {
+                lead,
+                commands,
+                settle,
+            } => {
+                if *lead > 0 {
+                    *lead -= 1;
+                } else if let Some(command) = commands.pop_front() {
+                    out.commands.push(command);
+                } else if *settle > 0 {
+                    *settle -= 1;
+                } else {
+                    let scenario = &self.scenarios[self.next];
+                    out.commands.push(scenario.start_command());
+                    // Inputs sent before the teleport arrives already face the
+                    // start's way, as the scenario's first inputs must.
+                    out.look = Some((scenario.start.yaw, scenario.start.pitch));
+                    self.stage = Stage::Teleport { waited: 0 };
+                }
+            }
+            Stage::Teleport { waited } => {
+                *waited += 1;
+                ensure!(*waited < 100, "no teleport to the scenario start");
+            }
+            Stage::Arrived { first } => {
+                // Inputs already on their way when the teleport arrived went
+                // out idle; every scenario starts with idle inputs for them.
+                if tick >= *first {
+                    let first = *first;
+                    let scenario = &self.scenarios[self.next];
+                    info!(scenario = scenario.name, first, tick, "playing");
+                    self.runs.push(scenario::ScenarioRun {
+                        name: scenario.name.clone(),
+                        runtime_id,
+                        first_input: first,
+                        ticks: scenario.ticks(),
+                    });
+                    self.stage = Stage::Play {
+                        first,
+                        inputs: scenario.tick_inputs(),
+                    };
+                    return self.tick(tick, runtime_id);
+                }
+            }
+            Stage::Play { first, inputs } => {
+                let index = usize::try_from(tick - *first)?;
+                out.input = Some(inputs[index]);
+                let number = u32::try_from(index + 1)?;
+                let last = index + 1 == inputs.len();
+                let scenario = &self.scenarios[self.next];
+                out.commands
+                    .extend(scenario.commands_after(number).map(str::to_owned));
+                if last {
+                    self.next += 1;
+                    self.setup_next()?;
+                }
+            }
+        }
+        Ok(out)
+    }
 }
 
 /// The input flags a vanilla client sets for this tick's keys and move.
@@ -879,7 +1237,7 @@ fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockAc
 }
 
 impl Player {
-    fn new(runtime_id: u64, position: Vec3, rotation: Vec2) -> Self {
+    fn new(runtime_id: u64, position: Vec3, rotation: Vec2, uuid: uuid::Uuid) -> Self {
         let mut body = Body::at([0.0; 3]);
         body.feet = body.feet_from_network([position.x, position.y, position.z]);
         Self {
@@ -917,15 +1275,42 @@ impl Player {
             quit: false,
             pending_equip: None,
             corrections: 0,
+            teleport_mode: TeleportMode::Follow,
+            pending_teleport: None,
+            follow_corrections: true,
+            offset: [0.0; 3],
+            drift: [0.0; 3],
+            scenarios: None,
+            previous_controls: Controls::default(),
+            uuid,
             claim_offset: [0.0; 3],
             claim_slot: None,
         }
     }
 
-    /// The wire position (the eyes of a standing player).
+    /// A command this player runs (`CommandRequest`).
+    fn command(&self, text: String) -> McpePacket {
+        McpePacket::from(CommandRequestPacket {
+            command: text.into(),
+            origin: CommandOriginDatajson {
+                type_: "player".into(),
+                uuid: self.uuid,
+                ..Default::default()
+            },
+            is_internal: false,
+            version: "latest".into(),
+        })
+    }
+
+    /// The wire position (the eyes of a standing player), moved by the
+    /// `offset` order.
     fn position(&self) -> Vec3 {
         let [x, y, z] = self.body.network_position();
-        Vec3 { x, y, z }
+        Vec3 {
+            x: x + self.offset[0],
+            y: y + self.offset[1],
+            z: z + self.offset[2],
+        }
     }
 
     /// Put the body where the server says, at rest.
@@ -1044,6 +1429,20 @@ impl Player {
             Order::Sign(order) => return Ok(self.edit_sign(&order).into_iter().collect()),
             Order::Drop(drop) => return self.drop_order(drop),
             Order::Walk(walk) => self.walk = Some(walk),
+            Order::Teleports(mode) => self.teleport_mode = mode,
+            Order::Corrections(follow) => self.follow_corrections = follow,
+            Order::Offset(offset) => {
+                self.offset = offset.map(|v| v as f32 / 1000.0);
+                self.drift = [0.0; 3];
+            }
+            Order::Drift(drift) => self.drift = drift.map(|v| v as f32 / 1000.0),
+            Order::Scenarios => {
+                let script = self
+                    .scenarios
+                    .as_mut()
+                    .context("the scenarios order needs --scenarios")?;
+                script.start()?;
+            }
             Order::CloseInventory => {
                 ensure!(
                     self.pending_drop.is_none(),
@@ -1468,28 +1867,6 @@ impl Player {
         }))
     }
 
-    /// A `walk` order's step for this input: the body moved by the step
-    /// (not simulated, at rest) and the look turned. Returns the walk when
-    /// one moved the body. Walked inputs leave nothing to replay, so the
-    /// rewind history restarts after them.
-    fn walk_step(&mut self) -> Option<Walk> {
-        let walk = self.walk.as_mut()?;
-        let thousandths = |value: i64| value as f32 / 1000.0;
-        for (feet, step) in self.body.feet.iter_mut().zip(walk.step) {
-            *feet += thousandths(step);
-        }
-        self.body.velocity = [0.0; 3];
-        self.controls.yaw += thousandths(walk.turn);
-        self.controls.pitch += thousandths(walk.tilt);
-        walk.remaining = walk.remaining.saturating_sub(1);
-        let walked = *walk;
-        if walk.remaining == 0 {
-            self.walk = None;
-        }
-        self.history.clear();
-        Some(walked)
-    }
-
     /// This tick's controls: the held keys, and the jump key while a `jump`
     /// order lasts.
     fn tick_controls(&mut self) -> Controls {
@@ -1499,12 +1876,90 @@ impl Player {
         controls
     }
 
+    /// A `Late` teleport whose inputs ran out: put the body there at rest and
+    /// acknowledge it with this input.
+    fn follow_late_teleport(&mut self) {
+        let Some(pending) = &mut self.pending_teleport else {
+            return;
+        };
+        if pending.inputs > 0 {
+            pending.inputs -= 1;
+            return;
+        }
+        let pending = self.pending_teleport.take().expect("checked above");
+        self.body.feet = self.body.feet_from_network(pending.position);
+        self.body.velocity = [0.0; 3];
+        self.body.on_ground = pending.on_ground;
+        self.history.clear();
+        self.rest = true;
+        self.controls.pitch = pending.pitch;
+        self.controls.yaw = pending.yaw;
+        self.teleported = true;
+        info!(tick = self.tick, position = ?pending.position, "followed a late teleport");
+    }
+
+    /// The next input of a `walk` order: the order as it was, and the step
+    /// it moves the feet by. Turns the controls by its yaw and pitch steps.
+    fn walk_input(&mut self) -> Option<(Walk, [f32; 3])> {
+        let walk = self.walk.as_mut()?;
+        let thousandths = |value: i64| value as f32 / 1000.0;
+        let step = walk.step.map(thousandths);
+        self.controls.yaw += thousandths(walk.turn);
+        self.controls.pitch += thousandths(walk.tilt);
+        let current = *walk;
+        walk.remaining = walk.remaining.saturating_sub(1);
+        if walk.remaining == 0 {
+            self.walk = None;
+        }
+        Some((current, step))
+    }
+
     /// One tick: move the body, then the `PlayerAuthInput` that reports it
     /// and the sub-chunk requests the new position makes due.
     fn auth_input(&mut self) -> Result<Vec<McpePacket>> {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
         self.tick += 1;
-        let walked = self.walk_step();
+        for (offset, drift) in self.offset.iter_mut().zip(self.drift) {
+            *offset += drift;
+        }
+        let script = match &mut self.scenarios {
+            Some(script) => Some(script.tick(self.tick, self.runtime_id)?),
+            None => None,
+        };
+        if let Some((yaw, pitch)) = script.as_ref().and_then(|tick| tick.look) {
+            self.controls.yaw = yaw;
+            self.controls.pitch = pitch;
+        }
+        if let Some(script) = &script {
+            match script.input {
+                Some(input) => {
+                    self.controls = input.controls;
+                    self.jump_ticks = u32::from(input.controls.jump);
+                    self.glide |= input.glide;
+                    if let Some(script) = &self.scenarios {
+                        self.offset = script.offset;
+                    }
+                }
+                None => {
+                    self.controls = Controls {
+                        yaw: self.controls.yaw,
+                        pitch: self.controls.pitch,
+                        ..Default::default()
+                    };
+                    self.offset = [0.0; 3];
+                }
+            }
+        }
+        self.follow_late_teleport();
+        let walk = self.walk_input();
         let controls = self.tick_controls();
+        let previous = std::mem::replace(&mut self.previous_controls, controls);
+        let key_derived = script.as_ref().is_some_and(|tick| tick.input.is_some())
+            && self
+                .scenarios
+                .as_ref()
+                .is_some_and(|script| script.flags == FlagSource::Keys);
+        let glide_key = self.glide;
         let started_gliding = std::mem::take(&mut self.glide)
             && !self.body.on_ground
             && !self.body.gliding
@@ -1513,10 +1968,17 @@ impl Player {
             self.body.gliding = true;
         }
         let was_in_water = self.body.in_water;
-        let changes = if std::mem::take(&mut self.rest) || walked.is_some() {
+        let changes = if let Some((_, step)) = walk {
+            for (feet, step) in self.body.feet.iter_mut().zip(step) {
+                *feet += step;
+            }
+            self.body.velocity = [0.0; 3];
+            self.rest = false;
+            physics::Changes::default()
+        } else if std::mem::take(&mut self.rest) {
             physics::Changes::default()
         } else {
-            physics::step(&mut self.body, &controls, &self.world)?
+            physics::step(&mut self.body, &controls, &self.world)
         };
         if self.body.in_water != was_in_water {
             info!(tick = self.tick, in_water = self.body.in_water, feet = ?self.body.feet, "water");
@@ -1524,6 +1986,7 @@ impl Player {
         self.history.push_back(Frame {
             tick: self.tick,
             controls,
+            step: walk.map(|(_, step)| step),
             after: self.body,
         });
         while self.history.len() > HISTORY {
@@ -1531,26 +1994,28 @@ impl Player {
         }
         let actions = self.block_actions();
         let mut input_data = self.held.clone();
-        let derived = movement_flags(
-            &controls,
-            &self.body,
-            &changes,
-            self.jump_was_held,
-            started_gliding,
-            std::mem::take(&mut self.teleported),
-        );
-        let walk_flags = walked.into_iter().flat_map(|walk| {
-            [
-                (walk.forward, EnumsPlayerAuthInputPacketPayloadInputData::Up),
-                (
-                    walk.grounded,
-                    EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision,
-                ),
+        let teleported = std::mem::take(&mut self.teleported);
+        let derived = match walk {
+            // A walk reports its own keys and ground contact.
+            Some((walk, _)) => [
+                (walk.forward, Flag::Up),
+                (walk.grounded, Flag::Verticalcollision),
+                (teleported, Flag::Handledteleport),
             ]
             .into_iter()
             .filter_map(|(on, flag)| on.then_some(flag))
-        });
-        for flag in self.pressed.drain(..).chain(derived).chain(walk_flags) {
+            .collect(),
+            None if key_derived => key_flags(&controls, &previous, glide_key, teleported),
+            None => movement_flags(
+                &controls,
+                &self.body,
+                &changes,
+                self.jump_was_held,
+                started_gliding,
+                teleported,
+            ),
+        };
+        for flag in self.pressed.drain(..).chain(derived) {
             if !input_data.contains(&flag) {
                 input_data.push(flag);
             }
@@ -1575,10 +2040,14 @@ impl Player {
             y: controls.yaw,
         };
         // The keys as pressed: BDS applies the sneak's 0.3 itself (a vector
-        // already scaled is slowed again on its diagonals).
-        let move_vector = match walked {
-            Some(walk) if walk.forward => Vec2 { x: 0.0, y: 1.0 },
-            _ => Vec2 {
+        // already scaled is slowed again on its diagonals). A walk presses
+        // forward or nothing.
+        let move_vector = match walk {
+            Some((walk, _)) => Vec2 {
+                x: 0.0,
+                y: if walk.forward { 1.0 } else { 0.0 },
+            },
+            None => Vec2 {
                 x: controls.strafe,
                 y: controls.forward,
             },
@@ -1620,6 +2089,12 @@ impl Player {
                 .into_iter()
                 .map(McpePacket::from),
         );
+        for command in script.into_iter().flat_map(|s| s.commands) {
+            packets.push(self.command(command));
+        }
+        if self.scenarios.as_ref().is_some_and(ScenarioScript::done) {
+            self.quit = true;
+        }
         Ok(packets)
     }
 
@@ -1640,7 +2115,16 @@ impl Player {
         apply(&mut body);
         self.history[index].after = body;
         for frame in self.history.iter_mut().skip(index + 1) {
-            physics::step(&mut body, &frame.controls, &self.world)?;
+            match frame.step {
+                Some(step) => {
+                    for (feet, step) in body.feet.iter_mut().zip(step) {
+                        *feet += step;
+                    }
+                }
+                None => {
+                    physics::step(&mut body, &frame.controls, &self.world);
+                }
+            }
             frame.after = body;
         }
         self.body = body;
@@ -1681,6 +2165,17 @@ impl Player {
         let tick = packet.tick.inputtick;
         let position = [packet.pos.x, packet.pos.y, packet.pos.z];
         let velocity = [packet.pos_delta.x, packet.pos_delta.y, packet.pos_delta.z];
+        if !self.follow_corrections {
+            self.corrections += 1;
+            warn!(
+                tick,
+                ?position,
+                ?velocity,
+                on_ground = packet.on_ground,
+                "BDS correction ignored"
+            );
+            return Ok(());
+        }
         let predicted = self.rewind(tick, |body| {
             body.feet = body.feet_from_network(position);
             body.velocity = velocity;
@@ -1727,14 +2222,36 @@ impl Player {
             McpePacketData::MovePlayerPacket(packet)
                 if packet.player_runtime_id.actor_runtime_id == self.runtime_id =>
             {
-                self.teleport(
-                    packet.tick.inputtick,
-                    [packet.position.x, packet.position.y, packet.position.z],
-                    packet.on_ground,
-                )?;
-                self.controls.pitch = packet.rotation.x;
-                self.controls.yaw = packet.rotation.y;
-                self.teleported = true;
+                let position = [packet.position.x, packet.position.y, packet.position.z];
+                info!(
+                    tick = packet.tick.inputtick,
+                    ?position,
+                    mode = ?packet.position_mode,
+                    probe = ?self.teleport_mode,
+                    "server teleport"
+                );
+                if let Some(script) = &mut self.scenarios {
+                    script.teleported(packet.tick.inputtick);
+                }
+                match self.teleport_mode {
+                    TeleportMode::Follow => {
+                        self.teleport(packet.tick.inputtick, position, packet.on_ground)?;
+                        self.controls.pitch = packet.rotation.x;
+                        self.controls.yaw = packet.rotation.y;
+                        self.teleported = true;
+                    }
+                    TeleportMode::Late(inputs) => {
+                        self.pending_teleport = Some(PendingTeleport {
+                            inputs,
+                            position,
+                            on_ground: packet.on_ground,
+                            pitch: packet.rotation.x,
+                            yaw: packet.rotation.y,
+                        });
+                    }
+                    TeleportMode::Ignore => {}
+                    TeleportMode::Fake => self.teleported = true,
+                }
             }
             McpePacketData::SetActorMotionPacket(packet)
                 if packet.target_runtime_id.actor_runtime_id == self.runtime_id =>
@@ -1901,7 +2418,15 @@ impl Player {
                         self.action(EnumsPlayerActionType::Respawn),
                     ]);
                 }
-                EnumsPlayerRespawnState::Readytospawn => self.place(&packet.position, false),
+                EnumsPlayerRespawnState::Readytospawn => {
+                    info!(position = ?packet.position, probe = ?self.teleport_mode, "respawn position");
+                    if matches!(
+                        self.teleport_mode,
+                        TeleportMode::Follow | TeleportMode::Late(_)
+                    ) {
+                        self.place(&packet.position, false);
+                    }
+                }
                 _ => {}
             },
             McpePacketData::NetworkStackLatencyPacket(mut latency) if latency.is_from_server => {
@@ -2056,6 +2581,16 @@ async fn connect_and_play(
     if let Some(uuid) = uuid {
         config.uuid = uuid;
     }
+    let uuid = config.uuid;
+    let scenarios = args
+        .scenarios
+        .as_deref()
+        .map(|path| {
+            let offset = <[f32; 3]>::try_from(args.scenario_offset.as_slice())
+                .context("--scenario-offset takes x,y,z")?;
+            ScenarioScript::load(path, args.scenario_log.clone(), offset, args.flag_source)
+        })
+        .transpose()?;
     let recorder = capture_dir
         .as_ref()
         .map(|dir| {
@@ -2079,7 +2614,7 @@ async fn connect_and_play(
             .context("login timed out")?
             .context("login")?;
             info!("spawned as {name}");
-            run_session(play, game, script, link).await
+            run_session(play, game, uuid, scenarios, script, link).await
         } else {
             let (play, game) = tokio::time::timeout(Duration::from_secs(args.timeout), async {
                 BedrockStream::connect(args.addr).await?.join(config).await
@@ -2088,7 +2623,7 @@ async fn connect_and_play(
             .context("login timed out")?
             .context("login")?;
             info!("spawned as {name}");
-            run_session(play, game, script, link).await
+            run_session(play, game, uuid, scenarios, script, link).await
         }
     }
     .await;
@@ -2124,6 +2659,8 @@ fn lockstep_packets(
 async fn run_session<T: Transport>(
     mut play: BedrockStream<Play, Client, T>,
     game: GameData,
+    uuid: uuid::Uuid,
+    scenarios: Option<ScenarioScript>,
     script: Vec<(u64, Step)>,
     mut link: Option<SessionLink>,
 ) -> Result<()> {
@@ -2131,7 +2668,9 @@ async fn run_session<T: Transport>(
         game.start_game.runtime_id.actor_runtime_id,
         game.start_game.position.clone(),
         game.start_game.rotation.clone(),
+        uuid,
     );
+    player.scenarios = scenarios;
     if let Some(link) = &link {
         link.runtime_ids
             .lock()
@@ -2197,6 +2736,11 @@ async fn run_session<T: Transport>(
                 let _ = control.done.send(sent);
                 if let Some(error) = failed {
                     return Err(error);
+                }
+                if player.quit {
+                    info!(corrections = player.corrections, "quitting");
+                    play.close().await?;
+                    return Ok(());
                 }
             }
             packet = play.recv_packet_raw() => {
@@ -2275,7 +2819,7 @@ mod tests {
     };
 
     fn player() -> Player {
-        Player::new(1, Vec3::default(), Vec2::default())
+        Player::new(1, Vec3::default(), Vec2::default(), uuid::Uuid::nil())
     }
 
     #[test]
@@ -2295,6 +2839,70 @@ mod tests {
         player.auth_input().unwrap();
         player.auth_input().unwrap();
         assert!((player.controls.pitch + 3.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn probe_orders_parse() {
+        assert_eq!(
+            parse_order("bds-sweep:teleports late 3"),
+            Some(Order::Teleports(TeleportMode::Late(3)))
+        );
+        assert_eq!(
+            parse_order(r#"{ message: "bds-sweep:teleports ignore" }"#),
+            Some(Order::Teleports(TeleportMode::Ignore))
+        );
+        assert_eq!(
+            parse_order("bds-sweep:corrections ignore"),
+            Some(Order::Corrections(false))
+        );
+        assert_eq!(
+            parse_order("bds-sweep:offset 0 -450 300"),
+            Some(Order::Offset([0, -450, 300]))
+        );
+        assert_eq!(parse_order("bds-sweep:teleports sometimes"), None);
+    }
+
+    #[test]
+    fn a_late_teleport_is_followed_and_acknowledged_after_its_inputs() {
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        let mut player = player();
+        player
+            .order(Order::Teleports(TeleportMode::Late(2)))
+            .unwrap();
+        player
+            .handle(McpePacketData::MovePlayerPacket(
+                jolyne::valentine::MovePlayerPacket {
+                    player_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: 1,
+                    },
+                    position: Vec3 {
+                        x: 5.0,
+                        y: 1.62001,
+                        z: 0.0,
+                    },
+                    ..Default::default()
+                },
+            ))
+            .unwrap();
+        let flags = |packets: Vec<McpePacket>| match &packets[0].data {
+            McpePacketData::PlayerAuthInputPacket(input) => (
+                input.position.x,
+                input.input_data.contains(&Flag::Handledteleport),
+            ),
+            other => panic!("not an input: {other:?}"),
+        };
+        assert_eq!(flags(player.auth_input().unwrap()), (0.0, false));
+        assert_eq!(flags(player.auth_input().unwrap()), (0.0, false));
+        assert_eq!(flags(player.auth_input().unwrap()), (5.0, true));
+        assert_eq!(flags(player.auth_input().unwrap()), (5.0, false));
+    }
+
+    #[test]
+    fn an_offset_moves_only_the_reported_position() {
+        let mut player = player();
+        player.order(Order::Offset([0, 0, 600])).unwrap();
+        assert!((player.position().z - 0.6).abs() < 1e-6);
+        assert_eq!(player.body.feet[2], 0.0);
     }
 
     #[test]
@@ -2991,7 +3599,15 @@ there"
     /// sub-chunks around it known.
     fn standing_player() -> Player {
         let mut player = player();
-        player.world = world::tests_support::flat_stone_world();
+        // Stone from y -64 up to -61 (the floor's top at -60) around the
+        // origin, air above.
+        let stone = unastar_data::blocks::get("minecraft:stone")
+            .unwrap()
+            .min_state_id;
+        let floor = (-32..32).flat_map(|x| {
+            (-32..32).flat_map(move |z| (-64..-60).map(move |y| ([x, y, z], stone, 0)))
+        });
+        player.world = world::World::with_blocks(floor, 2).unwrap();
         player.body.feet = [0.5, -60.0, 0.5];
         player.body.on_ground = true;
         player
@@ -3098,10 +3714,7 @@ there"
                 .action_type,
             EnumsItemUseInventoryTransactionActionType::Useasattack
         );
-        let stone = world::tests_support::flat_stone_world()
-            .block([1, -61, 0])
-            .unwrap()
-            .network_hash();
+        let stone = p.world.block([1, -61, 0]).unwrap().network_hash();
         let order = parse_order("bds-sweep:use-on 1 -61 0 1").unwrap();
         let on = item_use(&p.order(order).unwrap()[0]);
         assert_eq!(

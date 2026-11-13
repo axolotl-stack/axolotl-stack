@@ -353,6 +353,11 @@ pub(super) fn move_entity_as(
     if let Some(mut current) = world.get_mut::<Position>(entity) {
         current.0 = eye;
     }
+    if let Some(mut motion) =
+        world.get_mut::<crate::entity::player_life::authority::PlayerMotion>(entity)
+    {
+        motion.teleported(eye);
+    }
     if let Some(mut loader) = world.get_mut::<ChunkLoader>(entity) {
         loader.move_to(
             (position.x / 16.0).floor() as i32,

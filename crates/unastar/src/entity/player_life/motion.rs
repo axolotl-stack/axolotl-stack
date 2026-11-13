@@ -32,7 +32,7 @@ use glam::{DVec3, IVec3};
 use super::actor_data::{self, Keys};
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::{ArmourInventory, GameMode, Hunger, PlayerState, Position};
-use crate::entity::systems::BlockSource;
+use crate::entity::systems::{BlockSource, LayeredBlocks};
 use crate::registry::block::LiquidKind;
 use crate::server::game::hunger::ExhaustionValues;
 
@@ -100,8 +100,8 @@ impl PlayerMoves {
     }
 }
 
-/// Whether water is in any block `player`'s box (0.6 × 1.8, from its feet)
-/// touches.
+/// Whether water (still, flowing or a waterlogged block's) is in any block
+/// `player`'s box (0.6 × 1.8, from its feet) touches.
 fn in_water(world: &World, feet: DVec3) -> bool {
     const INSET: f64 = 1.0e-3;
     let min = (feet + DVec3::new(-0.3 + INSET, INSET, -0.3 + INSET))
@@ -111,14 +111,16 @@ fn in_water(world: &World, feet: DVec3) -> bool {
         .floor()
         .as_ivec3();
     let registry = world.registry();
+    let water = |id: Option<u32>| {
+        id.and_then(|id| registry.liquid_state(id))
+            .is_some_and(|liquid| liquid.kind == LiquidKind::Water)
+    };
     for x in min.x..=max.x {
         for y in min.y..=max.y {
             for z in min.z..=max.z {
-                if world
-                    .block_at(IVec3::new(x, y, z))
-                    .and_then(|id| registry.liquid_state(id))
-                    .is_some_and(|liquid| liquid.kind == LiquidKind::Water)
-                {
+                let pos = IVec3::new(x, y, z);
+                // A waterlogged block's water is in the second layer.
+                if water(world.block_at(pos)) || water(world.second_layer_at(pos)) {
                     return true;
                 }
             }
@@ -129,9 +131,12 @@ fn in_water(world: &World, feet: DVec3) -> bool {
 
 /// Whether `player` wears an elytra.
 fn wears_elytra(world: &World, player: Entity) -> bool {
-    world
-        .get::<ArmourInventory>(player)
-        .is_some_and(|armour| armour.chestplate().item_id() == ELYTRA)
+    world.get::<ArmourInventory>(player).is_some_and(has_elytra)
+}
+
+/// Whether `armour` has an elytra in the chest slot: a glide may start.
+pub fn has_elytra(armour: &ArmourInventory) -> bool {
+    armour.chestplate().item_id() == ELYTRA
 }
 
 /// The exhaustion of one move.

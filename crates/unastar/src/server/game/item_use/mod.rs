@@ -432,6 +432,11 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
     if let Some(mut position) = world.get_mut::<Position>(player) {
         position.0 = eye;
     }
+    if let Some(mut motion) =
+        world.get_mut::<crate::entity::player_life::authority::PlayerMotion>(player)
+    {
+        motion.teleported(eye);
+    }
     let packet = McpePacket::from(jolyne::valentine::MovePlayerPacket {
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,

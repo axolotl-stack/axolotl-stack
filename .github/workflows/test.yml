@@ -74,12 +74,41 @@ jobs:
           cargo test -p axolotl-xbl
           cargo test -p parity
           cargo test -p unastar-rules -p unastar-packs -p unastar-data
+          # The movement differential: unastar against the committed BDS
+          # traces, the known answers and the other BDS runs.
+          cargo test -p bds-sweep
           cargo test -p axelerator
           cargo check -p unastar --all-targets
           cargo test -p unastar --lib --tests
           # Build-time worldgen toolchains; their BDS-install tests skip
           # without UNASTAR_BDS_DIR.
           cargo test -p unastar_noise -p unastar_bedrock_codegen
+
+  movement-harness:
+    # The movement differential's own tooling (tools/movement-diff/README.md,
+    # "Harness validation"): the comparator and the bedsim runner.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/movement-diff/bedsim-runner/go.mod
+          cache-dependency-path: tools/movement-diff/bedsim-runner/go.sum
+
+      - name: Comparator tests
+        run: python -m unittest discover -s tools/movement-diff -p "test_*.py"
+
+      - name: bedsim runner
+        working-directory: tools/movement-diff/bedsim-runner
+        run: |
+          go vet ./...
+          go test ./...
 
   knowledge:
     # The project knowledge system (AGENTS.md, openspec/, docs/, agent skills); see docs/README.md.

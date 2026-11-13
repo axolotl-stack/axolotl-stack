@@ -873,14 +873,16 @@ mod network_tick_tests {
         (McpePacketArgs, Box::new(borrowed))
     }
 
-    /// One `PlayerAuthInput` moving the player to `x` (eye height kept).
-    fn move_to(x: f64) -> InboundPacket {
+    /// One `PlayerAuthInput` turning the player to `yaw` where it stands (a
+    /// count of the inputs applied that the movement rules leave alone).
+    fn turn_to(yaw: f32) -> InboundPacket {
         inbound(PlayerAuthInputPacket {
             position: Vec3 {
-                x: x as f32,
-                y: 17.0 + 1.62,
+                x: START_X as f32,
+                y: 17.0,
                 z: 0.5,
             },
+            player_rotation: jolyne::valentine::types::Vec2 { x: 0.0, y: yaw },
             ..Default::default()
         })
     }
@@ -965,12 +967,12 @@ mod network_tick_tests {
                 .unwrap();
         }
 
-        fn saved_x(&self) -> Option<f64> {
+        fn saved_yaw(&self) -> Option<f32> {
             self.players
                 .0
                 .lock()
                 .get(&uuid())
-                .map(|data| data.position[0])
+                .map(|data| data.rotation[0])
         }
 
         fn joined(&self) -> bool {
@@ -1011,11 +1013,9 @@ mod network_tick_tests {
     fn a_leaving_session_is_saved_after_its_budgeted_packets_and_the_rest_are_dropped() {
         on_big_stack(|| async {
             let mut h = harness();
-            // 100 one-block steps east, all queued before the tick that sees the leave.
+            // 100 one-degree turns, all queued before the tick that sees the leave.
             for step in 1..=100 {
-                h.packets
-                    .try_send(move_to(START_X + f64::from(step)))
-                    .unwrap();
+                h.packets.try_send(turn_to(step as f32)).unwrap();
             }
             h.leave();
             let taken = h.tick().await;
@@ -1027,8 +1027,8 @@ mod network_tick_tests {
             );
             assert!(!h.joined(), "the leaver is despawned");
             assert_eq!(
-                h.saved_x(),
-                Some(START_X + crate::network::inbound::MAX_PACKETS_PER_SESSION_PER_TICK as f64),
+                h.saved_yaw(),
+                Some(crate::network::inbound::MAX_PACKETS_PER_SESSION_PER_TICK as f32),
                 "the save sees the 64 packets applied this tick and none of the rest"
             );
             assert!(h.inbound.is_empty());
@@ -1041,7 +1041,7 @@ mod network_tick_tests {
     fn a_client_disconnect_packet_still_saves_the_player() {
         on_big_stack(|| async {
             let mut h = harness();
-            h.packets.try_send(move_to(START_X + 3.0)).unwrap();
+            h.packets.try_send(turn_to(3.0)).unwrap();
             h.packets
                 .try_send(inbound(jolyne::valentine::DisconnectPacket::default()))
                 .unwrap();
@@ -1049,7 +1049,7 @@ mod network_tick_tests {
             h.tick().await;
 
             assert!(!h.joined(), "the leaver is despawned");
-            assert_eq!(h.saved_x(), Some(START_X + 3.0), "the leaver is saved");
+            assert_eq!(h.saved_yaw(), Some(3.0), "the leaver is saved");
         });
     }
 }

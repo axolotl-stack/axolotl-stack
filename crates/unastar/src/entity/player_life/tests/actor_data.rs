@@ -192,7 +192,7 @@ fn input(
     tick: u64,
     flags: &[EnumsPlayerAuthInputPacketPayloadInputData],
 ) -> PlayerAuthInputPacket {
-    let eyes = eyes(feet);
+    let eyes = reported(feet);
     PlayerAuthInputPacket {
         position: Vec3 {
             x: eyes.x as f32,
@@ -608,13 +608,13 @@ fn drowning_to_death_sends_the_air_box_and_death_rows_at_once() {
 }
 
 /// The client reports its eyes as `f32`: feet a hair below the floor's top
-/// (eyes 17.619997 over a floor at 16) still crawl under a block at eye
-/// height.
+/// (eyes 17.620007, 1.62001 over feet 15.999996, over a floor at 16) still
+/// crawl under a block at eye height.
 #[test]
 fn a_client_position_just_below_the_floor_still_crawls() {
     let (mut server, mut steve) = server();
     let mut position = input(HOME, 1, &[]);
-    position.position.y = 17.619_997;
+    position.position.y = 17.620_007;
     route_as(&mut server, SESSION, position);
     server.tick();
     drain(&mut steve);

@@ -13,6 +13,7 @@ from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import authority_fixture  # noqa: E402
 import bds_runtime  # noqa: E402
 import breaking_fixture  # noqa: E402
 import combat_fixture  # noqa: E402
@@ -483,6 +484,48 @@ class PlayerFixture(unittest.TestCase):
                 'modifiers: [] }]')
         self.assertEqual(player_fixture.ATTRIBUTE.findall(body), [
             ('19.0', 'minecraft:health'), ('1.3973968', 'minecraft:player.exhaustion')])
+
+    def test_teleports_and_corrections_are_read_from_their_packets(self):
+        teleport = ('MovePlayerPacket { player_runtime_id: ActorRuntimeId { actor_runtime_id: 1 }, '
+                    'position: Vec3 { x: 4.5, y: -58.37999, z: 4.5 }, rotation: Vec2 { x: 0.0, y: 0.0 }, '
+                    'y_head_rotation: 0.0, position_mode: Teleport, on_ground: true, '
+                    'riding_runtime_id: ActorRuntimeId { actor_runtime_id: 0 }, teleport_data: '
+                    'Some(MovePlayerTeleportData { teleportation_cause: 3, source_actor_type: 1 }), '
+                    'tick: PlayerInputTick { inputtick: 66 } }')
+        self.assertEqual(player_fixture.MOVE.search(teleport).groups(),
+                         ('4.5', '-58.37999', '4.5', 'Teleport', '66'))
+        correction = ('CorrectPlayerMovePredictionPacket { prediction_type: Player, pos: Vec3 { x: 0.5, '
+                      'y: -58.37999, z: 8.5 }, pos_delta: Vec3 { x: 0.0, y: -0.0784, z: 0.0 }, rotation: '
+                      'Vec2 { x: 0.0, y: 0.0 }, vehicle_angular_velocity: None, on_ground: true, '
+                      'tick: PlayerInputTick { inputtick: 201 } }')
+        self.assertEqual(player_fixture.CORRECTION.search(correction).groups(),
+                         ('0.5', '-58.37999', '8.5', '0.0', '-0.0784', '0.0', 'true', '201'))
+
+
+class AuthorityFixture(unittest.TestCase):
+    def test_inputs_and_relays_are_read_from_their_packets(self):
+        body = ('PlayerAuthInputPacket { player_rotation: Vec2 { x: 1.5, y: -90.0 }, position: Vec3 { '
+                'x: 0.5, y: -58.37999, z: 0.7 }, move_vector: Vec2 { x: 0.0, y: 1.0 }, '
+                'player_head_rotation: -90.0, input_data: [Up, Handledteleport, Verticalcollision], '
+                'input_mode: Mouse, client_tick: PlayerInputTick { inputtick: 167 } }')
+        pitch, yaw, x, y, z, strafe, forward = authority_fixture.INPUT.search(body).groups()
+        self.assertEqual((pitch, yaw, x, y, z, strafe, forward),
+                         ('1.5', '-90.0', '0.5', '-58.37999', '0.7', '0.0', '1.0'))
+        flags = authority_fixture.FLAGS.search(body).group(1).split(', ')
+        self.assertEqual([f for f in flags if f in authority_fixture.KEPT],
+                         ['Handledteleport', 'Verticalcollision'])
+        relay = ('MovePlayerPacket { player_runtime_id: ActorRuntimeId { actor_runtime_id: 1 }, position: '
+                 'Vec3 { x: 0.5, y: -58.37999, z: 0.5 }, rotation: Vec2 { x: 0.0, y: 0.0 }, '
+                 'y_head_rotation: 0.0, position_mode: Normal, on_ground: true, riding_runtime_id: '
+                 'ActorRuntimeId { actor_runtime_id: 0 }, teleport_data: None, '
+                 'tick: PlayerInputTick { inputtick: 86 } }')
+        self.assertEqual(authority_fixture.RELAY.search(relay).groups(),
+                         ('0.5', '-58.37999', '0.5', 'Normal', 'true'))
+
+    def test_whole_numbers_are_written_as_integers(self):
+        self.assertEqual(authority_fixture.number('-58.0'), -58)
+        self.assertIsInstance(authority_fixture.number('-58.0'), int)
+        self.assertEqual(authority_fixture.number('-58.37999'), -58.37999)
 
 
 class KnockbackTrials(unittest.TestCase):

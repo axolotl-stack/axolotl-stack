@@ -4,6 +4,7 @@
 //! from each player's session channel.
 
 mod actor_data;
+mod authority;
 mod breath;
 mod death;
 mod environment;
@@ -65,6 +66,13 @@ fn eyes(feet: DVec3) -> DVec3 {
     feet + DVec3::Y * PLAYER_EYE_HEIGHT
 }
 
+/// The position a client reports for `feet`: 1.62001 above them in every
+/// pose (BDS's wire offset), exact where the server's eye height would not
+/// be in `f32`.
+fn reported(feet: DVec3) -> DVec3 {
+    feet + DVec3::Y * f64::from(unastar_rules::movement::NETWORK_OFFSET)
+}
+
 fn uuid(session: u64) -> String {
     format!("00000000-0000-0000-0000-{session:012}")
 }
@@ -75,6 +83,18 @@ fn join(
     name: &str,
     feet: DVec3,
     saved_data: Option<PlayerData>,
+) -> Joined {
+    join_seeing(server, session, name, feet, saved_data, 2)
+}
+
+/// [`join`] with a chunk radius of `chunks`.
+fn join_seeing(
+    server: &mut GameServer,
+    session: u64,
+    name: &str,
+    feet: DVec3,
+    saved_data: Option<PlayerData>,
+    chunks: i32,
 ) -> Joined {
     let (outbound_tx, rx) = tokio::sync::mpsc::channel(1 << 16);
     let entity = server
@@ -87,7 +107,7 @@ fn join(
             position: eyes(feet),
             outbound_tx,
             saved_data,
-            chunk_radius: 2,
+            chunk_radius: chunks,
         })
         .expect("valid player spawn");
     Joined { entity, rx }
@@ -96,8 +116,14 @@ fn join(
 /// A survival player named Steve standing on the platform at [`HOME`], the
 /// platform loaded and the join packets drained.
 fn harness(difficulty: Difficulty) -> Harness {
+    harness_sized(difficulty, 1, 2)
+}
+
+/// [`harness`] on a platform `platform` chunks around the origin, Steve
+/// seeing `chunks` chunks around it, all of them loaded.
+fn harness_sized(difficulty: Difficulty, platform: u32, chunks: i32) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
-        world: crate::world::WorldConfig::void_spawn_platform(1),
+        world: crate::world::WorldConfig::void_spawn_platform(platform),
         difficulty,
         ..ServerConfig::default()
     });
@@ -105,13 +131,28 @@ fn harness(difficulty: Difficulty) -> Harness {
         .ecs
         .world_mut()
         .insert_resource(EntityRandom::seeded(11));
-    let Joined { entity, rx } = join(&mut server, SESSION, "Steve", HOME, None);
+    let Joined { entity, rx } = join_seeing(&mut server, SESSION, "Steve", HOME, None, chunks);
     let mut h = Harness {
         server,
         player: entity,
         rx,
     };
     h.load_platform();
+    // The whole view loaded, so the movement simulation finds its blocks.
+    let edge = 16 * chunks - 1;
+    for _ in 0..200 {
+        let loaded = [(-edge, -edge), (-edge, edge), (edge, -edge), (edge, edge)]
+            .into_iter()
+            .all(|(x, z)| {
+                h.world()
+                    .block_at(HOME.floor().as_ivec3() + IVec3::new(x, -1, z))
+                    .is_some()
+            });
+        if loaded {
+            break;
+        }
+        h.server.tick();
+    }
     h.drain();
     h
 }
@@ -202,10 +243,24 @@ impl Harness {
         self.server.route_packet(SESSION, McpePacketArgs, borrowed);
     }
 
-    /// One `PlayerAuthInput` moving the player's feet to `feet`, then a
+    /// Put the player (and the server's copy of it) at `feet`, at rest.
+    fn put(&mut self, feet: DVec3) {
+        let player = self.player;
+        let position = eyes(feet);
+        self.world().get_mut::<Position>(player).unwrap().0 = position;
+        if let Some(mut motion) = self
+            .world()
+            .get_mut::<crate::entity::player_life::authority::PlayerMotion>(player)
+        {
+            motion.placed(position);
+        }
+    }
+
+    /// Put the player at `feet` and send one `PlayerAuthInput` there, then
     /// tick; `landed` reports the vertical collision of a landing.
     fn step(&mut self, feet: DVec3, landed: bool) {
-        let position = eyes(feet);
+        self.put(feet);
+        let position = reported(feet);
         self.route(PlayerAuthInputPacket {
             position: Vec3 {
                 x: position.x as f32,
@@ -222,13 +277,86 @@ impl Harness {
         self.tick();
     }
 
-    /// Jump the player's feet up to `height` blocks above the ground at
-    /// `at`, fall one block per input to the ground and land on it.
+    /// Put the player's feet `height` blocks above the ground at `at` and
+    /// let it fall to the ground and land, reporting each input's position
+    /// as a vanilla client predicts it.
     fn fall(&mut self, at: DVec3, height: u32) {
-        for y in (0..=height).rev() {
-            self.step(DVec3::new(at.x, GROUND + f64::from(y), at.z), false);
+        self.put(DVec3::new(at.x, GROUND + f64::from(height), at.z));
+        for _ in 0..200 {
+            if self.idle() {
+                // One more input standing on the ground.
+                self.idle();
+                return;
+            }
         }
-        self.step(DVec3::new(at.x, GROUND, at.z), true);
+        panic!("the fall from {height} blocks never landed");
+    }
+
+    /// One input without keys, at the position a vanilla client predicts
+    /// (the shared movement simulation from the server's copy), then a
+    /// tick. Returns whether the move ended on the ground.
+    fn idle(&mut self) -> bool {
+        let player = self.player;
+        let mut body = self
+            .world()
+            .get::<crate::entity::player_life::authority::PlayerMotion>(player)
+            .unwrap()
+            .body;
+        let input = self.predict(&mut body, &unastar_rules::movement::Controls::default(), 0);
+        self.route(input);
+        self.tick();
+        body.on_ground && body.vertical_collision
+    }
+
+    /// What a vanilla client whose body is `body` reports for input `tick`
+    /// of `controls`: its own prediction with the shared movement
+    /// simulation, and the flags it sends with it.
+    fn predict(
+        &mut self,
+        body: &mut unastar_rules::movement::Body,
+        controls: &unastar_rules::movement::Controls,
+        tick: u64,
+    ) -> PlayerAuthInputPacket {
+        use crate::entity::player_life::authority::{MotionTable, WorldTerrain};
+        use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+        let world = self.world();
+        let terrain = WorldTerrain {
+            blocks: &*world,
+            table: world.resource::<MotionTable>(),
+        };
+        let changes = unastar_rules::movement::step(body, controls, &terrain);
+        let flags = [
+            (controls.forward > 0.0, Flag::Up),
+            (controls.jump, Flag::Jumping),
+            (changes.jumped, Flag::Startjumping),
+            (controls.sprint, Flag::Sprintdown),
+            (changes.started_sprinting, Flag::Startsprinting),
+            (body.sprinting, Flag::Sprinting),
+            (body.vertical_collision, Flag::Verticalcollision),
+        ];
+        let [x, y, z] = body.network_position();
+        PlayerAuthInputPacket {
+            position: Vec3 { x, y, z },
+            pos_delta: Vec3 {
+                x: body.velocity[0],
+                y: body.velocity[1],
+                z: body.velocity[2],
+            },
+            move_vector: jolyne::valentine::types::Vec2 {
+                x: controls.strafe,
+                y: controls.forward,
+            },
+            player_rotation: jolyne::valentine::types::Vec2 {
+                x: controls.pitch,
+                y: controls.yaw,
+            },
+            input_data: flags
+                .into_iter()
+                .filter_map(|(on, flag)| on.then_some(flag))
+                .collect(),
+            client_tick: jolyne::valentine::types::PlayerInputTick { inputtick: tick },
+            ..Default::default()
+        }
     }
 
     /// An adult cow with its feet two blocks west of the player.
@@ -308,6 +436,19 @@ fn actor_events(packets: &[McpePacketData], runtime_id: u64) -> Vec<EnumsActorEv
             {
                 Some(event.event_id)
             }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The `CorrectPlayerMovePrediction`s among `packets`.
+fn corrections(
+    packets: Vec<McpePacketData>,
+) -> Vec<jolyne::valentine::CorrectPlayerMovePredictionPacket> {
+    packets
+        .into_iter()
+        .filter_map(|packet| match packet {
+            McpePacketData::CorrectPlayerMovePredictionPacket(correction) => Some(correction),
             _ => None,
         })
         .collect()
@@ -411,7 +552,7 @@ fn world_spawn(h: &mut Harness) -> DVec3 {
 
 /// A player `Position` (eyes 1.62 above the feet) as packets report it:
 /// 1.62001 above the feet, through f32.
-fn reported(position: DVec3) -> DVec3 {
+fn reported_eyes(position: DVec3) -> DVec3 {
     let wire = |v: f64| f64::from(v as f32);
     DVec3::new(
         wire(position.x),

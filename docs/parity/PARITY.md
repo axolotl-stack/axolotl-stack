@@ -18,7 +18,7 @@ Each domain's first line is its headline: the rows its family table, gap list an
 | [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 101 | 812 | 627 | 630 | 177 | 57.9% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
 | [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
-| [Protocol](#protocol) | 231 | 125 | 28 | 42 | 21 | 15 | 29.2% |
+| [Protocol](#protocol) | 231 | 124 | 28 | 42 | 22 | 15 | 29.6% |
 | [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 35 | 33 | 4 | 0 | 0 | 5.6% |
 
@@ -77,11 +77,11 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 |---|---|---|---:|
 | Commands | lane COMMANDS | 2026-10-29 | 43 |
 
-**Protocol**: 153 open rows free, 0 claimed.
+**Protocol**: 152 open rows free, 0 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 91 | 76 | 15 |
+| clientbound | 90 | 75 | 15 |
 | bidirectional | 57 | 44 | 13 |
 | serverbound | 5 | 5 | 0 |
 
@@ -593,7 +593,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | bidirectional | 80 | 44 | 13 | 15 | 2 | 6 | 23.0% |
-| clientbound | 146 | 76 | 15 | 27 | 19 | 9 | 33.6% |
+| clientbound | 146 | 75 | 15 | 27 | 20 | 9 | 34.3% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
@@ -616,7 +616,7 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 - `CompletedUsingItemPacket`: sent when food is eaten, milk, potions and ominous bottles are drunk and a crossbow finishes loading; the honey bottle and the other consumables are not compared with BDS
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
 - 9 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 64 more
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraShakePacket`, `ChangeDimensionPacket`, `ChangeMobPropertyPacket` and 63 more
 
 **serverbound**
 
@@ -792,7 +792,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 - `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); in creative, a PredictDestroyBlock without a StartDestroyBlock in its input is refused like one on air, which BDS was not seen doing; of the block action types BDS cannot read in an input only CreativeDestroyBlock was measured; this server sends the block changes of a tick after the next inputs' corrections, BDS before them
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
 - `player.combat`: melee against mobs and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon. Player-versus-player melee matches the BDS PvP sweep (710 trials, three lockstep clients) when the hits are applied in BDS's order: reach 6.7 / 12 between positions, the claimed position within 6, the held item, the pvp rule, immune modes and dead attackers, weapon damage with Sharpness, Strength and Weakness, critical hits (no Blindness or Slow Falling), armour, Protection and Resistance before the hurt window, the excess hit's push and hurt event, the window counted from packet arrival, the sprint and Knockback second push, knockback resistance, the hit particles, last-hurt-by and sound. unastar applies every input of a tick before every attack, with the attacker's state from before its first input, and attacks in arrival order: an attack sent after its own input, different players' attacks in one tick, and the victim moving between two hits of a tick follow BDS only once packets are applied in BDS's order (decision 0045; ignored tests). The victim's velocity is the one its client reported. No shields, thrown tridents, mace smash, strict entity-interaction facing check, totems or crits on climbables, in water or riding (unmeasured)
-- `player.damage_sources`: falls (3 to 12.5 blocks, into water, onto hay, slime, a bed, into powder snow, a glide that slowed down and Feather Falling boots), a fire block and the burning after it (a 1-point burn 20, 40, ... ticks before the fire runs out) match the BDS movement capture; lava, void, mob attacks and drowning (air supply, BREATHING flag, a 2-damage hit every 20 ticks without air, the refill, Respiration, bubble columns and the air saved across a rejoin) match the BDS breath and player-data captures; a killing hit sends only the death event and other hits knock back before the hurt event; a hit inside the hurt window that exceeds it knocks back, shows the hurt and restarts the window (BDS PvP sweep); the damage game rules gate their causes from every source; no suffocation, freezing, cactus, starvation, magic, lightning or explosion damage, and no protection enchantment but Feather Falling; in a fire block BDS's hurts alternate between fire (6) and fire_tick (7) with its input timing where unastar's are fire; how long lava sets a player alight (15 s) and the descent under which a glide restarts the fall (0.5 a tick) are unmeasured; block identities resolved by name string for fall damage
+- `player.damage_sources`: falls are measured on the server's own copy of the player, so a client claiming the ground through a fall or descending slowly takes BDS's damage (BDS authority capture); falls (3 to 12.5 blocks, into water, onto hay, slime, a bed, into powder snow, a glide that slowed down and Feather Falling boots), a fire block and the burning after it (a 1-point burn 20, 40, ... ticks before the fire runs out) match the BDS movement capture; lava, void, mob attacks and drowning (air supply, BREATHING flag, a 2-damage hit every 20 ticks without air, the refill, Respiration, bubble columns and the air saved across a rejoin) match the BDS breath and player-data captures; a killing hit sends only the death event and other hits knock back before the hurt event; a hit inside the hurt window that exceeds it knocks back, shows the hurt and restarts the window (BDS PvP sweep); the damage game rules gate their causes from every source; no suffocation, freezing, cactus, starvation, magic, lightning or explosion damage, and no protection enchantment but Feather Falling; in a fire block BDS's hurts alternate between fire (6) and fire_tick (7) with its input timing where unastar's are fire; how long lava sets a player alight (15 s) and the descent under which a glide restarts the fall (0.5 a tick) are unmeasured; block identities resolved by name string for fall damage
 - 6 more partial rows with other gaps (see [systems.toml](systems.toml))
 - missing: `player.achievements`, `player.books`, `player.fishing`, `player.maps`, `player.sleeping`
 

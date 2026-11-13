@@ -19,7 +19,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `scripts/command-order.txt` | A `bds-sweep-client --script` script: block commands sent right before (or one input before) the input that starts breaking the block, on plain BDS (flat world, survival, operator) |
 | `command_order_fixture.py` | Cuts a capture of `scripts/command-order.txt` into `crates/unastar/src/server/game/testdata/bds-command-order.jsonl` (commands, inputs and crack starts of four scenarios) |
 | `player_script.py` | Plain-BDS scripted player captures: a timed script of console commands and client orders with every client's packets recorded (see [Movement](#movement)) |
-| `player_fixture.py` | Distils `player_script.py` captures into a value-only test fixture: per phase the subject's inputs, the packets one client got about the subject, and the subject's attributes before the phase |
+| `player_fixture.py` | Distils `player_script.py` captures into a value-only test fixture: per phase the subject's inputs, the packets one client got about the subject, the subject's attributes before the phase, and the teleports and corrections BDS sent it |
+| `authority_fixture.py` | Distils movement-authority probes (a subject misreporting its position on purpose, and a viewer) into a compact value-only fixture: per phase the subject's inputs, BDS's own copy of it from the viewer's `MovePlayer` relays, and the corrections and teleports BDS sent; `crates/unastar/src/entity/player_life/testdata/bds-1.26.51-authority.json` |
 | `block_names.py` | `script OUT` writes a `/testforblock` script over every palette block; `table CAPTURE` turns its capture into `crates/unastar-data/data/measured/block_name_keys.json` |
 | `sweep.py` | T2: one sweep job under Endstone with `bds-sweep-client` as the player; output in `<runtime>/sweeps/1.26.51/<kind>-<UTC>/` |
 | `endstone-sweep/` | The Endstone Python plugin that runs jobs server-side (inert unless `BDS_SWEEP_JOB` is set) |
@@ -139,6 +140,10 @@ send the same text with `tellraw <player> {"rawtext":[{"text":"bds-sweep:..."}]}
 | `bds-sweep:select SLOT` | `MobEquipment` selecting hotbar index 0..8 |
 | `bds-sweep:flags A,B` / `held-flags A,B` | Input flags by any name and case (`Jumpdown`, `Startgliding`, ...) on the next input only, or on every input (replacing the held set) until `held-flags none` |
 | `bds-sweep:action NAME X Y Z FACE` | One raw block action with the next input (`start`, `continue`, `crack`, `predict`, `abort`, `stop`, `creative-destroy`); several on one tick share the input |
+| `bds-sweep:teleports follow\|late N\|ignore\|fake` | How the next server teleports are taken: followed as a vanilla client does, `N` inputs late, never (no `HandledTeleport` either), or acknowledged without moving |
+| `bds-sweep:corrections follow\|ignore` | Rewind on `CorrectPlayerMovePrediction` (the default) or keep the client's own prediction and only count the correction |
+| `bds-sweep:offset DX DY DZ` | Report the position this many thousandths of a block away from the simulated one (`offset 0 0 0` ends it, and a drift) |
+| `bds-sweep:drift DX DY DZ` | Grow that offset by this many thousandths of a block every input |
 
 `bds-sweep-client --script FILE` plays timed orders without the plugin: one `TICK ORDER` line per
 step at that client input tick, an order above without its `bds-sweep:` prefix, a slash command
@@ -184,8 +189,11 @@ knockback events, all on one sequence counter.
 ### Movement
 
 The client simulates its own movement like a vanilla client and reports it in
-every `PlayerAuthInput`, so BDS's server-authoritative movement accepts it:
-gravity and drag, ground friction and acceleration (sprint speed 0.13,
+every `PlayerAuthInput`, so BDS's server-authoritative movement accepts it. The
+simulation is `unastar_rules::movement` (re-exported as `physics`), the same
+code `unastar` judges its players with, so a run without corrections on BDS
+checks the server's physics too. It covers gravity and drag, ground
+friction and acceleration (sprint speed 0.13,
 air speed 0.02/0.026), jumps (0.42, sprint-jump push 0.2, 10-tick delay),
 sneaking (BDS applies the 0.3 itself, so the move vector is sent unscaled)
 and its edge stop, collisions with step-up, slime and bed bounces, cobwebs and
@@ -231,8 +239,17 @@ Tooling for such runs:
   (`crates/unastar/src/entity/player_life/testdata/bds-1.26.51-movement.json`).
 - A second client standing near the first receives BDS's own simulation of it
   (`MovePlayer` every tick); while the first client disagrees, BDS moves its
-  copy towards the client's position by up to about 0.005 blocks a tick, so
+  copy towards the client's position by up to 0.005 blocks a tick, so
   calibrate against runs without corrections.
+- `bds-sweep-client --scenarios CORPUS --scenario-log FILE` plays the movement corpus when it
+  gets the `scenarios` order, reporting a position 3 blocks off so BDS's copy moves by its own
+  simulation (`tools/movement-diff/README.md`, run by `tools/movement-diff/bds_run.py`).
+- `authority_fixture.py SPEC.json OUT.json --captures DIR` writes the
+  movement-authority fixture from runs where the subject misreports on purpose
+  (`offset`, `drift`, `walk`, `teleports`, `corrections ignore`) and a viewer
+  watches BDS's copy; it also checks that every correction in the runs has the
+  fields BDS always sends. `unastar`'s authority tests replay it
+  (`crates/unastar/src/entity/player_life/tests/authority.rs`).
 
 Drop references come only from server `InventoryContent`/`InventorySlot`
 updates; missing/empty/idless slots and invalid counts fail rather than invent
