@@ -19,10 +19,12 @@ use unastar_data::actor_identifiers::ActorType;
 use zuri_nbt::{NBTTag, tag};
 
 use super::{ItemUsing, held, set_slot, start_using, stop_using, used_ticks};
+use unastar_rules::ids::Enchantment;
+
 use crate::entity::components::{GameMode, MainInventory, OffhandSlot};
 use crate::entity::projectile::{LaunchSpec, launch_with};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level, item_tag, with_item_tag};
+use crate::item::enchant::{item_tag, with_item_tag};
 use crate::server::game::durability::wear_held;
 
 const ARROW: &str = "minecraft:arrow";
@@ -204,7 +206,7 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         return;
     };
     let creative = creative(world, player);
-    let infinity = enchantment_level(stack, Enchantment::Infinity) > 0;
+    let infinity = stack.enchantment_level(Enchantment::Infinity) > 0;
     let ammo = find_arrow(world, player);
     if ammo.is_none() && !creative {
         return;
@@ -456,8 +458,8 @@ mod tests {
     fn arrows_stick_in_the_ground_and_come_back() {
         let mut r = range(&[("minecraft:bow", 1), ("minecraft:arrow", 2)]);
         let player = r.player;
-        // Look down at the floor in front.
-        r.world().get_mut::<Rotation>(player).unwrap().pitch = 60.0;
+        // Look down at the floor a few blocks in front.
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 30.0;
         r.send(UseRequest::UseAir);
         r.ticks(24);
         r.send(UseRequest::Release);
@@ -470,6 +472,8 @@ mod tests {
             .collect();
         assert_eq!(stuck.len(), 1, "one stuck arrow");
         assert_eq!(r.slot(1).count, 1);
+        // It stays where it met the floor top.
+        assert!((stuck[0].y - 64.0).abs() < 1e-9, "{}", stuck[0]);
         // Walk onto it.
         let at = stuck[0];
         r.world().get_mut::<Position>(player).unwrap().0 =

@@ -1,12 +1,13 @@
-//! `on_hit` effects of thrown bottles: `grant_xp` (the experience bottle),
-//! `thrown_potion_effect` and `douse_fire` (splash potions).
+//! `on_hit` effects of thrown potions: `thrown_potion_effect` and
+//! `douse_fire` (splash potions). The experience bottle's `grant_xp` is in
+//! [`super::hit`].
 //!
 //! Measured on BDS 1.26.51 (captures of `tools/bds-sweep/scripts/throwables.txt`
 //! and `throwables-2.txt`, replayed by `item_use/throw_tests.rs`):
 //! - Every bottle breaks with `LevelEvent` 2002 at the hit point, its data the
 //!   potion's colour ([`splash_colour`]); the experience bottle and water use
 //!   the water colour.
-//! - An experience bottle drops 3 to 11 experience, split into orbs at the
+//! - An experience bottle drops 3 to 10 experience, split into orbs at the
 //!   hit point.
 //! - A splash potion makes five item-crack particles of the splash potion
 //!   item and gives its effects to the players around the hit point
@@ -41,16 +42,6 @@ pub fn splash_colour(data: i16) -> i32 {
         .and_then(|index| SPLASH_COLOURS.get(index))
         .copied()
         .unwrap_or(SPLASH_COLOURS[0])
-}
-
-/// `grant_xp`: the splash and `min..=max` experience as orbs at `at`.
-pub(super) fn grant_xp(world: &mut World, at: DVec3, min: u32, max: u32) {
-    level_event(world, at, POTION_SPLASH_LEVEL_EVENT, SPLASH_COLOURS[0]);
-    let amount = world
-        .get_resource_or_init::<EntityRandom>()
-        .0
-        .gen_range(min..=max);
-    crate::entity::xp_orb::spawn_experience(world, at, amount);
 }
 
 /// How much of a splash potion reaches a player whose box is `distance`

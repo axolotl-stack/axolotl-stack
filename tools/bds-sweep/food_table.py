@@ -1,12 +1,12 @@
 """What eating each food of `scripts/foods.txt` did on BDS, from a capture of
 the script played with `script.py`:
 
-    bds-sweep-client --decode <out>/client-capture/packets.jsonl \\
-        --only UpdateAttributes,MobEffect,CompletedUsingItem,InventorySlot,InventoryContent,LevelSoundEvent \\
+    bds-sweep-dump <out>/client-capture/packets.jsonl --input-tick \\
+        --name UpdateAttributes,MobEffect,CompletedUsingItem,InventorySlot,InventoryContent,LevelSoundEvent \\
         | python tools/bds-sweep/food_table.py tools/bds-sweep/scripts/foods.txt > table.json
 
 A food runs from its `use` to the script's `/effect @s clear` after it; what
-arrived in between (by the client tick of the latest input, the decoder's
+arrived in between (by the client tick of the latest input, the dump's
 first column; effects, completion, slot and sounds until 3 ticks before the
 clear, whose removals land about a tick after it) belongs to it:
 - `before`: the player's food level, saturation and exhaustion at the start
@@ -74,7 +74,7 @@ def main():
         parts = line.split(' ', 4)
         if len(parts) < 5 or not parts[0].isdigit() or parts[2] != 's2c':
             continue
-        label, name, body = int(parts[0]), parts[3], parts[4]
+        label, name, body = int(parts[0]), parts[3].removesuffix('Packet'), parts[4]
         if label != tick_label:
             tick_label, at_tick_start = label, dict(state)
         # The eat's food level and saturation: as they stood at the end of the

@@ -53,7 +53,13 @@ block_network_ids = "hashed"
 # `online_mode = false` names and XUIDs are self-reported, so anyone can claim them.
 # Empty by default: nobody is an operator.
 # operators = ["Steve", "2535400000000000"]
+# `permissions.json` in the working directory (BDS's format) stores levels by
+# XUID; `/op`, `/deop` and `/permission set` write it for signed-in players.
 operators = []
+
+# Only players listed in `allowlist.json` (BDS's format, in the working
+# directory) may join. `/allowlist on|off|add|remove` changes it from the console.
+allow_list = false
 
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End

@@ -443,10 +443,13 @@ dependencies = [
  "client-diff",
  "hex",
  "jolyne",
+ "serde",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "unastar-data",
+ "uuid",
 ]
 
 [[package]]
@@ -5334,6 +5337,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "bevy_ecs",
  "bevy_tasks",
  "bitflags 2.10.0",

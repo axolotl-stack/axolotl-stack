@@ -797,3 +797,199 @@ Not landed: bounding `snap_to_surface` by the start biome and to
 raised fixture histogram L1 to 0.02426, so it waits until the lush-cave
 biome extent is measured.
 
+
+### Roofed forest draw order (2026-10-29)
+
+Every tree of a roofed-forest rule iteration, its decoration and its leaf
+litter and tall-grass scatters share one feature random, so one missing or
+misplaced draw changes every later tree of the chunk. These fixes come from
+offline comparison with the natural seed-12345 BDS world (chunks
+(3..4,-5..-2)); each lands with a regression that pins native blocks.
+
+**Standing floor rule.** These changes move the fixture's aggregate floors,
+which mostly follow where scattered plants happen to land. A change re-baselines
+them only when it makes a named native comparison exact; the movement is
+tabled below.
+
+1. **Scatter extra draw.** A placed `scatter_feature` takes one draw from
+   the feature random right after its chance roll, whether or not the roll
+   passed, and before any position (feature rules do not). The first dark
+   oaks of chunks (4,-3) and (4,-4) reproduce their height and every branch
+   only with this draw. Their failed 1-in-6 vine roll rules out a draw before
+   the roll. `roofed_forest_first_dark_oak_is_block_exact` pins the (4,-3)
+   tree's 45 logs and fails without the draw (the tree leans away). The old
+   test also pinned chunk (4,-5)'s second to fourth trees. Those follow a
+   fancy oak whose draws are not native yet, and the old code matched them
+   only through compensating errors. Only (4,-5)'s first tree is still pinned.
+2. **Leaf litter draws nothing from the feature random, and covers do not
+   bury other origins' blocks.** In chunk (4,-4) the second rule iteration's
+   tree pick lands on BDS's oak (a 4-log trunk at (74,124,-63)) only when the
+   96 litter placements after the first dark oak take no feature draws. BDS
+   litter still shows every amount and facing, so those states come from
+   another random, which is unmeasured; we derive them from the position.
+   `roofed_forest_second_tree_follows_the_litter_scatter` pins the oak and
+   fails with the old two draws per litter.
+   With litter landing elsewhere, a neighbour's litter, decided against the
+   unmodified proto, overwrote the bottom log of chunk (4,-5)'s fancy oak
+   when the independently decorated chunks were merged. BDS decorates against
+   one world, where litter needs air and a trunk may replace litter, so the
+   merge now drops a cover write (neither air nor fluid, not blocking motion)
+   that would bury a motion-blocking block another origin placed.
+   `roofed_forest_chunk_starts_with_the_native_trees` fails without that
+   rule.
+3. **Wide dark-oak trunks grow straight.** Chunk (4,-4)'s first dark oak
+   draws two lean steps (the draws are still consumed) but grows straight in
+   BDS. 2-wide trunks without `allow_diagonal_growth` no longer lean.
+   `roofed_forest_wide_trunk_grows_straight` pins its west half and fails
+   with the lean.
+4. **Aggregates succeed when any child placed.** An `aggregate_feature`'s
+   result is the last successful child's position, and `first_failure` only
+   stops when nothing has placed yet (the first child failed). An oak whose
+   optional beehive roll fails is still a placed tree, so its leaf litter and
+   grass scatters run and consume their draws. Sequences pass the last
+   successful position along. `roofed_forest_tree_voxels_ratchet_against_bds`
+   counts BDS tree blocks (logs, leaves, vines, huge-mushroom blocks) we
+   reproduce in the eight roofed chunks: 713 -> 788 of 1828. It fails with
+   the old all-children-must-place aggregates.
+   Not landed, because they did not move a native comparison closer:
+   - Drawing the trunk height before ground checks fixed two late iterations
+     but broke chunk (3,-4)'s fifth tree.
+   - A coin-flip roof cap adds a cap above chunk (4,-3)'s first dark oak that
+     BDS does not have.
+
+| Metric | Before | After 1 | After 2 | After 3 | After 4 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| terrain exact | 0.88591 | 0.88597 | 0.88586 | 0.88591 | 0.88591 |
+| terrain within 2 | 0.92446 | 0.92440 | 0.92440 | 0.92440 | 0.92440 |
+| terrain mean abs error | 1.20347 | 1.20370 | 1.20381 | 1.20376 | 1.20376 |
+| surface exact | 0.85455 | 0.85116 | 0.85064 | 0.85082 | 0.85168 |
+| surface block | 0.84892 | 0.84702 | 0.84771 | 0.84743 | 0.84754 |
+| surface biome | 0.99506 | 0.99500 | 0.99506 | 0.99506 | 0.99506 |
+| histogram L1 | 0.02368 | 0.02371 | 0.02378 | 0.02378 | 0.02380 |
+| roofed tree voxels exact (of 1828) | not measured | not measured | not measured | 713 | 788 |
+
+### Carver source seeding (2026-10-29)
+
+The worm carvers seed each source chunk `(sx, sz)` with `(sx * a + sz * b) ^
+L` (wrapping 32-bit). `L` is the level seed and `a`, `b` are the first two
+31-bit draws of a random seeded with `L`, each forced odd; every carver
+feature shares these seeds. Per source the random first draws the start
+count `r(r(r(15) + 1) + 1)`, then the skip roll `r(skip_carve_chance) ==
+0`. Each start draws z, y, x. Rooms draw their thickness, then a seed for a
+random of their own that supplies the vertical scale. Tunnels and branches
+seed their own randoms from 31-bit draws, branches after drawing their
+thickness. Degenerate float ranges draw nothing. Previously each source chunk
+was a private 64-bit hash of the feature identifier, with the skip roll on
+the hash.
+
+Evidence: the natural seed-12345 BDS world, 13 chunks around x -5..=-2, z
+1..=4. The fixture `bds_1_26_51_seed_12345_underground_open.json` lists the
+10221 cells BDS leaves open below y 0 (air, water or lava).
+`underground_open_cells_ratchet_against_bds` counts how many are open in
+ours: 2395 -> 4135.
+
+- Cells open in both variants (noise caves and aquifers) were already 75%
+  shared.
+- The old carver's tunnels shared almost none; the seeded ones about 63%.
+- 70% of our open cells below y 0 are now open in BDS too, against 30%
+  before.
+
+We still carve less than BDS: 5937 open cells there against 10221. That
+costs the aggregate floors (the old tunnels carved roughly the right volume
+in the wrong places).
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| underground open cells shared (of 10221) | 2395 | 4135 |
+| terrain exact | 0.88591 | 0.88505 |
+| terrain within 2 | 0.92440 | 0.92400 |
+| terrain mean abs error | 1.20376 | 1.20588 |
+| surface exact | 0.85168 | 0.85139 |
+| surface block | 0.84754 | 0.84725 |
+| surface biome | 0.99506 | 0.99506 |
+| histogram L1 | 0.02380 | 0.03696 |
+| roofed tree voxels exact | 788 | 787 |
+
+**Where the missing volume is.** We rebuilt the seeded tunnels offline
+(classic walk) for the same 13 chunks: 3124 cells below y 0, of which 1870
+are open in BDS and all open in ours, so radii and the carvable-block rules
+are not what is missing. Of the 8351 BDS open cells the tunnels do not
+explain, 5960 lie more than 8 blocks from any tunnel. Whole caves are
+missing, not width. The cells open in both worlds without any tunnel (noise
+caves and aquifers) are 75% shared, but BDS has about 2.7 times our
+noise-cave volume (ours 3125 cells). That points at the cave terms of the
+shared terrain noise, which still need measuring against BDS.
+
+### Carve height (2026-10-29)
+
+Carver ellipsoids measure a block's height at `y - 0.5` (half a block below
+the block) instead of its centre, so tunnels and rooms sit one block higher.
+
+Evidence: the same 13 chunks of the natural seed-12345 BDS world as above.
+We rebuilt the seeded tunnels offline and tried every shift of up to 4 blocks
+vertically and 2 horizontally. Only one block up improves the match: 1861 ->
+2121 of the cells BDS has open outside its noise caves; every horizontal shift
+is worse. With the change, each tunnel of the one start reaching these chunks
+below y 0 (source chunk (-7, 1), the extra carver) is 68-72% open in BDS. Its
+main tunnel's cross-sections are fully open in BDS up to the split.
+`underground_open_cells_ratchet_against_bds` rises 4135 -> 4325.
+
+Tunnels near the surface now open one block higher, which costs the aggregate
+column metrics slightly:
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| underground open cells shared (of 10221) | 4135 | 4325 |
+| terrain exact | 0.88505 | 0.88465 |
+| terrain within 2 | 0.92400 | 0.92412 |
+| terrain mean abs error | 1.20588 | 1.20640 |
+| surface exact | 0.85139 | 0.85122 |
+| surface block | 0.84725 | 0.84731 |
+| histogram L1 | 0.03696 | 0.03703 |
+
+**Noise caves.** The BDS open cells that no tunnel explains were compared with
+our two terrain backends' noise stage (before carvers):
+- The Java-exact backend opens 3792 cells below y 0, 3532 of them open in BDS
+  (93%).
+- The Bedrock backend's calibrated noise opens 2893, of which only 2174 are
+  open in BDS (75%).
+
+About 4800 BDS open cells remain with neither a tunnel nor a Java noise cave.
+59% of them have positive final density in the Java router, distributed like
+ordinary solid rock, so no density threshold explains them. Most form long
+tunnels about 10 blocks wide at y -16..-1. None of our cave carver starts
+reaches them: we scored all 289 source chunks of both carvers with the skip
+roll ignored, and only the start above fits. Their source is still open.
+
+### Java-exact Bedrock terrain (2026-10-29)
+
+The Bedrock generator's terrain core now runs the overworld noise router,
+aquifers and ore veins in Java-exact arithmetic, using the Java backend's
+registry and cell loop. It previously used the older fused "calibrated"
+sampler with its own octave normalization table. The core does not use Java's
+structure starts or terrain beardifier. Climate sampling and biome filling use
+the same arithmetic but keep the Bedrock path's own nearest-biome lookup.
+
+Evidence: the BDS seed-12345 fixture (68 chunks, 17408 columns). The noise
+stage alone, before surface rules, carvers or features, matches BDS terrain
+heights as follows:
+
+| Noise stage | exact | within 2 | mean abs error |
+| --- | ---: | ---: | ---: |
+| calibrated | 0.8940 | 0.9330 | 1.123 |
+| Java-exact | 0.9370 | 0.9436 | 0.960 |
+
+Its noise caves were also the better match (see "Carve height"). Through the
+full pipeline:
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| terrain exact | 0.88465 | 0.92659 |
+| terrain within 2 | 0.92412 | 0.93474 |
+| terrain mean abs error | 1.20640 | 1.06480 |
+| surface exact | 0.85122 | 0.85133 |
+| surface block | 0.84731 | 0.84656 |
+| surface biome | 0.99506 | 0.99506 |
+| histogram L1 | 0.03703 | 0.02679 |
+| underground open cells shared (of 10221) | 4325 | 5605 |
+| roofed tree voxels exact (of 1828) | 787 | 788 |

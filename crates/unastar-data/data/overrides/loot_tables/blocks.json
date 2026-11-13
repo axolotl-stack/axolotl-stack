@@ -1,5 +1,25 @@
 {
   "//": "Block loot tables in the behavior-pack loot-table schema. BDS 1.26.51 ships no loot tables for these blocks (their drops are built into the server), so these are authored from the Java Edition vanilla tables with Bedrock identifiers until a BDS drop sweep replaces them. Extensions beyond the Bedrock schema, all with Java semantics: entry type 'alternatives' (first child whose conditions pass), function 'apply_bonus' (ore_drops / uniform_bonus_count / binomial_with_bonus_count), function 'limit_count', count provider {type: binomial, n, p}, conditions 'table_bonus', 'block_state_property' and 'inverted'. Blocks absent here drop their own item; blocks that require the correct tool drop nothing without it.",
+  "blocks/acacia_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/acacia_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:acacia_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/acacia_leaves": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -180,6 +200,26 @@
                     "formula": "ore_drops"
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/andesite_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/andesite_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:andesite_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -411,6 +451,46 @@
       }
     ]
   },
+  "blocks/bamboo_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/bamboo_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bamboo_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bamboo_mosaic_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/bamboo_mosaic_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bamboo_mosaic_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/bamboo_sapling": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -532,6 +612,26 @@
                   "extra": 3,
                   "probability": 0.5714286
                 }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/birch_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/birch_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:birch_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -747,6 +847,26 @@
       }
     ]
   },
+  "blocks/blackstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/blackstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:blackstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/blue_candle_cake": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -884,6 +1004,143 @@
       }
     ]
   },
+  "blocks/brain_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/brain_coral.json): drops brain_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brain_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brain_coral_block": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/brain_coral_block.json): drops itself with silk touch, otherwise dead_brain_coral_block (with a pickaxe)",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:brain_coral_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dead_brain_coral_block"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brain_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/brain_coral_fan.json): drops brain_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brain_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brain_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/brain_coral_wall_fan.json): drops brain_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brain_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/brown_candle_cake": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -955,6 +1212,123 @@
   "blocks/bubble_column": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
+  },
+  "blocks/bubble_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/bubble_coral.json): drops bubble_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bubble_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bubble_coral_block": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/bubble_coral_block.json): drops itself with silk touch, otherwise dead_bubble_coral_block (with a pickaxe)",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:bubble_coral_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dead_bubble_coral_block"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bubble_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/bubble_coral_fan.json): drops bubble_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bubble_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bubble_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/bubble_coral_wall_fan.json): drops bubble_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bubble_coral_fan"
+          }
+        ]
+      }
+    ]
   },
   "blocks/budding_amethyst": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
@@ -1047,6 +1421,26 @@
           {
             "type": "item",
             "name": "minecraft:glow_berries"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cherry_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cherry_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cherry_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
           }
         ]
       }
@@ -1192,6 +1586,46 @@
       }
     ]
   },
+  "blocks/cinnabar_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cinnabar_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cinnabar_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cinnabar_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cinnabar_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cinnabar_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/clay": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -1270,6 +1704,46 @@
                     "formula": "ore_drops"
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cobbled_deepslate_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cobbled_deepslate_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cobbled_deepslate_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cobblestone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cobblestone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cobblestone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -1367,6 +1841,26 @@
       }
     ]
   },
+  "blocks/crimson_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/crimson_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:crimson_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/crimson_standing_sign": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -1390,6 +1884,46 @@
           {
             "type": "item",
             "name": "minecraft:crimson_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cut_red_sandstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cut_red_sandstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cut_red_sandstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cut_sandstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/cut_sandstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cut_sandstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
           }
         ]
       }
@@ -1456,6 +1990,26 @@
                     }
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dark_oak_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dark_oak_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dark_oak_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -1620,6 +2174,26 @@
       }
     ]
   },
+  "blocks/dark_prismarine_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dark_prismarine_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dark_prismarine_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/darkoak_standing_sign": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -1657,6 +2231,411 @@
           {
             "type": "item",
             "name": "minecraft:daylight_detector"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_brain_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_brain_coral.json): drops dead_brain_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_brain_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_brain_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_brain_coral_fan.json): drops dead_brain_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_brain_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_brain_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_brain_coral_wall_fan.json): drops dead_brain_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_brain_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_bubble_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_bubble_coral.json): drops dead_bubble_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_bubble_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_bubble_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_bubble_coral_fan.json): drops dead_bubble_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_bubble_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_bubble_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_bubble_coral_wall_fan.json): drops dead_bubble_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_bubble_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_fire_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_fire_coral.json): drops dead_fire_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_fire_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_fire_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_fire_coral_fan.json): drops dead_fire_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_fire_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_fire_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_fire_coral_wall_fan.json): drops dead_fire_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_fire_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_horn_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_horn_coral.json): drops dead_horn_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_horn_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_horn_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_horn_coral_fan.json): drops dead_horn_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_horn_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_horn_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_horn_coral_wall_fan.json): drops dead_horn_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_horn_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_tube_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_tube_coral.json): drops dead_tube_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_tube_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_tube_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_tube_coral_fan.json): drops dead_tube_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_tube_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dead_tube_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/dead_tube_coral_wall_fan.json): drops dead_tube_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dead_tube_coral_fan"
           }
         ]
       }
@@ -1729,6 +2708,26 @@
               {
                 "type": "item",
                 "name": "minecraft:cobbled_deepslate"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/deepslate_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:deepslate_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -2104,6 +3103,26 @@
       }
     ]
   },
+  "blocks/deepslate_tile_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/deepslate_tile_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:deepslate_tile_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/diamond_ore": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -2140,6 +3159,26 @@
                     "formula": "ore_drops"
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/diorite_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/diorite_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:diorite_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -2198,6 +3237,26 @@
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
   },
+  "blocks/end_stone_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/end_stone_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:end_stone_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/farmland": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -2250,6 +3309,123 @@
   "blocks/fire": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
+  },
+  "blocks/fire_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/fire_coral.json): drops fire_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:fire_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/fire_coral_block": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/fire_coral_block.json): drops itself with silk touch, otherwise dead_fire_coral_block (with a pickaxe)",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:fire_coral_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dead_fire_coral_block"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/fire_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/fire_coral_fan.json): drops fire_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:fire_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/fire_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/fire_coral_wall_fan.json): drops fire_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:fire_coral_fan"
+          }
+        ]
+      }
+    ]
   },
   "blocks/flowing_lava": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
@@ -2437,6 +3613,26 @@
                     "formula": "ore_drops"
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/granite_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/granite_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:granite_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -2702,6 +3898,123 @@
       }
     ]
   },
+  "blocks/horn_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/horn_coral.json): drops horn_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:horn_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/horn_coral_block": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/horn_coral_block.json): drops itself with silk touch, otherwise dead_horn_coral_block (with a pickaxe)",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:horn_coral_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dead_horn_coral_block"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/horn_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/horn_coral_fan.json): drops horn_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:horn_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/horn_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/horn_coral_wall_fan.json): drops horn_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:horn_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
   "blocks/ice": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -2954,6 +4267,26 @@
                     "formula": "ore_drops"
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/jungle_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/jungle_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:jungle_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -3667,6 +5000,26 @@
       }
     ]
   },
+  "blocks/mangrove_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/mangrove_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mangrove_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/mangrove_leaves": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -4102,9 +5455,102 @@
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
   },
+  "blocks/mossy_cobblestone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/mossy_cobblestone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mossy_cobblestone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/mossy_stone_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/mossy_stone_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mossy_stone_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/moving_block": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
+  },
+  "blocks/mud_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/mud_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mud_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/mushroom_stem": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/mushroom_stem.json): drops mushroom_stem only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mushroom_stem",
+            "functions": [
+              {
+                "function": "set_data",
+                "data": 15
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
   "blocks/mycelium": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
@@ -4135,6 +5581,26 @@
               {
                 "type": "item",
                 "name": "minecraft:dirt"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/nether_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/nether_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:nether_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -4253,6 +5719,46 @@
               {
                 "type": "item",
                 "name": "minecraft:nether_wart"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/normal_stone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/normal_stone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:normal_stone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/oak_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/oak_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:oak_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -4512,6 +6018,26 @@
       }
     ]
   },
+  "blocks/pale_oak_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/pale_oak_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pale_oak_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/pale_oak_leaves": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -4652,6 +6178,26 @@
       }
     ]
   },
+  "blocks/petrified_oak_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/petrified_oak_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:oak_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/pink_candle_cake": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -4774,6 +6320,206 @@
       }
     ]
   },
+  "blocks/polished_andesite_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_andesite_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_andesite_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_blackstone_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_blackstone_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_blackstone_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_blackstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_blackstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_blackstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_cinnabar_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_cinnabar_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_cinnabar_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_deepslate_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_deepslate_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_deepslate_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_diorite_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_diorite_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_diorite_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_granite_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_granite_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_granite_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_sulfur_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_sulfur_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_sulfur_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/polished_tuff_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/polished_tuff_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:polished_tuff_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/poplar_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/poplar_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:poplar_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/portal": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
@@ -4870,6 +6616,46 @@
           {
             "type": "item",
             "name": "minecraft:repeater"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/prismarine_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/prismarine_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:prismarine_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/prismarine_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/prismarine_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:prismarine_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
           }
         ]
       }
@@ -5164,6 +6950,46 @@
       }
     ]
   },
+  "blocks/purpur_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/purpur_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:purpur_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/quartz_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/quartz_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:quartz_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/quartz_ore": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -5216,6 +7042,46 @@
           {
             "type": "item",
             "name": "minecraft:red_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/red_nether_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/red_nether_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:red_nether_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/red_sandstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/red_sandstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:red_sandstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
           }
         ]
       }
@@ -5360,6 +7226,46 @@
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
   },
+  "blocks/resin_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/resin_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:resin_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/sandstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/sandstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:sandstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/sea_lantern": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -5495,6 +7401,86 @@
                     }
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/smooth_quartz_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/smooth_quartz_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:smooth_quartz_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/smooth_red_sandstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/smooth_red_sandstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:smooth_red_sandstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/smooth_sandstone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/smooth_sandstone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:smooth_sandstone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/smooth_stone_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/smooth_stone_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:smooth_stone_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
               }
             ]
           }
@@ -5737,6 +7723,26 @@
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
     "pools": []
   },
+  "blocks/spruce_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/spruce_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:spruce_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/spruce_leaves": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -5945,6 +7951,66 @@
       }
     ]
   },
+  "blocks/stone_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/stone_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stone_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/sulfur_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/sulfur_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:sulfur_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/sulfur_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/sulfur_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:sulfur_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/sweet_berry_bush": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -6123,6 +8189,163 @@
       }
     ]
   },
+  "blocks/tube_coral": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/tube_coral.json): drops tube_coral only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:tube_coral"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tube_coral_block": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/tube_coral_block.json): drops itself with silk touch, otherwise dead_tube_coral_block (with a pickaxe)",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:tube_coral_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dead_tube_coral_block"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tube_coral_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/tube_coral_fan.json): drops tube_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:tube_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tube_coral_wall_fan": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/tube_coral_wall_fan.json): drops tube_coral_fan only with silk touch",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "match_tool",
+            "enchantments": [
+              {
+                "enchantment": "silk_touch",
+                "levels": {
+                  "range_min": 1
+                }
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:tube_coral_fan"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tuff_brick_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/tuff_brick_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:tuff_brick_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tuff_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/tuff_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:tuff_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "blocks/turtle_egg": {
     "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
     "pools": [
@@ -6235,6 +8458,26 @@
           {
             "type": "item",
             "name": "minecraft:oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/warped_double_slab": {
+    "//source": "BDS 1.26.51 drop sweep (data/measured/block_drops/warped_double_slab.json): every tool that harvests it drops two of its slab",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:warped_slab",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
           }
         ]
       }

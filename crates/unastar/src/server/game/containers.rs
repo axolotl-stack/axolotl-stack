@@ -189,6 +189,33 @@ fn save(world: &mut World, pos: IVec3) {
     }
 }
 
+/// The slots of the container block at `pos` (`/replaceitem block`), or
+/// `None` when the block holds no container.
+pub fn command_container_slots(world: &mut World, pos: IVec3) -> Option<Vec<ItemStack>> {
+    load(world, pos)?;
+    container(world, pos).map(|c| c.items.slots().to_vec())
+}
+
+/// Puts `stack` into `slot` of the container block at `pos`, saves it and
+/// shows it to the players who have it open. Returns whether it was placed.
+pub fn command_set_container_slot(
+    world: &mut World,
+    pos: IVec3,
+    slot: usize,
+    stack: ItemStack,
+) -> bool {
+    if load(world, pos).is_none() {
+        return false;
+    }
+    let placed =
+        container_mut(world, pos).is_some_and(|mut c| c.items.set_item(slot, stack).is_ok());
+    if placed {
+        save(world, pos);
+        refresh_viewers(world, pos, None);
+    }
+    placed
+}
+
 fn container(world: &World, pos: IVec3) -> Option<&BlockContainer> {
     world.resource::<BlockContainers>().live.get(&pos)
 }
@@ -607,7 +634,7 @@ fn same_stack(a: &ItemStack, b: &ItemStack) -> bool {
         || (a.item_id() == b.item_id()
             && a.count == b.count
             && a.damage == b.damage
-            && a.nbt == b.nbt
+            && a.nbt() == b.nbt()
             && a.net_id == b.net_id)
 }
 
@@ -836,7 +863,7 @@ pub(super) fn grant_experience(world: &mut World, player: Entity, points: i32) {
                 actor_runtime_id: runtime_id as u64,
             },
             attribute_list: vec![
-                attribute("minecraft:player.level", level as f32, i32::MAX as f32),
+                attribute("minecraft:player.level", level as f32, 24_791.0),
                 attribute("minecraft:player.experience", progress, 1.0),
             ],
             tick,
@@ -1175,7 +1202,7 @@ fn can_burn(world: &World, container: &BlockContainer) -> bool {
     }
     if output.item_id() != result.item_id()
         || output.damage != result.damage
-        || output.nbt != result.nbt
+        || output.nbt() != result.nbt()
     {
         return false;
     }

@@ -160,7 +160,8 @@ enum Event {
     Wear(u32, i16, u16),
     Sound(String),
     Pickup,
-    /// A `PacketViolationWarning`'s context.
+    /// A `PacketViolationWarning`'s context, without BDS's reader-failure
+    /// suffix (`crate::network::violation`).
     Violation(String),
 }
 
@@ -202,9 +203,9 @@ fn event(packet: &McpePacketData, tool: Option<i16>) -> Option<Event> {
             Some(Event::Sound(sound.sound_event.to_string()))
         }
         McpePacketData::TakeItemActorPacket(_) => Some(Event::Pickup),
-        McpePacketData::PacketViolationWarningPacket(warning) => {
-            Some(Event::Violation(warning.violation_context.to_string()))
-        }
+        McpePacketData::PacketViolationWarningPacket(warning) => Some(Event::Violation(
+            crate::network::violation::redact_violation_message(&warning.violation_context),
+        )),
         _ => None,
     }
 }

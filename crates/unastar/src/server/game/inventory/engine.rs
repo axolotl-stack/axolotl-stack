@@ -1457,8 +1457,8 @@ mod regressions {
         assert_eq!(status(&outcome), Status::Success);
         let split = h.main.item(1).unwrap().clone();
         assert_eq!(
-            (split.damage, split.runtime_id, split.nbt.as_deref()),
-            (3, 42, source.nbt.as_deref())
+            (split.damage, split.runtime_id, split.nbt()),
+            (3, 42, source.nbt())
         );
         let response = outcome.response.unwrap().containers.unwrap();
         assert_eq!(response[0].slots[0].custom_name.unredacted, "Named stone");
@@ -1898,7 +1898,7 @@ mod regressions {
             assert_eq!(u32::try_from(actual.damage).unwrap(), expected.auxvalue);
             assert_eq!(actual.runtime_id, expected.block_runtime_id);
             assert_eq!(
-                actual.nbt.as_deref(),
+                actual.nbt().map(|b| &b[..]),
                 Some(expected.user_data_buffer.as_ref())
             );
             assert_eq!(u16::from(actual.count), expected.stacksize);

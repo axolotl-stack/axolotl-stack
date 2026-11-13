@@ -10,10 +10,10 @@
 use glam::DVec3;
 
 use crate::entity::mob::constants::{
-    JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOVE_ARRIVAL_FLOOR,
-    MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP, MOVE_JUMP_HEIGHT_IN_WATER,
-    MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE_FACTOR,
-    PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
+    JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOB_AIR_ACCELERATION,
+    MOVE_ARRIVAL_FLOOR, MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP,
+    MOVE_INPUT_DECAY, MOVE_JUMP_HEIGHT_IN_WATER, MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION,
+    PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE_FACTOR, PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
 };
 use crate::entity::navigation::{WalkNavigation, WalkWaypoint};
 use crate::registry::block::LiquidKind;
@@ -117,8 +117,8 @@ impl MoveControl {
         } else {
             (previous + MOVE_SPEED_RAMP * target).min(goal)
         };
-        if rise < 0.0 && speed > MOVE_DESCEND_CAP {
-            speed = (speed - MOVE_SPEED_RAMP * target).max(MOVE_DESCEND_CAP);
+        if rise < 0.0 {
+            speed = speed.min(MOVE_DESCEND_CAP);
         }
         self.speed = speed;
 
@@ -267,11 +267,13 @@ impl PathFollower {
     }
 }
 
-/// The travel step: jump, then accelerate along the body yaw by the move
-/// control's speed. On the ground the acceleration is
-/// `speed × (0.546 / (friction × 0.91))³` times the forward input (which
-/// equals the speed); in the air the friction factor is 1; in liquid the
-/// underwater speed replaces it. Returns the new velocity.
+/// The travel step: jump, then accelerate along the body yaw by the forward
+/// input, the move control's speed × [`MOVE_INPUT_DECAY`] (at most 1). On
+/// the ground the acceleration is `speed × (0.546 / (friction × 0.91))³`
+/// times the input; in the air it is [`MOB_AIR_ACCELERATION`] times the
+/// input; in liquid the underwater speed replaces it. `body.on_ground` and
+/// `block_friction` describe the mob before this tick's move. Returns the
+/// new velocity.
 #[allow(clippy::too_many_arguments)]
 pub fn travel(
     body: &Body,
@@ -304,10 +306,11 @@ pub fn travel(
         let friction = block_friction * LIVING_FRICTION_FACTOR;
         speed * (NORMAL_GROUND_FRICTION / friction).powi(3)
     } else {
-        speed
+        MOB_AIR_ACCELERATION
     };
-    // The forward input is the speed itself, normalised when above 1.
-    let input = speed.abs().min(1.0) * speed.signum();
+    // The forward input is the decayed speed, normalised when above 1.
+    let input = speed * f64::from(MOVE_INPUT_DECAY);
+    let input = input.abs().min(1.0) * input.signum();
     velocity + forward(yaw) * (amount * input)
 }
 
@@ -378,14 +381,115 @@ mod tests {
     }
 
     #[test]
-    fn ground_acceleration_on_normal_blocks_is_speed_squared() {
+    fn ground_acceleration_on_normal_blocks_is_decayed_speed_squared() {
         let mut control = MoveControl {
             speed: 0.2,
             ..MoveControl::default()
         };
         let v = travel(&body(), &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
-        assert!((v.z - 0.04).abs() < 1e-6, "{v}");
+        assert!((v.z - 0.98 * 0.04).abs() < 1e-6, "{v}");
         assert!(v.x.abs() < 1e-12);
+    }
+
+    #[test]
+    fn air_acceleration_is_a_fiftieth_of_the_decayed_speed() {
+        let mut control = MoveControl {
+            speed: 0.3125,
+            ..MoveControl::default()
+        };
+        let airborne = Body {
+            on_ground: false,
+            ..body()
+        };
+        let v = travel(&airborne, &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
+        assert!((v.z - 0.02 * 0.98 * 0.3125).abs() < 1e-9, "{v}");
+    }
+
+    /// The cow BDS 1.26.51 tempted with wheat over a one-block step
+    /// (`combat/testdata/bds-1.26.51-knockback.json`): from rest it walks up
+    /// to speed 0.3125 in ten ticks, then jumps; it clears the step top on
+    /// tick 26 and lands on tick 32. Each tick's gain is its move minus the
+    /// previous move × the friction of where it stood before that move.
+    #[test]
+    fn walking_and_airborne_gains_match_the_tempted_bds_cow() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../combat/testdata/bds-1.26.51-knockback.json"
+        ))
+        .unwrap();
+        let rows = fixture["trials"]["cow|tempt-step-plain|natural"]["positions"]
+            .as_array()
+            .unwrap();
+        let x = |tick: usize| rows[tick][0].as_f64().unwrap();
+        let grounded = |tick: usize| rows[tick][3].as_u64().unwrap() == 1;
+        let gain = |tick: usize| {
+            let friction = if grounded(tick - 2) { 0.546 } else { 0.91 };
+            (x(tick) - x(tick - 1)) - friction * (x(tick - 1) - x(tick - 2))
+        };
+        // The cow faces +x (yaw -90) and is tempted at 1.25 × 0.25.
+        let measured_gain = |on_ground: bool, speed: f32| {
+            let mut control = MoveControl {
+                speed,
+                ..MoveControl::default()
+            };
+            let body = Body {
+                on_ground,
+                ..body()
+            };
+            travel(&body, &mut control, false, 0.42, -90.0, 0.6, DVec3::ZERO).x
+        };
+        let mut control = MoveControl::default();
+        let mut yaw = -90.0;
+        control.set_wanted(DVec3::new(100.0, 0.0, 0.0), 1.25, false);
+        for tick in 2..=11 {
+            assert!(grounded(tick - 2) && grounded(tick));
+            control.tick(&body(), &mut yaw, 30.0);
+            let ours = measured_gain(true, control.speed);
+            assert!(
+                (ours - gain(tick)).abs() < 2e-6,
+                "tick {tick}: {ours}, BDS {}",
+                gain(tick)
+            );
+        }
+        assert_eq!(control.speed, 0.3125);
+        // First tick clear of the step: its top is still above the feet.
+        assert!(!grounded(24) && !grounded(25));
+        let ours = measured_gain(false, 0.3125);
+        assert!(
+            (ours - gain(26)).abs() < 2e-6,
+            "tick 26: {ours}, BDS {}",
+            gain(26)
+        );
+        // Above the step top the speed is capped until the cow lands.
+        control.set_wanted(DVec3::new(100.0, -0.2, 0.0), 1.25, false);
+        for tick in 27..=32 {
+            assert!(!grounded(tick - 1));
+            control.tick(&body(), &mut yaw, 30.0);
+            let ours = measured_gain(false, control.speed);
+            assert!(
+                (ours - gain(tick)).abs() < 2e-6,
+                "tick {tick}: {ours}, BDS {}",
+                gain(tick)
+            );
+        }
+    }
+
+    #[test]
+    fn a_mob_above_its_wanted_position_drops_to_the_descend_cap_at_once() {
+        let mut yaw = 0.0;
+        for target_speed in [0.3125, 0.4375] {
+            let mut control = MoveControl {
+                speed: target_speed,
+                ..MoveControl::default()
+            };
+            control.set_wanted(DVec3::new(0.0, -0.01, 3.0), target_speed / 0.25, false);
+            control.tick(&body(), &mut yaw, 30.0);
+            assert_eq!(control.speed, MOVE_DESCEND_CAP, "from {target_speed}");
+            // Back on its level the speed ramps up again from the cap.
+            control.set_wanted(DVec3::new(0.0, 0.0, 3.0), target_speed / 0.25, false);
+            control.tick(&body(), &mut yaw, 30.0);
+            let ramped = MOVE_DESCEND_CAP + MOVE_SPEED_RAMP * target_speed;
+            assert!((control.speed - ramped).abs() < 1e-6, "{}", control.speed);
+        }
     }
 
     fn follow(points: &[DVec3]) -> (PathFollower, MoveControl) {

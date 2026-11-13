@@ -216,13 +216,14 @@ fn native(bytes: &[u8]) -> AddActorPacket {
     packet
 }
 
-fn ours(world: &World, identifier: &str, mob: Entity, native: &AddActorPacket) -> AddActorPacket {
+fn ours(world: &World, identifier: &str, mob: Entity) -> AddActorPacket {
     add_actor_packet(
         identifier,
         world.get::<RuntimeId>(mob).unwrap().0,
         world.get::<Position>(mob).unwrap().0,
-        DVec3::new(0.0, f64::from(native.velocity.y), 0.0),
+        world.get::<Velocity>(mob).unwrap().0,
         world.get::<Rotation>(mob).unwrap(),
+        true,
         world.get::<EntityMetadata>(mob).unwrap(),
         world.get::<ActorProperties>(mob).unwrap(),
         world.get::<ActorAttributes>(mob).unwrap(),
@@ -255,8 +256,9 @@ fn spawned_adult_pig_add_actor_matches_native_summon() {
     );
     let pig = h.adult("minecraft:pig", feet);
     let world = h.world();
-    let ours = ours(world, "minecraft:pig", pig, &native);
+    let ours = ours(world, "minecraft:pig", pig);
     assert_eq!(ours.actor_type, native.actor_type);
+    assert_eq!(ours.velocity, native.velocity);
     assert_eq!(ours.attributes_list, native.attributes_list);
     assert_eq!(ours.actor_data, native.actor_data);
     assert_eq!(ours.actor_links, native.actor_links);
@@ -303,8 +305,9 @@ fn spawned_adult_sheep_add_actor_matches_native_summon() {
         &mut world.entity_mut(sheep),
         ActorColor(native_colour as u8),
     );
-    let ours = ours(world, "minecraft:sheep", sheep, &native);
+    let ours = ours(world, "minecraft:sheep", sheep);
     assert_eq!(ours.actor_type, native.actor_type);
+    assert_eq!(ours.velocity, native.velocity);
     assert_eq!(ours.attributes_list, native.attributes_list);
     assert_eq!(ours.actor_data, native.actor_data);
     assert_eq!(ours.actor_links, native.actor_links);

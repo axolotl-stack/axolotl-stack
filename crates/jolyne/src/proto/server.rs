@@ -673,6 +673,7 @@ impl WorldReady {
             deadline: deadline_after(now, self.config.spawn_timeout),
             runtime_id: params.start_game.runtime_id.actor_runtime_id,
             radius_override: params.chunk_radius,
+            radius_limit: params.max_chunk_radius,
             chunk_radius: None,
             initialized: false,
             streamed,
@@ -706,6 +707,8 @@ pub struct ServerSpawn {
     deadline: Instant,
     runtime_id: u64,
     radius_override: Option<i32>,
+    /// Upper bound on a granted request.
+    radius_limit: Option<i32>,
     chunk_radius: Option<i32>,
     /// A matching `SetLocalPlayerAsInitialized` arrived before the radius
     /// request; the spawn completes when the radius is answered.
@@ -722,7 +725,10 @@ impl ServerSpawn {
         if requested < 1 {
             return Err(ProtocolError::InvalidChunkRadius(requested).into());
         }
-        let radius = self.radius_override.unwrap_or(requested);
+        let radius = self.radius_override.unwrap_or_else(|| {
+            self.radius_limit
+                .map_or(requested, |limit| requested.min(limit.max(1)))
+        });
         self.chunk_radius = Some(radius);
         let updated = McpePacket::from(ChunkRadiusUpdatedPacket {
             chunk_radius: radius,

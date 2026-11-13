@@ -96,6 +96,8 @@ impl UnastarConfig {
             block_network_ids: self.server.block_network_ids,
             block_breaking: self.gameplay.block_breaking,
             operators: self.server.operators.clone(),
+            online_mode: self.server.online_mode,
+            allow_list: self.server.allow_list,
             // Use defaults for new fields not in config file yet
             simulation_distance: defaults.simulation_distance,
             chunk_unload_ticks: defaults.chunk_unload_ticks,
@@ -195,6 +197,9 @@ pub struct ServerConfigFile {
     /// join, by display name (case-insensitive) or XUID. Without
     /// `online_mode` names and XUIDs are not verified.
     pub operators: Vec<String>,
+    /// Only players in `allowlist.json` may join (BDS `allow-list`);
+    /// `/allowlist on|off` changes it while the server runs.
+    pub allow_list: bool,
 }
 
 impl Default for ServerConfigFile {
@@ -213,6 +218,7 @@ impl Default for ServerConfigFile {
             require_resource_packs: false,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
+            allow_list: false,
         }
     }
 }

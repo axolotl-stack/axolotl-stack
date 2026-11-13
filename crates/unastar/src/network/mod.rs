@@ -2,6 +2,7 @@
 
 pub mod events;
 pub mod inbound;
+pub mod violation;
 
 use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};

@@ -49,6 +49,17 @@ fn a_mob_hit_is_scaled_by_difficulty_reduced_by_armour_and_knocks_the_player_bac
         let health = health_updates(&packets);
         assert_eq!(health.len(), 1, "{packets:?}");
         assert!((health[0] - (20.0 - dealt)).abs() < 1.0e-4);
+        // BDS pushes the player before it shows the hurt (slime hits in
+        // the player-data capture): `SetActorMotion`, then the event.
+        let motion_at = packets.iter().position(|packet| {
+            matches!(packet, McpePacketData::SetActorMotionPacket(motion)
+                if motion.target_runtime_id.actor_runtime_id == SESSION)
+        });
+        let hurt_at = packets.iter().position(|packet| {
+            matches!(packet, McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == SESSION)
+        });
+        assert!(motion_at.unwrap() < hurt_at.unwrap());
         // Pushed away from the cow standing to the west, and up.
         let motion = motions(&packets);
         assert_eq!(motion.len(), 1, "one knockback to the player's own client");

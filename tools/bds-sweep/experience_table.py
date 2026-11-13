@@ -1,12 +1,12 @@
 """Experience dropped per block break, from a capture of `scripts/ore-xp.txt` or
 `scripts/ore-xp-2.txt` played against BDS (`script.py`):
 
-    bds-sweep-client --decode <out>/client-capture/packets.jsonl --only AddActor \\
+    bds-sweep-dump <out>/client-capture/packets.jsonl --input-tick --name AddActor \\
         | python tools/bds-sweep/experience_table.py tools/bds-sweep/scripts/ore-xp.txt > table.json
 
 Each `/setblock 1 -59 0 <block>` of the script starts one break; every
 `minecraft:xp_orb` the server added before the next one (by the client tick of
-the latest input, the decoder's first column) belongs to it. The tool is
+the latest input, the dump's first column) belongs to it. The tool is
 read from the script's `/clear`, `/give` and `/enchant` commands before the
 break. Output: `{"script", "breaks": [{"block", "tool", "orbs": [values]}]}`
 in script order.

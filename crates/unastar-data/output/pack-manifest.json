@@ -28,8 +28,8 @@
     "sha256": "6b588aa4c5515237fbf398b6fe554231be62ee5df47402c323e0bdb4b7d422dc"
   },
   "loot_tables": {
-    "count": 508,
-    "sha256": "4019b38eab921ae19e66346d657dc8dbdcdfe917adf9b52405c94bebd6ce04ff"
+    "count": 605,
+    "sha256": "f5bcf714cbb0cd2f950eaa26e854d7bfca30e1fa67717133d772c0ac972c483a"
   },
   "recipe_files": {
     "count": 1892,

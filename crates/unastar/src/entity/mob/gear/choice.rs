@@ -22,13 +22,12 @@
 //! inventory, which no supported mob has.
 
 use bevy_ecs::prelude::*;
-use zuri_nbt::NBTTag;
+use unastar_rules::ids::Enchantment;
 
 use super::{GearSlot, MobEquipment, held_slot, worn_slot};
 use crate::entity::mob::components::ShareablesConfig;
-use crate::entity::mob::constants::BINDING_CURSE_ID;
 use crate::item::ItemStack;
-use crate::item::enchant::{durability_damage, item_tag};
+use crate::item::enchant::durability_damage;
 
 /// Whether two stacks can be one stack.
 pub(crate) fn stackable(a: &ItemStack, b: &ItemStack) -> bool {
@@ -40,19 +39,10 @@ fn same_item(a: &ItemStack, b: &ItemStack) -> bool {
     !a.is_empty() && a.item_id() == b.item_id() && a.damage == b.damage
 }
 
+/// Armour carrying Curse of Binding is never swapped for a picked-up
+/// piece (confirmed).
 fn has_binding_curse(stack: &ItemStack) -> bool {
-    let Some(tag) = item_tag(stack) else {
-        return false;
-    };
-    let Some(NBTTag::List(list)) = tag.0.get("ench") else {
-        return false;
-    };
-    list.0.iter().any(|entry| match entry {
-        NBTTag::Compound(entry) => {
-            matches!(entry.0.get("id"), Some(NBTTag::Short(id)) if id.0 == BINDING_CURSE_ID)
-        }
-        _ => false,
-    })
+    stack.enchantment_level(Enchantment::Binding) > 0
 }
 
 /// The stack in `slot`; an empty stack for a mob without equipment.
@@ -192,7 +182,7 @@ mod tests {
     use super::*;
     use crate::entity::mob::components::ItemMatcher;
     use crate::entity::mob::components::equipment::ShareableEntry;
-    use crate::item::enchant::{with_durability_damage, with_enchantment_ids};
+    use crate::item::enchant::{with_durability_damage, with_enchantments};
     use crate::item::test_support::stack;
 
     fn entry(item: &str, priority: i32) -> ShareableEntry {
@@ -287,7 +277,7 @@ mod tests {
             &mut world,
             mob,
             GearSlot::Head,
-            with_enchantment_ids(&gold, [(BINDING_CURSE_ID, 1)]),
+            with_enchantments(&gold, [(Enchantment::Binding, 1)]),
         );
         assert!(!will_pickup(&world, mob, &iron, false), "binding curse");
     }

@@ -20,12 +20,10 @@ use super::JavaDimension;
 use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 use super::biome_source;
 #[cfg(feature = "bedrock-worldgen")]
-use super::density::{CachingNoiseChunk, ColumnContextGrid, FlatCacheGrid, FunctionContext};
+use super::density::{ColumnContextGrid, FlatCacheGrid, JavaNoiseSource};
 use super::density::{NativeNoiseRegistry, NoiseRegistry};
-#[cfg(feature = "bedrock-worldgen")]
-use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
-use super::proto::{NativeBiome, ProtoChunk};
+use super::proto::{NativeBiome, ProtoChunk, QuartBiomes};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
@@ -35,8 +33,6 @@ use crate::world::chunk::BlockStateSpace;
 use crate::world::chunk::{Chunk, blocks};
 #[cfg(feature = "bedrock-worldgen")]
 use crate::world::generator::proto::DenseBlocks;
-#[cfg(feature = "bedrock-worldgen")]
-use std::simd::prelude::*;
 use unastar_noise::features::java_blocks::states;
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::overworld_settings;
@@ -92,8 +88,11 @@ impl Default for JavaGenerationOptions {
 
 enum TerrainBackend {
     NativeJava(NativeNoiseRegistry),
+    /// Java-exact overworld noise without Java's structures: BDS terrain
+    /// heights and noise caves follow the same arithmetic (see "Java-exact
+    /// Bedrock terrain" in the codegen README).
     #[cfg(feature = "bedrock-worldgen")]
-    SharedBedrock(NoiseRegistry),
+    SharedBedrock(NativeNoiseRegistry),
 }
 
 /// Java-style terrain generator using 3D density functions.
@@ -116,6 +115,10 @@ pub struct JavaGenerator {
     /// Native source chunks cache their first carver-biome lookup. AOT verifies
     /// equal carver lists across each preset, so only cache presence is needed.
     carver_biomes: Mutex<HashSet<ChunkPos>>,
+    /// History-independent native biome fills (see `native_biomes`). A chunk's
+    /// own terrain and the surfaces of its eight neighbours each fill its
+    /// biomes.
+    biome_fills: super::pipeline::ChunkCache<Option<(QuartBiomes, biome_source::Replay)>>,
 }
 
 impl JavaGenerator {
@@ -155,15 +158,27 @@ impl JavaGenerator {
         Self::with_backend(seed, options, TerrainBackend::NativeJava(noises))
     }
 
-    /// Preserve the calibrated shared density arithmetic for the Bedrock owner.
-    /// Native Java arithmetic is selected separately, outside the voxel loop.
+    /// The Bedrock owner's shared terrain core: Java-exact overworld noise,
+    /// aquifers and ore veins, without Java's structure starts or beardifier.
     #[cfg(feature = "bedrock-worldgen")]
     pub fn for_bedrock_shared_terrain(seed: i64) -> Self {
-        Self::with_backend(
+        let params = overworld_settings::BLENDED_NOISE;
+        let noises = NoiseRegistry::with_router_settings(
             seed,
-            JavaGenerationOptions::default(),
-            TerrainBackend::SharedBedrock(NoiseRegistry::new(seed)),
-        )
+            overworld_settings::LEGACY_RANDOM_SOURCE,
+            [
+                params.xz_scale,
+                params.y_scale,
+                params.xz_factor,
+                params.y_factor,
+                params.smear_scale_multiplier,
+            ],
+        );
+        let options = JavaGenerationOptions {
+            generate_structures: false,
+            ..JavaGenerationOptions::default()
+        };
+        Self::with_backend(seed, options, TerrainBackend::SharedBedrock(noises))
     }
 
     fn with_backend(seed: i64, options: JavaGenerationOptions, backend: TerrainBackend) -> Self {
@@ -181,6 +196,7 @@ impl JavaGenerator {
             options,
             backend,
             carver_biomes: Mutex::new(HashSet::new()),
+            biome_fills: super::pipeline::ChunkCache::new(super::pipeline::DEFAULT_PROTO_CACHE),
         }
     }
 
@@ -193,11 +209,11 @@ impl JavaGenerator {
     }
 
     #[cfg(feature = "bedrock-worldgen")]
-    fn shared_noises(&self) -> &NoiseRegistry {
+    fn bedrock_source(&self) -> JavaNoiseSource<'_> {
         match &self.backend {
-            TerrainBackend::SharedBedrock(noises) => noises,
+            TerrainBackend::SharedBedrock(noises) => noises.java_source(),
             TerrainBackend::NativeJava(_) => {
-                panic!("calibrated sampling requires the Bedrock backend")
+                panic!("Bedrock sampling requires the Bedrock backend")
             }
         }
     }
@@ -245,13 +261,12 @@ impl JavaGenerator {
     fn generate_shared_stage(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
         assert!(
             (JavaTerrainStage::Biomes..=JavaTerrainStage::Noise).contains(&stage),
-            "the calibrated shared backend only exposes biome and noise stages"
+            "the shared Bedrock backend only exposes biome and noise stages"
         );
-        let noises = self.shared_noises();
-        let grid = FlatCacheGrid::new(pos.x, pos.z, noises);
-        let col_grid = ColumnContextGrid::new(pos.x, pos.z, noises, &grid);
-        let biomes = biome_source::fill_chunk(noises, pos, &grid, &col_grid);
         if stage == JavaTerrainStage::Biomes {
+            let source = self.bedrock_source();
+            let flat = FlatCacheGrid::new_native(pos.x, pos.z, &source);
+            let columns = ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
             return ProtoChunk {
                 pos,
                 chunk: Chunk::new_with_bounds(
@@ -260,11 +275,12 @@ impl JavaGenerator {
                     BlockStateSpace::Java,
                     self.options.dimension.block_bounds(),
                 ),
-                biomes,
+                biomes: biome_source::fill_overworld_native(&source, pos, &flat, &columns).biomes,
             };
         }
-        let mut aquifer = self.aquifer(pos, &grid, &col_grid);
-        let dense = self.generate_shared_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        let (dense, biomes) = self.generate_noise_with(pos, |source, pos, flat, columns| {
+            biome_source::fill_overworld_native(source, pos, flat, columns).biomes
+        });
         ProtoChunk {
             pos,
             chunk: dense.to_chunk(pos),
@@ -278,43 +294,46 @@ impl JavaGenerator {
     pub(crate) fn generate_noise_with<T>(
         &self,
         pos: ChunkPos,
-        fill: impl FnOnce(&NoiseRegistry, ChunkPos, &FlatCacheGrid, &ColumnContextGrid) -> T,
+        fill: impl FnOnce(&JavaNoiseSource<'_>, ChunkPos, &FlatCacheGrid, &ColumnContextGrid) -> T,
     ) -> (DenseBlocks, T) {
         let _noise = profile::scope(Stage::Noise);
-        let noises = self.shared_noises();
-        let grid = FlatCacheGrid::new(pos.x, pos.z, noises);
-        let col_grid = ColumnContextGrid::new(pos.x, pos.z, noises, &grid);
-        let biomes = fill(noises, pos, &grid, &col_grid);
-        let mut aquifer = self.aquifer(pos, &grid, &col_grid);
-        let dense = self.generate_shared_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        let source = self.bedrock_source();
+        let flat = FlatCacheGrid::new_native(pos.x, pos.z, &source);
+        let columns = ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
+        let biomes = fill(&source, pos, &flat, &columns);
+        let mut aquifer = NoiseBasedAquifer::new(
+            pos.x,
+            pos.z,
+            overworld_settings::MIN_Y,
+            overworld_settings::HEIGHT,
+            &source,
+            &flat,
+            &columns,
+            self.seed,
+            OverworldFluidPicker::new(Self::SEA_LEVEL),
+        );
+        let dense = self.overworld_native_cells(pos, &source, &flat, &columns, &mut aquifer);
         (dense, biomes)
     }
 
     /// Native Java biome at the quart containing an absolute block position.
     pub fn sample_biome(&self, x: i32, y: i32, z: i32) -> NativeBiome {
-        let biome = match &self.backend {
-            TerrainBackend::NativeJava(noises) => biome_source::sample_biome_native(
-                self.options.dimension,
-                &noises.java_source(),
-                x >> 2,
-                y >> 2,
-                z >> 2,
-            ),
+        let source = match &self.backend {
+            TerrainBackend::NativeJava(noises) => noises.java_source(),
             #[cfg(feature = "bedrock-worldgen")]
-            TerrainBackend::SharedBedrock(noises) => {
-                biome_source::sample_biome(noises, x >> 2, y >> 2, z >> 2)
-            }
+            TerrainBackend::SharedBedrock(noises) => noises.java_source(),
         };
-        biome as NativeBiome
+        biome_source::sample_biome_native(self.options.dimension, &source, x >> 2, y >> 2, z >> 2)
+            as NativeBiome
     }
 
     /// Climate target for a foreign edition's independently owned biome lookup.
     #[cfg(feature = "bedrock-worldgen")]
     pub(crate) fn sample_climate(&self, x: i32, y: i32, z: i32) -> [i64; 7] {
-        biome_source::sample_target(self.shared_noises(), x >> 2, y >> 2, z >> 2)
+        biome_source::overworld_target_native(&self.bedrock_source(), x >> 2, y >> 2, z >> 2)
     }
 
-    /// Calibrated shared-backend motion-blocking heights, cached by the Bedrock
+    /// Shared Bedrock-backend motion-blocking heights, cached by the Bedrock
     /// owner. Native structure queries use the dedicated column-mode sampler.
     #[cfg(feature = "bedrock-worldgen")]
     pub(crate) fn noise_heightmap(&self, pos: ChunkPos) -> [i32; 256] {
@@ -331,205 +350,6 @@ impl JavaGenerator {
                 })
                 .map_or(overworld_settings::MIN_Y, |y| y + 1)
         })
-    }
-
-    /// The calibrated shared-backend aquifer.
-    #[cfg(feature = "bedrock-worldgen")]
-    fn aquifer<'a>(
-        &'a self,
-        pos: ChunkPos,
-        grid: &'a FlatCacheGrid,
-        col_grid: &'a ColumnContextGrid,
-    ) -> NoiseBasedAquifer<'a, OverworldFluidPicker> {
-        NoiseBasedAquifer::new(
-            pos.x,
-            pos.z,
-            overworld_settings::MIN_Y,
-            overworld_settings::HEIGHT,
-            self.shared_noises(),
-            grid,
-            col_grid,
-            self.seed,
-            OverworldFluidPicker::new(Self::SEA_LEVEL),
-        )
-    }
-
-    /// Terrain blocks of a chunk using 3D density functions with cell-based caching.
-    ///
-    /// `grid` and `col_grid` are the chunk's flat (quart) and column caches, shared with
-    /// the biome source. The generation process:
-    /// 1. Create a CachingNoiseChunk for cell-based caching and interpolation
-    /// 2. Initialize interpolators with first X slice using AOT compiled functions
-    /// 3. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
-    /// 4. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
-    /// 5. Use the aquifer to place air, water or lava where density <= 0
-    #[cfg(feature = "bedrock-worldgen")]
-    fn generate_shared_terrain(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        grid: &FlatCacheGrid,
-        col_grid: &ColumnContextGrid,
-        aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker>,
-    ) -> DenseBlocks {
-        let noises = self.shared_noises();
-        // Air until filled; the paletted chunk is packed once all stages ran.
-        let mut chunk = DenseBlocks::filled_with_bounds(
-            u32::from(states::AIR.0),
-            BlockStateSpace::Java,
-            self.options.dimension.block_bounds(),
-        );
-
-        let cell_width = overworld_settings::CELL_WIDTH;
-        let cell_height = overworld_settings::CELL_HEIGHT;
-        let min_y = overworld_settings::MIN_Y;
-        let height = overworld_settings::HEIGHT;
-
-        // Create OreVeinifier for large ore vein generation (copper/iron with granite/tuff filler)
-        let ore_veinifier = OreVeinifier::new(noises, self.ore_random.clone());
-
-        // Create CachingNoiseChunk for interpolation-based generation
-        let mut noise_chunk =
-            CachingNoiseChunk::new(chunk_x, chunk_z, cell_width, cell_height, min_y, height);
-
-        // Cell counts
-        let cell_count_xz = noise_chunk.cell_count_xz();
-        let cell_count_y = noise_chunk.cell_count_y();
-
-        // Initialize interpolator with first X slice using AOT compiled functions
-        // Uses pre-computed col_grid for O(1) column context lookups
-        noise_chunk.initialize_for_first_cell_x_aot(grid, col_grid, noises);
-
-        // X-outer loop over cells
-        for cell_x in 0..cell_count_xz {
-            // Advance to next X cell using AOT compiled functions
-            // Uses pre-computed col_grid for O(1) column context lookups
-            noise_chunk.advance_cell_x_aot(cell_x as i32, grid, col_grid, noises);
-
-            // Z-middle loop
-            for cell_z in 0..cell_count_xz {
-                let base_block_z = chunk_z * 16 + (cell_z as i32) * cell_width;
-
-                // Y descending for efficient surface detection
-                for cell_y in (0..cell_count_y).rev() {
-                    // Select this cell's corner values from the slices
-                    noise_chunk.select_cell_yz(cell_y, cell_z);
-
-                    // Iterate blocks within cell (Y descending for surface)
-                    for y_in_cell in (0..cell_height).rev() {
-                        let block_y = min_y + (cell_y as i32) * cell_height + y_in_cell;
-
-                        // Update Y interpolation
-                        noise_chunk.update_for_y(block_y);
-
-                        for x_in_cell in 0..cell_width {
-                            let block_x = chunk_x * 16 + (cell_x as i32) * cell_width + x_in_cell;
-
-                            // Update X interpolation and get densities
-                            noise_chunk.update_for_x(block_x);
-                            let densities = noise_chunk.get_densities_4z();
-                            let densities_arr = densities.to_array();
-
-                            // Check if all positive (all solid) - fast path
-                            let all_positive = densities.simd_gt(f64x4::splat(0.0)).all();
-
-                            let local_x = ((cell_x as i32) * cell_width + x_in_cell) as u8;
-
-                            // Check if we're in ore vein Y range (-60 to 50) to avoid function call overhead
-                            let in_vein_range = (-60..=50).contains(&block_y);
-
-                            if all_positive {
-                                // Fast path: all 4 blocks are solid
-                                if in_vein_range {
-                                    // Check veinifier for ore veins
-                                    let _fluids = profile::scope(Stage::AquiferVeins);
-                                    for z_in_cell in 0..4i32 {
-                                        let local_z =
-                                            ((cell_z as i32) * cell_width + z_in_cell) as u8;
-                                        let block_z = base_block_z + z_in_cell;
-                                        let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        let block = ore_veinifier
-                                            .compute(&ctx)
-                                            .unwrap_or(u32::from(states::STONE.0));
-                                        chunk.set_block(local_x, block_y as i16, local_z, block);
-                                    }
-                                } else {
-                                    // Outside vein range - just place stone
-                                    for z_in_cell in 0..4i32 {
-                                        let local_z =
-                                            ((cell_z as i32) * cell_width + z_in_cell) as u8;
-                                        chunk.set_block(
-                                            local_x,
-                                            block_y as i16,
-                                            local_z,
-                                            u32::from(states::STONE.0),
-                                        );
-                                    }
-                                }
-                            } else {
-                                // Process each block - use aquifer for non-solid, veinifier for solid
-                                let _fluids = profile::scope(Stage::AquiferVeins);
-                                for z_in_cell in 0..4i32 {
-                                    let density = densities_arr[z_in_cell as usize];
-                                    let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
-                                    let block_z = base_block_z + z_in_cell;
-
-                                    if density > 0.0 {
-                                        // Solid block - check veinifier for ore veins (if in range)
-                                        if in_vein_range {
-                                            let ctx =
-                                                FunctionContext::new(block_x, block_y, block_z);
-                                            let block = ore_veinifier
-                                                .compute(&ctx)
-                                                .unwrap_or(u32::from(states::STONE.0));
-                                            chunk.set_block(
-                                                local_x,
-                                                block_y as i16,
-                                                local_z,
-                                                block,
-                                            );
-                                        } else {
-                                            chunk.set_block(
-                                                local_x,
-                                                block_y as i16,
-                                                local_z,
-                                                u32::from(states::STONE.0),
-                                            );
-                                        }
-                                    } else {
-                                        // The aquifer decides air, water or lava; `None` is a
-                                        // barrier between aquifers, which falls through to the
-                                        // ore veins and then the default block, like solid
-                                        // density does.
-                                        let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        let block = match aquifer.compute_substance(&ctx, density) {
-                                            Some(block) => java_aquifer_substance(block),
-                                            None if in_vein_range => ore_veinifier
-                                                .compute(&ctx)
-                                                .unwrap_or(u32::from(states::STONE.0)),
-                                            None => u32::from(states::STONE.0),
-                                        };
-                                        if block != u32::from(states::AIR.0) {
-                                            chunk.set_block(
-                                                local_x,
-                                                block_y as i16,
-                                                local_z,
-                                                block,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Swap slices after processing this X column
-            noise_chunk.swap_slices();
-        }
-
-        chunk
     }
 }
 
@@ -605,7 +425,9 @@ impl Generator for JavaGenerator {
                 biome_source::spawn_search_start(&noises.java_source())
             }
             #[cfg(feature = "bedrock-worldgen")]
-            TerrainBackend::SharedBedrock(noises) => biome_source::spawn_search_start(noises),
+            TerrainBackend::SharedBedrock(noises) => {
+                biome_source::spawn_search_start(&noises.java_source())
+            }
         };
         super::spawn::java_spawn(
             start,

@@ -3,5 +3,7 @@
 //! ([`ambient`]).
 
 pub mod ambient;
+#[cfg(test)]
+mod bds_replication;
 pub mod network;
 pub mod sound;

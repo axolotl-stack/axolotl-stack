@@ -143,6 +143,18 @@ impl Recorder {
         Ok(Self::new(Box::new(BufWriter::new(file)), identity_key))
     }
 
+    /// Times records from `started` instead of the recorder's creation, so
+    /// several clients of one session share a clock.
+    pub fn with_start(mut self, started: Instant) -> Self {
+        self.started = started;
+        self
+    }
+
+    /// The instant record times (`t_ms`) count from.
+    pub fn started(&self) -> Instant {
+        self.started
+    }
+
     pub fn flush(&mut self) -> io::Result<()> {
         self.writer.flush()
     }

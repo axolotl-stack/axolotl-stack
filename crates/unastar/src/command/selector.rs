@@ -6,12 +6,13 @@
 //! `haspermission`, `has_property`. Repeated `type`/`name`/`m`/`tag`/`family`
 //! conditions must all hold (a negated one excludes).
 //!
-//! unastar has no entity tags, scoreboard or input-permission system yet, so
-//! every entity has no tags and no scores and all input permissions enabled:
-//! `tag=x` and any `scores` condition match nothing, `tag=!x` matches
-//! everything, `haspermission={…=enabled}` always holds.
+//! `tag` reads the tags `/tag` gave (`tag=` matches entities without tags),
+//! `scores` the world scoreboard (an entity without a score in the objective
+//! never matches, even a negated range), `haspermission` the inputs
+//! `/inputpermission` turned off (players only).
 
 use super::parser::{Coordinate, Cursor, ErrorAt, IntRange, parse_range};
+use crate::entity::components::InputPermission;
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 
@@ -74,7 +75,7 @@ pub struct Selector {
     pub pitch_min: Option<f32>,
     pub yaw_max: Option<f32>,
     pub yaw_min: Option<f32>,
-    /// Objective name → range. unastar has no scoreboard, so any entry matches nothing.
+    /// Objective name → range.
     pub scores: Vec<(String, IntRange)>,
     pub has_item: Vec<HasItem>,
     /// Input permission name → required `enabled`.
@@ -86,6 +87,19 @@ pub struct Selector {
 impl Selector {
     pub fn kind(&self) -> SelectorKind {
         self.kind.unwrap_or(SelectorKind::AllEntities)
+    }
+
+    /// True when the selector picks actors by where they are (`x`/`y`/`z`,
+    /// `dx`/`dy`/`dz`, `r`, `rm`).
+    pub fn positional(&self) -> bool {
+        self.x.is_some()
+            || self.y.is_some()
+            || self.z.is_some()
+            || self.dx.is_some()
+            || self.dy.is_some()
+            || self.dz.is_some()
+            || self.r.is_some()
+            || self.rm.is_some()
     }
 
     /// True when only players can match (`@a`, `@p`, `@r` without a non-player `type`).
@@ -361,6 +375,13 @@ pub struct Candidate {
     pub families: Vec<String>,
     /// Items carried (players): identifier, aux, count, location, slot.
     pub items: Vec<CarriedItem>,
+    /// Tags given by `/tag`.
+    pub tags: Vec<String>,
+    /// Scores by objective name.
+    pub scores: Vec<(String, i32)>,
+    /// Locked inputs (`UpdateClientInputLocks` bits) of a player; `None`
+    /// for other actors, which no `haspermission` condition matches.
+    pub input_locks: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -504,8 +525,14 @@ impl Selector {
         if !all(&self.names, &|n| n == c.name) {
             return false;
         }
-        // No entity has tags: `tag=` (no tags) holds, `tag=x` does not.
-        if !all(&self.tags, &|t| t.is_empty()) {
+        // `tag=` holds for an entity without tags (`tag=!` for one with any).
+        if !all(&self.tags, &|t| {
+            if t.is_empty() {
+                c.tags.is_empty()
+            } else {
+                c.tags.iter().any(|own| own == t)
+            }
+        }) {
             return false;
         }
         if !all(&self.families, &|f| c.families.iter().any(|own| own == f)) {
@@ -523,11 +550,23 @@ impl Selector {
                 return false;
             }
         }
-        if !self.scores.is_empty() {
+        // A score condition needs a score inside its range.
+        if !self.scores.iter().all(|(objective, range)| {
+            c.scores
+                .iter()
+                .any(|(own, score)| own == objective && range.contains(*score))
+        }) {
             return false;
         }
-        if self.permissions.iter().any(|(_, enabled)| !enabled) {
-            return false;
+        if !self.permissions.is_empty() {
+            let Some(locks) = c.input_locks else {
+                return false;
+            };
+            if !self.permissions.iter().all(|(name, enabled)| {
+                InputPermission::from_name(name).is_some_and(|p| (locks & p.bit() == 0) == *enabled)
+            }) {
+                return false;
+            }
         }
         if self.dx.is_some() || self.dy.is_some() || self.dz.is_some() {
             let delta = DVec3::new(
@@ -620,20 +659,28 @@ mod tests {
             alive: true,
             families: vec![],
             items: vec![],
+            tags: vec![],
+            scores: vec![],
+            input_locks: player.then_some(0),
         }
     }
 
     fn world() -> Vec<Candidate> {
+        let mut bob = candidate(
+            2,
+            true,
+            "minecraft:player",
+            "Bob",
+            DVec3::new(10.0, 0.0, 0.0),
+        );
+        bob.tags = vec!["builder".into()];
+        bob.input_locks = Some(InputPermission::Camera.bit());
+        let mut cow = candidate(3, false, "minecraft:cow", "", DVec3::new(3.0, 0.0, 0.0));
+        cow.scores = vec![("kills".into(), 4)];
         vec![
             candidate(1, true, "minecraft:player", "Alice", DVec3::ZERO),
-            candidate(
-                2,
-                true,
-                "minecraft:player",
-                "Bob",
-                DVec3::new(10.0, 0.0, 0.0),
-            ),
-            candidate(3, false, "minecraft:cow", "", DVec3::new(3.0, 0.0, 0.0)),
+            bob,
+            cow,
             candidate(
                 4,
                 false,
@@ -684,9 +731,15 @@ mod tests {
         assert_eq!(resolve("@e[x=2,y=-1,z=-1,dx=2,dy=2,dz=2]"), Ok(vec![3]));
         assert_eq!(resolve("@a[m=s]"), Ok(vec![1, 2]));
         assert_eq!(resolve("@a[m=creative]"), Ok(vec![]));
-        assert_eq!(resolve("@e[tag=builder]"), Ok(vec![]));
+        assert_eq!(resolve("@e[tag=builder]"), Ok(vec![2]));
         assert_eq!(resolve("@e[tag=!builder,type=pig]"), Ok(vec![4]));
-        assert_eq!(resolve("@e[scores={kills=1..}]"), Ok(vec![]));
+        assert_eq!(resolve("@e[tag=]"), Ok(vec![1, 3, 4]));
+        assert_eq!(resolve("@e[tag=!]"), Ok(vec![2]));
+        assert_eq!(resolve("@e[scores={kills=1..}]"), Ok(vec![3]));
+        assert_eq!(resolve("@e[scores={kills=!1..}]"), Ok(vec![]));
+        assert_eq!(resolve("@e[scores={kills=..0}]"), Ok(vec![]));
+        assert_eq!(resolve("@a[haspermission={camera=disabled}]"), Ok(vec![2]));
+        assert_eq!(resolve("@e[haspermission={camera=enabled}]"), Ok(vec![1]));
         assert_eq!(resolve("@r[type=cow]"), Ok(vec![3]));
         assert_eq!(resolve("@e[name=\"Babe\"]"), Ok(vec![4]));
     }

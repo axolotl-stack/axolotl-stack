@@ -23,11 +23,11 @@ use bevy_ecs::prelude::*;
 use rand::Rng;
 use unastar_data::actor_components::body::ActorDamageCause;
 
+use unastar_rules::ids::Enchantment;
+
 use crate::entity::components::{ArmourInventory, GameMode, HeldSlot, MainInventory, Position};
 use crate::item::ItemStack;
-use crate::item::enchant::{
-    Enchantment, durability_damage, enchantment_level, with_durability_damage,
-};
+use crate::item::enchant::{durability_damage, with_durability_damage};
 use crate::registry::item::ItemEntry;
 
 /// The durability of `entry`, 0 when it does not wear.
@@ -99,7 +99,7 @@ pub fn wear(
     if points <= 0 {
         return None;
     }
-    let level = enchantment_level(stack, Enchantment::Unbreaking);
+    let level = stack.enchantment_level(Enchantment::Unbreaking);
     let applied = match (level, kind) {
         (0, _) => points,
         (n, WearKind::Tool) => (0..points).filter(|_| rng.gen_range(0..=n) == 0).count() as i32,
@@ -324,7 +324,7 @@ mod tests {
         let mut points_worn = |name: &str, level: u8, points: i32, kind: WearKind| {
             let item = stack(name, 1);
             let item = if level > 0 {
-                with_enchantments(&item, &[(Enchantment::Unbreaking, level)])
+                with_enchantments(&item, [(Enchantment::Unbreaking, level)])
             } else {
                 item
             };

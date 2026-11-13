@@ -8,9 +8,14 @@
 //! the player's [`Experience`] and sends the player its new level and
 //! progress attributes.
 //!
-//! Viewers see an orb through `server::broadcast::sync_actor_viewers`
-//! (`AddActor` built by [`add_actor_packet`], then absolute moves and
-//! motion like other non-living actors).
+//! Viewers see an orb through `server::broadcast::sync_actor_viewers`:
+//! its `AddActor` ([`add_actor_packet`]) shows it as it spawned, with its
+//! random yaw cut to whole rotation bytes, and it then moves like a mob
+//! (`MoveActorDelta` measured against one shared last-sent state, at the
+//! cadence of the vanilla `xp_orb` definition's
+//! `conditional_bandwidth_optimization`, 10 ticks over 80 blocks; BDS
+//! 1.26.51 replication captures). A new orb counts as on the ground until
+//! its first move, like on BDS.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -31,7 +36,9 @@ use crate::entity::components::{
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::item_drop::{EntityRandom, PLAYER_EYE_HEIGHT, next_actor_id};
+use crate::entity::mob::components::BandwidthOptimization;
 use crate::entity::mob::constants;
+use crate::entity::mob::net::network::{MobNetState, quantized_degrees};
 use crate::registry::collision::Aabb;
 use crate::server::game::{PICKUP_REACH, player_box};
 
@@ -81,31 +88,59 @@ pub fn spawn_experience(world: &mut World, position: DVec3, amount: u32) {
     }
 }
 
-/// Spawn one orb worth `value` with a random scatter velocity.
+/// The vanilla orb's `conditional_bandwidth_optimization`, compiled once.
+fn orb_bandwidth() -> Option<BandwidthOptimization> {
+    static BANDWIDTH: std::sync::OnceLock<Option<BandwidthOptimization>> =
+        std::sync::OnceLock::new();
+    BANDWIDTH
+        .get_or_init(|| {
+            let definition = unastar_data::actor_definitions::get("minecraft:xp_orb")?;
+            let body = definition
+                .components
+                .get("minecraft:conditional_bandwidth_optimization")?;
+            let body = serde_json::from_value(body.clone())
+                .expect("the vanilla orb's bandwidth component is typed data");
+            Some(
+                BandwidthOptimization::compile(body)
+                    .expect("the vanilla orb's bandwidth values compile"),
+            )
+        })
+        .clone()
+}
+
+/// Spawn one orb worth `value` with a random scatter velocity and a random
+/// yaw.
 pub fn spawn_orb(world: &mut World, position: DVec3, value: u32) -> Entity {
-    let velocity = {
+    let (velocity, yaw) = {
         let rng = &mut world.get_resource_or_init::<EntityRandom>().0;
         let horizontal = constants::XP_ORB_SPAWN_HORIZONTAL;
-        DVec3::new(
+        let velocity = DVec3::new(
             rng.gen_range(-horizontal..horizontal),
             rng.gen_range(0.0..constants::XP_ORB_SPAWN_VERTICAL),
             rng.gen_range(-horizontal..horizontal),
-        )
+        );
+        (velocity, rng.gen_range(0.0f32..360.0))
     };
     let runtime_id = next_actor_id(world);
-    world
-        .spawn((
-            XpOrb { value },
-            Position(position),
-            Velocity(velocity),
-            Rotation::default(),
-            OnGround(false),
-            XP_ORB_BODY,
-            RuntimeId(runtime_id),
-            Age(0),
-            ActorViewers::default(),
-        ))
-        .id()
+    let rotation = Rotation::new(yaw, 0.0);
+    let mut orb = world.spawn((
+        XpOrb { value },
+        Position(position),
+        Velocity(velocity),
+        rotation,
+        OnGround(false),
+        XP_ORB_BODY,
+        RuntimeId(runtime_id),
+        Age(0),
+        ActorViewers::default(),
+        // On the ground until its first move, as BDS reports a new orb, and
+        // its scatter velocity never counted as sent motion.
+        MobNetState::spawned(position, velocity, rotation, true).motion_unsent(),
+    ));
+    if let Some(bandwidth) = orb_bandwidth() {
+        orb.insert(bandwidth);
+    }
+    orb.id()
 }
 
 /// Actor data of an orb: the rows BDS 1.26.51 sends for a summoned orb
@@ -146,11 +181,14 @@ pub fn xp_orb_metadata(value: u32) -> EntityMetadata {
     metadata
 }
 
-/// The `AddActor` a new viewer of an orb receives.
+/// The `AddActor` a new viewer of an orb receives: its pitch and yaw cut
+/// to whole rotation bytes, head and body yaw 0 (BDS 1.26.51: an orb whose
+/// yaw was 150.938 was sent with 150.46875).
 pub fn add_actor_packet(
     runtime_id: i64,
     position: DVec3,
     velocity: DVec3,
+    rotation: &Rotation,
     orb: &XpOrb,
 ) -> AddActorPacket {
     let wire = |v: DVec3| Vec3 {
@@ -168,7 +206,10 @@ pub fn add_actor_packet(
         actor_type: "minecraft:xp_orb".into(),
         position: wire(position),
         velocity: wire(velocity),
-        rotation: Vec2 { x: 0.0, y: 0.0 },
+        rotation: Vec2 {
+            x: quantized_degrees(rotation.pitch),
+            y: quantized_degrees(rotation.yaw),
+        },
         y_head_rotation: 0.0,
         y_body_rotation: 0.0,
         attributes_list: Vec::new(),
@@ -189,20 +230,30 @@ pub fn points_to_next_level(level: i32) -> u32 {
 }
 
 /// Add `points` to `experience`, levelling up as often as they allow.
+///
+/// Measured (BDS 1.26.51 `/xp` capture): the progress is an f32 fraction of
+/// the level; the points add `points / needed`, and each level up carries
+/// `(progress - 1) × needed` points into the next level's fraction, all in
+/// f32. `/xp 10` from nothing leaves level 1 at 0x3eaaaaac, one f32 step
+/// above 3/9.
 pub fn add_experience(experience: &mut Experience, points: u32) {
-    let mut needed = points_to_next_level(experience.level);
-    let mut total =
-        f64::from(experience.progress.clamp(0.0, 1.0)) * f64::from(needed) + f64::from(points);
-    while total >= f64::from(needed) {
-        total -= f64::from(needed);
+    let mut needed = points_to_next_level(experience.level) as f32;
+    let mut progress = experience.progress.clamp(0.0, 1.0) + points as f32 / needed;
+    while progress >= 1.0 {
+        let left = (progress - 1.0) * needed;
         experience.level = experience.level.saturating_add(1);
-        needed = points_to_next_level(experience.level);
+        needed = points_to_next_level(experience.level) as f32;
+        progress = left / needed;
     }
-    experience.progress = (total / f64::from(needed)) as f32;
+    experience.progress = progress;
 }
 
-/// The player's level and progress attributes, as the join sequence and
-/// experience changes send them.
+/// The level attribute's maximum (and default maximum), as BDS 1.26.51's
+/// join and `/xp` captures send it.
+const LEVEL_MAX: f32 = 24_791.0;
+
+/// The player's level and progress attributes, as the join sequence sends
+/// them.
 pub fn experience_attributes(experience: &Experience) -> [AttributeData; 2] {
     let attribute = |name: &str, current: f32, max: f32| AttributeData {
         min_value: 0.0,
@@ -215,13 +266,21 @@ pub fn experience_attributes(experience: &Experience) -> [AttributeData; 2] {
         modifiers: Vec::new(),
     };
     [
-        attribute(
-            "minecraft:player.level",
-            experience.level as f32,
-            i32::MAX as f32,
-        ),
+        attribute("minecraft:player.level", experience.level as f32, LEVEL_MAX),
         attribute("minecraft:player.experience", experience.progress, 1.0),
     ]
+}
+
+/// The attributes an experience change sends. Measured (`/xp` capture): a
+/// change of level sends the level and then the progress twice; a change
+/// within the level sends the progress alone.
+pub fn experience_changes(experience: &Experience, level_changed: bool) -> Vec<AttributeData> {
+    let [level, progress] = experience_attributes(experience);
+    if level_changed {
+        vec![level, progress.clone(), progress]
+    } else {
+        vec![progress]
+    }
 }
 
 fn collects(mode: &GameMode, health: Option<&Health>) -> bool {
@@ -280,13 +339,14 @@ pub fn tick_xp_orbs(
             else {
                 continue;
             };
+            let level = experience.level;
             add_experience(&mut experience, xp.value);
             if let Some(session) = session {
                 let _ = session.send(McpePacket::from(UpdateAttributesPacket {
                     target_runtime_id: ActorRuntimeId {
                         actor_runtime_id: runtime_id.0 as u64,
                     },
-                    attribute_list: experience_attributes(&experience).into(),
+                    attribute_list: experience_changes(&experience, experience.level != level),
                     tick: input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick),
                 }));
             }
@@ -331,6 +391,10 @@ mod tests {
         add_experience(&mut xp, 3);
         assert_eq!(xp.level, 1);
         assert!((xp.progress - 3.0 / 9.0).abs() < 1e-6);
+        // BDS's f32 carry: 10 points from nothing (the `/xp 10` capture).
+        let mut xp = Experience::default();
+        add_experience(&mut xp, 10);
+        assert_eq!((xp.level, xp.progress.to_bits()), (1, 0x3eaa_aaac));
         // Level 0 → 16 takes 352 points; level 16 → 17 another 42.
         let mut xp = Experience::default();
         add_experience(&mut xp, 352 + 21);
@@ -350,6 +414,7 @@ mod tests {
             7,
             DVec3::new(105.5, 136.0, -25.5),
             DVec3::ZERO,
+            &Rotation::default(),
             &XpOrb { value: 1 },
         );
         assert_eq!(ours.actor_type, native.actor_type);

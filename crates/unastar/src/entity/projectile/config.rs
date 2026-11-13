@@ -79,9 +79,8 @@ pub struct ProjectileRules {
     pub bounce_without_damage: bool,
     /// `stop_on_hurt`: it drops away from an actor it hurt.
     pub stop_on_hurt: bool,
-    /// `grant_xp`: experience from `min` to `max` (inclusive) as orbs at the
-    /// hit point.
-    pub grant_xp: Option<(u32, u32)>,
+    /// `on_hit.grant_xp`: `(minXP, maxXP)` experience at the hit point.
+    pub grant_xp: Option<(i32, i32)>,
     /// `thrown_potion_effect`: the projectile's potion (its aux value) is
     /// applied to the actors around the hit point.
     pub thrown_potion_effect: bool,
@@ -254,18 +253,13 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
             return Err(ProjectileError::OnHit(name));
         }
     }
+    rules.grant_xp = on_hit.grant_xp.map(|xp| (xp.min_xp, xp.max_xp));
     rules.impact_damage = on_hit.impact_damage.map(compile_impact).transpose()?;
     rules.particle = on_hit
         .particle_on_hit
         .map(|particle| compile_particle(particle, items))
         .transpose()?;
     rules.remove_on_hit = on_hit.remove_on_hit.is_some();
-    rules.grant_xp = on_hit.grant_xp.map(|xp| {
-        (
-            xp.min_xp.max(0) as u32,
-            xp.max_xp.max(xp.min_xp).max(0) as u32,
-        )
-    });
     rules.thrown_potion_effect = on_hit.thrown_potion_effect.is_some();
     rules.douse_fire = on_hit.douse_fire.is_some();
     // Plain arrows carry no potion, so `arrow_effect` has nothing to apply;
