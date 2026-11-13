@@ -14,9 +14,11 @@
 //! total multiplier on the movement attribute, fire resistance sets the
 //! `FIRE_IMMUNE` flag (so fire, fire tick, lava and magma are ignored) and
 //! invisibility the `INVISIBLE` flag (with its `disappeared` sound; a
-//! player only hears the sound). An item ([`give_from_item`]) gives instant
-//! health and instant damage at once instead: they act straight away and
-//! the client sees them added for 1 tick and removed.
+//! player only hears the sound, played by its next effect step). An item
+//! ([`give_from_item`]) gives instant health and instant damage at once
+//! instead: they act straight away and the client sees them added for 1 tick
+//! and removed. The other effects an item gives first act (and count down)
+//! on the effect step after the one of the tick they were given in.
 //!
 //! **The effect step** ([`tick_mob_effects`], [`tick_player_effects`]) runs
 //! once per tick for every actor with effects, in effect id order:
@@ -178,6 +180,15 @@ pub struct EffectsChanged;
 #[component(storage = "SparseSet")]
 pub struct PendingInstant(pub Vec<EffectType>);
 
+/// Effects an item gave since the last effect step, which leaves them alone
+/// once: an item's use finishes after its user's effect step in the BDS
+/// 1.26.51 tick (potion capture: strong poison, 450 ticks, had 444 left
+/// when `/effect clear` took it, without having hurt; poison I hurt the
+/// tick after the drink).
+#[derive(Component, Debug, Clone, Default)]
+#[component(storage = "SparseSet")]
+pub struct GivenByItem(pub Vec<EffectType>);
+
 /// Flags an effect turned on, to turn off again when it ends (and only
 /// then: a fire-immune mob stays fire immune).
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
@@ -302,13 +313,24 @@ pub fn give(
 /// client sees `MobEffect` `Add` with a duration of 1 tick and `Remove` with
 /// 0, then the health changes (BDS 1.26.51 potion capture: harming took the
 /// player from 20 to 14 health). Every other effect is given as [`give`]
-/// gives it.
+/// gives it, but first acts on the step after this tick's ([`GivenByItem`]).
 pub fn give_from_item(world: &mut World, entity: Entity, effect: EffectType, active: ActiveEffect) {
     if !matches!(
         effect,
         EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE
     ) {
-        give(world, entity, effect, active);
+        if matches!(
+            give(world, entity, effect, active),
+            Some(Given::Added | Given::Replaced)
+        ) {
+            world
+                .entity_mut(entity)
+                .entry::<GivenByItem>()
+                .or_default()
+                .get_mut()
+                .0
+                .push(effect);
+        }
         return;
     }
     if !affects(world, entity, effect)
@@ -502,14 +524,16 @@ fn refresh(world: &mut World, entity: Entity) {
             );
         }
         set_effect_flags(world, entity, fire_immune, invisible);
-    } else if world.get::<Player>(entity).is_some() {
-        player_invisibility_sound(world, entity, invisible);
     }
 }
 
 /// A player's invisibility starting or ending plays `disappeared` or
-/// `reappeared` at its feet + 0.9, as BDS 1.26.51 does (potion capture).
-fn player_invisibility_sound(world: &mut World, player: Entity, invisible: bool) {
+/// `reappeared` at its feet + 0.9 on its next effect step, as BDS 1.26.51
+/// does (potion capture: `disappeared` follows the drink's `bottle.empty`).
+fn player_invisibility_sound(world: &mut World, player: Entity) {
+    let invisible = world
+        .get::<Effects>(player)
+        .is_some_and(|effects| effects.has(EffectType::INVISIBILITY));
     let set = world
         .get::<EffectFlags>(player)
         .copied()
@@ -738,6 +762,9 @@ fn step(world: &mut World, entity: Entity) {
         world.entity_mut(entity).remove::<EffectsChanged>();
         refresh(world, entity);
     }
+    if world.get::<Player>(entity).is_some() {
+        player_invisibility_sound(world, entity);
+    }
     let Some(effects) = world.get::<Effects>(entity) else {
         return;
     };
@@ -752,8 +779,16 @@ fn step(world: &mut World, entity: Entity) {
         .take::<PendingInstant>()
         .map(|pending| pending.0)
         .unwrap_or_default();
+    let given_by_item = world
+        .entity_mut(entity)
+        .take::<GivenByItem>()
+        .map(|given| given.0)
+        .unwrap_or_default();
     let mut expired = false;
     for (effect, state) in active {
+        if given_by_item.contains(&effect) {
+            continue;
+        }
         if world.get::<Dead>(entity).is_some()
             || world.get::<Health>(entity).is_none_or(Health::is_dead)
         {

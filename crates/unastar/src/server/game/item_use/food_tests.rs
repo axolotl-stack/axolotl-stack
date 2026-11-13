@@ -106,7 +106,7 @@ fn food_effects(item: &str) -> Vec<(i32, i32, i32, f32)> {
     food.effects
         .iter()
         .filter_map(|effect| {
-            let id = effects::effect_by_name(&effect.name)?;
+            let id = crate::entity::components::EffectType::from_name(&effect.name)?;
             Some((
                 i32::from(id.0),
                 effect.amplifier,
