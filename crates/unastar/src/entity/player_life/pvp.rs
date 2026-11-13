@@ -374,7 +374,7 @@ pub fn play_hit_sounds(world: &mut World) {
             actor_unique_id: unique_id,
             fire_at_position: None,
         });
-        for viewer in super::player_viewers(world, attacker) {
+        for &viewer in super::player_viewers(world, attacker) {
             if let Some(session) = world.get::<PlayerSession>(viewer) {
                 let _ = session.send(packet.clone());
             }

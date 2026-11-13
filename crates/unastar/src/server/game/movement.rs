@@ -46,6 +46,7 @@ type MovingPlayers<'w, 's> = Query<
 /// Runs in `PacketApplySet`. Can execute in parallel with inventory, chat, and chunks
 /// because it writes disjoint components (Position, Rotation, PlayerState, PlayerInput,
 /// PlayerFall, PlayerMoves).
+#[allow(clippy::too_many_arguments)]
 pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
     mut block_queue: ResMut<BlockPacketQueue>,
