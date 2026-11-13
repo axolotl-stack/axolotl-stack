@@ -54,16 +54,35 @@ pub struct AttackConfig {
     pub effect: Option<AttackEffect>,
 }
 
-/// `minecraft:behavior.melee_box_attack`, its seconds converted to ticks
-/// and its boundaries squared as the native goal stores them.
+/// How close a melee goal's target must be to be hit.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MeleeReach {
+    /// `behavior.melee_box_attack`: the target's box touches the mob's box
+    /// grown by `horizontal` blocks sideways.
+    Box { horizontal: f64 },
+    /// `behavior.stomp_attack`: the target's feet within `sqrt(reach_sq)`
+    /// of the mob's, where `reach_sq` is `(width × reach_multiplier)²` plus
+    /// the target's width; within `no_damage_range_multiplier` times that
+    /// squared distance the mob rears up (`STANDING`) for the last ten
+    /// ticks of its cooldown, and a cooldown that runs out there restarts
+    /// without a hit (BDS 1.26.51 polar bear: `sweep.py polar-bear`).
+    Stomp {
+        reach_multiplier: f64,
+        no_damage_range_multiplier: f64,
+    },
+}
+
+/// A melee goal (`minecraft:behavior.melee_box_attack` or
+/// `minecraft:behavior.stomp_attack`), its seconds converted to ticks and
+/// its boundaries squared as the native goal stores them.
 #[derive(Component, Debug, Clone, PartialEq)]
-pub struct MeleeBoxAttackGoal {
+pub struct MeleeAttackGoal {
     pub priority: i32,
     pub(crate) controls: GoalControls,
+    pub reach: MeleeReach,
     pub attack_once: bool,
     pub can_spread_on_fire: bool,
     pub cooldown_ticks: i32,
-    pub horizontal_reach: f64,
     pub min_path_ticks: i32,
     pub max_path_ticks: i32,
     pub path_fail_ticks: i32,
@@ -72,8 +91,8 @@ pub struct MeleeBoxAttackGoal {
     pub inner_boundary_sq: f64,
     pub outer_boundary_sq: f64,
     /// Full view cone, degrees: the target must be closer to the look
-    /// direction than this to be hit.
-    pub melee_fov: f32,
+    /// direction than this to be hit (`None`: no cone, as the stomp goal).
+    pub melee_fov: Option<f32>,
     pub y_max_head_rotation: f32,
     pub on_attack: Option<SelfEvent>,
     pub on_kill: Option<SelfEvent>,
@@ -170,6 +189,7 @@ pub fn register_component_kinds(
     })?;
     insert(builder, compile_attack)?;
     insert(builder, compile_melee_box_attack)?;
+    insert(builder, compile_stomp_attack)?;
     insert(builder, compile_nearest_attackable_target)?;
     insert(builder, |b: body::BehaviorHurtByTarget| {
         Ok::<_, HostileError>(HurtByTargetGoal {
@@ -284,17 +304,19 @@ fn optional_event(
 
 fn compile_melee_box_attack(
     b: body::BehaviorMeleeBoxAttack,
-) -> Result<MeleeBoxAttackGoal, HostileError> {
+) -> Result<MeleeAttackGoal, HostileError> {
     if !b.attack_types.is_empty() {
         return Err(HostileError::AttackTypes(b.attack_types));
     }
-    Ok(MeleeBoxAttackGoal {
+    Ok(MeleeAttackGoal {
         priority: b.priority,
         controls: controls(&b.control_flags, GoalControls::MOVE | GoalControls::LOOK),
+        reach: MeleeReach::Box {
+            horizontal: f64::from(b.horizontal_reach),
+        },
         attack_once: b.attack_once,
         can_spread_on_fire: b.can_spread_on_fire,
         cooldown_ticks: seconds_to_ticks(b.cooldown_time),
-        horizontal_reach: f64::from(b.horizontal_reach),
         min_path_ticks: seconds_to_ticks(b.min_path_time),
         max_path_ticks: seconds_to_ticks(b.max_path_time),
         path_fail_ticks: seconds_to_ticks(b.path_fail_time_increase),
@@ -302,7 +324,41 @@ fn compile_melee_box_attack(
         outer_boundary_ticks: seconds_to_ticks(b.outer_boundary_time_increase),
         inner_boundary_sq: f64::from(b.path_inner_boundary * b.path_inner_boundary),
         outer_boundary_sq: f64::from(b.path_outer_boundary * b.path_outer_boundary),
-        melee_fov: b.melee_fov,
+        melee_fov: Some(b.melee_fov),
+        y_max_head_rotation: b.y_max_head_rotation,
+        on_attack: optional_event(b.on_attack)?,
+        on_kill: optional_event(b.on_kill)?,
+        random_stop_interval: b.random_stop_interval,
+        speed_multiplier: b.speed_multiplier,
+        track_target: b.track_target,
+    })
+}
+
+/// `behavior.stomp_attack`: the melee goal with the stomp reach. Its
+/// `stomp_range_multiplier` (an area hit around the target) is accepted
+/// without behaviour: BDS 1.26.51's polar bear hurt only its target.
+fn compile_stomp_attack(b: body::BehaviorStompAttack) -> Result<MeleeAttackGoal, HostileError> {
+    if !b.attack_types.is_empty() {
+        return Err(HostileError::AttackTypes(b.attack_types));
+    }
+    Ok(MeleeAttackGoal {
+        priority: b.priority,
+        controls: controls(&b.control_flags, GoalControls::MOVE | GoalControls::LOOK),
+        reach: MeleeReach::Stomp {
+            reach_multiplier: f64::from(b.reach_multiplier),
+            no_damage_range_multiplier: f64::from(b.no_damage_range_multiplier),
+        },
+        attack_once: b.attack_once,
+        can_spread_on_fire: b.can_spread_on_fire,
+        cooldown_ticks: seconds_to_ticks(b.cooldown_time),
+        min_path_ticks: seconds_to_ticks(b.min_path_time),
+        max_path_ticks: seconds_to_ticks(b.max_path_time),
+        path_fail_ticks: seconds_to_ticks(b.path_fail_time_increase),
+        inner_boundary_ticks: seconds_to_ticks(b.inner_boundary_time_increase),
+        outer_boundary_ticks: seconds_to_ticks(b.outer_boundary_time_increase),
+        inner_boundary_sq: f64::from(b.path_inner_boundary * b.path_inner_boundary),
+        outer_boundary_sq: f64::from(b.path_outer_boundary * b.path_outer_boundary),
+        melee_fov: None,
         y_max_head_rotation: b.y_max_head_rotation,
         on_attack: optional_event(b.on_attack)?,
         on_kill: optional_event(b.on_kill)?,

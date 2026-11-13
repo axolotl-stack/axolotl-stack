@@ -16,6 +16,7 @@ use crate::entity::definition::DefinitionState;
 use crate::entity::definition::attributes::{ActorAttributes, AttributeValue};
 use crate::entity::definition::components::{
     MovementConfig, PhysicsConfig, RawCollisionBox, ScaleConfig, UnderwaterMovementConfig,
+    WaterMovementConfig,
 };
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -32,6 +33,7 @@ type DeriveInputs<'a> = (
     Option<&'a Health>,
     Option<&'a MovementConfig>,
     Option<&'a UnderwaterMovementConfig>,
+    Option<&'a WaterMovementConfig>,
     Option<&'a AirSupply>,
     Option<&'a EffectModifiers>,
 );
@@ -57,7 +59,7 @@ struct Derived {
 }
 
 fn derive(
-    (kind, collision, scale, physics, walk, health, movement, underwater, air, modifiers): DeriveInputs<
+    (kind, collision, scale, physics, walk, health, movement, underwater, water, air, modifiers): DeriveInputs<
         '_,
     >,
 ) -> Derived {
@@ -68,6 +70,7 @@ fn derive(
         physics.map_or((false, false), |p| (p.has_gravity, p.has_collision));
     let mut body = PhysicsBody::living(f64::from(width * scale), f64::from(height * scale));
     body.wing_flap_drag = kind.0.native.wing_flap_drag;
+    body.water_drag = water.map(|w| f64::from(w.drag_factor));
     if !gravity {
         body.gravity = 0.0;
     }

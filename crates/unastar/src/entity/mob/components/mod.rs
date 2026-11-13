@@ -61,7 +61,7 @@ pub use goals::{
     LookAtPlayerGoal, PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
 };
 pub use hostile::{
-    AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeBoxAttackGoal,
+    AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeAttackGoal, MeleeReach,
     NearestAttackableTargetGoal, SwellGoal,
 };
 pub use hurt_on_condition::{HurtCondition, HurtOnConditionConfig};

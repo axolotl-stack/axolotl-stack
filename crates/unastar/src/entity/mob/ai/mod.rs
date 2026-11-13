@@ -31,6 +31,7 @@ pub(crate) use targeting::Candidate;
 mod tests;
 
 pub(crate) use self::break_door::stop_breaking_doors;
+pub use self::melee::{StompClock, StompStep, tick_stomp_attacks};
 pub use self::path::PathBlockTable;
 
 use bevy_ecs::prelude::*;
@@ -306,12 +307,14 @@ fn think(
         movement,
         look,
     } = brain;
+    let mut effects = Effects::default();
     if turn == Turn::Think(true) {
         // A rebuilt composition rebuilds the native goals.
-        states.melee.reset();
+        if states.melee.reset() {
+            effects.standing = Some(false);
+        }
         states.targets.reset();
     }
-    let mut effects = Effects::default();
     let mut ctx = GoalContext {
         world,
         table,
@@ -537,6 +540,9 @@ fn apply(world: &mut World, entity: Entity, output: Output, deferred: &mut Defer
     }
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
+    }
+    if let Some(standing) = effects.standing {
+        set_flag(&mut mob, actor_flags::STANDING, standing);
     }
     if let Some(request) = effects.mate
         && let Some(mut messages) = world.get_resource_mut::<Messages<MateRequest>>()

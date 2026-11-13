@@ -25,6 +25,14 @@ pub struct UnderwaterMovement {
     pub value: f32,
 }
 
+/// `minecraft:water_movement`: the drag a mob's motion keeps in water.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WaterMovement {
+    #[serde(default = "drag_factor")]
+    pub drag_factor: f32,
+}
+
 /// An event reference: a bare event name or a trigger object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -144,6 +152,9 @@ defaults! {
     preset_spring_type -> LeashSpringType = p::LEASH_PRESET_SPRING_TYPE;
     can_retrieve_from -> bool = p::LEASHABLE_TO_CAN_RETRIEVE_FROM;
     max_turn -> f32 = p::MOVEMENT_BASIC_MAX_TURN;
+    sway_amplitude -> f32 = p::MOVEMENT_SWAY_AMPLITUDE;
+    sway_frequency -> f32 = p::MOVEMENT_SWAY_FREQUENCY;
+    drag_factor -> f32 = p::WATER_MOVEMENT_DRAG_FACTOR;
     allow_name_tag_renaming -> bool = p::NAMEABLE_ALLOW_NAME_TAG_RENAMING;
     always_show -> bool = p::NAMEABLE_ALWAYS_SHOW;
     avoid_damage_blocks -> bool = p::NAVIGATION_AVOID_DAMAGE_BLOCKS;
@@ -799,6 +810,20 @@ pub struct MovementGeneric {
     pub max_turn: f32,
 }
 
+/// `minecraft:movement.sway`: the move control of a mob that sways from
+/// side to side as it swims (the fish and the tadpole).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MovementSway {
+    /// Maximum turn per tick, in degrees.
+    #[serde(default = "max_turn")]
+    pub max_turn: f32,
+    #[serde(default = "sway_amplitude")]
+    pub sway_amplitude: f32,
+    #[serde(default = "sway_frequency")]
+    pub sway_frequency: f32,
+}
+
 /// `minecraft:nameable`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -875,6 +900,13 @@ pub struct NavigationWalk {
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(transparent)]
 pub struct NavigationGeneric(pub NavigationWalk);
+
+/// `minecraft:navigation.float`: the path permissions of
+/// `minecraft:navigation.walk`, read by a navigation through the air (the
+/// bat).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(transparent)]
+pub struct NavigationFloat(pub NavigationWalk);
 
 /// `minecraft:offspring` (1.26): the offspring half of the old breedable
 /// fields.
@@ -1642,7 +1674,9 @@ dynamic_bodies!(
     MovementBasic,
     MovementGeneric,
     MovementJump,
+    MovementSway,
     Nameable,
+    NavigationFloat,
     NavigationGeneric,
     NavigationWalk,
     Offspring,
@@ -1661,4 +1695,5 @@ dynamic_bodies!(
     TypeFamily,
     UnderwaterMovement,
     Variant,
+    WaterMovement,
 );

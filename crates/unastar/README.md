@@ -554,6 +554,16 @@ water cells while the mob is in water (`entity::navigation::swim`), and the
 swimmer has no gravity (decision 0065). Transformations run with a delay, a
 sound, a spawn event (`ActorReference`) and kept equipment.
 
+The polar bear (`sweep.py polar-bear --client-capture`: hostile bears chasing the
+player, a baby's anger reaching an adult, bears knocked across a pool, distilled
+by `tools/bds-sweep/mob_fixture.py` into
+`src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json`) is replayed by
+`src/entity/mob/tests/polar_bear.rs`: its summon, the stomp goal's rear-ups,
+stand-downs and hits on BDS's ticks, and its horizontal drag in water.
+`behavior.stomp_attack` is a reach of the one melee goal (`MeleeAttackGoal`),
+judged after the physics step (decision 0068). `water_movement` sets the
+horizontal drag in water.
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

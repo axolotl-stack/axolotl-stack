@@ -313,6 +313,18 @@ pub const LEASHABLE_TO_CAN_RETRIEVE_FROM: bool = false;
 /// ML `minecraftcomponent_movement.basic`: `max_turn` 30.
 pub const MOVEMENT_BASIC_MAX_TURN: f32 = 30.0;
 
+// minecraft:movement.sway
+
+/// ML `minecraftcomponent_movement.sway`: `sway_amplitude` 0.05.
+pub const MOVEMENT_SWAY_AMPLITUDE: f32 = 0.05;
+/// ML `minecraftcomponent_movement.sway`: `sway_frequency` 0.5.
+pub const MOVEMENT_SWAY_FREQUENCY: f32 = 0.5;
+
+// minecraft:water_movement
+
+/// ML `minecraftcomponent_water_movement`: `drag_factor` 0.8.
+pub const WATER_MOVEMENT_DRAG_FACTOR: f32 = 0.8;
+
 // minecraft:nameable
 
 /// ML `minecraftcomponent_nameable`: `allow_name_tag_renaming` true.

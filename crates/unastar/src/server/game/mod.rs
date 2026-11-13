@@ -480,6 +480,12 @@ impl GameServer {
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
+        // Stomp goals decide by where the mob stands after its move.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::ai::tick_stomp_attacks
+                .in_set(PhysicsSet)
+                .after(tick_physics),
+        );
         // The slime classes report leaving the ground and landing.
         ecs.schedule_mut().add_systems(
             crate::entity::mob::ai::hop::report_ground_changes

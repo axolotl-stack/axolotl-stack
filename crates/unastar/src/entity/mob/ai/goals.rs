@@ -20,7 +20,7 @@ use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind
 use crate::entity::mob::components::{
     AvoidMobTypeGoal, BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FleeSunGoal,
     FloatGoal, FollowParentGoal, HopAttackGoal, HopFloatGoal, HopKeepJumpingGoal,
-    HopRandomDirectionGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal,
+    HopRandomDirectionGoal, HurtByTargetGoal, LookAtPlayerGoal, MeleeAttackGoal,
     MergeWithStoneGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
     RandomLookAroundGoal, RandomStrollGoal, RangedAttackGoal, SwellGoal, TemptGoal,
     WakeUpFriendsGoal, WalkNavigationConfig,
@@ -54,7 +54,7 @@ pub enum Goal {
     EatBlock,
     HurtByTarget,
     NearestAttackableTarget,
-    MeleeBoxAttack,
+    MeleeAttack,
     PickupItems,
     EquipItem,
     FleeSun,
@@ -82,7 +82,7 @@ impl Goal {
         Goal::EatBlock,
         Goal::HurtByTarget,
         Goal::NearestAttackableTarget,
-        Goal::MeleeBoxAttack,
+        Goal::MeleeAttack,
         Goal::PickupItems,
         Goal::EquipItem,
         Goal::FleeSun,
@@ -120,7 +120,7 @@ impl Goal {
             Goal::LookAtPlayer => GoalControls::LOOK,
             Goal::EatBlock => crate::entity::mob::constants::EAT_BLOCK_DEFAULT_CONTROLS,
             Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
-            Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
+            Goal::MeleeAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
             Goal::EquipItem => GoalControls::NONE,
             Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
             Goal::AvoidMobType | Goal::MergeWithStone | Goal::Swell => GoalControls::MOVE,
@@ -210,9 +210,9 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls(),
         })
     }));
-    if let Some(goal) = entity.get::<MeleeBoxAttackGoal>() {
+    if let Some(goal) = entity.get::<MeleeAttackGoal>() {
         out.push(GoalSpec {
-            id: Goal::MeleeBoxAttack.id(),
+            id: Goal::MeleeAttack.id(),
             kind: GoalKind::Normal,
             priority: goal.priority,
             controls: goal.controls,
@@ -336,6 +336,8 @@ pub struct Effects {
     pub silverfish: Option<super::silverfish::SilverfishWork>,
     /// The swell goal started: the mob hisses (`fuse`).
     pub swell_started: bool,
+    /// The `STANDING` flag changes (a stomp goal stopped while reared up).
+    pub standing: Option<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -781,7 +783,7 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::HurtByTarget => self.hurt_by_can_start(),
             Goal::NearestAttackableTarget => self.nearest_target_can_start(),
-            Goal::MeleeBoxAttack => self.melee_can_start(),
+            Goal::MeleeAttack => self.melee_can_start(),
             Goal::PickupItems => self.pickup_can_start(),
             Goal::EquipItem => self.equip_can_start(),
             Goal::FleeSun => self.flee_sun_can_start(),
@@ -856,7 +858,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::EatBlock => self.states.eat_ticks > 0,
             Goal::HurtByTarget => self.hurt_by_can_continue(),
             Goal::NearestAttackableTarget => self.nearest_target_can_continue(),
-            Goal::MeleeBoxAttack => self.melee_can_continue(),
+            Goal::MeleeAttack => self.melee_can_continue(),
             Goal::PickupItems => self.pickup_can_continue(),
             Goal::EquipItem => self.equip_can_start(),
             Goal::RangedAttack => self.ranged_can_start(),
@@ -932,7 +934,7 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::HurtByTarget => self.hurt_by_start(),
             Goal::NearestAttackableTarget => self.nearest_target_start(),
-            Goal::MeleeBoxAttack => self.melee_start(),
+            Goal::MeleeAttack => self.melee_start(),
             Goal::PickupItems => self.pickup_start(),
             Goal::EquipItem => {}
             Goal::FleeSun => self.flee_sun_start(),
@@ -983,7 +985,7 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::NearestAttackableTarget => {
                 self.target_stop(super::targeting::TargetSource::Nearest)
             }
-            Goal::MeleeBoxAttack => self.melee_stop(),
+            Goal::MeleeAttack => self.melee_stop(),
             Goal::PickupItems => self.pickup_stop(),
             Goal::EquipItem => {}
             Goal::RangedAttack => self.ranged_stop(),
@@ -1028,7 +1030,7 @@ impl GoalCallbacks for GoalContext<'_> {
                 }
             }
             Goal::HurtByTarget | Goal::NearestAttackableTarget => self.target_tick(),
-            Goal::MeleeBoxAttack => self.melee_tick(),
+            Goal::MeleeAttack => self.melee_tick(),
             Goal::PickupItems => self.pickup_tick(),
             Goal::EquipItem => self.equip_tick(),
             Goal::RangedAttack => self.ranged_tick(),

@@ -19,7 +19,7 @@ use crate::world::rules::Difficulty;
 
 const DROWNED: &str = "minecraft:drowned";
 /// BDS's superflat floor is at y = -61, the arena's at 63.
-const DY: f64 = 124.0;
+pub(super) const DY: f64 = 124.0;
 /// Where the hunting sweeps summoned the drowned, 12 blocks across from
 /// the player (the `within_radius` of its target goal).
 const HUNT_FROM: DVec3 = DVec3::new(16.5, 64.0, 0.5);
@@ -87,7 +87,7 @@ fn items<'a>(fixture: &'a Fixture, kind: &str) -> Vec<&'a Item> {
 /// The sweep's pool (`sweep.py`'s `POOL`): glass x 2..30, y -61..-54,
 /// z -8..8, water x 3..19, y -60..-54, z -7..7, raised by [`DY`]; with
 /// `pillar` the glass pillar under the player at (4, -60..-55, 0).
-fn pool(seed: u64, mode: GameMode, pillar: bool) -> Arena {
+pub(super) fn pool(seed: u64, mode: GameMode, pillar: bool) -> Arena {
     let glass = block("minecraft:glass");
     let water = block("minecraft:water");
     let air = block("minecraft:air");
@@ -112,7 +112,13 @@ fn raised(bds: [f64; 3]) -> DVec3 {
 }
 
 /// A mob of `identifier` spawned with `event` (`summon … <event>`).
-fn summon(a: &mut Arena, identifier: &str, event: &str, feet: DVec3, yaw: f32) -> Entity {
+pub(super) fn summon(
+    a: &mut Arena,
+    identifier: &str,
+    event: &str,
+    feet: DVec3,
+    yaw: f32,
+) -> Entity {
     let reference: ActorReference = format!("{identifier}<{event}>").parse().unwrap();
     let world = a.world();
     let mob = spawn_mob_as(world, &reference, feet, yaw, SpawnCause::Spawned)
