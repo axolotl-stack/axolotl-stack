@@ -16,11 +16,9 @@
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
-use rand::Rng;
 
 use super::ProjectilePotion;
 use super::flight::Target;
-use crate::entity::EntityRandom;
 use crate::entity::components::{EffectType, Player, Position};
 use crate::entity::mob::constants::{
     ICONCRACK_ITEM_SHIFT, ICONCRACK_PARTICLE, POTION_SPLASH_LEVEL_EVENT,

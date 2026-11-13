@@ -15,11 +15,12 @@
 use serde::Deserialize;
 
 use super::*;
-use crate::item::enchant::{Enchantment, with_enchantments};
+use crate::item::enchant::with_enchantments;
 use crate::registry::{BlockRegistry, ItemRegistry};
 use crate::server::game::types::ItemRegistryResource;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use unastar_rules::ids::Enchantment;
 
 #[derive(Deserialize)]
 struct Table {
@@ -35,18 +36,11 @@ struct Tool {
 
 impl Tool {
     fn stack(&self) -> ItemStack {
-        let levels: Vec<(Enchantment, u8)> = self
-            .enchantments
-            .iter()
-            .map(|(name, level)| {
-                let name = name.trim_start_matches("minecraft:");
-                (
-                    Enchantment::from_name(name).unwrap_or_else(|| panic!("{name}")),
-                    *level,
-                )
-            })
-            .collect();
-        with_enchantments(&crate::item::test_support::stack(&self.item, 1), &levels)
+        let levels = self.enchantments.iter().map(|(name, &level)| {
+            let enchantment: Enchantment = name.parse().unwrap_or_else(|_| panic!("{name}"));
+            (enchantment, level)
+        });
+        with_enchantments(&crate::item::test_support::stack(&self.item, 1), levels)
     }
 }
 
