@@ -1,0 +1,105 @@
+# Block breaking as another player sees it, and creative breaking:
+# `python tools/bds-sweep/script.py tools/bds-sweep/scripts/breaking-2.txt
+# --observer tools/bds-sweep/scripts/breaking-observer.txt --out DIR`.
+# Ticks are the client's input ticks. `action NAME x y z face` sends one raw
+# block action with the next input (several on one tick share the input).
+#
+# Arena as in breaking.txt: a stone floor at y=-61, the player at
+# (0.5,-60,0.5) facing east (yaw -90) at the west face (4) of (1,-59,0).
+# BDSObserver stands 3 blocks west of the player, facing east.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+
+# 1. Survival: stone with a diamond pickaxe (6 inputs). The drop is picked
+#    up by the player.
+60 /setblock 1 -59 0 stone
+61 /give @s diamond_pickaxe
+80 mine 1 -59 0 4 0
+100 stop
+101 /kill @e[type=item]
+102 /clear @s
+
+# 2. Survival: dirt by hand, aborted after 5 inputs.
+110 /setblock 1 -59 0 dirt
+120 mine 1 -59 0 4 0
+125 stop
+
+# 3. Survival: the same dirt, released after 5 inputs (StopDestroyBlock).
+130 mine 1 -59 0 4 0
+135 release
+
+# 4. Survival: by hand on (1,-59,0). The break released in 3 goes on and
+#    breaks the dirt on input 144, after this /setblock (a no-op then), so
+#    this mines the air it left.
+140 /setblock 1 -59 0 dirt
+150 mine 1 -59 0 4 0
+180 stop
+181 /kill @e[type=item]
+182 /clear @s
+
+# 5. Creative: StartDestroyBlock, then PredictDestroyBlock on the next input.
+190 /gamemode creative @s
+191 /setblock 1 -59 0 stone
+200 mine 1 -59 0 4 1
+210 stop
+
+# 6. Creative: StartDestroyBlock and PredictDestroyBlock in one input.
+220 /setblock 1 -59 0 stone
+230 action start 1 -59 0 4
+230 action predict 1 -59 0 4
+
+# 7. Creative: StartDestroyBlock, then ContinueDestroyBlock for 5 inputs,
+#   then an abort (does the start alone break it?).
+280 /setblock 1 -59 0 stone
+290 mine 1 -59 0 4 0
+296 stop
+
+# 8. Creative with a diamond sword: Start, then Predict on the next input.
+300 /setblock 1 -59 0 stone
+301 /give @s diamond_sword
+310 mine 1 -59 0 4 1
+320 stop
+
+# The sword goes.
+331 /clear @s
+
+# 9. Creative: a block with a block above it, Start then Predict.
+340 /setblock 1 -59 0 dirt
+341 /setblock 1 -58 0 stone
+350 mine 1 -59 0 4 1
+360 stop
+361 /setblock 1 -58 0 air
+
+# 10. Creative: short grass and a torch on dirt (Start then Predict); no
+#     drops in creative.
+370 /setblock 1 -59 0 short_grass
+380 mine 1 -59 0 4 1
+390 stop
+391 /setblock 1 -60 0 dirt
+392 /setblock 1 -59 0 torch
+400 mine 1 -59 0 4 1
+410 stop
+411 /setblock 1 -60 0 air
+
+# 11. Survival: Start and Predict in one input on stone by hand (refused).
+420 /gamemode survival @s
+421 /setblock 1 -59 0 stone
+430 action start 1 -59 0 4
+430 action predict 1 -59 0 4
+440 /setblock 1 -59 0 air
+
+# 12. Last, as BDS ends the session: a CreativeDestroyBlock action in the
+#     input is a malformed packet to BDS (PacketViolationWarning, then the
+#     connection is closed), in creative or not.
+450 /gamemode creative @s
+451 /setblock 1 -59 0 stone
+460 action creative-destroy 1 -59 0 4
+480 exit

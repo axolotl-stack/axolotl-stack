@@ -50,6 +50,7 @@ pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
     mut block_queue: ResMut<BlockPacketQueue>,
     mut events: ResMut<MovementEvents>,
+    mut item_use: Option<ResMut<super::item_use::ItemUseQueue>>,
     mut players: MovingPlayers,
     mut relayed: Option<ResMut<crate::server::player_view::RelayedMoves>>,
     mut starts: Query<&mut InputStart>,
@@ -100,20 +101,49 @@ pub fn apply_movement(
                     });
                 }
 
-                // Forward block actions to block queue
-                if let Some(block_actions) = pk.player_block_actions
-                    && !block_actions.is_empty()
-                {
-                    block_queue
+                // A missed swing plays its sound; a jab packed into the
+                // input is the same as one sent on its own.
+                if let Some(queue) = item_use.as_mut() {
+                    queue
                         .0
-                        .push((entity, BlockAction::AuthInputActions(block_actions)));
+                        .extend(item_requests(&pk).map(|request| (entity, request)));
                 }
+
+                // Every accepted input goes to the block system, with or
+                // without block actions: a break advances once per input.
+                block_queue.0.push((
+                    entity,
+                    BlockAction::AuthInputActions(pk.player_block_actions.unwrap_or_default()),
+                ));
             }
             MovementInput::PlayerAction(pk) => {
                 process_player_action(entity, &pk, &mut players, &mut events);
             }
         }
     }
+}
+
+/// The item-use requests an accepted input carries: the `MissedSwing` flag
+/// and an item use `UseAsAttack` packed into the input
+/// (`PerformItemInteraction`), which BDS 1.26.51 answers like the
+/// standalone transaction (spear capture).
+fn item_requests(
+    pk: &jolyne::valentine::PlayerAuthInputPacket,
+) -> impl Iterator<Item = super::item_use::UseRequest> {
+    use super::item_use::UseRequest;
+    use jolyne::valentine::types::EnumsItemUseInventoryTransactionActionType as ItemUse;
+    let swing = pk
+        .input_data
+        .contains(&EnumsPlayerAuthInputPacketPayloadInputData::Missedswing)
+        .then_some(UseRequest::MissedSwing);
+    let jab = pk
+        .input_data
+        .contains(&EnumsPlayerAuthInputPacketPayloadInputData::Performiteminteraction)
+        .then_some(pk.item_use_transaction.as_ref())
+        .flatten()
+        .filter(|packed| packed.item_use_transaction.action_type == ItemUse::Useasattack)
+        .map(|_| UseRequest::AttackAir);
+    jab.into_iter().chain(swing)
 }
 
 /// Process a PlayerAuthInput packet: position, rotation, input flags, the

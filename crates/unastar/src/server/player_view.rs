@@ -2,12 +2,9 @@
 //!
 //! A player is shown to the players in its send range
 //! (`entity::send_range`, the chunk circle every actor uses): `AddPlayer`
-//! in the tick one comes into range (its feet, its actor data as its
-//! viewers last received it, its game type:
-//! `broadcast::build_add_player_packet`), `RemoveActor` a tick after it
-//! leaves, and when it leaves the game its `ActorViewers` removal sends
-//! `RemoveActor` to the rest. Its actor data and attributes reach the same
-//! viewers (`player_life::player_viewers`).
+//! in the tick one comes into range, `RemoveActor` a tick after it leaves,
+//! and when it leaves the game its `ActorViewers` removal sends
+//! `RemoveActor` to the rest.
 //!
 //! Every `PlayerAuthInput` a player sends is relayed to its viewers as one
 //! `MovePlayer` (mode normal) with the eye position, ground contact and head

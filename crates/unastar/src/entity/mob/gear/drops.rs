@@ -17,6 +17,8 @@ use rand::Rng;
 use zuri_nbt::NBTTag;
 
 use super::{GearSlot, MobEquipment, mainhand};
+use unastar_rules::ids::Enchantment;
+
 use crate::entity::components::Position;
 use crate::entity::mob::constants::{
     GEAR_DEFAULT_DROP_CHANCE, GEAR_DROP_MIN_MAX_DAMAGE, GEAR_LOOTING_DROP_BONUS,
@@ -25,7 +27,7 @@ use crate::entity::mob::events::held_item;
 use crate::entity::mob::state::LastHurt;
 use crate::entity::{EntityRandom, spawn_item_drop};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level, item_tag, with_durability_damage};
+use crate::item::enchant::{item_tag, with_durability_damage};
 
 /// The item the actor that dealt `mob`'s last hit holds (a player's
 /// selected hotbar stack, a mob's main hand).
@@ -59,7 +61,7 @@ pub fn drop_equipment(world: &mut World, mob: Entity, killed_by_player: bool) {
         return;
     };
     let looting = killer_weapon(world, mob)
-        .map_or(0, |weapon| enchantment_level(weapon, Enchantment::Looting));
+        .map_or(0, |weapon| weapon.enchantment_level(Enchantment::Looting));
     let Some(mut equipment) = world.get::<MobEquipment>(mob).cloned() else {
         return;
     };

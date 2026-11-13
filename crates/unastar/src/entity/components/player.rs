@@ -273,67 +273,92 @@ pub struct Experience {
     pub progress: f32, // 0.0 to 1.0
 }
 
-/// Block breaking state for survival mode.
-/// Tracks ongoing block breaking for crack animation and anti-cheat validation.
-#[derive(Component, Debug, Default)]
+/// A survival block break in progress. Like BDS, the break advances once per
+/// `PlayerAuthInput` of the breaking player, not per server tick (BDS
+/// 1.26.51, scripted client: a client that sent no input for 10 ticks paused
+/// its break; a 15-tick dirt break completed on the 15th input). Only
+/// `AbortDestroyBlock` or a break elsewhere ends it: a completed break goes
+/// on at that position from zero.
+#[derive(Component, Debug, Default, Clone, PartialEq)]
 pub struct BreakingState {
-    /// Position of block being broken (world coords)
+    /// Position being broken (world coords).
     pub position: Option<(i32, i32, i32)>,
-    /// Server tick when breaking started
-    pub start_tick: u64,
-    /// Expected break time in ticks (20 ticks/sec)
-    /// Default hardness = 1.0s = 20 ticks for bare hand
-    pub expected_ticks: u32,
-    /// Break counter for timing sounds/effects (incremented each tick)
-    /// Every 5 ticks, play breaking sound/particles
-    break_counter: u32,
+    /// The block there when the break started (air included).
+    pub block: u32,
+    /// Face the break works on (its crack particles show on that side).
+    pub face: i32,
+    /// Fraction of the block destroyed so far.
+    pub progress: f64,
+    /// Fraction one input adds: the block, held item and player state when
+    /// the break started or last continued.
+    pub speed: f64,
+    /// A break the server completed itself, waiting for plugin approval:
+    /// its commit also corrects the breaking client, which never predicted it.
+    pub completing: Option<(i32, i32, i32)>,
+    /// Inputs since the break started or moved to another position.
+    pub ticks: u32,
+    /// Whether the other players still hear the break's hit sound: from a
+    /// start on a block that can break until an input finds none there.
+    pub sounding: bool,
 }
 
 impl BreakingState {
-    /// Start breaking a block at the given position.
-    pub fn start(&mut self, x: i32, y: i32, z: i32, current_tick: u64, break_time_ticks: u32) {
-        self.position = Some((x, y, z));
-        self.start_tick = current_tick;
-        self.expected_ticks = break_time_ticks;
-        self.break_counter = 0;
+    /// Progress closer to 1 than this counts as complete: fifteen inputs of
+    /// 1/15 add up to 0.9999999999999998.
+    const COMPLETE: f64 = 1.0 - 1e-6;
+
+    /// `StartDestroyBlock` on `block` at `position`, `speed` per input (0
+    /// when the block there cannot break). It begins again from zero unless
+    /// that block is the one being broken there: dirt put back after a break
+    /// kept the progress, air did not (BDS).
+    pub fn start(&mut self, position: (i32, i32, i32), block: u32, face: i32, speed: f64) {
+        if self.position == Some(position) && self.block != block {
+            self.progress = 0.0;
+        }
+        self.block = block;
+        self.ticks = 0;
+        self.sounding = speed > 0.0;
+        self.continue_at(position, block, face, speed);
     }
 
-    /// Stop breaking (abort or finish).
+    /// `ContinueDestroyBlock` on `block` at `position`: another position
+    /// begins again from zero. Where no block can break, the speed of the
+    /// last one is kept, so the break goes on over the air (BDS).
+    pub fn continue_at(&mut self, position: (i32, i32, i32), block: u32, face: i32, speed: f64) {
+        if self.position != Some(position) {
+            self.progress = 0.0;
+            self.block = block;
+            self.speed = speed;
+            self.ticks = 0;
+            self.sounding = speed > 0.0;
+        } else if speed > 0.0 {
+            self.speed = speed;
+        }
+        self.position = Some(position);
+        self.face = face;
+    }
+
+    /// Stop breaking (`AbortDestroyBlock`).
     pub fn stop(&mut self) {
         self.position = None;
-        self.break_counter = 0;
+        self.progress = 0.0;
+        self.speed = 0.0;
+        self.sounding = false;
     }
 
-    /// Check if currently breaking a block.
+    /// Whether a block is being broken.
     pub fn is_breaking(&self) -> bool {
         self.position.is_some()
     }
 
-    /// Tick the breaking state. Call this once per server tick while breaking.
-    /// Returns `true` every 5 ticks (when sound/particles should be played).
-    pub fn tick(&mut self) -> bool {
-        if self.position.is_none() {
-            return false;
-        }
-        self.break_counter += 1;
-        self.break_counter.is_multiple_of(5)
+    /// Add one input's progress.
+    pub fn advance(&mut self) {
+        self.progress += self.speed;
     }
 
-    /// Get the current break counter.
-    pub fn break_counter(&self) -> u32 {
-        self.break_counter
-    }
-
-    /// Validate if enough time has passed to break the block.
-    /// Returns true if elapsed >= expected (with 10% tolerance for network latency).
-    pub fn validate_break(&self, current_tick: u64) -> bool {
-        if self.position.is_none() {
-            return false;
-        }
-        let elapsed = current_tick.saturating_sub(self.start_tick) as u32;
-        // Allow 10% tolerance for network latency
-        let min_required = (self.expected_ticks as f32 * 0.9) as u32;
-        elapsed >= min_required
+    /// Whether the block is destroyed.
+    pub fn is_complete(&self) -> bool {
+        self.progress >= Self::COMPLETE
     }
 }
 

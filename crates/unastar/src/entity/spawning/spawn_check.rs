@@ -16,20 +16,21 @@
 //! Raw brightness is [`crate::world::clock::sky_brightness`]. Block light
 //! is not modelled, so the monster's block-light test always passes. The
 //! server has no weather (see `world::clock`), so the monster's rain
-//! recompute (the sky darkened by 10 while it rains) never applies. Fire
-//! and effect immunity come from `minecraft:fire_immune` and
-//! `minecraft:mob_effect_immunity`, which have no runtime kind: a definition
-//! declaring them does not compile, so every spawnable mob takes the
-//! non-immune path; the wither skeleton's native class is immune to wither.
+//! recompute (the sky darkened by 10 while it rains) never applies. The
+//! spawn check refuses magma ground before it reads the walk-target value,
+//! so only [`walk_target_value`] (goals ranking blocks, such as
+//! `behavior.flee_sun`) reaches the class rules' magma value (-0.5 above
+//! magma for a mob that is not fire immune). The wither skeleton's native
+//! class is immune to wither.
 
 use bevy_ecs::prelude::World;
 use glam::IVec3;
 
 use super::rules::BlockSet;
 use crate::entity::mob::constants::{
-    ANIMAL_GRASS_WALK_TARGET, ANIMAL_WALK_TARGET_OFFSET, MOB_WALK_TARGET,
-    MONSTER_SPAWN_BRIGHTNESS_LIMIT, MONSTER_WALK_TARGET_BASE, OVERWORLD_BRIGHTNESS_RAMP,
-    SPAWN_REFUSING_BLOCKS, SPAWN_UNSAFE_GROUND, SPAWN_WITHER_ROSE,
+    ANIMAL_GRASS_WALK_TARGET, ANIMAL_WALK_TARGET_OFFSET, MAGMA_BLOCK, MAGMA_WALK_TARGET,
+    MOB_WALK_TARGET, MONSTER_SPAWN_BRIGHTNESS_LIMIT, MONSTER_WALK_TARGET_BASE,
+    OVERWORLD_BRIGHTNESS_RAMP, SPAWN_REFUSING_BLOCKS, SPAWN_UNSAFE_GROUND, SPAWN_WITHER_ROSE,
 };
 use crate::entity::mob::native::SpawnClass;
 use crate::entity::systems::physics::BlockSource;
@@ -84,16 +85,39 @@ impl NativeSpawnBlocks {
     }
 
     /// The class's walk-target value at a block with raw brightness `raw`
-    /// above the block `ground`.
+    /// above the block `ground` (never magma here: it refused the spawn).
     fn walk_target(&self, class: SpawnClass, ground: u32, raw: u8) -> f32 {
-        let ramp = OVERWORLD_BRIGHTNESS_RAMP[usize::from(raw.min(15))];
-        match class {
-            SpawnClass::Mob => MOB_WALK_TARGET,
-            SpawnClass::Animal if self.grass.contains(ground) => ANIMAL_GRASS_WALK_TARGET,
-            SpawnClass::Animal => ramp + ANIMAL_WALK_TARGET_OFFSET,
-            SpawnClass::Monster => MONSTER_WALK_TARGET_BASE - ramp,
-        }
+        class_walk_target(class, self.grass.contains(ground), false, raw)
     }
+}
+
+/// The native walk-target value of a class at a block with raw brightness
+/// `raw`, `grass` when a grass block is below it and `magma` when magma is
+/// below it and the mob is not fire immune.
+fn class_walk_target(class: SpawnClass, grass: bool, magma: bool, raw: u8) -> f32 {
+    let ramp = OVERWORLD_BRIGHTNESS_RAMP[usize::from(raw.min(15))];
+    match class {
+        SpawnClass::Mob => MOB_WALK_TARGET,
+        SpawnClass::Animal if grass => ANIMAL_GRASS_WALK_TARGET,
+        SpawnClass::Animal | SpawnClass::Monster if magma => MAGMA_WALK_TARGET,
+        SpawnClass::Animal => ramp + ANIMAL_WALK_TARGET_OFFSET,
+        SpawnClass::Monster => MONSTER_WALK_TARGET_BASE - ramp,
+    }
+}
+
+/// The native walk-target value of a mob of class `class` at the block
+/// `pos`, for goals that rank blocks by it (`behavior.flee_sun`).
+pub fn walk_target_value(world: &World, class: SpawnClass, fire_immune: bool, pos: IVec3) -> f32 {
+    let below = world.block_at(pos - IVec3::Y);
+    let is = |name: &str| {
+        below.is_some_and(|id| BlockSet::named(world.registry(), &[name]).contains(id))
+    };
+    class_walk_target(
+        class,
+        is("minecraft:grass_block"),
+        !fire_immune && is(MAGMA_BLOCK),
+        sky_brightness(world, pos),
+    )
 }
 
 #[cfg(test)]

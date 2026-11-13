@@ -84,6 +84,25 @@ pub fn get(identifier: &str) -> Option<&'static ActorObservation> {
         .map(|index| &observations[index])
 }
 
+/// The observation whose native AddActor emitted `actor_type`, for an
+/// actor BDS only ever creates through a summon alias (`/summon
+/// minecraft:zombie_villager` emits `minecraft:zombie_villager_v2`).
+pub fn get_emitted(actor_type: &str) -> Option<&'static ActorObservation> {
+    vanilla()
+        .observations
+        .iter()
+        .find(|row| row.actor_type == actor_type)
+}
+
+/// Summon identifiers BDS answers with another actor: `(summoned, emitted)`.
+pub fn summon_aliases() -> impl Iterator<Item = (&'static str, &'static str)> {
+    vanilla()
+        .observations
+        .iter()
+        .filter(|row| row.identifier != row.actor_type)
+        .map(|row| (row.identifier.as_str(), row.actor_type.as_str()))
+}
+
 #[cfg(test)]
 #[path = "../build/actor_wire.rs"]
 mod compiler;

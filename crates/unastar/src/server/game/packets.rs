@@ -39,23 +39,27 @@ impl GameServer {
             }
         };
 
-        // A client `Disconnect` only records the quit. The session's network task ends
-        // with it, and the tick loop's normal leave path saves, then despawns, the
-        // player; despawning here left that save with no player to save.
+        // A client `Disconnect` ends the session's network task. The tick loop's normal
+        // leave path then saves and despawns the player, and `despawn_player` queues the
+        // plugin `PlayerQuit`; despawning here would leave that save with no player.
         if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
-            if let Some(mut event_buffer) = self
-                .ecs
-                .world_mut()
-                .get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
-            }
             return;
         }
 
         // Route by packet type into domain queues
         let world = self.ecs.world_mut();
+        // After a malformed input, nothing more from the client counts while
+        // the network layer closes its connection (BDS stops reading it).
+        if world.get::<MalformedInput>(entity).is_some() {
+            return;
+        }
+
+        if applied_before_commands(packet.packet_id())
+            && let Some(mut order) = world.get_resource_mut::<super::commands::CommandOrder>()
+        {
+            order.input(entity);
+        }
 
         match packet {
             // ── Movement ──────────────────────────────────────────────────
@@ -81,8 +85,16 @@ impl GameServer {
                 data: BorrowedMcpePacketData::CommandRequestPacket(pk),
                 ..
             } => {
-                if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
-                    q.0.push((entity, session_id, ChatAction::Command(pk.into())));
+                // A request ahead of its player's inputs runs before them.
+                let request = pk.into();
+                let late = match world.get_resource_mut::<super::commands::CommandOrder>() {
+                    Some(mut order) => order.request(entity, request),
+                    None => Some(request),
+                };
+                if let Some(request) = late
+                    && let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>()
+                {
+                    q.0.push((entity, session_id, ChatAction::Command(request)));
                 }
             }
 
@@ -130,7 +142,9 @@ impl GameServer {
     ) {
         match packet.data {
             McpePacketData::PlayerAuthInputPacket(pk) => {
-                if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
+                if has_creative_destroy(&pk) {
+                    refuse_malformed_input(world, entity);
+                } else if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
                     q.0.push((entity, MovementInput::AuthInput(pk)));
                 }
             }
@@ -217,6 +231,14 @@ impl GameServer {
             McpePacketData::AnimatePacket(pk) => {
                 crate::server::broadcast::relay_player_swing(world, entity, &pk);
             }
+            McpePacketData::BlockActorDataPacket(pk) => {
+                let pos = glam::IVec3::new(
+                    pk.block_position.x,
+                    pk.block_position.y,
+                    pk.block_position.z,
+                );
+                super::signs::client_edit(world, entity, pos, &pk.actor_data_tags);
+            }
             McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
                 // Ends the streamed spawn; jolyne's receive path checked its runtime ID.
             }
@@ -225,6 +247,25 @@ impl GameServer {
             }
         }
     }
+}
+
+/// Packets whose queues a system drains before `run_commands` (movement and
+/// block actions, inventory, item use, mob actions, respawn). A command
+/// request after one of them in a tick waits for them
+/// ([`super::commands::CommandOrder`]).
+fn applied_before_commands(name: McpePacketName) -> bool {
+    matches!(
+        name,
+        McpePacketName::PlayerAuthInputPacket
+            | McpePacketName::PlayerActionPacket
+            | McpePacketName::RespawnPacket
+            | McpePacketName::InventoryTransactionPacket
+            | McpePacketName::ItemStackRequestPacket
+            | McpePacketName::MobEquipmentPacket
+            | McpePacketName::InteractPacket
+            | McpePacketName::BlockPickRequestPacket
+            | McpePacketName::ContainerClosePacket
+    )
 }
 
 /// The air-use request an inventory transaction makes, if any: `ItemUse`
@@ -242,6 +283,11 @@ fn air_use(
         T::ItemUseInventoryTransaction(use_item) if use_item.action_type == ItemUse::Use => {
             Some(UseRequest::UseAir)
         }
+        T::ItemUseInventoryTransaction(use_item)
+            if use_item.action_type == ItemUse::Useasattack =>
+        {
+            Some(UseRequest::AttackAir)
+        }
         T::ItemReleaseInventoryTransaction(release) => match release.action_type {
             Release::Release => Some(UseRequest::Release),
             Release::Use => Some(UseRequest::Consume),
@@ -249,4 +295,39 @@ fn air_use(
         },
         _ => None,
     }
+}
+
+/// A client whose input was malformed: its later packets are ignored.
+#[derive(bevy_ecs::prelude::Component)]
+struct MalformedInput;
+
+/// Whether an input carries a `CreativeDestroyBlock` block action, which BDS
+/// cannot read in a `PlayerAuthInput` (captured with
+/// `tools/bds-sweep/scripts/breaking-2.txt`).
+fn has_creative_destroy(input: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
+    input.player_block_actions.as_ref().is_some_and(|actions| {
+        actions.iter().any(|action| {
+            action.player_action_type
+                == jolyne::valentine::types::EnumsPlayerActionType::Creativedestroyblock
+        })
+    })
+}
+
+/// BDS answers such an input as a malformed packet: this terminating warning
+/// (the network loop then closes the connection), and nothing of the input
+/// is applied.
+fn refuse_malformed_input(world: &mut bevy_ecs::world::World, entity: bevy_ecs::prelude::Entity) {
+    use jolyne::valentine::{EnumsPacketViolationSeverity, EnumsPacketViolationType};
+    world.entity_mut(entity).insert(MalformedInput);
+    let Some(session) = world.get::<crate::entity::components::PlayerSession>(entity) else {
+        return;
+    };
+    let _ = session.send(McpePacket::from(
+        crate::network::violation::packet_violation(
+            EnumsPacketViolationType::Packetmalformed,
+            EnumsPacketViolationSeverity::Terminatingconnection,
+            144,
+            Some("PlayerAuthInputPacket: unsupported player block action type"),
+        ),
+    ));
 }

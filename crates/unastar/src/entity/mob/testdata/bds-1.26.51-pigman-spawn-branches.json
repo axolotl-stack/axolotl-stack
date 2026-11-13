@@ -1,0 +1,19 @@
+{
+  "description": "Spawn-event branches of 1024 summoned zombie pigmen. One pigman is summoned and `execute as @e[type=zombie_pigman] at @s run summon minecraft:zombie_pigman ~ ~ ~` doubles them ten times inside a sealed barrier box 400 blocks from the player (out of the client's view); `testfor` then counts them by family. The definition's `minecraft:entity_spawned` randomizes spawn_adult (weight 9500), spawn_baby (425) and spawn_baby_jockey (75); spawn_baby_jockey is not declared, and a pigman that draws it gets no component group, so no family at all.",
+  "server": "BDS 1.26.51 (plain bedrock_server, no Endstone), seed 12345 harness world",
+  "source": {
+    "capture": "tools/bds-sweep/capture.py --commands, 2026-11-10 (ent-jockey3-20261110), operator-commands/command-outputs.json",
+    "command_outputs_sha256": "0ecae5bde7ee517927d908badddaf91129a2af5df79ac2597a638764ebaeee62"
+  },
+  "weights": {
+    "spawn_adult": 9500,
+    "spawn_baby": 425,
+    "spawn_baby_jockey": 75
+  },
+  "counts": {
+    "total": 1024,
+    "without_family_monster": 7,
+    "family_baby_zombie_pigman": 47,
+    "family_zombie_pigman": 970
+  }
+}

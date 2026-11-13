@@ -34,8 +34,8 @@ use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkViewers};
 use crate::world::rules::Difficulty;
 
 /// Noon and midnight on the world clock.
-const NOON: u64 = 6_000;
-const MIDNIGHT: u64 = 18_000;
+const NOON: i64 = 6_000;
+const MIDNIGHT: i64 = 18_000;
 
 struct Harness {
     server: GameServer,
@@ -45,7 +45,7 @@ struct Harness {
 
 /// A grass floor at y = 63 over chunks -1..=1 × -1..=1 at `time`, viewed by
 /// one player in `mode` standing on it at (8.5, 64, 0.5).
-fn harness(seed: u64, difficulty: Difficulty, time: u64, mode: GameMode) -> Harness {
+fn harness(seed: u64, difficulty: Difficulty, time: i64, mode: GameMode) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -464,10 +464,8 @@ mod equipment {
     use crate::entity::mob::gear::{CanPickUpLoot, PendingEquip, equipment_count};
     use crate::entity::mob::state::Persistent;
     use crate::entity::spawn_item_drop;
-    use crate::item::enchant::{
-        Enchantment, durability_damage, enchantment_level, with_durability_damage,
-        with_enchantments,
-    };
+    use crate::item::enchant::{durability_damage, with_durability_damage, with_enchantments};
+    use unastar_rules::ids::Enchantment;
 
     impl Harness {
         fn stack(&mut self, item: &str) -> crate::item::ItemStack {
@@ -727,7 +725,7 @@ mod equipment {
         h.equip(zombie, GearSlot::Mainhand, "minecraft:iron_sword", true);
         let helmet = h.stack("minecraft:diamond_helmet");
         let helmet = with_durability_damage(
-            &with_enchantments(&helmet, &[(Enchantment::Unbreaking, 2)]),
+            &with_enchantments(&helmet, [(Enchantment::Unbreaking, 2)]),
             37,
         );
         let world = h.world();
@@ -752,7 +750,7 @@ mod equipment {
             assert_eq!(head.stack.item_id(), "minecraft:diamond_helmet");
             assert!(!head.picked_up);
             assert_eq!(durability_damage(&head.stack), 37);
-            assert_eq!(enchantment_level(&head.stack, Enchantment::Unbreaking), 2);
+            assert_eq!(head.stack.enchantment_level(Enchantment::Unbreaking), 2);
             assert_eq!(gear.drop_chance(GearSlot::Head), Some(0.5));
             assert_eq!(gear.drop_chance(GearSlot::Mainhand), None);
             world.despawn(restored);

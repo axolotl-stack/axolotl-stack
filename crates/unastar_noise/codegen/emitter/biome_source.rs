@@ -71,6 +71,11 @@ pub fn emit(preset: &str, params: &BiomeParameters) -> Result<TokenStream, Strin
         }
     }
     let count = flat.spaces.len();
+    if count > usize::from(u16::MAX) {
+        return Err(format!(
+            "{preset} biome R-tree has {count} nodes; leaves are u16"
+        ));
+    }
     let Flat {
         spaces,
         first_child,
@@ -184,6 +189,56 @@ pub fn emit(preset: &str, params: &BiomeParameters) -> Result<TokenStream, Strin
             })
         }
 
+        /// Whether a leaf other than `leaf` lies at `limit`, the nearest
+        /// distance (nothing lies closer, so only equal distances qualify).
+        #[allow(clippy::needless_range_loop)]
+        fn has_other_at(node: usize, target: &[i64; #dims], limit: i64, leaf: usize) -> bool {
+            let first = FIRST_CHILD[node] as usize;
+            for child in first..first + CHILD_COUNT[node] as usize {
+                if distance(child, target) > limit {
+                    continue;
+                }
+                let other = if CHILD_COUNT[child] == 0 {
+                    child != leaf
+                } else {
+                    has_other_at(child, target, limit, leaf)
+                };
+                if other {
+                    return true;
+                }
+            }
+            false
+        }
+
+        /// A lookup's leaf, and whether it is the only leaf at the nearest
+        /// distance. The search always finds a nearest leaf and keeps the
+        /// previous one only on a tie, so a unique nearest leaf is the result
+        /// from every history.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub struct Found {
+            pub leaf: u16,
+            pub unique: bool,
+        }
+
+        /// [`find`], also reporting the leaf found and its uniqueness.
+        pub fn find_traced(target: &[i64; #dims]) -> (JavaBiome, Found) {
+            let biome = find(target);
+            let leaf = SEARCH.with(|slot| slot.get().previous.expect("a search just ran"));
+            let unique = CHILD_COUNT[0] == 0
+                || !has_other_at(0, target, distance(leaf, target), leaf);
+            (biome, Found { leaf: leaf as u16, unique })
+        }
+
+        /// Leaves the calling thread's history as if its last lookup had found
+        /// `leaf`; replaying a run of unique lookups ends in exactly this state.
+        pub fn restore(leaf: u16) {
+            SEARCH.with(|slot| {
+                slot.set(Search {
+                    previous: Some(leaf as usize),
+                })
+            });
+        }
+
         /// Quantized climate target from raw router values (offset dimension 0).
         #[inline]
         pub fn target(
@@ -203,6 +258,62 @@ pub fn emit(preset: &str, params: &BiomeParameters) -> Result<TokenStream, Strin
                 quantize(weirdness),
                 0,
             ]
+        }
+
+        #[cfg(test)]
+        mod traced_tests {
+            use super::*;
+
+            /// Every leaf index and its distance to `target`.
+            fn leaves(target: &[i64; DIMS]) -> Vec<(usize, i64)> {
+                (0..CHILD_COUNT.len())
+                    .filter(|&node| CHILD_COUNT[node] == 0)
+                    .map(|leaf| (leaf, distance(leaf, target)))
+                    .collect()
+            }
+
+            /// Targets built from leaf range ends meet equal distances often
+            /// (overworld ranges overlap and abut);
+            /// uniqueness must match a brute-force count, and a unique leaf
+            /// must be found from any previous leaf.
+            #[test]
+            fn traced_uniqueness_matches_brute_force() {
+                let all: Vec<usize> = leaves(&[0; DIMS]).into_iter().map(|(leaf, _)| leaf).collect();
+                let mut state = 0x9e37_79b9_7f4a_7c15u64;
+                let mut next = || {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    state
+                };
+                let (mut unique_seen, mut tied_seen) = (0, 0);
+                for _ in 0..2000 {
+                    let mut target = [0i64; DIMS];
+                    for (dim, value) in target.iter_mut().enumerate().take(DIMS - 1) {
+                        let leaf = all[next() as usize % all.len()];
+                        *value = SPACE[leaf][dim][(next() % 2) as usize];
+                    }
+                    let distances = leaves(&target);
+                    let nearest = distances.iter().map(|&(_, d)| d).min().expect("leaves");
+                    let at_nearest = distances.iter().filter(|&&(_, d)| d == nearest).count();
+                    let (biome, found) = find_traced(&target);
+                    let leaf = found.leaf as usize;
+                    assert_eq!(distance(leaf, &target), nearest);
+                    assert_eq!(BIOME[leaf], biome);
+                    assert_eq!(found.unique, at_nearest == 1, "target {target:?}");
+                    if found.unique {
+                        unique_seen += 1;
+                        let from = all[next() as usize % all.len()];
+                        let mut search = Search { previous: Some(from) };
+                        search.find(&target);
+                        assert_eq!(search.previous, Some(leaf));
+                    } else {
+                        tied_seen += 1;
+                    }
+                }
+                // Point-only lists (nether) have no equal-distance ranges to hit.
+                assert!(unique_seen > 0, "{unique_seen} unique, {tied_seen} tied");
+            }
         }
     })
 }

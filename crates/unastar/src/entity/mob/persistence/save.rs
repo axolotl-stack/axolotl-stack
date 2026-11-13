@@ -7,7 +7,7 @@ use glam::DVec3;
 use zuri_nbt::{NBTTag, encoding::LittleEndian, tag};
 
 use crate::ecs::resources::TickCounter;
-use crate::entity::components::{Health, OnGround, Position, Rotation, Velocity};
+use crate::entity::components::{Health, OnGround, Position, Rotation, Tags, Velocity};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::properties::{ActorProperties, NamedPropertyValue};
 use crate::entity::mob::MobKind;
@@ -158,6 +158,9 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     }
     for (name, value) in crate::entity::mob::gear::persist::save(world, mob) {
         put(name, value);
+    }
+    if let Some(tags) = world.get::<Tags>(mob).filter(|tags| !tags.0.is_empty()) {
+        put("Tags", list(tags.0.iter().cloned().map(tag::String)));
     }
 
     let mut out = Vec::new();

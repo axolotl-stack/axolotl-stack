@@ -1,0 +1,225 @@
+# Item use: the spyglass, goat horns, the elytra, potions and ominous
+# bottles, for packet captures of the same scripted player against BDS and
+# unastar (`bds-sweep-client --script tools/bds-sweep/scripts/use-items.txt
+# --capture-dir DIR`, an operator). Ticks are the client's input ticks.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /time set 6000
+25 /fill -4 -61 -4 4 -61 4 stone
+26 /fill -4 -60 -4 4 -55 4 air
+27 /gamemode survival @s
+28 /clear @s
+29 /tp @s 0.5 -60 0.5 -90 0
+30 /effect @s clear
+
+# 1. The spyglass: held 20 inputs, then let go.
+40 /give @s spyglass
+45 use
+65 release-item
+70 /clear @s
+
+# 2. Goat horns 0-7: one use each (no release), then a second use 20 inputs
+#    later, inside the cooldown, for horn 0.
+80 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 0
+85 use
+105 use
+88 release-item
+280 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 1
+285 use
+288 release-item
+440 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 2
+445 use
+448 release-item
+600 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 3
+605 use
+608 release-item
+760 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 4
+765 use
+768 release-item
+920 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 5
+925 use
+928 release-item
+1080 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 6
+1085 use
+1088 release-item
+1240 /replaceitem entity @s slot.weapon.mainhand 0 goat_horn 1 7
+1245 use
+1248 release-item
+1400 /clear @s
+
+# 3. Potions 0-46 (the aux data): drunk to the end (no release), the effects
+#    cleared between them.
+1410 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 0
+1413 use
+1452 /effect @s clear
+1455 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 1
+1458 use
+1497 /effect @s clear
+1500 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 2
+1503 use
+1542 /effect @s clear
+1545 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 3
+1548 use
+1587 /effect @s clear
+1590 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 4
+1593 use
+1632 /effect @s clear
+1635 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 5
+1638 use
+1677 /effect @s clear
+1680 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 6
+1683 use
+1722 /effect @s clear
+1725 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 7
+1728 use
+1767 /effect @s clear
+1770 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 8
+1773 use
+1812 /effect @s clear
+1815 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 9
+1818 use
+1857 /effect @s clear
+1860 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 10
+1863 use
+1902 /effect @s clear
+1905 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 11
+1908 use
+1947 /effect @s clear
+1950 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 12
+1953 use
+1992 /effect @s clear
+1995 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 13
+1998 use
+2037 /effect @s clear
+2040 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 14
+2043 use
+2082 /effect @s clear
+2085 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 15
+2088 use
+2127 /effect @s clear
+2130 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 16
+2133 use
+2172 /effect @s clear
+2175 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 17
+2178 use
+2217 /effect @s clear
+2220 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 18
+2223 use
+2262 /effect @s clear
+2265 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 19
+2268 use
+2307 /effect @s clear
+2310 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 20
+2313 use
+2352 /effect @s clear
+2355 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 21
+2358 use
+2397 /effect @s clear
+2400 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 22
+2403 use
+2442 /effect @s clear
+2445 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 23
+2448 use
+2487 /effect @s clear
+2490 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 24
+2493 use
+2532 /effect @s clear
+2535 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 25
+2538 use
+2577 /effect @s clear
+2580 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 26
+2583 use
+2622 /effect @s clear
+2625 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 27
+2628 use
+2667 /effect @s clear
+2670 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 28
+2673 use
+2712 /effect @s clear
+2715 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 29
+2718 use
+2757 /effect @s clear
+2760 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 30
+2763 use
+2802 /effect @s clear
+2805 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 31
+2808 use
+2847 /effect @s clear
+2850 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 32
+2853 use
+2892 /effect @s clear
+2895 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 33
+2898 use
+2937 /effect @s clear
+2940 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 34
+2943 use
+2982 /effect @s clear
+2985 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 35
+2988 use
+3027 /effect @s clear
+3030 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 36
+3033 use
+3072 /effect @s clear
+3075 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 37
+3078 use
+3117 /effect @s clear
+3120 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 38
+3123 use
+3162 /effect @s clear
+3165 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 39
+3168 use
+3207 /effect @s clear
+3210 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 40
+3213 use
+3252 /effect @s clear
+3255 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 41
+3258 use
+3297 /effect @s clear
+3300 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 42
+3303 use
+3342 /effect @s clear
+3345 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 43
+3348 use
+3387 /effect @s clear
+3390 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 44
+3393 use
+3432 /effect @s clear
+3435 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 45
+3438 use
+3477 /effect @s clear
+3480 /replaceitem entity @s slot.weapon.mainhand 0 potion 1 46
+3483 use
+3522 /effect @s clear
+
+# 4. Ominous bottles 0-4.
+3525 /replaceitem entity @s slot.weapon.mainhand 0 ominous_bottle 1 0
+3528 use
+3567 /effect @s clear
+3570 /replaceitem entity @s slot.weapon.mainhand 0 ominous_bottle 1 1
+3573 use
+3612 /effect @s clear
+3615 /replaceitem entity @s slot.weapon.mainhand 0 ominous_bottle 1 2
+3618 use
+3657 /effect @s clear
+3660 /replaceitem entity @s slot.weapon.mainhand 0 ominous_bottle 1 3
+3663 use
+3702 /effect @s clear
+3705 /replaceitem entity @s slot.weapon.mainhand 0 ominous_bottle 1 4
+3708 use
+3747 /effect @s clear
+3750 /clear @s
+
+# 5. The elytra: worn, 150 blocks up, then gliding until it lands; a second
+#    elytra with 2 durability left, gliding again.
+3760 /replaceitem entity @s slot.armor.chest 0 elytra
+3765 /tp @s 0.5 90 0.5 -90 0
+3770 flags Startgliding
+4160 /tp @s 0.5 -60 0.5 -90 0
+4170 /replaceitem entity @s slot.armor.chest 0 elytra 1 430
+4172 /tp @s 0.5 90 0.5 -90 0
+4175 flags Stopgliding
+4180 flags Startgliding
+4360 /tp @s 0.5 -60 0.5 -90 0
+4370 exit

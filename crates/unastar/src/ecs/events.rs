@@ -77,9 +77,14 @@ pub enum ServerEvent {
         player_id: String,
         position: (i32, i32, i32),
         block_id: u32,
+        /// The clicked block and face the placement came from.
+        clicked: (i32, i32, i32),
+        face: u8,
     },
+    /// A plugin timer fired. Delivered only to `plugin_id`, the plugin that set it.
     Timer {
         id: u64,
+        plugin_id: crate::plugin::PluginId,
     },
     PlayerMove {
         entity: Entity,

@@ -16,10 +16,8 @@ use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
 use crate::entity::components::{
-    ActorViewers, Health, Hunger, Player, PlayerInput, PlayerSession, PlayerState, Position,
-    RuntimeEntityId,
+    ActorViewers, Health, Hunger, Player, PlayerInput, PlayerSession, PlayerState, RuntimeEntityId,
 };
-use crate::entity::send_range::Candidates;
 
 /// Maximum food level.
 pub const MAX_FOOD: f32 = 20.0;
@@ -184,15 +182,13 @@ impl SentAttributes {
     }
 }
 
-/// System: send each player and the players that see it
-/// (`player_life::player_viewers`: its `ActorViewers`, else the actor send
-/// range) the attributes that changed since the last send. The packet
-/// carries the player's last input tick, so the client applies it in order
-/// with its own prediction.
+/// System: send each player and the players that see it (its
+/// `ActorViewers`, as `player_life::player_viewers`) the attributes that
+/// changed since the last send. The packet carries the player's last input
+/// tick, so the client applies it in order with its own prediction.
 #[allow(clippy::type_complexity)]
 pub fn sync_player_attributes(
     mut players: Query<(
-        Entity,
         &RuntimeEntityId,
         &PlayerSession,
         &PlayerInput,
@@ -200,30 +196,13 @@ pub fn sync_player_attributes(
         &Hunger,
         Option<&Absorption>,
         Option<&PlayerState>,
-        Option<&Position>,
         Option<&ActorViewers>,
         &mut SentAttributes,
     )>,
-    others: Query<(Entity, &Position, &PlayerSession), With<Player>>,
+    others: Query<&PlayerSession, With<Player>>,
 ) {
-    let candidates = Candidates::new(
-        others
-            .iter()
-            .map(|(entity, position, _)| (entity, position.0)),
-    );
-    for (
-        player,
-        runtime_id,
-        session,
-        input,
-        health,
-        hunger,
-        absorb,
-        state,
-        position,
-        shown_to,
-        mut sent,
-    ) in &mut players
+    for (runtime_id, session, input, health, hunger, absorb, state, shown_to, mut sent) in
+        &mut players
     {
         let sprinting = state.is_some_and(|state| state.sprinting);
         let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0), sprinting);
@@ -238,13 +217,8 @@ pub fn sync_player_attributes(
             tick: input.wire_tick(),
         });
         let _ = session.send(packet.clone());
-        let viewers = match (shown_to, position) {
-            (Some(viewers), _) => viewers.viewers.clone(),
-            (None, Some(position)) => candidates.in_range_of(position.0, Some(player)),
-            (None, None) => Vec::new(),
-        };
-        for viewer in viewers {
-            if let Ok((_, _, session)) = others.get(viewer) {
+        for viewer in shown_to.into_iter().flat_map(|viewers| &viewers.viewers) {
+            if let Ok(session) = others.get(*viewer) {
                 let _ = session.send(packet.clone());
             }
         }

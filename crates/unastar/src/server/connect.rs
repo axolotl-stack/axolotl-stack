@@ -3,7 +3,7 @@
 //! Contains the handshake logic for new player connections.
 
 use glam::DVec3;
-use jolyne::auth::ValidatedIdentity;
+use jolyne::auth::{ClientData, ValidatedIdentity};
 use jolyne::stream::raknet_types::{ServerHandshakeStream, ServerPlayStream};
 use jolyne::stream::{Failed, RakNetTransport};
 use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
@@ -11,7 +11,28 @@ use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
 
 use crate::config::{PlayerDataStore, SpawnLocation, UnastarConfig};
-use crate::storage::{PlayerData, PlayerProvider};
+use crate::storage::{PlayerData, PlayerProvider, StorageError, StorageResult};
+
+/// Why a join sequence stopped. The client has been sent a disconnect.
+#[derive(Debug, thiserror::Error)]
+pub enum JoinError {
+    #[error(transparent)]
+    Protocol(#[from] JolyneError),
+    /// The player's stored record exists but can't be read or is invalid.
+    /// The join is refused so the record is kept for repair instead of being
+    /// overwritten by a save of first-join state.
+    ///
+    /// This includes transient storage I/O errors from the player database,
+    /// on purpose: the server can't tell a passing read failure from a lost
+    /// record, and letting the player in with first-join state would let that
+    /// session's save overwrite the real one. The player can retry the join.
+    #[error("saved player data is unreadable: {0}")]
+    SavedPlayerData(StorageError),
+}
+
+/// Disconnect message for a join refused over its saved record.
+pub const UNREADABLE_PLAYER_DATA_MESSAGE: &str =
+    "Unable to load saved player data. Contact the server operator.";
 
 /// What StartGame is built from: the startup template and the live clock,
 /// difficulty and game rules.
@@ -32,7 +53,9 @@ pub struct JoinWorld<'a> {
 /// 6. Start game packet, returning at the client's chunk radius request
 ///    (streamed spawn: the client has not initialized yet)
 ///
-/// A failed step sends the client a reasoned disconnect before returning.
+/// A failed step sends the client a reasoned disconnect before returning. A
+/// stored player record that can't be loaded refuses the join (see
+/// [`load_player_data`]).
 pub async fn accept_join_sequence(
     world: JoinWorld<'_>,
     server_key: &SecretKey,
@@ -47,8 +70,9 @@ pub async fn accept_join_sequence(
         ValidatedIdentity,
         Vec3,
         Option<PlayerData>,
+        ClientData,
     ),
-    JolyneError,
+    JoinError,
 > {
     /// Tells the client why a join step failed, then surfaces the error.
     async fn reasoned<T>(
@@ -70,13 +94,34 @@ pub async fn accept_join_sequence(
     // proved it holds the login's key.
     let packs = reasoned(secure.finish_handshake(server_key)).await?;
     let identity = packs.login().identity.clone();
+    // The validated login client data: the skin and platform the player list shows.
+    let client_data = packs.login().client_data.clone();
 
     // 4. Resource packs (from the listener config)
     let start_game_state = reasoned(packs.negotiate_packs()).await?;
 
     // 5. Resolve spawn before StartGame.
     let uuid = identity.uuid().to_string();
-    let mut saved_data = load_player_data(player_provider, Some(&uuid)).await;
+    let mut saved_data = match load_player_data(player_provider, Some(&uuid)).await {
+        Ok(saved) => saved,
+        Err(error) => {
+            tracing::warn!(
+                %uuid,
+                name = identity.display_name(),
+                xuid = identity.xuid().unwrap_or("none"),
+                %error,
+                "Refusing join for {}: saved player data is unreadable; keeping the record",
+                identity.display_name()
+            );
+            let _ = start_game_state
+                .disconnect(
+                    jolyne::valentine::EnumsConnectionDisconnectFailReason::Disconnected,
+                    UNREADABLE_PLAYER_DATA_MESSAGE,
+                )
+                .await;
+            return Err(JoinError::SavedPlayerData(error));
+        }
+    };
     let spawn = resolve_spawn_location(
         config,
         Some(&uuid),
@@ -103,6 +148,10 @@ pub async fn accept_join_sequence(
     // The clock, difficulty and game rules as they are now, not as the
     // template was built at startup.
     world.state.apply(&mut join_params.start_game);
+    // The player's game mode travels in StartGame only: BDS sends no
+    // SetPlayerGameType during the join.
+    join_params.start_game.game_type =
+        crate::server::game::join::game_type(config.server.default_gamemode);
     if let Some(saved) = &saved_data {
         join_params.start_game.game_type = match saved.game_mode {
             0 => jolyne::valentine::EnumsGameType::Survival,
@@ -127,27 +176,30 @@ pub async fn accept_join_sequence(
     // `PlayStatus(PlayerSpawn)`, and keep streaming while the client loads (BDS
     // order). The play receive path enforces `SetLocalPlayerAsInitialized`.
     let play = reasoned(start_game_state.start_game_streamed(join_params)).await?;
-    Ok((play, identity, initial_position, saved_data))
+    Ok((play, identity, initial_position, saved_data, client_data))
 }
 
 /// Load validated player state once, before StartGame and ECS spawning.
-/// Read/parse errors preserve the record and fall back to first-join defaults.
+///
+/// `Ok(None)` means first join (no provider, no UUID, or no record). A record
+/// that can't be read, parsed or validated is an error and is left untouched:
+/// joining with defaults instead would let that session's save overwrite it.
 pub async fn load_player_data(
     provider: Option<&dyn PlayerProvider>,
     uuid: Option<&str>,
-) -> Option<PlayerData> {
-    let provider = provider?;
-    let uuid = uuid.and_then(|uuid| uuid::Uuid::parse_str(uuid).ok())?;
-    let result = match provider.load(uuid).await {
-        Ok(Some(data)) => data.validate(uuid).map(|()| Some(data)),
-        other => other,
+) -> StorageResult<Option<PlayerData>> {
+    let Some(provider) = provider else {
+        return Ok(None);
     };
-    match result {
-        Ok(data) => data,
-        Err(error) => {
-            tracing::warn!(%uuid, %error, "Failed to load player data; using defaults without deleting stored data");
-            None
+    let Some(uuid) = uuid.and_then(|uuid| uuid::Uuid::parse_str(uuid).ok()) else {
+        return Ok(None);
+    };
+    match provider.load(uuid).await? {
+        Some(data) => {
+            data.validate(uuid)?;
+            Ok(Some(data))
         }
+        None => Ok(None),
     }
 }
 
@@ -428,6 +480,15 @@ mod tests {
         assert!(
             bounds.contains(chunk),
             "spawn {spawn:?} is in chunk {chunk:?}"
+        );
+    }
+
+    /// The refused player is told the server, not their client, is at fault.
+    #[test]
+    fn the_unreadable_record_disconnect_points_to_the_operator() {
+        assert_eq!(
+            UNREADABLE_PLAYER_DATA_MESSAGE,
+            "Unable to load saved player data. Contact the server operator."
         );
     }
 }

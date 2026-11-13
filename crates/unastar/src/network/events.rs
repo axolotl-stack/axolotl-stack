@@ -26,6 +26,8 @@ pub enum NetworkEvent {
         runtime_id: i64,
         initial_position: DVec3,
         saved_data: Option<Box<crate::storage::PlayerData>>,
+        /// The validated login client data (skin, platform); `None` in tests.
+        client_data: Option<Box<jolyne::auth::ClientData>>,
         /// The chunk radius granted to the client (`ChunkRadiusUpdated`).
         chunk_radius: i32,
         /// Bounded channel to send packets to this player.

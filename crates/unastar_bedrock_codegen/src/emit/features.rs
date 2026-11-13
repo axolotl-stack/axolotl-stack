@@ -2,11 +2,12 @@
 //!
 //! Composition types are compiled inline (their children become direct calls):
 //! - `scatter_feature`: an unrolled scatter loop (see [`super::scatter`]);
-//! - `aggregate_feature`: every child at the same input; `early_out`
-//!   `first_failure` stops at the first child that places nothing,
+//! - `aggregate_feature`: every child at the same input; it succeeds when any
+//!   child placed, with the last success's position; `early_out`
+//!   `first_failure` stops only when the first child places nothing,
 //!   `first_success` at the first that places something;
-//! - `sequence_feature`: each child receives the previous child's output
-//!   position, stopping at the first failure;
+//! - `sequence_feature`: each child receives the last successful child's
+//!   position;
 //! - `weighted_random_feature`: one child picked by weight;
 //! - `search_feature`: sweeps `search_volume` along `search_axis` (outer loop)
 //!   and stops once `required_successes` placements succeeded;
@@ -95,7 +96,14 @@ fn scatter_feature(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
         None => Scatter::parse_keys(o)?,
     };
     let call = |p: TokenStream| em.call(&target, p);
-    let body = scatter::emit(em, o.origin, &s, call)?;
+    // A placed `scatter_feature` consumes one draw of the feature random right
+    // after its chance roll, whether or not it passed, and before any
+    // position (feature rules do not). Measured: the first dark oaks of
+    // natural seed-12345 BDS roofed forests reproduce their height and branch
+    // ring only with this draw, and their failed 1-in-6 vine roll rules out
+    // a draw before the roll (see "Roofed forest draw order" in the codegen
+    // README).
+    let body = scatter::emit(em, o.origin, &s, quote!(ctx.rng.next_u32();), call)?;
     Ok(quote!(let origin = pos; #body))
 }
 
@@ -110,35 +118,35 @@ fn children(o: &Obj<'_>) -> Result<Vec<String>> {
         .collect()
 }
 
+/// Aggregate results: the aggregate succeeds when any child placed, with the
+/// last successful child's position. `first_failure` stops at a failing
+/// child only while nothing has placed yet, i.e. when the first child fails,
+/// so a tree whose optional beehive roll fails still succeeds and still gets
+/// its leaf litter (see "Roofed forest draw order" in the codegen README).
 fn aggregate(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let kids = children(o)?;
     let calls: Vec<TokenStream> = kids.iter().map(|k| em.call(k, quote!(pos))).collect();
-    let Some((last, init)) = calls.split_last() else {
+    let Some((first, rest)) = calls.split_first() else {
         return Err(Error::data(o.origin, "aggregate_feature without features"));
     };
     Ok(
         match o.opt("early_out").and_then(Value::as_str).unwrap_or("none") {
-            // Every child must place; the result is the last child's output.
+            "first_failure" if rest.is_empty() => quote!(#first),
             "first_failure" => quote! {
-                #( #init?; )*
-                #last
+                let mut last = #first?;
+                #( if let Some(p) = #rest { last = p; } )*
+                Some(last)
             },
             "first_success" => quote! {
-                #( if let Some(p) = #init { return Some(p); } )*
-                #last
+                #( if let Some(p) = #calls { return Some(p); } )*
+                None
             },
             // Every child runs; the result is the last successful output.
-            "none" => {
-                let names: Vec<_> = (0..calls.len())
-                    .map(|i| quote::format_ident!("r{}", i))
-                    .collect();
-                let rev: Vec<_> = names.iter().rev().collect();
-                let (first, rest) = rev.split_first().expect("non-empty");
-                quote! {
-                    #( let #names = #calls; )*
-                    #first #( .or(#rest) )*
-                }
-            }
+            "none" => quote! {
+                let mut last = None;
+                #( if let Some(p) = #calls { last = Some(p); } )*
+                last
+            },
             other => {
                 return Err(Error::data(
                     o.origin,
@@ -149,12 +157,22 @@ fn aggregate(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     )
 }
 
+/// Like an aggregate without `early_out`, but each child receives the last
+/// successful child's position (the input until one places).
 fn sequence(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let kids = children(o)?;
-    let calls: Vec<TokenStream> = kids.iter().map(|k| em.call(k, quote!(pos))).collect();
+    let calls: Vec<TokenStream> = kids.iter().map(|k| em.call(k, quote!(at))).collect();
+    let Some((last, init)) = calls.split_last() else {
+        return Err(Error::data(o.origin, "sequence_feature without features"));
+    };
+    if init.is_empty() {
+        return Ok(quote!(let at = pos; #last));
+    }
     Ok(quote! {
-        #( let pos = #calls?; )*
-        Some(pos)
+        let mut at = pos;
+        let mut placed = None;
+        #( if let Some(p) = #init { at = p; placed = Some(p); } )*
+        #last.or(placed)
     })
 }
 

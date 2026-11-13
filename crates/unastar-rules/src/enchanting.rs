@@ -5,10 +5,13 @@
 //!
 //! The caller classifies items ([`ItemEnchanting`]: which enchantment slots
 //! the item belongs to and its enchantability); this module has no item
-//! registry. Enchantment ids are the numeric Bedrock enchantment ids that item
-//! NBT stores in `ench[].id` (protection = 0, sharpness = 9, ...).
+//! registry. Enchantments are the generated [`Enchantment`]; the table rows
+//! (weights, slots, costs, groups, lists) are generated from
+//! `unastar-data/data/measured/enchantments.json`.
 
 use rand::Rng;
+
+use crate::ids::Enchantment;
 
 /// Enchantment slot bits an item belongs to and enchantments apply to.
 pub mod slot {
@@ -41,125 +44,44 @@ pub struct ItemEnchanting {
     pub value: i32,
 }
 
-/// One enchantment on an item.
+/// One enchantment on an item: an entry of its ordered enchantment list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnchantmentInstance {
-    pub id: u8,
+    pub enchantment: Enchantment,
     pub level: u8,
 }
 
-/// One row of the BDS enchantment table.
-struct Definition {
-    /// Selection weight (BDS frequency 30/10/3/1 weighs 10/5/2/1).
-    weight: u32,
-    primary_slots: u32,
-    secondary_slots: u32,
-    /// Minimum enchanting cost of level `l`: `cost_base + cost_per_level * (l - 1)`.
-    cost_base: i32,
-    cost_per_level: i32,
-    max_level: u8,
-    treasure_only: bool,
-    discoverable: bool,
-    /// Enchantments sharing a non-zero group exclude each other.
-    group: u8,
-    /// The enchantment it additionally excludes (trident, crossbow pairs).
-    excludes: Option<u8>,
-    /// Item enchantments are kept in three lists; compatibility is only
-    /// checked against the list the new enchantment goes to.
-    list: u8,
-}
-
-const fn def(
-    weight: u32,
-    primary_slots: u32,
-    secondary_slots: u32,
-    cost: (i32, i32),
-    max_level: u8,
-    group: u8,
-    list: u8,
-) -> Definition {
-    Definition {
-        weight,
-        primary_slots,
-        secondary_slots,
-        cost_base: cost.0,
-        cost_per_level: cost.1,
-        max_level,
-        treasure_only: false,
-        discoverable: true,
-        group,
-        excludes: None,
-        list,
+impl From<(Enchantment, u8)> for EnchantmentInstance {
+    fn from((enchantment, level): (Enchantment, u8)) -> Self {
+        Self { enchantment, level }
     }
 }
 
-const fn treasure(mut d: Definition) -> Definition {
-    d.treasure_only = true;
-    d
+/// One row of the BDS enchantment table, generated for each
+/// [`Enchantment`] from `unastar-data/data/measured/enchantments.json`.
+#[derive(Debug)]
+pub(crate) struct Definition {
+    /// Resource-pack name key.
+    pub(crate) lang_key: &'static str,
+    /// Selection weight (BDS frequency 30/10/3/1 weighs 10/5/2/1).
+    pub(crate) weight: u32,
+    pub(crate) primary_slots: u32,
+    pub(crate) secondary_slots: u32,
+    /// Minimum enchanting cost of level `l`: `cost_base + cost_per_level * (l - 1)`.
+    pub(crate) cost_base: i32,
+    pub(crate) cost_per_level: i32,
+    pub(crate) max_level: u8,
+    pub(crate) treasure_only: bool,
+    /// False: random enchanting never offers it, even with treasure allowed.
+    pub(crate) discoverable: bool,
+    /// Enchantments sharing a non-zero group exclude each other.
+    pub(crate) group: u8,
+    /// The enchantment it additionally excludes (trident, crossbow pairs).
+    pub(crate) excludes: Option<Enchantment>,
+    /// Item enchantments are kept in three lists; compatibility is only
+    /// checked against the list the new enchantment goes to.
+    pub(crate) list: u8,
 }
-
-/// Treasure that random enchanting never offers, even with treasure allowed.
-const fn undiscoverable(mut d: Definition) -> Definition {
-    d.treasure_only = true;
-    d.discoverable = false;
-    d
-}
-
-const fn excludes(mut d: Definition, other: u8) -> Definition {
-    d.excludes = Some(other);
-    d
-}
-
-const ARMOR: u32 = slot::ARMOR_HEAD | slot::ARMOR_TORSO | slot::ARMOR_FEET | slot::ARMOR_LEGS;
-const DIGGER: u32 = slot::HOE | slot::AXE | slot::PICKAXE | slot::SHOVEL;
-/// Unbreaking and mending: primary and secondary slot sets.
-const DURABLE: (u32, u32) = (0x0081_1e7f, 0x0072_e1c0);
-
-/// The BDS enchantment table indexed by numeric enchantment id.
-const ENCHANTMENTS: [Definition; 42] = [
-    def(10, ARMOR, 0, (1, 11), 4, 3, 0),               // protection
-    def(5, ARMOR, 0, (10, 8), 4, 3, 0),                // fire_protection
-    def(5, slot::ARMOR_FEET, 0, (5, 6), 4, 0, 0),      // feather_falling
-    def(2, ARMOR, 0, (5, 8), 4, 3, 0),                 // blast_protection
-    def(5, ARMOR, 0, (3, 6), 4, 3, 0),                 // projectile_protection
-    def(1, slot::ARMOR_TORSO, 0xd, (10, 20), 3, 0, 0), // thorns
-    def(2, slot::ARMOR_HEAD, 0, (10, 10), 3, 0, 0),    // respiration
-    def(2, slot::ARMOR_FEET, 0, (10, 10), 3, 4, 0),    // depth_strider
-    def(2, slot::ARMOR_HEAD, 0, (1, 0), 1, 0, 0),      // aqua_affinity
-    def(10, 0x80_0010, slot::AXE, (1, 11), 5, 1, 1),   // sharpness
-    def(5, 0xc0_0010, slot::AXE, (5, 8), 5, 1, 1),     // smite
-    def(5, 0xc0_0010, slot::AXE, (5, 8), 5, 1, 1),     // bane_of_arthropods
-    def(5, 0x80_0010, 0, (5, 20), 2, 0, 2),            // knockback
-    def(2, 0xc0_0010, 0, (10, 20), 2, 0, 1),           // fire_aspect
-    def(2, 0x80_0010, 0, (15, 9), 3, 0, 1),            // looting
-    def(10, DIGGER, slot::SHEARS, (1, 10), 5, 0, 2),   // efficiency
-    def(1, DIGGER, slot::SHEARS, (15, 0), 1, 2, 1),    // silk_touch
-    def(5, DURABLE.0, DURABLE.1, (5, 8), 3, 0, 1),     // unbreaking
-    def(2, DIGGER, 0, (15, 9), 3, 2, 1),               // fortune
-    def(10, slot::BOW, 0, (1, 10), 5, 0, 2),           // power
-    def(2, slot::BOW, 0, (12, 20), 2, 0, 2),           // punch
-    def(2, slot::BOW, 0, (20, 0), 1, 0, 1),            // flame
-    def(1, slot::BOW, 0, (20, 0), 1, 5, 2),            // infinity
-    def(2, slot::FISHING_ROD, 0, (15, 9), 3, 0, 1),    // luck_of_the_sea
-    def(2, slot::FISHING_ROD, 0, (15, 9), 3, 0, 2),    // lure
-    treasure(def(2, slot::ARMOR_FEET, 0, (10, 10), 2, 4, 0)), // frost_walker
-    treasure(def(2, DURABLE.0, DURABLE.1, (25, 25), 1, 5, 2)), // mending
-    treasure(def(1, 0x4_400f, 0, (25, 0), 1, 0, 2)),   // binding
-    treasure(def(1, slot::ALL, 0, (25, 0), 1, 0, 2)),  // vanishing
-    def(5, slot::TRIDENT, 0, (1, 8), 5, 0, 1),         // impaling
-    excludes(def(2, slot::TRIDENT, 0, (17, 7), 3, 6, 2), 32), // riptide
-    def(10, slot::TRIDENT, 0, (12, 7), 3, 6, 2),       // loyalty
-    excludes(def(1, slot::TRIDENT, 0, (25, 0), 1, 0, 2), 30), // channeling
-    excludes(def(2, slot::CROSSBOW, 0, (20, 0), 1, 0, 2), 34), // multishot
-    excludes(def(10, slot::CROSSBOW, 0, (1, 10), 4, 0, 2), 33), // piercing
-    def(5, slot::CROSSBOW, 0, (12, 20), 3, 0, 2),      // quick_charge
-    undiscoverable(def(1, slot::ARMOR_FEET, 0, (10, 10), 3, 0, 0)), // soul_speed
-    undiscoverable(def(1, slot::ARMOR_LEGS, 0, (10, 10), 3, 0, 0)), // swift_sneak
-    undiscoverable(def(2, slot::MACE, 0, (15, 9), 3, 0, 1)), // wind_burst
-    def(5, slot::MACE, 0, (5, 8), 5, 1, 1),            // density
-    def(2, slot::MACE, 0, (15, 9), 4, 1, 1),           // breach
-    def(5, slot::MELEE_SPEAR, 0, (5, 8), 3, 0, 1),     // lunge
-];
 
 /// Spread of the enchanting level: `level × (1 + uniform(-0.15, 0.15))`.
 const LEVEL_SPREAD: f32 = 0.3;
@@ -173,17 +95,14 @@ impl Definition {
         self.cost_base + self.cost_per_level * (level - 1)
     }
 
-    fn compatible_with(&self, other: u8) -> bool {
-        let group = ENCHANTMENTS[usize::from(other)].group;
+    fn compatible_with(&self, other: Enchantment) -> bool {
+        let group = other.definition().group;
         self.excludes != Some(other) && (self.group == 0 || self.group != group)
     }
-}
 
-/// Highest level of enchantment `id`; `None` for an id outside the table.
-pub fn max_level(id: u8) -> Option<u8> {
-    ENCHANTMENTS
-        .get(usize::from(id))
-        .map(|definition| definition.max_level)
+    fn fits(&self, slots: u32) -> bool {
+        (self.primary_slots | self.secondary_slots) & slots != 0
+    }
 }
 
 /// Add `enchantment` to `existing` (an item of `slots`) the way BDS item
@@ -196,17 +115,15 @@ pub fn add_enchantment(
     slots: u32,
     enchantment: EnchantmentInstance,
 ) -> bool {
-    let Some(new) = ENCHANTMENTS.get(usize::from(enchantment.id)) else {
-        return false;
-    };
-    if slots == 0 || (new.primary_slots | new.secondary_slots) & slots == 0 {
+    let new = enchantment.enchantment.definition();
+    if slots == 0 || !new.fits(slots) {
         return false;
     }
     for current in existing.iter_mut() {
-        if ENCHANTMENTS[usize::from(current.id)].list != new.list {
+        if current.enchantment.definition().list != new.list {
             continue;
         }
-        if current.id == enchantment.id {
+        if current.enchantment == enchantment.enchantment {
             if current.level >= new.max_level {
                 return false;
             }
@@ -217,7 +134,7 @@ pub fn add_enchantment(
             };
             return true;
         }
-        if !new.compatible_with(current.id) {
+        if !new.compatible_with(current.enchantment) {
             return false;
         }
     }
@@ -248,22 +165,20 @@ pub fn select_enchantments(
     let mut cost = (((spread + 1 + level) as f32) * factor + 0.5) as i32;
     cost = cost.max(1);
 
-    let mut candidates: Vec<(EnchantmentInstance, u32)> = ENCHANTMENTS
-        .iter()
-        .enumerate()
-        .filter(|(_, d)| {
-            (item.slots == slot::ALL || (d.primary_slots | d.secondary_slots) & item.slots != 0)
+    let mut candidates: Vec<(EnchantmentInstance, u32)> = Enchantment::ALL
+        .into_iter()
+        .filter(|enchantment| {
+            let d = enchantment.definition();
+            (item.slots == slot::ALL || d.fits(item.slots))
                 && (!d.treasure_only || allow_treasure)
                 && d.discoverable
         })
-        .filter_map(|(id, d)| {
+        .filter_map(|enchantment| {
+            let d = enchantment.definition();
             (1..=d.max_level)
                 .rev()
                 .find(|level| d.min_cost(i32::from(*level)) <= cost)
-                .map(|level| {
-                    let id = u8::try_from(id).expect("42 enchantments");
-                    (EnchantmentInstance { id, level }, d.weight)
-                })
+                .map(|level| (EnchantmentInstance { enchantment, level }, d.weight))
         })
         .collect();
     let count = candidates.len();
@@ -280,7 +195,7 @@ pub fn select_enchantments(
         cost = cost * 4 / 5 + 1;
         picked += 1;
     }
-    chosen.sort_by_key(|e| ENCHANTMENTS[usize::from(e.id)].list);
+    chosen.sort_by_key(|e| e.enchantment.definition().list);
     chosen
 }
 
@@ -326,13 +241,13 @@ mod tests {
                 let chosen = select_enchantments(item, level, false, &mut rng);
                 assert!(!chosen.is_empty(), "a positive level always enchants");
                 for (i, e) in chosen.iter().enumerate() {
-                    let d = &ENCHANTMENTS[usize::from(e.id)];
-                    assert!((d.primary_slots | d.secondary_slots) & item.slots != 0);
+                    let d = e.enchantment.definition();
+                    assert!(d.fits(item.slots));
                     assert!(!d.treasure_only, "no treasure enchantments: {e:?}");
                     assert!((1..=d.max_level).contains(&e.level));
                     for other in &chosen[i + 1..] {
-                        assert_ne!(e.id, other.id);
-                        assert!(d.compatible_with(other.id), "{e:?} with {other:?}");
+                        assert_ne!(e.enchantment, other.enchantment);
+                        assert!(d.compatible_with(other.enchantment), "{e:?} with {other:?}");
                     }
                 }
             }
@@ -347,7 +262,7 @@ mod tests {
             let chosen =
                 select_enchantments(IRON_SWORD, 5, false, &mut StdRng::seed_from_u64(seed));
             for e in chosen {
-                let d = &ENCHANTMENTS[usize::from(e.id)];
+                let d = e.enchantment.definition();
                 assert!(d.min_cost(i32::from(e.level)) <= 14, "{e:?}");
             }
         }
@@ -367,10 +282,10 @@ mod tests {
 
     #[test]
     fn adding_respects_slots_lists_and_exclusive_groups() {
-        let sharpness = EnchantmentInstance { id: 9, level: 2 };
-        let smite = EnchantmentInstance { id: 10, level: 1 };
-        let knockback = EnchantmentInstance { id: 12, level: 1 };
-        let protection = EnchantmentInstance { id: 0, level: 1 };
+        let sharpness = EnchantmentInstance::from((Enchantment::Sharpness, 2));
+        let smite = EnchantmentInstance::from((Enchantment::Smite, 1));
+        let knockback = EnchantmentInstance::from((Enchantment::Knockback, 1));
+        let protection = EnchantmentInstance::from((Enchantment::Protection, 1));
         let mut sword = Vec::new();
         assert!(add_enchantment(&mut sword, slot::SWORD, sharpness));
         assert!(
@@ -386,22 +301,54 @@ mod tests {
             add_enchantment(&mut sword, slot::SWORD, sharpness),
             "equal level raises"
         );
-        assert_eq!(sword[0], EnchantmentInstance { id: 9, level: 3 });
+        assert_eq!(sword[0], (Enchantment::Sharpness, 3).into());
         let mut trident = Vec::new();
         assert!(add_enchantment(
             &mut trident,
             slot::TRIDENT,
-            EnchantmentInstance { id: 30, level: 1 }
+            (Enchantment::Riptide, 1).into()
         ));
         assert!(!add_enchantment(
             &mut trident,
             slot::TRIDENT,
-            EnchantmentInstance { id: 32, level: 1 }
+            (Enchantment::Channeling, 1).into()
         ));
         assert!(!add_enchantment(
             &mut trident,
             slot::TRIDENT,
-            EnchantmentInstance { id: 31, level: 1 }
+            (Enchantment::Loyalty, 1).into()
         ));
+    }
+
+    /// The generated rows are the table this module carried before decision
+    /// 0052, spot-checked where the shorthand used named constants.
+    #[test]
+    fn generated_rows_keep_the_measured_table() {
+        let unbreaking = Enchantment::Unbreaking.definition();
+        assert_eq!(
+            (unbreaking.primary_slots, unbreaking.secondary_slots),
+            (0x0081_1e7f, 0x0072_e1c0)
+        );
+        assert_eq!(Enchantment::Mending.definition().group, 5);
+        assert_eq!(Enchantment::Vanishing.definition().primary_slots, slot::ALL);
+        let soul_speed = Enchantment::SoulSpeed.definition();
+        assert!(soul_speed.treasure_only && !soul_speed.discoverable);
+        assert_eq!(
+            Enchantment::Riptide.definition().excludes,
+            Some(Enchantment::Channeling)
+        );
+        let sharpness = Enchantment::Sharpness.definition();
+        assert_eq!(
+            (
+                sharpness.weight,
+                sharpness.primary_slots,
+                sharpness.secondary_slots,
+                sharpness.cost_base,
+                sharpness.cost_per_level,
+                sharpness.group,
+                sharpness.list
+            ),
+            (10, 0x80_0010, slot::AXE, 1, 11, 1, 1)
+        );
     }
 }

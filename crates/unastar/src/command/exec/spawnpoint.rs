@@ -1,4 +1,5 @@
-//! `/setworldspawn [spawnPoint]` and `/spawnpoint [player] [spawnPos]`.
+//! `/setworldspawn [spawnPoint]`, `/spawnpoint [player] [spawnPos]` and
+//! `/clearspawnpoint [player]`.
 //!
 //! Measured on BDS 1.26.51: both answer with the block position
 //! (`commands.setworldspawn.success` x, y, z;
@@ -8,8 +9,8 @@
 //!
 //! The world spawn is the [`WorldSpawn`] players respawn at; a player's spawn
 //! point is its [`PlayerSpawnPoint`]. Both stand the player in the middle of
-//! the block. Joining players keep the configured spawn rules, and spawn
-//! points are not saved with the player.
+//! the block. Joining players keep the configured spawn rules and the world
+//! spawn is not saved; a player's spawn point is saved with its player record.
 
 use crate::command::prelude::*;
 use crate::entity::PLAYER_EYE_HEIGHT;
@@ -73,6 +74,38 @@ pub fn run_spawnpoint(ctx: &mut CommandContext<'_>, args: SpawnPointArgs) -> Com
         _ => CommandOutput::success(
             "commands.spawnpoint.success.multiple.specific",
             vec![ctx.names(&players), x, y, z],
+        ),
+    };
+    Ok(output.with_count(players.len()))
+}
+
+overloads! {
+    pub enum ClearSpawnPointArgs for "clearspawnpoint" {
+        0 => Clear { player: Option<Target> },
+    }
+}
+
+/// `/clearspawnpoint [player]`: the players respawn at the world spawn
+/// again. Measured on BDS 1.26.51: no packet is sent; the answer is
+/// `commands.clearspawnpoint.success.single [name]`.
+pub fn run_clearspawnpoint(
+    ctx: &mut CommandContext<'_>,
+    args: ClearSpawnPointArgs,
+) -> CommandResult {
+    let ClearSpawnPointArgs::Clear { player } = args;
+    let players = ctx.players(player.as_ref())?;
+    for &player in &players {
+        ctx.world.entity_mut(player).remove::<PlayerSpawnPoint>();
+    }
+    let output = match players.as_slice() {
+        [player] => CommandOutput::success(
+            "commands.clearspawnpoint.success.single",
+            vec![ctx.name(*player)],
+        ),
+        // [INFERENCE] Several targets: the lang's multiple-target line.
+        _ => CommandOutput::success(
+            "commands.clearspawnpoint.success.multiple",
+            vec![ctx.names(&players)],
         ),
     };
     Ok(output.with_count(players.len()))
@@ -204,5 +237,18 @@ mod tests {
         assert_eq!(names, ["Alice", "Bob"]);
         assert_eq!(output.messages[0].params[1..], ["2", "65", "2"]);
         assert_eq!(spawn_packets(&mut h, bob).len(), 1);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    #[test]
+    fn spawn_commands_match_the_bds_capture() {
+        let steps = Replay::new().assert_segment("spawn", &[]);
+        assert_same_packets(&steps, &["SetSpawnPositionPacket"], &[]);
     }
 }

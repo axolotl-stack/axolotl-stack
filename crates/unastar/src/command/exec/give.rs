@@ -83,10 +83,20 @@ pub fn run(ctx: &mut CommandContext<'_>, args: GiveArgs) -> CommandResult {
     .with_count(targets.len()))
 }
 
-fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, CommandOutput> {
+pub(super) fn given_stack(
+    world: &World,
+    name: &str,
+    data: i32,
+) -> Result<ItemStack, CommandOutput> {
     let invalid = || CommandOutput::failure("commands.give.item.invalid", vec![name.to_owned()]);
     let items = &world.resource::<ItemRegistryResource>().0;
     let blocks = &world.resource::<BlockRegistryResource>().0;
+    // Flattened families take their data value as the item (`wool 1 14`).
+    if data != 0
+        && let Some(current) = crate::command::legacy::item(name, data)
+    {
+        return given_stack(world, &current, 0);
+    }
     let spelled = if data == 0 {
         name.to_owned()
     } else {
@@ -120,7 +130,7 @@ fn given_stack(world: &World, name: &str, data: i32) -> Result<ItemStack, Comman
 }
 
 /// `stack` carrying the vanilla item components of `/give`'s JSON.
-fn with_components(
+pub(super) fn with_components(
     world: &World,
     stack: ItemStack,
     components: &serde_json::Value,
@@ -191,7 +201,7 @@ fn with_components(
 
 /// Put `amount` of `stack` into `player`'s main inventory, matching stacks
 /// first; what does not fit drops at the player as if it threw it.
-fn give(world: &mut World, player: Entity, stack: &ItemStack, amount: u32) {
+pub(super) fn give(world: &mut World, player: Entity, stack: &ItemStack, amount: u32) {
     let per_stack = u32::from(stack.max_stack_size().max(1));
     let mut overflow = Vec::new();
     if let Some(mut main) = world.get_mut::<MainInventory>(player) {
@@ -360,14 +370,18 @@ mod tests {
             h.run(op, "/give @s bucket 1 2"),
             CommandOutput::failure("commands.give.item.invalid", vec!["bucket".into()])
         );
-        let legacy = h.run(op, "/give @s wool 3 14");
+        // Flattened families take the data value as the item.
+        assert!(h.run(op, "/give @s wool 3 14").is_success());
+        assert_eq!(slot(&mut h, op, 2).item_id(), "minecraft:red_wool");
+        // Other legacy data values are not mapped.
+        let legacy = h.run(op, "/give @s stone 3 1");
         assert!(!legacy.is_success());
         assert!(
             legacy.messages[0]
                 .key
                 .contains("not implemented in unastar yet")
         );
-        assert_eq!(main_slots(&mut h, op)[2].1, 0, "nothing given");
+        assert_eq!(main_slots(&mut h, op)[3].1, 0, "nothing given");
     }
 
     #[test]
@@ -424,5 +438,18 @@ mod tests {
             ),
             CommandOutput::failure("commands.give.tagError", vec!["minecraft:item_lock".into()])
         );
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+
+    #[test]
+    fn give_and_clear_match_the_bds_capture() {
+        let steps = Replay::new().assert_segment("give", &[]);
+        assert_same_packets(&steps, &["TextPacket"], &[]);
     }
 }

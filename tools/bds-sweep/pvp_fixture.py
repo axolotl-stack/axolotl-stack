@@ -175,7 +175,8 @@ def state(raw: dict | None) -> dict | None:
             'ground': raw['ground']}
 
 
-CAPTURES = {'A': 'client/packets.jsonl', 'B': 'client/BDSOther/packets.jsonl', 'C': 'client/BDSThird/packets.jsonl'}
+CAPTURES = {'A': 'client-capture/packets.jsonl', 'B': 'client-capture/BDSOther/packets.jsonl',
+            'C': 'client-capture/BDSThird/packets.jsonl'}
 INPUT_LINE = re.compile(r'player_rotation: Vec2 \{ x: [^,]+, y: ([^ ]+) \}.*?'
                         r'input_data: \[([^\]]*)\].*?'
                         r'client_tick: PlayerInputTick \{ inputtick: (\d+) \}, '
@@ -270,7 +271,8 @@ def attempts_of(result: dict, consumption: dict, hits: list[dict]) -> list[dict]
     for line in sorted(lines):
         steps = list(steps_of(lines[line]))
         for index, step in enumerate(steps):
-            if step.startswith('o') and '=slot:' in step:
+            # `select` (`slot` in runs before the order was shared with scripts).
+            if step.startswith('o') and ('=select:' in step or '=slot:' in step):
                 slots['ABC'[int(step[1])]] = int(step.split(':')[1])
             if step.startswith('o') and '=claim:' in step:
                 claims['ABC'[int(step[1])]] = [float(v) for v in step.split(':')[1:4]]

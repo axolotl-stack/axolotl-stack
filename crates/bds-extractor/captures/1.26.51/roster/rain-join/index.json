@@ -1,0 +1,46 @@
+{
+  "guest": [
+    {
+      "file": "00011-LevelEventGenericPacket.bin",
+      "seq": 11,
+      "t_ms": 699,
+      "packet": "LevelEventGenericPacket"
+    },
+    {
+      "file": "00012-PlayerListPacket.bin",
+      "seq": 12,
+      "t_ms": 699,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "00031-SetSpawnPositionPacket.bin",
+      "seq": 31,
+      "t_ms": 732,
+      "packet": "SetSpawnPositionPacket"
+    },
+    {
+      "file": "00035-LevelEventPacket.bin",
+      "seq": 35,
+      "t_ms": 732,
+      "packet": "LevelEventPacket"
+    },
+    {
+      "file": "00036-UpdateAdventureSettingsPacket.bin",
+      "seq": 36,
+      "t_ms": 732,
+      "packet": "UpdateAdventureSettingsPacket"
+    },
+    {
+      "file": "00039-PlayerListPacket.bin",
+      "seq": 39,
+      "t_ms": 732,
+      "packet": "PlayerListPacket"
+    },
+    {
+      "file": "00213-SetHealthPacket.bin",
+      "seq": 213,
+      "t_ms": 1002,
+      "packet": "SetHealthPacket"
+    }
+  ]
+}

@@ -13,6 +13,9 @@
 //!   seconds, each tick rolls 1 in `min_range_random_chance`. A player within
 //!   `min_distance` resets the inactivity time.
 //!
+//! A `minecraft:despawn` with `filters` replaces all of this: the mob
+//! despawns on the tick its filters pass ([`despawn_mobs_by_filters`]).
+//!
 //! Unloading a chunk does not despawn its mobs; they are saved with it.
 
 use bevy_ecs::prelude::*;
@@ -65,6 +68,9 @@ pub fn despawn_mobs(
     let now = tick.current;
     let short_tick_range = config.simulation_distance < DESPAWN_SHORT_TICK_RANGE;
     for (mob, position, despawn, mut inactivity) in &mut mobs {
+        if despawn.filter.is_some() {
+            continue;
+        }
         let Some((min_distance, max_distance)) = despawn.from_distance else {
             continue;
         };
@@ -103,6 +109,73 @@ pub fn despawn_mobs(
     }
 }
 
+/// System (exclusive, after [`despawn_mobs`]): `minecraft:despawn` with
+/// `filters` despawns a living mob on the tick its filters pass, while at
+/// least one player is in the world. The filters replace the distance,
+/// inactivity and chance rules and the persistence exemption (vanilla
+/// filters test `is_persistent` themselves); `random_chance` rolls 1 in
+/// `value` from the entity random.
+/// Living mobs and their despawn rules.
+type DespawnRules<'a> = (Entity, &'a DespawnConfig);
+
+pub fn despawn_mobs_by_filters(
+    world: &mut World,
+    mobs: &mut QueryState<DespawnRules<'static>, (With<MobKind>, Without<Dead>)>,
+    players: &mut QueryState<(), With<Player>>,
+    mut gone: Local<Vec<Entity>>,
+) {
+    if players.iter(world).next().is_none() {
+        return;
+    }
+    let filtered: Vec<(Entity, std::sync::Arc<unastar_rules::filter::Filter>)> = mobs
+        .iter(world)
+        .filter_map(|(mob, despawn)| Some((mob, std::sync::Arc::clone(despawn.filter.as_ref()?))))
+        .collect();
+    if filtered.is_empty() {
+        return;
+    }
+    world.resource_scope(|world, mut random: Mut<EntityRandom>| {
+        let random = std::cell::RefCell::new(&mut random.0);
+        for (mob, filter) in &filtered {
+            let facts = DespawnFacts {
+                facts: crate::entity::mob::events::MobFacts {
+                    world,
+                    entity: *mob,
+                    other: None,
+                },
+                random: &random,
+            };
+            if filter.evaluate(&facts) {
+                gone.push(*mob);
+            }
+        }
+    });
+    for mob in gone.drain(..) {
+        world.despawn(mob);
+    }
+}
+
+/// The despawn filters' facts: the mob's, plus `random_chance`.
+struct DespawnFacts<'a, 'w> {
+    facts: crate::entity::mob::events::MobFacts<'w>,
+    random: &'a std::cell::RefCell<&'a mut rand::rngs::StdRng>,
+}
+
+impl unastar_rules::filter::FilterContext for DespawnFacts<'_, '_> {
+    fn fact(
+        &self,
+        subject: unastar_rules::filter::Subject,
+        test: &unastar_rules::filter::FilterTest,
+    ) -> Option<unastar_rules::filter::Fact> {
+        if test.builtin() == Some(unastar_rules::filter::BuiltinTest::RandomChance) {
+            let range = test.value.as_f64()?.max(1.0) as i32;
+            let roll = self.random.borrow_mut().gen_range(0..range);
+            return Some(unastar_rules::filter::Fact::Matches(roll == 0));
+        }
+        self.facts.fact(subject, test)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use glam::DVec3;
@@ -136,7 +209,7 @@ mod tests {
             let player = world.spawn((Player, Position(COW_FEET))).id();
             for x in -1..=1 {
                 for z in -1..=1 {
-                    let chunk = world.get_or_create_chunk(x, z);
+                    let chunk = world.get_or_create_chunk(x, z).unwrap();
                     world.get_mut::<ChunkViewers>(chunk).unwrap().insert(player);
                 }
             }

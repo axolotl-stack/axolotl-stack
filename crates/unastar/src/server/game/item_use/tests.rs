@@ -300,3 +300,77 @@ fn every_vanilla_food_is_consumable_with_a_positive_duration() {
         );
     }
 }
+
+#[test]
+fn chorus_fruit_teleports_onto_standable_ground_within_its_range() {
+    use crate::server::game::{GameServer, ServerConfig};
+    use crate::world::ChunkManager;
+    use crate::world::chunk::{Chunk, blocks};
+    use crate::world::ecs::{ChunkData, ChunkPosition};
+    use jolyne::valentine::types::EnumsPlayerPositionModeComponentPositionMode as Mode;
+
+    // The fruit's food component carries the teleport and its range.
+    let mut items = ItemRegistry::new();
+    items.load_vanilla();
+    let fruit = items.get_by_name("minecraft:chorus_fruit").unwrap();
+    let food = fruit.components().food.as_ref().unwrap();
+    assert_eq!(food.on_use_action.as_deref(), Some("chorus_teleport"));
+    let range = food
+        .on_use_range
+        .expect("chorus fruit has a teleport range");
+    assert_eq!(range, [8.0, 8.0, 8.0]);
+
+    // A stone floor at y = 63 over chunk (0, 0); everything else is void.
+    let mut server = GameServer::with_config(ServerConfig {
+        world: crate::world::WorldConfig::void_spawn_platform(1),
+        ..ServerConfig::default()
+    });
+    let world = server.ecs.world_mut();
+    let mut column = Chunk::new(0, 0);
+    for x in 0..16 {
+        for z in 0..16 {
+            column.set_block(x, 63, z, *blocks::STONE);
+        }
+    }
+    let chunk = world.spawn(ChunkData::new(column)).id();
+    world
+        .resource_mut::<ChunkManager>()
+        .insert(ChunkPosition::new(0, 0), chunk);
+    let (tx, mut rx) = tokio::sync::mpsc::channel(256);
+    let start = glam::DVec3::new(8.5, 64.0, 8.5);
+    let eye = glam::DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
+    let player = world
+        .spawn((
+            Position(start + eye),
+            Rotation::default(),
+            RuntimeEntityId(1),
+            PlayerSession::new(1, "test".into(), None, None, tx),
+        ))
+        .id();
+    let mut moved = 0;
+    for seed in 0..32 {
+        world.insert_resource(crate::entity::item_drop::EntityRandom::seeded(seed));
+        world.get_mut::<Position>(player).unwrap().0 = start + eye;
+        food::chorus_teleport(world, player, range);
+        let feet = world.get::<Position>(player).unwrap().0 - eye;
+        let teleports: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok())
+            .filter_map(|packet| match packet.data {
+                McpePacketData::MovePlayerPacket(movement) => Some(movement),
+                _ => None,
+            })
+            .collect();
+        if feet == start {
+            assert!(teleports.is_empty(), "seed {seed}: no landing, no packet");
+            continue;
+        }
+        moved += 1;
+        // Only the floor's top is standable: y = 64, the random x and z kept
+        // (BDS lands off block centres), at most 8 blocks away on each axis.
+        assert_eq!(feet.y, 64.0, "seed {seed}: {feet}");
+        assert!((feet.x - start.x).abs() <= 8.0 && (feet.z - start.z).abs() <= 8.0);
+        assert_eq!(teleports.len(), 1, "seed {seed}");
+        assert_eq!(teleports[0].position_mode, Mode::Teleport);
+        assert_eq!(teleports[0].position.y, (feet + eye).y as f32);
+    }
+    assert!(moved >= 24, "only {moved} of 32 seeds found ground");
+}

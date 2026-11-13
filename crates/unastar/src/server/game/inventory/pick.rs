@@ -112,7 +112,7 @@ fn same_item(slot: &ItemStack, item: &ItemStack) -> bool {
     !slot.is_empty()
         && slot.item_id() == item.item_id()
         && slot.damage == item.damage
-        && slot.nbt == item.nbt
+        && slot.nbt() == item.nbt()
 }
 
 fn item_locked(stack: &ItemStack) -> bool {

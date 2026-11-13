@@ -6,6 +6,8 @@
 use bytes::{BufMut, BytesMut};
 use std::ops::Range;
 
+mod persistent;
+
 use crate::registry::BlockRegistry;
 use crate::world::block_entity::BlockEntity;
 use crate::world::generator::{NativeBiome, QuartBiomes};
@@ -412,14 +414,21 @@ pub struct Chunk {
     recalculate_height_map: bool,
 }
 
+/// A section's liquid storage (Bedrock's second block layer).
+///
+/// Once a section has one it keeps it, also after its last liquid cell is
+/// gone, as BDS does: BDS keeps saving the second storage of such a section
+/// (all air, its palette `[air, water]` or compacted to `[air]`), so a record it
+/// saved that way is written back byte for byte.
 #[derive(Debug, Clone)]
 struct SecondaryStorage {
     storage: PalettedStorage,
+    /// Cells that are not air.
     non_air: u16,
 }
 
 impl SecondaryStorage {
-    fn decoded(storage: PalettedStorage) -> Result<Option<Box<Self>>, String> {
+    fn decoded(storage: PalettedStorage) -> Result<Box<Self>, String> {
         let non_air = if storage.size == PaletteSize::Bits0 {
             if storage.palette[0] == *blocks::AIR {
                 0
@@ -442,7 +451,7 @@ impl SecondaryStorage {
             }
             count
         };
-        Ok((non_air != 0).then(|| Box::new(Self { storage, non_air })))
+        Ok(Box::new(Self { storage, non_air }))
     }
 }
 
@@ -462,6 +471,11 @@ pub struct SubChunk {
     secondary: Option<Box<SecondaryStorage>>,
     /// Primary cells whose state is not air in the owning chunk's domain.
     non_air: u16,
+    /// Whether a cell of either layer changed since the section was decoded
+    /// or created. A changed section is saved with compacted palettes, as BDS
+    /// saves the sections it changed when a chunk unloads; an unchanged one is
+    /// saved exactly as it was read (see [`SubChunk::encode_disk`]).
+    changed: bool,
 }
 
 /// Valid bit widths for block storage (matches Bedrock protocol).
@@ -689,6 +703,13 @@ impl Chunk {
         self.bounds.clone()
     }
 
+    /// Y indices of the subchunks inside [`Self::block_bounds`]: the sections
+    /// a provider stores for this chunk's dimension.
+    pub fn section_y_indices(&self) -> impl Iterator<Item = i8> + use<> {
+        ((self.bounds.start >> 4)..(self.bounds.end >> 4))
+            .map(|y| i8::try_from(y).expect("bounds are asserted inside physical storage"))
+    }
+
     fn assert_bounds(bounds: &Range<i32>) {
         assert!(
             bounds.start >= MIN_Y
@@ -763,6 +784,9 @@ impl Chunk {
         self.block_entities = actors;
         let mut air_changed = false;
         for section in &mut self.sub_chunks {
+            // Generated sections: their palettes are compacted when saved (the
+            // mapping below can also list one Bedrock state twice).
+            section.changed = true;
             section.project_native_secondary();
             let storage = &mut section.storage;
             let mut section_air_changed = false;
@@ -921,7 +945,7 @@ impl Chunk {
             if !self.bounds.contains(&(MIN_Y + i as i32 * 16)) {
                 continue;
             }
-            if sub.secondary.is_some()
+            if sub.has_liquid()
                 || !sub
                     .storage
                     .palette
@@ -1015,21 +1039,29 @@ impl Chunk {
     ///   (BDS sets the low bit), the packed u32 LE index words, the palette length
     ///   as i32 LE and the palette as i32 LE biome ids. A single-value storage
     ///   (`bits == 0`) is the header plus one i32 id, without a length. Header
-    ///   `0xFF` repeats the section below; BDS uses it for identical sections.
+    ///   `0xFF` repeats the section below.
+    ///
+    /// Every section is stored up to the last one whose biomes differ from the
+    /// section below; only the run above it is written as `0xFF`. BDS writes
+    /// `0xFF` only above its last stored section, and a value with `0xFF` below
+    /// a stored section stops BDS while it loads the chunk (measured: see
+    /// `docs/solutions/storage/`).
     pub fn encode_biomes_disk(&self) -> Vec<u8> {
         self.assert_bedrock();
         let mut out = Vec::with_capacity(DATA3D_HEIGHTMAP_LEN + SUBCHUNK_COUNT as usize * 5);
         for height in self.height_map.data {
             out.extend_from_slice(&(height - MIN_Y as i16).to_le_bytes());
         }
-        let mut previous: Option<&PalettedStorage> = None;
-        for section in &self.biomes {
-            if previous == Some(section) {
+        let last_stored = (1..self.biomes.len())
+            .rev()
+            .find(|&index| self.biomes[index] != self.biomes[index - 1])
+            .unwrap_or(0);
+        for (index, section) in self.biomes.iter().enumerate() {
+            if index > last_stored {
                 out.push(DATA3D_COPY_PREVIOUS);
             } else {
                 section.encode_disk_biomes(&mut out);
             }
-            previous = Some(section);
         }
         out
     }
@@ -1083,7 +1115,7 @@ impl Chunk {
         let mut rest = data;
         let mut sections = Vec::with_capacity(SUBCHUNK_COUNT as usize);
         for index in 0..SUBCHUNK_COUNT {
-            let (section, used) = PalettedStorage::decode(rest)
+            let (section, used) = PalettedStorage::decode_runtime(rest)
                 .map_err(|e| format!("network biome section {index}: {e}"))?;
             rest = &rest[used..];
             sections.push(section);
@@ -1117,10 +1149,38 @@ impl Chunk {
         Some(out)
     }
 
-    /// Encode block storage only, without the network actor suffix.
-    /// Providers persist actors separately under Bedrock tag 0x31.
+    /// The first block state in this chunk's saved storages (both layers of
+    /// every section inside its bounds) that is not a canonical state, if any.
+    /// The providers refuse to save a column holding one: the persistent form
+    /// names every state, and the registry has no name for such an id.
+    pub fn unknown_block_state(&self) -> Option<u32> {
+        self.assert_bedrock();
+        let registry = BlockRegistry::vanilla();
+        self.section_y_indices()
+            .map(|y| &self.sub_chunks[(i32::from(y) - (MIN_Y >> 4)) as usize])
+            .flat_map(|section| {
+                std::iter::once(&section.storage)
+                    .chain(section.secondary.as_ref().map(|layer| &layer.storage))
+            })
+            .flat_map(|storage| storage.palette.iter().copied())
+            .find(|&id| registry.get_by_runtime_id(id).is_none())
+    }
+
+    /// The sub-chunk record the providers store for section `y_index`, as BDS
+    /// 1.26.51 saves it (see [`SubChunk::encode_disk`]): block storage only, as
+    /// providers persist actors separately under Bedrock tag 0x31.
+    ///
+    /// `None` outside the chunk's bounds and for a section of air in both
+    /// layers, which BDS keeps no record for.
     pub fn encode_subchunk_disk(&self, y_index: i32) -> Option<Vec<u8>> {
-        self.encode_section(y_index, |id| id)
+        self.assert_bedrock();
+        if !((self.bounds.start >> 4)..(self.bounds.end >> 4)).contains(&y_index) {
+            return None;
+        }
+        let sub = self
+            .sub_chunks
+            .get(y_index.checked_sub(MIN_Y >> 4)? as usize)?;
+        sub.encode_disk(y_index as i8)
     }
 
     /// Section block storage with every palette entry written as `wire(id)`.
@@ -1233,7 +1293,7 @@ impl Chunk {
         self.sub_chunks
             .get(array_idx)
             .map(|s| {
-                s.secondary.is_none()
+                !s.has_liquid()
                     && s.storage
                         .palette
                         .iter()
@@ -1444,13 +1504,15 @@ impl Chunk {
         let storage = if storage_count == 0 {
             PalettedStorage::single_block(*blocks::AIR)
         } else {
-            let (storage, consumed) = PalettedStorage::decode(&data[offset..])?;
+            let (storage, consumed) = PalettedStorage::decode_block_storage(&data[offset..])
+                .map_err(|error| format!("block storage: {error}"))?;
             offset += consumed;
             storage
         };
         let secondary = if storage_count == 2 {
-            let (storage, _) = PalettedStorage::decode(&data[offset..])?;
-            SecondaryStorage::decoded(storage)?
+            let (storage, _) = PalettedStorage::decode_block_storage(&data[offset..])
+                .map_err(|error| format!("liquid storage: {error}"))?;
+            Some(SecondaryStorage::decoded(storage)?)
         } else {
             None
         };
@@ -1520,6 +1582,7 @@ impl SubChunk {
             storage,
             secondary,
             non_air: 0,
+            changed: false,
         };
         section.recount(space);
         section
@@ -1554,13 +1617,14 @@ impl SubChunk {
 
     /// Check if this subchunk is all air.
     pub fn is_empty(&self) -> bool {
-        self.secondary.is_none()
+        !self.has_liquid()
             && self.storage.palette.len() == 1
             && self.storage.palette[0] == *blocks::AIR
     }
 
     /// Fill an entire Y layer with a block.
     pub fn fill_layer(&mut self, y: usize, block_id: u32, space: BlockStateSpace) {
+        self.changed = true;
         self.storage.fill_layer(y, block_id);
         self.recount(space);
         if let Some(layer) = &mut self.secondary {
@@ -1570,15 +1634,13 @@ impl SubChunk {
                     layer.non_air -= u16::from(old != *blocks::AIR);
                 }
             }
-            if layer.non_air == 0 {
-                self.secondary = None;
-            }
         }
     }
 
     /// Fill the entire subchunk with a single block type.
     /// Uses single-value palette for maximum efficiency.
     pub fn fill_solid(&mut self, block_id: u32, space: BlockStateSpace) {
+        self.changed = true;
         self.storage = PalettedStorage::single_block(block_id);
         self.secondary = None;
         self.non_air = if space.is_air(block_id) {
@@ -1611,22 +1673,27 @@ impl SubChunk {
         secondary: Option<u32>,
         space: BlockStateSpace,
     ) -> u32 {
-        if self.non_air == 0
-            && primary == space.air()
-            && secondary.is_none()
-            && self.secondary.is_none()
+        if self.non_air == 0 && primary == space.air() && secondary.is_none() && !self.has_liquid()
         {
             return primary;
         }
         let old = self
             .storage
             .set_block(x as usize, y as usize, z as usize, primary);
+        self.changed |= old != primary;
         self.non_air =
             self.non_air + u16::from(!space.is_air(primary)) - u16::from(!space.is_air(old));
         if self.secondary.is_some() || secondary.is_some() {
             self.set_secondary(x, y, z, secondary.unwrap_or(*blocks::AIR));
         }
         old
+    }
+
+    /// Whether any cell of the liquid storage holds a block.
+    fn has_liquid(&self) -> bool {
+        self.secondary
+            .as_ref()
+            .is_some_and(|layer| layer.non_air != 0)
     }
 
     /// Underlying-liquid block, or `None` when this section has no secondary storage.
@@ -1641,12 +1708,11 @@ impl SubChunk {
             let old = layer
                 .storage
                 .set_block(x as usize, y as usize, z as usize, block);
+            self.changed |= old != block;
             layer.non_air =
                 layer.non_air + u16::from(block != *blocks::AIR) - u16::from(old != *blocks::AIR);
-            if layer.non_air == 0 {
-                self.secondary = None;
-            }
         } else if block != *blocks::AIR {
+            self.changed = true;
             let mut storage = PalettedStorage::single_block(*blocks::AIR);
             storage.set_block(x as usize, y as usize, z as usize, block);
             self.secondary = Some(Box::new(SecondaryStorage {
@@ -1680,6 +1746,37 @@ impl SubChunk {
         }
     }
 
+    /// This section's record as BDS 1.26.51 saves it when the chunk unloads,
+    /// or `None` when both layers are air everywhere (BDS keeps no record for
+    /// such a section).
+    ///
+    /// Version 9, the storage count, the y index, then the block storage and,
+    /// if the section has one, the liquid storage, each in the persistent form
+    /// ([`PalettedStorage::encode_persistent`]). A section that changed since it
+    /// was read is written with both palettes compacted
+    /// ([`PalettedStorage::compacted`]), as BDS writes the sections it changed
+    /// when the chunk unloads (or the server stops) and so whenever unastar
+    /// saves; an unchanged section is written exactly as it was read.
+    fn encode_disk(&self, y_index: i8) -> Option<Vec<u8>> {
+        if self.non_air == 0 && !self.has_liquid() {
+            return None;
+        }
+        let mut out = vec![
+            SUBCHUNK_VERSION,
+            1 + u8::from(self.secondary.is_some()),
+            y_index as u8,
+        ];
+        let layers = std::iter::once(&self.storage)
+            .chain(self.secondary.as_ref().map(|layer| &layer.storage));
+        for storage in layers {
+            match storage.compacted(self.changed) {
+                Some(compacted) => compacted.encode_persistent(&mut out),
+                None => storage.encode_persistent(&mut out),
+            }
+        }
+        Some(out)
+    }
+
     /// Encode this sub-chunk, writing each palette entry as `wire(id)`.
     fn encode(&self, buf: &mut BytesMut, y_index: i8, wire: impl Fn(u32) -> u32 + Copy) {
         // SubChunk format v9:
@@ -1688,12 +1785,15 @@ impl SubChunk {
         // - Y index: i8 (relative to world min Y)
         // - For each storage: paletted data
 
+        // The liquid storage goes on the wire only while a cell holds liquid:
+        // the all-air one a section keeps for its saved record is not sent.
+        let liquid = self.secondary.as_ref().filter(|layer| layer.non_air != 0);
         buf.put_u8(SUBCHUNK_VERSION);
-        buf.put_u8(1 + u8::from(self.secondary.is_some()));
+        buf.put_u8(1 + u8::from(liquid.is_some()));
         buf.put_i8(y_index);
 
         self.storage.encode(buf, wire);
-        if let Some(layer) = &self.secondary {
+        if let Some(layer) = liquid {
             layer.storage.encode(buf, wire);
         }
     }
@@ -1925,73 +2025,219 @@ impl PalettedStorage {
         }
     }
 
-    /// Decode a paletted storage from bytes.
-    /// Returns (storage, bytes_consumed).
-    fn decode(data: &[u8]) -> Result<(Self, usize), String> {
-        if data.is_empty() {
-            return Err("Empty storage data".to_string());
+    /// This storage as BDS saves a section it changed when the chunk unloads:
+    /// when dropping the palette entries no cell uses lets a smaller width hold
+    /// the palette, those entries go, the rest keep their order, and the width
+    /// becomes the smallest that holds them (0 bits for one entry). Otherwise
+    /// BDS keeps the palette, unused entries and all, and so does this (`None`).
+    ///
+    /// BDS never lists a state twice. A palette that does (a Java conversion
+    /// can map two Java states to one Bedrock state, also in sections unastar
+    /// saved before) is compacted whether or not the section changed: its later
+    /// duplicates merge into the first, and unused entries go as well only when
+    /// `changed`.
+    fn compacted(&self, changed: bool) -> Option<Self> {
+        if self.size == PaletteSize::Bits0 {
+            return None;
         }
+        let mut seen = std::collections::HashSet::with_capacity(self.palette.len());
+        let listed_twice = !self.palette.iter().all(|&state| seen.insert(state));
+        let mut used = vec![!changed; self.palette.len()];
+        if changed {
+            for index in 0..BLOCKS_PER_SUBCHUNK {
+                let (x, z, y) = (index >> 8, (index >> 4) & 0xF, index & 0xF);
+                used[usize::from(self.get_palette_index(x, y, z))] = true;
+            }
+        }
+        // Kept entries in their order; a state listed again maps to its first.
+        let mut palette: Vec<u32> = Vec::with_capacity(self.palette.len());
+        let mut first = std::collections::HashMap::with_capacity(self.palette.len());
+        let mut remap = vec![0u16; self.palette.len()];
+        for (old, &state) in self.palette.iter().enumerate() {
+            if used[old] {
+                remap[old] = *first.entry(state).or_insert_with(|| {
+                    palette.push(state);
+                    (palette.len() - 1) as u16
+                });
+            }
+        }
+        let narrower = (PaletteSize::from_palette_len(palette.len()) as u8) < (self.size as u8);
+        let compact = listed_twice || (changed && narrower);
+        if !compact {
+            return None;
+        }
+        let size = PaletteSize::from_palette_len(palette.len());
+        let mut out = Self {
+            palette,
+            size,
+            indices: vec![0; size.word_count()],
+        };
+        if size != PaletteSize::Bits0 {
+            for index in 0..BLOCKS_PER_SUBCHUNK {
+                let (x, z, y) = (index >> 8, (index >> 4) & 0xF, index & 0xF);
+                let old = usize::from(self.get_palette_index(x, y, z));
+                out.set_palette_index(x, y, z, remap[old]);
+            }
+        }
+        Some(out)
+    }
 
-        let header = data[0];
+    /// Append this block storage in the persistent form BDS saves (header low
+    /// bit 0): header `bits << 1`, the index words, the palette length as
+    /// `i32 LE` (absent at 0 bits) and one `{name, states, version}` compound per
+    /// palette entry, in palette order.
+    ///
+    /// Bits of a word that hold no index (the top bits at 3, 5 and 6 bits, and
+    /// the slots past the 4096th) are written as zero, as BDS writes them.
+    fn encode_persistent(&self, out: &mut Vec<u8>) {
+        let bits = self.size as u8;
+        out.push(bits << 1);
+        if self.size != PaletteSize::Bits0 {
+            let per_word = self.size.indices_per_word();
+            let mask = |slots: usize| match slots * usize::from(bits) {
+                32 => u32::MAX,
+                used => (1u32 << used) - 1,
+            };
+            let last = self.indices.len() - 1;
+            let last_slots = BLOCKS_PER_SUBCHUNK - last * per_word;
+            for (i, &word) in self.indices.iter().enumerate() {
+                let slots = if i == last { last_slots } else { per_word };
+                out.extend_from_slice(&(word & mask(slots)).to_le_bytes());
+            }
+            let len =
+                i32::try_from(self.palette.len()).expect("palettes hold at most 65536 entries");
+            out.extend_from_slice(&len.to_le_bytes());
+        }
+        for &id in &self.palette {
+            persistent::write_palette_entry(out, id);
+        }
+    }
+
+    /// Decode one block storage of a sub-chunk record; returns (storage, bytes used).
+    ///
+    /// The header byte is `bits << 1 | form`. Form 0 is the persistent form BDS
+    /// saves, and unastar too: palette entries are block names and states (see
+    /// [`persistent`]). Form 1 is the runtime form: palette entries are runtime
+    /// ids, as the network carries them and as unastar saved sub-chunks before
+    /// it wrote the persistent form; such a storage is rewritten in form 0 the
+    /// next time its column is saved. Either way every palette entry is a
+    /// canonical block state.
+    fn decode_block_storage(data: &[u8]) -> Result<(Self, usize), String> {
+        match data.first() {
+            None => Err("missing storage header".to_owned()),
+            Some(header) if header & 1 == 0 => Self::decode_persistent(data),
+            Some(_) => {
+                let (storage, used) = Self::decode_runtime(data)?;
+                let registry = BlockRegistry::vanilla();
+                if let Some(id) = storage
+                    .palette
+                    .iter()
+                    .find(|&&id| registry.get_by_runtime_id(id).is_none())
+                {
+                    return Err(format!("runtime id {id} is not a block state"));
+                }
+                Ok((storage, used))
+            }
+        }
+    }
+
+    /// Header bit width and index words; returns (size, words, bytes used).
+    fn decode_words(data: &[u8]) -> Result<(PaletteSize, Vec<u32>, usize), String> {
+        let header = *data.first().ok_or("missing storage header")?;
         let bits = header >> 1;
-        let mut offset = 1;
+        let size =
+            PaletteSize::from_bits(bits).ok_or_else(|| format!("unsupported bit width {bits}"))?;
+        let word_bytes = size.word_count() * 4;
+        let words = data
+            .get(1..1 + word_bytes)
+            .ok_or_else(|| format!("truncated {bits}-bit index words"))?;
+        let indices = words
+            .chunks_exact(4)
+            .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
+            .collect();
+        Ok((size, indices, 1 + word_bytes))
+    }
 
-        let size = PaletteSize::from_bits(bits)
-            .ok_or_else(|| format!("Unsupported bit width: {}", bits))?;
-
-        if bits == 0 {
-            // Single-value palette
-            let (value, consumed) =
-                read_signed_varint32(&data[offset..]).ok_or("Failed to read palette value")?;
-            offset += consumed;
-
-            return Ok((
-                Self {
-                    palette: vec![value as u32],
-                    size: PaletteSize::Bits0,
-                    indices: vec![],
-                },
-                offset,
-            ));
+    /// Decode a runtime-form storage (palette entries are runtime ids as
+    /// signed varints, the length too); returns (storage, bytes used).
+    fn decode_runtime(data: &[u8]) -> Result<(Self, usize), String> {
+        let (size, indices, mut offset) = Self::decode_words(data)?;
+        let len = if size == PaletteSize::Bits0 {
+            1
+        } else {
+            let (len, used) =
+                read_signed_varint32(&data[offset..]).ok_or("truncated runtime palette length")?;
+            offset += used;
+            palette_len(len)?
+        };
+        let mut palette = Vec::with_capacity(len.min(BLOCKS_PER_SUBCHUNK));
+        for _ in 0..len {
+            let (id, used) =
+                read_signed_varint32(&data[offset..]).ok_or("truncated runtime palette entry")?;
+            offset += used;
+            palette.push(id as u32);
         }
+        Ok((Self::checked(palette, size, indices)?, offset))
+    }
 
-        // Multi-value: read packed indices
-        let word_count = size.word_count();
-        let word_bytes = word_count * 4;
-
-        if data.len() < offset + word_bytes {
-            return Err("Not enough data for indices".to_string());
+    /// Decode a persistent-form storage, as BDS saves it: the palette length
+    /// as i32 LE (absent when `bits` is 0, where the palette is one entry),
+    /// then one NBT block state per entry; returns (storage, bytes used).
+    fn decode_persistent(data: &[u8]) -> Result<(Self, usize), String> {
+        let (size, indices, mut offset) = Self::decode_words(data)?;
+        let len = if size == PaletteSize::Bits0 {
+            1
+        } else {
+            palette_len(read_i32_le(data, &mut offset)?)?
+        };
+        let mut palette = Vec::with_capacity(len.min(BLOCKS_PER_SUBCHUNK));
+        for entry in 0..len {
+            palette.push(
+                persistent::read_palette_entry(data, &mut offset)
+                    .map_err(|error| format!("palette entry {entry}: {error}"))?,
+            );
         }
+        Ok((Self::checked(palette, size, indices)?, offset))
+    }
 
-        let mut indices = Vec::with_capacity(word_count);
-        for i in 0..word_count {
-            let wo = offset + i * 4;
-            let word = u32::from_le_bytes([data[wo], data[wo + 1], data[wo + 2], data[wo + 3]]);
-            indices.push(word);
+    /// A decoded storage whose 4096 indices all name palette entries.
+    ///
+    /// Entries past what `size` can index are read (BDS reads such a palette
+    /// too) but dropped, since no index reaches them and edits must never
+    /// write an index the bit width cannot hold.
+    fn checked(
+        mut palette: Vec<u32>,
+        size: PaletteSize,
+        indices: Vec<u32>,
+    ) -> Result<Self, String> {
+        palette.truncate(1 << (size as u8));
+        let storage = Self {
+            palette,
+            size,
+            indices,
+        };
+        storage.check_indices()?;
+        Ok(storage)
+    }
+
+    /// Every one of the 4096 indices must name a palette entry. BDS reads an
+    /// index past its palette as the palette's first entry; it never writes
+    /// one, so here it marks a corrupt record (see `docs/solutions/storage/`).
+    fn check_indices(&self) -> Result<(), String> {
+        if self.size == PaletteSize::Bits0 {
+            return Ok(());
         }
-        offset += word_bytes;
-
-        // Read palette
-        let (palette_len, consumed) =
-            read_signed_varint32(&data[offset..]).ok_or("Failed to read palette length")?;
-        offset += consumed;
-
-        let mut palette = Vec::with_capacity(palette_len as usize);
-        for _ in 0..palette_len {
-            let (value, consumed) =
-                read_signed_varint32(&data[offset..]).ok_or("Failed to read palette entry")?;
-            offset += consumed;
-            palette.push(value as u32);
+        for index in 0..BLOCKS_PER_SUBCHUNK {
+            let (x, z, y) = (index >> 8, (index >> 4) & 0xF, index & 0xF);
+            let palette_index = self.get_palette_index(x, y, z);
+            if usize::from(palette_index) >= self.palette.len() {
+                return Err(format!(
+                    "index {palette_index} at block {index} is outside the palette of {}",
+                    self.palette.len()
+                ));
+            }
         }
-
-        Ok((
-            Self {
-                palette,
-                size,
-                indices,
-            },
-            offset,
-        ))
+        Ok(())
     }
 
     /// Append this storage in the Data3D biome format (see [`Chunk::encode_biomes_disk`]).
@@ -2076,6 +2322,15 @@ fn same_bedrock_block(old: u32, new: u32) -> bool {
         (Some(old), Some(new)) => old.id == new.id,
         _ => false,
     }
+}
+
+/// A block storage's palette length: at least one entry. More entries than the
+/// bit width can index are allowed, as BDS reads them.
+fn palette_len(len: i32) -> Result<usize, String> {
+    usize::try_from(len)
+        .ok()
+        .filter(|&len| len >= 1)
+        .ok_or_else(|| format!("palette length {len} is not positive"))
 }
 
 /// Read an i32 LE at `offset`, advancing it.
@@ -2235,7 +2490,8 @@ mod tests {
             let bytes = chunk
                 .encode_subchunk(section, crate::registry::block::BlockNetworkIds::Sequential)
                 .unwrap();
-            let blocks = chunk.encode_subchunk_disk(section).unwrap();
+            // The network block storage (runtime ids), then the actors.
+            let blocks = chunk.encode_section(section, |id| id).unwrap();
             assert!(bytes.starts_with(&blocks));
             let mut input = &bytes[blocks.len()..];
             let mut positions = Vec::new();
@@ -2390,6 +2646,23 @@ mod tests {
         );
     }
 
+    /// The header byte of every biome section of a Data3D value.
+    fn data3d_headers(data: &[u8]) -> Vec<u8> {
+        let mut offset = DATA3D_HEIGHTMAP_LEN;
+        let mut headers = Vec::new();
+        while offset < data.len() {
+            let header = data[offset];
+            headers.push(header);
+            if header == DATA3D_COPY_PREVIOUS {
+                offset += 1;
+                continue;
+            }
+            let (_, used) = PalettedStorage::decode_disk_biomes(&data[offset..]).unwrap();
+            offset += used;
+        }
+        headers
+    }
+
     #[test]
     fn data3d_round_trips_mixed_biomes_and_writes_heights() {
         let mut quarts = QuartBiomes::filled(1);
@@ -2411,7 +2684,13 @@ mod tests {
             i16::from_le_bytes([data[2 * column], data[2 * column + 1]]),
             76 - MIN_Y as i16
         );
-        assert_eq!(data[DATA3D_HEIGHTMAP_LEN + 5], DATA3D_COPY_PREVIOUS);
+        // Stored up to section 11, the last that differs from the section
+        // below (plains again above section 10); copy markers only above it.
+        // BDS stops loading a chunk with a copy marker below a stored section.
+        let headers = data3d_headers(&data);
+        assert_eq!(headers.len(), SUBCHUNK_COUNT as usize);
+        assert!(headers[..=11].iter().all(|&h| h != DATA3D_COPY_PREVIOUS));
+        assert!(headers[12..].iter().all(|&h| h == DATA3D_COPY_PREVIOUS));
 
         let mut loaded = Chunk::new(0, 0);
         loaded
@@ -2533,11 +2812,152 @@ mod tests {
         let mut buf = BytesMut::new();
         storage.encode(&mut buf, |id| id);
 
-        let (decoded, _) = PalettedStorage::decode(&buf).unwrap();
+        let (decoded, _) = PalettedStorage::decode_runtime(&buf).unwrap();
 
         assert_eq!(decoded.get_block(0, 0, 0), *blocks::AIR);
         assert_eq!(decoded.get_block(5, 5, 5), *blocks::STONE);
         assert_eq!(decoded.get_block(10, 10, 10), *blocks::DIRT);
+    }
+
+    /// The loader crashed counting blocks of a storage whose indices named
+    /// entries past the end of its palette. Such a storage is a decode error
+    /// in either palette form, and the section keeps its previous blocks.
+    #[test]
+    fn indices_outside_the_palette_are_errors_not_panics() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        for (x, block) in [*blocks::STONE, *blocks::DIRT, *blocks::GRASS_BLOCK]
+            .into_iter()
+            .enumerate()
+        {
+            storage.set_block(x, 0, 0, block);
+        }
+        assert_eq!(storage.size, PaletteSize::Bits2);
+        storage.palette.truncate(2);
+        let mut record = BytesMut::from(&[9u8, 1, 0][..]);
+        storage.encode(&mut record, |id| id);
+
+        let mut chunk = Chunk::new(0, 0);
+        chunk.fill_subchunk_solid(4, *blocks::BEDROCK);
+        let error = chunk.decode_subchunk(0, &record).unwrap_err();
+        assert_eq!(
+            error,
+            "block storage: index 2 at block 256 is outside the palette of 2"
+        );
+        assert_eq!(chunk.get_block(0, 0, 0), *blocks::BEDROCK);
+
+        // The same indices with the 2-bit persistent (BDS) header and palette.
+        let mut persistent = vec![9u8, 1, 0, 2 << 1];
+        for word in &storage.indices {
+            persistent.extend_from_slice(&word.to_le_bytes());
+        }
+        persistent.extend_from_slice(&2i32.to_le_bytes());
+        for name in ["minecraft:air", "minecraft:stone"] {
+            persistent.extend_from_slice(&[10, 0, 0, 8, 4, 0]);
+            persistent.extend_from_slice(b"name");
+            persistent.extend_from_slice(&(name.len() as u16).to_le_bytes());
+            persistent.extend_from_slice(name.as_bytes());
+            persistent.extend_from_slice(&[10, 6, 0]);
+            persistent.extend_from_slice(b"states");
+            persistent.extend_from_slice(&[0, 0]);
+        }
+        let error = chunk.decode_subchunk(0, &persistent).unwrap_err();
+        assert_eq!(
+            error,
+            "block storage: index 2 at block 256 is outside the palette of 2"
+        );
+        assert_eq!(chunk.get_block(0, 0, 0), *blocks::BEDROCK);
+    }
+
+    /// A palette length below one is an error. A palette longer than the bit
+    /// width can index reads like BDS reads it: the extra entries are consumed
+    /// (the next storage starts after them) and dropped, since no index
+    /// reaches them. A huge length allocates nothing up front.
+    #[test]
+    fn palette_lengths_are_positive_and_may_exceed_the_bit_width() {
+        let runtime = |len: i32, ids: &[u32]| {
+            let mut wire = BytesMut::new();
+            wire.put_u8((1 << 1) | 1);
+            wire.put_bytes(0, PaletteSize::Bits1.word_count() * 4);
+            write_signed_varint32(&mut wire, len);
+            for &id in ids {
+                write_signed_varint32(&mut wire, id as i32);
+            }
+            wire
+        };
+        let persistent = |len: i32| {
+            let mut storage = vec![1 << 1];
+            storage.resize(1 + PaletteSize::Bits1.word_count() * 4, 0);
+            storage.extend_from_slice(&len.to_le_bytes());
+            storage
+        };
+        for len in [-1, 0] {
+            let expected = format!("palette length {len} is not positive");
+            assert_eq!(
+                PalettedStorage::decode_block_storage(&runtime(len, &[])).unwrap_err(),
+                expected
+            );
+            assert_eq!(
+                PalettedStorage::decode_block_storage(&persistent(len)).unwrap_err(),
+                expected
+            );
+        }
+        assert_eq!(
+            PalettedStorage::decode_block_storage(&runtime(i32::MAX, &[])).unwrap_err(),
+            "truncated runtime palette entry"
+        );
+        assert!(
+            PalettedStorage::decode_block_storage(&persistent(i32::MAX))
+                .unwrap_err()
+                .contains("palette entry 0: palette entry is truncated")
+        );
+
+        let ids = [*blocks::STONE, *blocks::DIRT, *blocks::GRASS_BLOCK];
+        let wire = runtime(3, &ids);
+        let (storage, used) = PalettedStorage::decode_block_storage(&wire).unwrap();
+        assert_eq!(used, wire.len());
+        assert_eq!(storage.palette, ids[..2]);
+        assert_eq!(storage.get_block(15, 15, 15), *blocks::STONE);
+    }
+
+    /// Record framing as BDS reads it: the section goes where the caller's Y
+    /// (the LevelDB key) says whatever the version 9 Y byte holds, version 8
+    /// has no Y byte, and bytes after the last storage are not read.
+    #[test]
+    fn record_framing_follows_the_key_not_the_y_byte() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        storage.set_block(0, 3, 0, *blocks::STONE);
+        let mut body = BytesMut::new();
+        storage.encode(&mut body, |id| id);
+
+        let mut record = vec![9, 1, 5];
+        record.extend_from_slice(&body);
+        record.extend_from_slice(&[0xAB; 8]);
+        let mut chunk = Chunk::new(0, 0);
+        chunk.decode_subchunk(0, &record).unwrap();
+        assert_eq!(chunk.get_block(0, 3, 0), *blocks::STONE);
+        assert_eq!(chunk.get_block(0, 83, 0), *blocks::AIR);
+
+        let mut version_8 = vec![8, 1];
+        version_8.extend_from_slice(&body);
+        let mut chunk = Chunk::new(0, 0);
+        chunk.decode_subchunk(-2, &version_8).unwrap();
+        assert_eq!(chunk.get_block(0, -29, 0), *blocks::STONE);
+    }
+
+    /// A runtime-form block palette may only hold canonical states: anything
+    /// else would load and then fail wherever the state is looked up, such as
+    /// when the section is sent to a client.
+    #[test]
+    fn runtime_palette_ids_must_be_block_states() {
+        let unknown = BlockRegistry::vanilla().len() as u32 * 1000;
+        let mut record = BytesMut::from(&[9u8, 1, 0][..]);
+        PalettedStorage::single_block(unknown).encode(&mut record, |id| id);
+        let mut chunk = Chunk::new(0, 0);
+        assert_eq!(
+            chunk.decode_subchunk(0, &record).unwrap_err(),
+            format!("block storage: runtime id {unknown} is not a block state")
+        );
+        assert_eq!(chunk.get_block(0, 0, 0), *blocks::AIR);
     }
 
     #[test]
@@ -2777,7 +3197,8 @@ mod layered_state_tests {
         assert_eq!(chunk.height_map().at(15, 15), 320);
         chunk.set_block(15, 319, 15, *blocks::AIR).unwrap();
         assert_eq!(chunk.get_block_layer(15, 319, 15, 1), *blocks::AIR);
-        assert_eq!(chunk.encode_subchunk_disk(19).unwrap()[1], 1);
+        // Air in both layers: the section has no record.
+        assert_eq!(chunk.encode_subchunk_disk(19), None);
         assert_eq!(chunk.height_map().at(15, 15), 1);
         assert_eq!(chunk.highest_subchunk(), 5);
         chunk.fill_subchunk_solid(4, *blocks::AIR);
@@ -2789,7 +3210,7 @@ mod layered_state_tests {
             .unwrap();
         chunk.fill_floor(2, *blocks::AIR);
         assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
-        assert_eq!(chunk.encode_subchunk_disk(0).unwrap()[1], 1);
+        assert_eq!(chunk.encode_subchunk_disk(0), None);
     }
 
     #[test]
@@ -2801,7 +3222,7 @@ mod layered_state_tests {
         chunk.set_block_bounds(0..256);
         chunk.set_block_bounds(MIN_Y..320);
         assert_eq!(chunk.get_block_layer(0, 319, 0, 1), *blocks::AIR);
-        assert_eq!(chunk.encode_subchunk_disk(19).unwrap()[1], 1);
+        assert_eq!(chunk.encode_subchunk_disk(19), None);
         assert_eq!(chunk.highest_subchunk(), 0);
     }
 
@@ -2824,5 +3245,278 @@ mod layered_state_tests {
             BlockStateSpace::Java.air()
         );
         assert_eq!(chunk.block_entities(), actors.as_slice());
+    }
+}
+
+/// The sub-chunk writer: BDS's persistent form and the palettes BDS saves.
+#[cfg(test)]
+mod persistent_form_tests {
+    use super::*;
+    use crate::registry::block::StateValue;
+
+    fn state(name: &str, states: &[(&str, StateValue)]) -> u32 {
+        let block = BlockRegistry::vanilla().get_by_name(name).unwrap();
+        (block.min_state_id..=block.max_state_id)
+            .find(|&id| {
+                states
+                    .iter()
+                    .all(|&(key, value)| block.state_value(id, key) == Some(value))
+            })
+            .unwrap()
+    }
+
+    fn gold() -> u32 {
+        state("minecraft:gold_block", &[])
+    }
+
+    fn diamond() -> u32 {
+        state("minecraft:diamond_block", &[])
+    }
+
+    /// Storages of a record: (bits, palette length, header low bit).
+    fn shape(record: &[u8]) -> Vec<(u8, usize, u8)> {
+        let mut offset = 3;
+        let mut out = Vec::new();
+        for _ in 0..record[1] {
+            let header = record[offset];
+            let (storage, used) = PalettedStorage::decode_block_storage(&record[offset..]).unwrap();
+            out.push((storage.size as u8, storage.palette.len(), header & 1));
+            offset += used;
+        }
+        assert_eq!(offset, record.len(), "bytes after the storages");
+        out
+    }
+
+    /// Every canonical state survives the writer and the reader: six sections
+    /// hold all 22,091 states, saved by name and states and loaded back.
+    #[test]
+    fn every_block_state_round_trips_through_the_persistent_form() {
+        let registry = BlockRegistry::vanilla();
+        let states: Vec<u32> = registry
+            .iter()
+            .flat_map(|block| block.min_state_id..=block.max_state_id)
+            .collect();
+        assert_eq!(states.len(), 22_091);
+        let mut chunk = Chunk::new(0, 0);
+        for (i, &id) in states.iter().enumerate() {
+            let (section, cell) = (i / BLOCKS_PER_SUBCHUNK, i % BLOCKS_PER_SUBCHUNK);
+            let (x, z, y) = (cell >> 8, (cell >> 4) & 15, cell & 15);
+            chunk.set_block(x as u8, (section * 16 + y) as i16, z as u8, id);
+        }
+        let mut loaded = Chunk::new(0, 0);
+        for y in 0..6 {
+            let record = chunk.encode_subchunk_disk(y).unwrap();
+            assert!(shape(&record).iter().all(|&(_, _, form)| form == 0));
+            loaded.decode_subchunk(y, &record).unwrap();
+        }
+        for (i, &id) in states.iter().enumerate() {
+            let (section, cell) = (i / BLOCKS_PER_SUBCHUNK, i % BLOCKS_PER_SUBCHUNK);
+            let (x, z, y) = (cell >> 8, (cell >> 4) & 15, cell & 15);
+            assert_eq!(
+                loaded.get_block(x as u8, (section * 16 + y) as i16, z as u8),
+                id
+            );
+        }
+    }
+
+    /// An entry is `{name, states, version}` with the states sorted by name
+    /// and typed as the registry types them, and `version` 18168865.
+    #[test]
+    fn palette_entries_are_written_as_bds_writes_them() {
+        let lever = state(
+            "minecraft:lever",
+            &[
+                ("lever_direction", StateValue::Str("north")),
+                ("open_bit", StateValue::Byte(1)),
+            ],
+        );
+        let mut entry = Vec::new();
+        persistent::write_palette_entry(&mut entry, lever);
+        let mut expected = vec![10, 0, 0, 8, 4, 0];
+        expected.extend_from_slice(b"name");
+        expected.extend_from_slice(&[15, 0]);
+        expected.extend_from_slice(b"minecraft:lever");
+        expected.extend_from_slice(&[10, 6, 0]);
+        expected.extend_from_slice(b"states");
+        expected.extend_from_slice(&[8, 15, 0]);
+        expected.extend_from_slice(b"lever_direction");
+        expected.extend_from_slice(&[5, 0]);
+        expected.extend_from_slice(b"north");
+        expected.extend_from_slice(&[1, 8, 0]);
+        expected.extend_from_slice(b"open_bit");
+        expected.push(1);
+        expected.extend_from_slice(&[0, 3, 7, 0]);
+        expected.extend_from_slice(b"version");
+        expected.extend_from_slice(&18_168_865i32.to_le_bytes());
+        expected.push(0);
+        assert_eq!(entry, expected);
+        let mut offset = 0;
+        assert_eq!(
+            persistent::read_palette_entry(&entry, &mut offset),
+            Ok(lever)
+        );
+        assert_eq!(offset, entry.len());
+    }
+
+    /// The record framing: version 9, one storage, the y byte of the key, the
+    /// persistent header, a 0-bit storage without a length, and no record for
+    /// a section of air.
+    #[test]
+    fn records_frame_storages_as_bds_does() {
+        let mut chunk = Chunk::new(0, 0);
+        assert_eq!(chunk.encode_subchunk_disk(-2), None);
+        chunk.fill_subchunk_solid(2, *blocks::STONE);
+        let mut expected = vec![9, 1, (-2i8) as u8, 0];
+        persistent::write_palette_entry(&mut expected, *blocks::STONE);
+        assert_eq!(chunk.encode_subchunk_disk(-2), Some(expected));
+        chunk.set_block(0, 0, 0, gold());
+        let record = chunk.encode_subchunk_disk(0).unwrap();
+        assert_eq!(&record[..4], &[9, 1, 0, 1 << 1]);
+        assert_eq!(shape(&record), [(1, 2, 0)]);
+        // Cleared again: no record.
+        chunk.set_block(0, 0, 0, *blocks::AIR);
+        assert_eq!(chunk.encode_subchunk_disk(0), None);
+    }
+
+    /// `[air, stone, gold, diamond]` with gold unused, as BDS saves it.
+    fn unused_gold() -> Chunk {
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_block(0, 0, 0, *blocks::STONE);
+        chunk.set_block(1, 0, 0, gold());
+        chunk.set_block(2, 0, 0, diamond());
+        chunk.set_block(1, 0, 0, *blocks::AIR);
+        let mut loaded = Chunk::new(0, 0);
+        let mut record = vec![9, 1, 0];
+        chunk.sub_chunks[4].storage.encode_persistent(&mut record);
+        loaded.decode_subchunk(0, &record).unwrap();
+        loaded
+    }
+
+    /// An unchanged section keeps its palette; a changed one drops its unused
+    /// entries only when that narrows the width, as BDS's save on unload.
+    #[test]
+    fn changed_sections_drop_unused_entries_only_to_narrow_the_width() {
+        let unchanged = unused_gold();
+        let record = unchanged.encode_subchunk_disk(0).unwrap();
+        assert_eq!(shape(&record), [(2, 4, 0)]);
+
+        // Stone into another cell: compaction would keep 2 bits, so gold stays.
+        let mut same_width = unused_gold();
+        same_width.set_block(5, 0, 0, *blocks::STONE);
+        assert_eq!(
+            shape(&same_width.encode_subchunk_disk(0).unwrap()),
+            [(2, 4, 0)]
+        );
+
+        // Writing the block a cell holds changes nothing.
+        let mut no_change = unused_gold();
+        no_change.set_block(0, 0, 0, *blocks::STONE);
+        assert_eq!(no_change.encode_subchunk_disk(0), Some(record));
+
+        // Stone removed: [air, diamond] fits 1 bit.
+        let mut narrower = unused_gold();
+        narrower.set_block(0, 0, 0, *blocks::AIR);
+        let compacted = narrower.encode_subchunk_disk(0).unwrap();
+        assert_eq!(shape(&compacted), [(1, 2, 0)]);
+        let mut loaded = Chunk::new(0, 0);
+        loaded.decode_subchunk(0, &compacted).unwrap();
+        assert_eq!(loaded.get_block(2, 0, 0), diamond());
+        assert_eq!(loaded.get_block(0, 0, 0), *blocks::AIR);
+        let palette = &loaded.sub_chunks[4].storage.palette;
+        assert_eq!(palette, &[*blocks::AIR, diamond()]);
+
+        // Diamond over the rest of the section: one entry left, 0 bits.
+        let mut uniform = narrower;
+        for x in 0..16 {
+            for z in 0..16 {
+                for y in 0..16 {
+                    uniform.set_block(x, y, z, diamond());
+                }
+            }
+        }
+        assert_eq!(
+            shape(&uniform.encode_subchunk_disk(0).unwrap()),
+            [(0, 1, 0)]
+        );
+    }
+
+    /// A section keeps its liquid storage after the last waterlogged block is
+    /// gone, as BDS does, and saves it compacted to a 0-bit `[air]`.
+    #[test]
+    fn the_liquid_storage_outlives_its_last_liquid_cell() {
+        let slab = state(
+            "minecraft:oak_slab",
+            &[("minecraft:vertical_half", StateValue::Str("bottom"))],
+        );
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_block(0, 0, 0, *blocks::STONE);
+        chunk.set_block_layers(5, 5, 5, slab, Some(*blocks::WATER));
+        let record = chunk.encode_subchunk_disk(0).unwrap();
+        assert_eq!(shape(&record), [(2, 3, 0), (1, 2, 0)]);
+        let mut loaded = Chunk::new(0, 0);
+        loaded.decode_subchunk(0, &record).unwrap();
+        assert_eq!(loaded.encode_subchunk_disk(0), Some(record));
+
+        loaded.set_block(5, 5, 5, *blocks::STONE);
+        assert_eq!(loaded.get_block_layer(5, 5, 5, 1), *blocks::AIR);
+        assert_eq!(
+            shape(&loaded.encode_subchunk_disk(0).unwrap()),
+            [(1, 2, 0), (0, 1, 0)]
+        );
+        // Air in both layers: no record, liquid storage or not.
+        loaded.set_block(0, 0, 0, *blocks::AIR);
+        loaded.set_block(5, 5, 5, *blocks::AIR);
+        assert_eq!(loaded.encode_subchunk_disk(0), None);
+    }
+
+    /// Bits of a word that hold no index are written as zero, as BDS writes
+    /// them, even when a record read had them set.
+    #[test]
+    fn word_padding_is_written_as_zero() {
+        let mut chunk = Chunk::new(0, 0);
+        for (x, block) in [*blocks::STONE, *blocks::DIRT, gold(), diamond()]
+            .into_iter()
+            .enumerate()
+        {
+            chunk.set_block(x as u8, 0, 0, block);
+        }
+        let mut record = chunk.encode_subchunk_disk(0).unwrap();
+        assert_eq!(shape(&record), [(3, 5, 0)]);
+        let words = PaletteSize::Bits3.word_count();
+        for word in record[4..4 + words * 4].chunks_exact_mut(4) {
+            word[3] |= 0xC0; // the two padding bits of every 3-bit word
+        }
+        let mut loaded = Chunk::new(0, 0);
+        loaded.decode_subchunk(0, &record).unwrap();
+        let rewritten = loaded.encode_subchunk_disk(0).unwrap();
+        for word in record[4..4 + words * 4].chunks_exact_mut(4) {
+            word[3] &= 0x3F;
+        }
+        assert_eq!(rewritten, record);
+    }
+
+    /// Java-generated sections can map two Java states to one Bedrock state,
+    /// also in sections unastar saved before; the saved palette lists each
+    /// state once, as BDS's palettes do, whether or not the section changed.
+    /// An unchanged section keeps its unused entries.
+    #[test]
+    fn a_state_listed_twice_is_saved_once() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        storage.set_block(0, 0, 0, *blocks::STONE);
+        storage.set_block(1, 0, 0, *blocks::DIRT);
+        storage.set_block(2, 0, 0, gold());
+        storage.set_block(2, 0, 0, *blocks::AIR); // gold unused
+        storage.palette[2] = *blocks::STONE; // dirt's entry now names stone too
+        let mut section = SubChunk::with_storage(storage, None, BlockStateSpace::Bedrock);
+        for (changed, expected) in [(false, [(2, 3, 0)]), (true, [(1, 2, 0)])] {
+            section.changed = changed;
+            let record = section.encode_disk(0).unwrap();
+            assert_eq!(shape(&record), expected, "changed {changed}");
+            let mut loaded = Chunk::new(0, 0);
+            loaded.decode_subchunk(0, &record).unwrap();
+            assert_eq!(loaded.get_block(0, 0, 0), *blocks::STONE);
+            assert_eq!(loaded.get_block(1, 0, 0), *blocks::STONE);
+            assert_eq!(loaded.get_block(2, 0, 0), *blocks::AIR);
+        }
     }
 }

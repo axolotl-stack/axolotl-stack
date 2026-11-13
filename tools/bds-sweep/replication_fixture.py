@@ -235,7 +235,7 @@ def main() -> int:
     for directory in dirs:
         loaded = json.loads((directory / 'loaded.json').read_text(encoding='utf-8'))
         sources.append({'sweep': directory.name, **loaded})
-        captures = {'player': list(packets(directory / 'client' / 'packets.jsonl'))}
+        captures = {'player': list(packets(directory / 'client-capture' / 'packets.jsonl'))}
         if (directory / 'observer' / 'packets.jsonl').exists():
             captures['observer'] = list(packets(directory / 'observer' / 'packets.jsonl'))
         job = json.loads((directory / 'job.json').read_text(encoding='utf-8'))

@@ -1,6 +1,7 @@
 //! Optimization gate: exact generated chunk bytes, not statistical vanilla parity.
 //!
-//! SHA-256 covers coordinates, all 24 block-storage subchunks (framed by length),
+//! SHA-256 covers coordinates, all 24 block-storage subchunks (framed by length;
+//! a section saved with no record, all air, counts as length 0),
 //! disk biome/heightmap bytes and network biome bytes in fixture request order.
 //! A separate digest covers block actors sorted by position with canonical NBT
 //! compound-key order, avoiding persistence hash-map iteration nondeterminism.
@@ -54,7 +55,7 @@ fn verify(kind: &str, make_generator: fn(i64) -> Arc<dyn Generator>) {
                     digest.update(p.x.to_le_bytes());
                     digest.update(p.z.to_le_bytes());
                     for y in -4..20 {
-                        let bytes = chunk.encode_subchunk_disk(y).unwrap();
+                        let bytes = chunk.encode_subchunk_disk(y).unwrap_or_default();
                         digest.update((bytes.len() as u64).to_le_bytes());
                         digest.update(bytes);
                     }

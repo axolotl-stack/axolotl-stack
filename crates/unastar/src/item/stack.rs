@@ -5,6 +5,8 @@
 //! value, the network user data and the stack network ID. Stack size and
 //! other item facts come from the item type, never from the identifier text.
 
+use unastar_rules::ids::{Enchantment, Enchantments};
+
 use crate::registry::item::{ItemEntry, ItemType};
 
 /// A stack of items.
@@ -12,6 +14,11 @@ use crate::registry::item::{ItemEntry, ItemType};
 /// Designed to be cheap to clone and used as values, not references.
 /// Equality compares contents (item, count, aux, block, user data), not the
 /// stack network ID, which only tracks a stack's identity on the wire.
+///
+/// The enchantment levels are decoded from the user data whenever it is set
+/// and kept beside it, so [`ItemStack::enchantment_level`] is an array index.
+/// They are a function of the user data, so equality and stacking (which
+/// compare the user data) never look at them.
 #[derive(Clone, Debug, Default)]
 pub struct ItemStack {
     /// Item type; `None` is the empty slot.
@@ -28,8 +35,13 @@ pub struct ItemStack {
 
     /// Network item user data (NBT, can-place-on/can-destroy lists, shield
     /// blocking tick) exactly as the client sent it; `None` is the default.
-    /// Encode it with [`crate::item::user_data`], never send it raw.
-    pub nbt: Option<bytes::Bytes>,
+    /// Encode it with [`crate::item::user_data`], never send it raw. Set it
+    /// through [`ItemStack::with_nbt`] or [`ItemStack::with_raw_nbt`], which
+    /// keep `enchantments` in step.
+    nbt: Option<bytes::Bytes>,
+
+    /// Enchantment levels decoded from `nbt`.
+    enchantments: Enchantments,
 
     /// Stack network ID (`ItemStackNetIdVariant`): 0 until the stack is put
     /// into a slot (see [`ItemStack::into_slot`]); moves keep it, splits and
@@ -65,6 +77,7 @@ impl ItemStack {
         count: 0,
         damage: 0,
         nbt: None,
+        enchantments: Enchantments::NONE,
         net_id: 0,
     };
 
@@ -77,6 +90,7 @@ impl ItemStack {
             count,
             damage: 0,
             nbt: None,
+            enchantments: Enchantments::NONE,
             net_id: 0,
         }
     }
@@ -115,16 +129,41 @@ impl ItemStack {
         self
     }
 
-    /// Create a stack with network item user data (see [`Self::nbt`]).
+    /// Create a stack with network item user data (see [`Self::nbt`]);
+    /// the item's default user data is stored as `None`.
     #[inline]
-    pub fn with_nbt(mut self, nbt: impl Into<bytes::Bytes>) -> Self {
+    pub fn with_nbt(self, nbt: impl Into<bytes::Bytes>) -> Self {
         let nbt = nbt.into();
-        self.nbt = if super::user_data::is_default(self.item_id(), &nbt) {
-            None
-        } else {
-            Some(nbt)
-        };
+        let nbt = (!super::user_data::is_default(self.item_id(), &nbt)).then_some(nbt);
+        self.with_raw_nbt(nbt)
+    }
+
+    /// This stack with exactly this user data, without normalising the
+    /// item's default user data to `None`.
+    pub fn with_raw_nbt(mut self, nbt: Option<bytes::Bytes>) -> Self {
+        self.enchantments = nbt
+            .as_deref()
+            .map_or(Enchantments::NONE, super::enchant::decode_levels);
+        self.nbt = nbt;
         self
+    }
+
+    /// Network item user data as stored (`None`: the item's default).
+    #[inline]
+    pub fn nbt(&self) -> Option<&bytes::Bytes> {
+        self.nbt.as_ref()
+    }
+
+    /// The enchantment levels of this stack, decoded once from its NBT.
+    #[inline]
+    pub fn enchantments(&self) -> &Enchantments {
+        &self.enchantments
+    }
+
+    /// Level of `enchantment` on this stack (0 when absent).
+    #[inline]
+    pub fn enchantment_level(&self, enchantment: Enchantment) -> u8 {
+        self.enchantments.level(enchantment)
     }
 
     /// This stack as stored in a slot: empty stacks are normalised to

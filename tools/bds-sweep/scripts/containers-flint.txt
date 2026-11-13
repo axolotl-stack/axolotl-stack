@@ -1,0 +1,77 @@
+# Placing containers, and lighting blocks with flint and steel, against BDS:
+# `python tools/bds-sweep/script.py tools/bds-sweep/scripts/containers-flint.txt --out DIR`.
+# Every placement and light is a survival click on the top face (1) of the
+# block at (2,-61,0) or of the block put at (2,-60,0); the item is given to
+# hotbar slot 0 first. Ticks are the client's inputs.
+#
+# Arena as in breaking.txt: a stone floor at y=-61, the player at
+# (0.5,-60,0.5) facing east.
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule dofiretick false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+
+# The scripted client clicks with the clicked block's runtime id as BDS last
+# sent it: a /setblock round trip sends the floor block's first.
+32 /setblock 2 -61 0 dirt
+34 /setblock 2 -61 0 stone
+
+# 1. Each container placed on the floor at (2,-60,0), then removed.
+40 /give @s chest
+45 use-on 2 -61 0 1
+60 /setblock 2 -60 0 air
+61 /clear @s
+70 /give @s trapped_chest
+75 use-on 2 -61 0 1
+90 /setblock 2 -60 0 air
+91 /clear @s
+100 /give @s ender_chest
+105 use-on 2 -61 0 1
+120 /setblock 2 -60 0 air
+121 /clear @s
+130 /give @s barrel
+135 use-on 2 -61 0 1
+150 /setblock 2 -60 0 air
+151 /clear @s
+160 /give @s furnace
+165 use-on 2 -61 0 1
+180 /setblock 2 -60 0 air
+181 /clear @s
+190 /give @s blast_furnace
+195 use-on 2 -61 0 1
+210 /setblock 2 -60 0 air
+211 /clear @s
+220 /give @s smoker
+225 use-on 2 -61 0 1
+240 /setblock 2 -60 0 air
+241 /clear @s
+250 /give @s hopper
+255 use-on 2 -61 0 1
+270 /setblock 2 -60 0 air
+271 /clear @s
+
+# 2. Flint and steel on an unlit candle, on netherrack (fire above), on an
+#    unlit campfire and on stone (fire above), each at (2,-60,0).
+280 /give @s flint_and_steel
+290 /setblock 2 -60 0 candle
+300 use-on 2 -60 0 1
+320 /setblock 2 -60 0 air
+330 /setblock 2 -60 0 netherrack
+340 use-on 2 -60 0 1
+360 /setblock 2 -59 0 air
+361 /setblock 2 -60 0 air
+370 /setblock 2 -60 0 campfire ["extinguished"=true]
+380 use-on 2 -60 0 1
+400 /setblock 2 -60 0 air
+410 /setblock 2 -60 0 stone
+420 use-on 2 -60 0 1
+440 /setblock 2 -59 0 air
+441 /setblock 2 -60 0 air
+460 exit

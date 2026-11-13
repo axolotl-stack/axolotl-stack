@@ -182,7 +182,7 @@ def reach_items(strict: bool) -> list[dict]:
 def burst(order: list[str], batch: bool) -> str:
     acts = []
     for slot in order:
-        acts += [f'o0=slot:{slot}', 'a0>1']
+        acts += [f'o0=select:{slot}', 'a0>1']
     if batch:
         return '[' + ','.join(acts + ['i0']) + '] i1 i2'
     return ' '.join(acts + ['i0', 'i1', 'i2'])
@@ -199,7 +199,7 @@ def hurt_items() -> list[dict]:
     ladder = [{slot: spec(weapon) for slot, weapon in LADDER.items()}, None, None]
 
     def slot_hit(slot):
-        return f'o0=slot:{slot} a0>1 ' + INPUTS
+        return f'o0=select:{slot} a0>1 ' + INPUTS
 
     sequences = {
         # 4, then 7 two ticks later, 7 again three later, then 8 nine ticks
@@ -257,8 +257,8 @@ def hurt_items() -> list[dict]:
         items.append(item(f'sprint|{name}', b=b_at(7.0), ticks=50, script=dict(start),
                           when=[{'after': 6, 'a': 0, 'b': 1, 'close': 2.6, 'steps': steps}]))
     # The swing (H14): with an Animate before the attack, and the swing alone.
-    items.append(item('swing|with_attack', script={5: 'o0=swing a0>1 ' + INPUTS}))
-    items.append(item('swing|alone', script={5: 'o0=swing ' + INPUTS}))
+    items.append(item('swing|with_attack', script={5: 'o0=animate a0>1 ' + INPUTS}))
+    items.append(item('swing|alone', script={5: 'o0=animate ' + INPUTS}))
     return items
 
 
@@ -286,7 +286,7 @@ def extra_items() -> list[dict]:
     ladder = [{slot: spec(weapon) for slot, weapon in LADDER.items()}, None, None]
 
     def slot_hit(slot):
-        return f'o0=slot:{slot} a0>1 ' + INPUTS
+        return f'o0=select:{slot} a0>1 ' + INPUTS
 
     items.append(item('h11|diamond|4-7', hotbar=ladder, armour=[None, suit('diamond'), None],
                       script={5: slot_hit(2), 7: slot_hit(5)}))

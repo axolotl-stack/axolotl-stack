@@ -69,6 +69,7 @@ pub fn place<W: FeatureWorld + ?Sized>(
         (fossil, cfg.fossil_processors),
         (overlay, cfg.overlay_processors),
     ] {
+        let _template = crate::coverage::scope(crate::coverage::Kind::Template, t.name);
         let mut settings = PlaceSettings::new(t);
         settings.rotation = rotation;
         settings.bounding_box = Some(bbox);

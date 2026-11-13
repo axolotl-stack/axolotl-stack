@@ -210,10 +210,8 @@ fn spawn_unattached(
             .expect("catalogue flag index");
     }
     let metadata = if archetype.projectile {
-        // Projectiles are spawned invisible (shown from their second tick).
-        flags
-            .update(actor_flags::INVISIBLE, true)
-            .expect("catalogue flag index");
+        // Turned invisible once its definition applies
+        // (`projectile::derive_projectile`).
         EntityMetadata::actor_base()
     } else {
         let mut metadata = EntityMetadata::living_base();
@@ -223,6 +221,9 @@ fn spawn_unattached(
         );
         if let Some(kind) = archetype.native.aux_value {
             metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
+        }
+        if let Some(kind) = archetype.native.variant {
+            metadata.set_int(jolyne::valentine::actor_data_i_ds::VARIANT, kind);
         }
         metadata
     };

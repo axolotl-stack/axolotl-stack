@@ -220,11 +220,12 @@ fn syntax_errors_point_at_the_token_bds_reports() {
         // (`1` is also a valid player name: overload 4 reads victim 1,
         // destination 2 3 4, rotation 5 6 and then fails at 7.)
         syntax_error("tp 1 2 3 4 5 6 7"),
-        ("/tp 1 2 3 4 5 6 ".into(), "7".into(), String::new())
+        // BDS shows the last ten characters before the token.
+        ("2 3 4 5 6 ".into(), "7".into(), String::new())
     );
     assert_eq!(
         syntax_error("give @s wheat 1.5"),
-        ("/give @s wheat ".into(), "1.5".into(), String::new())
+        (" @s wheat ".into(), "1.5".into(), String::new())
     );
 }
 
