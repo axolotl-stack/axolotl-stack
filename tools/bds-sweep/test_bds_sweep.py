@@ -19,7 +19,9 @@ import knockback_fixture  # noqa: E402
 import replication_fixture  # noqa: E402
 import leveldb_read  # noqa: E402
 import native  # noqa: E402
+import player_fixture  # noqa: E402
 import player_relay_fixture  # noqa: E402
+import player_script  # noqa: E402
 import range_fixture  # noqa: E402
 import spawn_bonus_fixture  # noqa: E402
 import subchunk_fixture  # noqa: E402
@@ -254,6 +256,64 @@ class RuntimeSlotTest(unittest.TestCase):
         self.assertEqual(properties['server-portv6'], bds_runtime.PORT + 1)
         self.assertEqual(properties['enable-lan-visibility'], 'false')
         self.assertEqual(bds_runtime.ADDR, f'127.0.0.1:{bds_runtime.PORT}')
+
+
+class PlayerScript(unittest.TestCase):
+    def test_steps_and_properties_parse(self):
+        properties, steps = player_script.parse('\n'.join([
+            'property difficulty=peaceful',
+            '# comment',
+            'launch Mover 00000000-0000-0000-0000-000000000001',
+            'wait 1.5',
+            'cmd tp Mover 0.5 -60 0.5',
+            'order Mover move 1 0',
+            'mark walk  # trailing comment',
+            "expect 'Teleported Mover' 10",
+            'quit Mover',
+        ]))
+        self.assertEqual(properties, {'difficulty': 'peaceful'})
+        self.assertEqual(steps, [
+            ['launch', 'Mover', '00000000-0000-0000-0000-000000000001'],
+            ['wait', '1.5'],
+            ['cmd', 'tp Mover 0.5 -60 0.5'],
+            ['order', 'Mover', 'move 1 0'],
+            ['mark', 'walk'],
+            ['expect', 'Teleported Mover', '10'],
+            ['quit', 'Mover'],
+        ])
+
+    def test_unknown_steps_and_bad_values_are_refused(self):
+        for text in ('walk 3', 'property difficulty', 'wait soon'):
+            with self.assertRaises(ValueError):
+                player_script.parse(text)
+
+    def test_orders_are_tellraw_to_one_player(self):
+        self.assertEqual(player_script.tellraw('Mover', 'jump 3'),
+                         'tellraw Mover {"rawtext": [{"text": "bds-sweep:jump 3"}]}')
+
+
+class PlayerFixture(unittest.TestCase):
+    SPEC = {'client': 'Subject', 'subject': 'Subject'}
+
+    def test_only_packets_about_the_subject_carry_its_ticks(self):
+        about = player_fixture.about_subject
+        mine = 'MovePlayerPacket { player_runtime_id: ActorRuntimeId { actor_runtime_id: 1 }, tick: 5 }'
+        other = 'MovePlayerPacket { player_runtime_id: ActorRuntimeId { actor_runtime_id: 2 }, tick: 5 }'
+        correction = 'CorrectPlayerMovePredictionPacket { tick: PlayerInputTick { inputtick: 5 } }'
+        self.assertTrue(about(mine, 1, self.SPEC))
+        self.assertFalse(about(other, 1, self.SPEC))
+        self.assertTrue(about(correction, 1, self.SPEC))
+        self.assertFalse(about(correction, 1, {'client': 'Viewer', 'subject': 'Subject'}))
+
+    def test_attribute_values_are_read_by_name(self):
+        body = ('attribute_list: [AttributeData { min_value: 0.0, max_value: 20.0, current_value: 19.0, '
+                'default_min_value: 0.0, default_max_value: 20.0, default_value: 20.0, '
+                'name: "minecraft:health", modifiers: [] }, AttributeData { min_value: 0.0, '
+                'max_value: 20.0, current_value: 1.3973968, default_min_value: 0.0, '
+                'default_max_value: 20.0, default_value: 0.0, name: "minecraft:player.exhaustion", '
+                'modifiers: [] }]')
+        self.assertEqual(player_fixture.ATTRIBUTE.findall(body), [
+            ('19.0', 'minecraft:health'), ('1.3973968', 'minecraft:player.exhaustion')])
 
 
 class KnockbackTrials(unittest.TestCase):

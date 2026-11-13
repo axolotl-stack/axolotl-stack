@@ -50,6 +50,7 @@ use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
 pub(crate) use loot::{LootContext, LootLevel};
+pub(crate) use packet_queues::MovementEvents;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
@@ -507,6 +508,21 @@ impl GameServer {
                 .after(chunks::apply_chunk_requests)
                 .after(commands::apply_chat_and_commands),
         );
+        // The state a player joining this tick finds the others in.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::actor_data::announce_players
+                .in_set(PacketApplySet)
+                .before(movement::apply_movement),
+        );
+        // What this tick's movement inputs ask for beyond the position
+        // (sprint, swim and glide, `MOVING`, exhaustion), with the world at
+        // hand; their plugin events join this tick's.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::motion::settle_moves
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement)
+                .before(packet_queues::consolidate_domain_events),
+        );
         // Respawn requests from dead players, after the movement system has
         // applied this tick's input.
         ecs.schedule_mut().add_systems(
@@ -616,11 +632,16 @@ impl GameServer {
         // Player landings, then lava, fire, burning and the void, then the
         // air supply and drowning: the player tick, whose deaths reach the
         // clients with the tick's actor-data update.
+        // Between the world's damage and the breath, the tick's attribute
+        // changes go out (BDS sends them before the breath's actor data);
+        // the breath's update follows at once, `MOVING` at the end of the tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::player_life::environment::land_players,
                 crate::entity::player_life::environment::hurt_players_by_environment,
+                attributes::sync_player_attributes,
                 crate::entity::player_life::breath::breathe,
+                crate::entity::player_life::actor_data::sync_breath,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -642,7 +663,8 @@ impl GameServer {
                 .after(crate::entity::player_life::breath::breathe)
                 .before(tick_block_breaking),
         );
-        // What changed for each player's client this tick.
+        // What else changed for each player this tick, to it and its
+        // viewers.
         ecs.schedule_mut().add_systems(
             (
                 effects::sync_player_effects,
@@ -1036,6 +1058,7 @@ impl GameServer {
         self.ecs.world_mut().entity_mut(entity).insert((
             actor_data,
             crate::entity::player_life::environment::PlayerFall::default(),
+            crate::entity::player_life::motion::PlayerMoves::default(),
         ));
         if explicit_game_mode {
             self.ecs

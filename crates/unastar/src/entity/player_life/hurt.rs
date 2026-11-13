@@ -235,10 +235,16 @@ fn worn_armour(world: &World, player: Entity) -> (f32, f32) {
 
 /// Send `ActorEvent(event)` about `player` to it and its viewers.
 pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActorEvent) {
-    send_player_event_with_data(world, player, event, 0);
+    send_player_event_with_data(world, player, event, 0, None);
 }
 
-fn send_player_event_with_data(world: &World, player: Entity, event: EnumsActorEvent, data: i32) {
+fn send_player_event_with_data(
+    world: &World,
+    player: Entity,
+    event: EnumsActorEvent,
+    data: i32,
+    at: Option<Vec3>,
+) {
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
         return;
     };
@@ -248,13 +254,24 @@ fn send_player_event_with_data(world: &World, player: Entity, event: EnumsActorE
         },
         event_id: event,
         data,
-        fire_at_position: None,
+        fire_at_position: at,
     });
     send_to_player_and_viewers(world, player, &packet);
 }
 
+/// The hurt event: its data is the cause's ID; a fall's also carries the
+/// player's position where it landed (BDS 1.26.51, every fall hurt of
+/// `testdata/bds-1.26.51-movement.json`; the other causes carry none).
 fn send_hurt_event(world: &World, player: Entity, cause: ActorDamageCause) {
-    send_player_event_with_data(world, player, EnumsActorEvent::Hurt, cause_id(cause));
+    let at = (cause == ActorDamageCause::Fall)
+        .then(|| world.get::<Position>(player))
+        .flatten()
+        .map(|position| Vec3 {
+            x: position.0.x as f32,
+            y: position.0.y as f32,
+            z: position.0.z as f32,
+        });
+    send_player_event_with_data(world, player, EnumsActorEvent::Hurt, cause_id(cause), at);
 }
 
 /// The wire ID of a damage cause: its place in the published
@@ -268,7 +285,8 @@ fn cause_id(cause: ActorDamageCause) -> i32 {
 
 /// Push `player` away from `from` (horizontally) with the native knockback
 /// ([`knockback_velocity`]). The server does not track a player's own
-/// motion, so the push starts from rest; it is sent to the player's client.
+/// motion, so the push starts from rest; it is sent to the player's client
+/// and counts as the player's next move (`super::motion`).
 fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPower) {
     let Some(position) = world.get::<Position>(player).map(|p| p.0) else {
         return;
@@ -282,6 +300,9 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
         away = DVec2::from_angle(angle);
     }
     let velocity = knockback_velocity(DVec3::ZERO, away.normalize(), power);
+    if let Some(mut moves) = world.get_mut::<super::motion::PlayerMoves>(player) {
+        moves.push(velocity);
+    }
     let (Some(session), Some(runtime_id)) = (
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player),

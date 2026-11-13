@@ -83,9 +83,10 @@ pub(crate) fn add_player_game_type(game_mode: GameMode, explicit: bool) -> Enums
 }
 
 /// Builds an AddPlayer packet for broadcasting a player to others: its
-/// whole actor data as its viewers last received it
-/// (`player_life::actor_data::full_actor_data`) and its game type
-/// (`server::player_view`).
+/// feet position (BDS 1.26.51's `AddPlayer` carries the feet, not the eyes
+/// every other player packet carries), its whole actor data as its viewers
+/// last received it (`player_life::actor_data::full_actor_data`) and its
+/// game type (`server::player_view`).
 pub(crate) fn build_add_player_packet(
     runtime_id: i64,
     uuid: Uuid,
@@ -108,7 +109,7 @@ pub(crate) fn build_add_player_packet(
         platform_chat_id: "".into(),
         position: Vec3 {
             x: position.0.x as f32,
-            y: position.0.y as f32,
+            y: (position.0.y - crate::entity::PLAYER_EYE_HEIGHT) as f32,
             z: position.0.z as f32,
         },
         velocity: Vec3::default(),

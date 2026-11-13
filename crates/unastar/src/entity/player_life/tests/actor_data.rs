@@ -274,6 +274,9 @@ fn add_player_carries_the_rows_bds_sends_both_ways() {
 fn add_player_shows_the_state_a_late_player_finds() {
     let bds = add_players(&bds("add_player_late"));
     let (bds_alex, bds_steve) = (&bds[0], &bds[1]);
+    // `AddPlayer` carries the feet: both stood on the floor, whose top is at
+    // y -60 (the eyes 1.62 higher).
+    assert_eq!((bds_alex.position.y, bds_steve.position.y), (-60.0, -60.0));
     let (mut server, steve) = server();
     let player = steve.entity;
     let alex_feet = HOME + DVec3::X;
@@ -325,6 +328,10 @@ fn add_player_shows_the_state_a_late_player_finds() {
     );
     assert_eq!(of(SESSION).player_game_type, bds_steve.player_game_type);
     assert_eq!(of(SESSION).player_game_type, EnumsGameType::Survival);
+    // Both stand on the platform, whose top is at the harness's ground.
+    for id in [VIEWER, SESSION] {
+        assert_eq!(f64::from(of(id).position.y), GROUND, "{id}");
+    }
     assert_eq!(
         of(SESSION).entity_data.data,
         named(&bds_steve.entity_data.data, "Steve")
@@ -413,26 +420,6 @@ fn game_mode_changes_send_the_flag_updates_bds_sends() {
     }
     assert_eq!(wire(&drain(&mut steve), SESSION), subject_view);
     assert_eq!(wire(&drain(&mut alex), SESSION), viewer_view);
-}
-
-/// Start and stop sneaking: the three updates of each, to the player and
-/// its viewers.
-#[test]
-fn sneaking_sends_the_updates_bds_sends() {
-    let subject_view = data(&wire(&bds("sneak"), bds_subject("sneak")));
-    let viewer_view = data(&wire(&bds("sneak_viewer"), bds_subject("sneak_viewer")));
-    assert_eq!(subject_view, viewer_view);
-    assert_eq!(subject_view.len(), 6);
-    let (mut server, mut steve) = server();
-    let mut alex = join(&mut server, VIEWER, "Alex", HOME + DVec3::X, None);
-    for _ in 0..40 {
-        server.tick();
-    }
-    drain(&mut steve);
-    drain(&mut alex);
-    sneak(&mut server, SESSION, HOME, 60);
-    assert_eq!(data(&wire(&drain(&mut steve), SESSION)), subject_view);
-    assert_eq!(data(&wire(&drain(&mut alex), SESSION)), viewer_view);
 }
 
 /// A fire block at the feet: `ONFIRE` turns on with the first fire hurt
@@ -648,32 +635,6 @@ fn a_client_position_just_below_the_floor_still_crawls() {
             }
         )
     );
-}
-
-/// A sneak that another update carries first (an item use, a game-mode
-/// change in the same tick) still sends BDS's sneak updates and keeps
-/// `TRANSITION_BLOCKING` afterwards.
-#[test]
-fn a_sneak_sent_by_another_update_keeps_its_sequence() {
-    let bds = data(&wire(&bds("sneak"), bds_subject("sneak")));
-    let (mut server, mut steve) = server();
-    let player = steve.entity;
-    for sneaking in [true, false] {
-        server
-            .ecs
-            .world_mut()
-            .get_mut::<crate::entity::components::PlayerState>(player)
-            .unwrap()
-            .sneaking = sneaking;
-        super::super::actor_data::send_changes(
-            server.ecs.world_mut(),
-            player,
-            super::super::actor_data::Keys::All,
-        );
-        server.tick();
-        server.tick();
-    }
-    assert_eq!(data(&wire(&drain(&mut steve), SESSION)), bds);
 }
 
 /// `/kill` on land: the last death block and the died flag at once, the

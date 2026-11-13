@@ -143,7 +143,7 @@ impl GameMode {
 }
 
 /// Player movement state flags.
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct PlayerState {
     pub sneaking: bool,
     pub sprinting: bool,

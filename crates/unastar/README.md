@@ -103,10 +103,17 @@ generated (8 chunks per player per tick bound the generated case).
 A player's actor data follows BDS 1.26.51 (`entity/player_life/actor_data.rs`):
 its own join `SetActorData` and the `AddPlayer` other players get carry every
 row BDS sends (72 and 79), from the state the player's viewers last received;
-`AddPlayer` names game type `default` until the player's mode is set. Changes
-(breath, game mode, sneak, crawl pose, burning, effects, death) reach the
-player and its viewers as BDS groups them; the evidence and tests are in
-`entity/player_life/testdata/` and `entity/player_life/tests/`.
+`AddPlayer` names game type `default` until the player's mode is set and carries
+the feet position (the eyes are 1.62 higher). Changes (breath, game mode, sneak,
+sprint, swim, glide, crawl pose, `MOVING`, burning, effects, death) reach the
+player and its viewers as BDS groups them, and so do its attribute updates. The
+viewers are the players in BDS's send range (`entity/send_range.rs`:
+Δx² + Δz² ≤ 17 chunks). The sprint, swim and glide toggles a client asks for
+are accepted or refused with BDS's rules, and each move's food exhaustion is
+charged as BDS charges it (`entity/player_life/motion.rs`); falls (landing
+blocks, powder snow, a slowed glide, Feather Falling) and burning follow the
+BDS movement capture. The evidence and tests are in `entity/player_life/testdata/`
+and `entity/player_life/tests/`.
 
 ## World Generation
 
@@ -934,8 +941,8 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Suspicious stew effects (data 0-9) | done | BDS capture table |
 | Chorus fruit teleport | done | `on_use_range` from pack data; 16 tries and the landing search are public references |
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
-| Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
-| Attribute sync (health, absorption, hunger, saturation, exhaustion) | done, changed values once | BDS join ranges; BDS also repeats some attributes, not copied |
+| Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; movement exhaustion matches the BDS movement capture tick by tick (`entity/player_life/tests/movement.rs`) |
+| Attribute sync (health, absorption, hunger, saturation, exhaustion, movement with the sprint modifier) to the player and its viewers | done, changed values once | BDS join ranges and movement capture; BDS also repeats some attributes, not copied |
 | Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
 | Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
 | Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
