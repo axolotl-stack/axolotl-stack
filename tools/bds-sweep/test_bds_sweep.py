@@ -469,6 +469,43 @@ class EffectTrials(unittest.TestCase):
         with self.assertRaises(SystemExit):
             sweep.creeper_items(self.args('nothing'))
 
+    def test_tracked_mob_items_summon_with_their_event_and_clean_up(self):
+        bears = sweep.polar_bear_items(self.args('all'))
+        keys = [item['key'] for item in bears]
+        self.assertIn('polar_bear|stomp-22', keys)
+        self.assertIn('polar_bear|swim-push-0', keys)
+        for item in bears:
+            self.assertTrue(any(line.startswith('summon minecraft:polar_bear') for line in item['setup']))
+            self.assertEqual(item['track'], ['minecraft:polar_bear'])
+            if sweep.PEN[0] in item['setup']:
+                self.assertIn(sweep.UNPEN[0], item['cleanup'])
+        attack = next(item for item in bears if item['key'] == 'polar_bear|attack-0')
+        self.assertTrue(attack['setup'][-1].endswith('minecraft:ageable_grow_up'))
+        self.assertIn('damage @e[type=minecraft:polar_bear]', attack['actions'][1]['commands'][0])
+        bats = sweep.bat_items(self.args('room'))
+        self.assertEqual(len(bats), 4)
+        self.assertEqual(bats[0]['setup'][-1], 'summon minecraft:bat 20.5 -56 0.5 0 0')
+        self.assertEqual(bats[0]['cleanup'][-2:], sweep.UNROOM)
+        self.assertEqual(len(sweep.tadpole_items(self.args('all'))), 4)
+        with self.assertRaises(SystemExit):
+            sweep.polar_bear_items(self.args('nothing'))
+
+    def test_mob_fixture_reads_flag_words_and_flag_changes(self):
+        import mob_fixture
+        word = {'id': 0, 'payload': {'DataItemInt64Payload': {'type_': 'Int64', 'value': 1 << 39}}}
+        self.assertEqual(mob_fixture.flags_of(mob_fixture.data_items([word]), None), 1 << 39)
+        rows = [(3, {'name': 'AddActorPacket', 'packet': {
+                    'target_runtime_id': {'actor_runtime_id': 7}, 'target_actor_id': {'actor_unique_id': -7},
+                    'actor_data': {'data': [{'id': 0, 'payload': {'DataItemInt64Payload': {'value': 0}}}]}}}),
+                (5, {'name': 'SetActorDataPacket', 'packet': {
+                    'target_runtime_id': {'actor_runtime_id': 7}, 'actor_data': {'data': [word]}}}),
+                (6, {'name': 'ActorEventPacket', 'packet': {
+                    'target_runtime_id': {'actor_runtime_id': 7}, 'event_id': 'StartAttacking', 'data': 0}})]
+        out = mob_fixture.actor_packets(rows, {7})[7]
+        self.assertEqual(out['added'], 3)
+        self.assertEqual(out['flag_changes'], [{'t': 5, 'flag': 39, 'set': True}])
+        self.assertEqual(out['events'], [{'t': 6, 'event': 'StartAttacking', 'data': 0}])
+
     def test_mooshroom_items_interact_twice_with_the_held_item(self):
         items = sweep.mooshroom_items(self.args())
         self.assertEqual([item['hold']['item'] for item in items],
