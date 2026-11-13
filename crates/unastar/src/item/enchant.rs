@@ -18,7 +18,10 @@ use super::ItemStack;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i16)]
 pub enum Enchantment {
+    FeatherFalling = 2,
+    Respiration = 6,
     AquaAffinity = 8,
+    Sharpness = 9,
     Looting = 14,
     Efficiency = 15,
     SilkTouch = 16,
@@ -31,7 +34,10 @@ impl Enchantment {
     /// Resolve a loot-table enchantment name (`silk_touch`, `fortune`).
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name.strip_prefix("minecraft:").unwrap_or(name) {
+            "feather_falling" => Self::FeatherFalling,
+            "respiration" => Self::Respiration,
             "aqua_affinity" => Self::AquaAffinity,
+            "sharpness" => Self::Sharpness,
             "looting" => Self::Looting,
             "efficiency" => Self::Efficiency,
             "silk_touch" => Self::SilkTouch,

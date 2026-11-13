@@ -10,7 +10,7 @@
 use crate::command::prelude::*;
 use crate::entity::components::Experience;
 use crate::entity::player_life::attributes::send_attributes;
-use crate::entity::xp_orb::{add_experience, experience_attributes};
+use crate::entity::xp_orb::{add_experience, experience_changes};
 
 overloads! {
     pub enum XpArgs for "xp" {
@@ -33,35 +33,34 @@ pub fn run(ctx: &mut CommandContext<'_>, args: XpArgs) -> CommandResult {
         } => (Change::Levels(amount), player),
     };
     let players = ctx.players(player.as_ref())?;
-    let mut output = CommandOutput::default();
-    for player in players {
+    for &player in &players {
         let mut experience = ctx
             .world
             .get::<Experience>(player)
             .cloned()
             .unwrap_or_default();
+        let level = experience.level;
         change.apply(&mut experience);
         send_attributes(
             ctx.world,
             player,
-            experience_attributes(&experience).to_vec(),
+            experience_changes(&experience, experience.level != level),
         );
         ctx.world.entity_mut(player).insert(experience);
-        let name = ctx.name(player);
-        match change {
-            Change::Points(points) => {
-                output.add_success("commands.xp.success", vec![points.to_string(), name]);
-            }
-            Change::Levels(levels) if levels < 0 => output.add_success(
-                "commands.xp.success.negative.levels",
-                vec![levels.unsigned_abs().to_string(), name],
-            ),
-            Change::Levels(levels) => {
-                output.add_success("commands.xp.success.levels", vec![levels.to_string(), name]);
-            }
-        }
     }
-    Ok(output)
+    // Measured: one message naming every player, counting each.
+    let names = ctx.names(&players);
+    let (key, amount) = match change {
+        Change::Points(points) => ("commands.xp.success", points.to_string()),
+        Change::Levels(levels) if levels < 0 => (
+            "commands.xp.success.negative.levels",
+            levels.unsigned_abs().to_string(),
+        ),
+        // Measured: `/xp 0L` answers like zero points.
+        Change::Levels(0) => ("commands.xp.success", "0".to_owned()),
+        Change::Levels(levels) => ("commands.xp.success.levels", levels.to_string()),
+    };
+    Ok(CommandOutput::success(key, vec![amount, names]).with_count(players.len()))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -172,5 +171,54 @@ mod tests {
             h.run(alice, "/xp 10 NoSuchPlayer"),
             CommandOutput::no_targets()
         );
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+    use jolyne::valentine::McpePacketData;
+
+    /// Every answer, and every experience `UpdateAttributes` lists the
+    /// attributes BDS listed: names, values (to the bit) and ranges, in order
+    /// (a level change: the level, then the progress twice).
+    #[test]
+    fn xp_matches_the_bds_capture() {
+        let steps = Replay::new().assert_segment("xp", &[]);
+        type Row = (String, u32, f32, f32, f32, f32, f32);
+        let lists = |packets: Vec<&McpePacketData>| -> Vec<Vec<Row>> {
+            packets
+                .into_iter()
+                .filter_map(|p| match p {
+                    McpePacketData::UpdateAttributesPacket(p) => Some(
+                        p.attribute_list
+                            .iter()
+                            .map(|a| {
+                                (
+                                    a.name.to_string(),
+                                    a.current_value.to_bits(),
+                                    a.min_value,
+                                    a.max_value,
+                                    a.default_min_value,
+                                    a.default_max_value,
+                                    a.default_value,
+                                )
+                            })
+                            .collect(),
+                    ),
+                    _ => None,
+                })
+                .collect()
+        };
+        for step in &steps {
+            assert_eq!(
+                lists(step.sent_named("UpdateAttributesPacket")),
+                lists(step.captured.named("UpdateAttributesPacket")),
+                "{}",
+                step.captured.command
+            );
+        }
     }
 }

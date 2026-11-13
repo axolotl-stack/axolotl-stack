@@ -12,6 +12,7 @@ pub mod actor_wire;
 pub mod armour;
 pub mod bds_packets;
 pub mod biomes;
+pub mod block_names;
 pub mod block_updates;
 pub mod blocks;
 pub mod commands;

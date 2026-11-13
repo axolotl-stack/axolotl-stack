@@ -18,8 +18,8 @@ import time
 import traceback
 from pathlib import Path
 
-from endstone.event import (ActorDamageEvent, BlockBreakEvent, EventPriority, PlayerInteractEvent,
-                            PlayerJoinEvent, ServerLoadEvent, event_handler)
+from endstone.event import (ActorDamageEvent, ActorKnockbackEvent, BlockBreakEvent, EventPriority,
+                            PlayerInteractEvent, PlayerJoinEvent, ServerLoadEvent, event_handler)
 from endstone.plugin import Plugin
 
 from . import jobs
@@ -50,7 +50,11 @@ class BdsSweep(Plugin):
         self.events: list[tuple[int, str, tuple[int, int, int]]] = []
         # (tick, actor type, damage, cause) of every damage event.
         self.damage: list[tuple[int, str, float, str]] = []
+        # Every knockback an actor received: the tick, the pushed actor's and
+        # the source's state, and the velocity change BDS applied.
+        self.knockbacks: list[dict] = []
         self.register_events(self)
+        self.logger.info(f'jobs loaded from {jobs.__file__}')
 
     @event_handler
     def on_server_load(self, event: ServerLoadEvent) -> None:
@@ -87,6 +91,21 @@ class BdsSweep(Plugin):
     @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
     def on_damage(self, event: ActorDamageEvent) -> None:
         self.damage.append((self.ticks, event.actor.type, event.damage, event.damage_source.type))
+
+    @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
+    def on_knockback(self, event: ActorKnockbackEvent) -> None:
+        push = event.knockback
+        source = event.source
+        self.knockbacks.append({
+            'tick': self.ticks,
+            'actor': event.actor.runtime_id,
+            'type': event.actor.type,
+            # The velocity change of the knockback; `state.vel` is the
+            # actor's velocity with it applied.
+            'knockback': [push.x, push.y, push.z],
+            'state': jobs.actor_state(event.actor),
+            'source': jobs.actor_state(source) if source is not None else None,
+        })
 
     def tick(self) -> None:
         if self.runner is None:

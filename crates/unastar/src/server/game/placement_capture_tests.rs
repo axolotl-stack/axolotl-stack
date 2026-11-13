@@ -697,7 +697,7 @@ fn compare_case(case: &Value) -> Option<String> {
         }
     }
     ours.differences(&bds_clicker, "player", &mut problems);
-    if bds_clicker.hand.is_some() && ours.hand != bds_clicker.hand {
+    if ours.hand != bds_clicker.hand {
         problems.push(format!(
             "hand resync {:?} want {:?}",
             ours.hand, bds_clicker.hand

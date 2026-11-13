@@ -53,8 +53,10 @@ pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
 }
 
 /// Spawn-time derived state of a projectile actor (it has no living body):
-/// the physics flags, scale and collision box in its actor data.
+/// invisible until its second flight tick, and the physics flags, scale and
+/// collision box in its actor data.
 pub(crate) fn derive_projectile(world: &mut World, entity: Entity) {
+    super::flight::set_invisible(world, entity, true);
     let physics = world.get::<PhysicsConfig>(entity).copied();
     let scale = world.get::<ScaleConfig>(entity).map_or(1.0, |s| s.value);
     let (width, height) = world
@@ -258,10 +260,11 @@ pub fn launch_with(
     let velocity = direction * spec.speed.unwrap_or(rules.power);
     let (yaw, pitch) = heading(velocity);
     let mut entity = world.entity_mut(projectile);
+    // A projectile's head yaw stays 0 (its BDS 1.26.51 `AddActor`).
     entity.insert((
         Position(feet),
         Velocity(velocity),
-        Rotation::new(yaw, pitch),
+        Rotation::with_head_yaw(yaw, pitch, 0.0),
     ));
     if let Some(mut flight) = entity.get_mut::<ProjectileFlight>() {
         flight.owner = Some(thrower);
@@ -290,5 +293,7 @@ pub fn launch_with(
             -1,
         );
     }
+    // Its first viewers see it as launched, not as `spawn_mob` placed it.
+    crate::entity::mob::net::network::record_spawn_state(world, projectile, Some(false));
     Ok(projectile)
 }

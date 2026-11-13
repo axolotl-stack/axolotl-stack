@@ -34,8 +34,8 @@ use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkViewers};
 use crate::world::rules::Difficulty;
 
 /// Noon and midnight on the world clock.
-const NOON: u64 = 6_000;
-const MIDNIGHT: u64 = 18_000;
+const NOON: i64 = 6_000;
+const MIDNIGHT: i64 = 18_000;
 
 struct Harness {
     server: GameServer,
@@ -45,7 +45,7 @@ struct Harness {
 
 /// A grass floor at y = 63 over chunks -1..=1 × -1..=1 at `time`, viewed by
 /// one player in `mode` standing on it at (8.5, 64, 0.5).
-fn harness(seed: u64, difficulty: Difficulty, time: u64, mode: GameMode) -> Harness {
+fn harness(seed: u64, difficulty: Difficulty, time: i64, mode: GameMode) -> Harness {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -234,13 +234,15 @@ fn spawned_baby_zombie_add_actor_matches_native_summon() {
         "minecraft:zombie",
         world.get::<RuntimeId>(zombie).unwrap().0,
         world.get::<Position>(zombie).unwrap().0,
-        DVec3::new(0.0, f64::from(native.velocity.y), 0.0),
+        world.get::<Velocity>(zombie).unwrap().0,
         world.get::<Rotation>(zombie).unwrap(),
+        true,
         world.get::<EntityMetadata>(zombie).unwrap(),
         world.get::<ActorProperties>(zombie).unwrap(),
         world.get::<ActorAttributes>(zombie).unwrap(),
     );
     assert_eq!(ours.actor_type, native.actor_type);
+    assert_eq!(ours.velocity, native.velocity);
     assert_eq!(ours.attributes_list, native.attributes_list);
     let missing: Vec<_> = native
         .actor_data

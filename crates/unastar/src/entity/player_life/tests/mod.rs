@@ -3,11 +3,15 @@
 //! packets routed through `route_packet` and the server's packets captured
 //! from each player's session channel.
 
+mod actor_data;
+mod breath;
 mod death;
 mod environment;
 mod hurt;
 mod input_tick;
+mod movement;
 mod respawn;
+mod rules;
 
 use bevy_ecs::prelude::*;
 use bytes::BytesMut;
@@ -402,4 +406,15 @@ fn translations(packets: &[McpePacketData]) -> Vec<(String, Vec<String>)> {
 /// players' eye-height position convention).
 fn world_spawn(h: &mut Harness) -> DVec3 {
     h.world().resource::<super::respawn::WorldSpawn>().0
+}
+
+/// A player `Position` (eyes 1.62 above the feet) as packets report it:
+/// 1.62001 above the feet, through f32.
+fn reported(position: DVec3) -> DVec3 {
+    let wire = |v: f64| f64::from(v as f32);
+    DVec3::new(
+        wire(position.x),
+        wire(position.y - PLAYER_EYE_HEIGHT + crate::entity::item_drop::PLAYER_REPORTED_EYE_HEIGHT),
+        wire(position.z),
+    )
 }

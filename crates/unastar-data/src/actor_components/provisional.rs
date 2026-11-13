@@ -28,6 +28,17 @@ pub const AMBIENT_SOUND_INTERVAL_RANGE: f32 = 16.0;
 /// ML `minecraftcomponent_ambient_sound_interval`: `value` 8.
 pub const AMBIENT_SOUND_INTERVAL_VALUE: f32 = 8.0;
 
+// minecraft:angry (Mojang form `minecraft_angry.form.json`)
+
+/// `duration` 25 seconds (-1: angry until calmed by an event).
+pub const ANGRY_DURATION: i32 = 25;
+/// `duration_delta` 0 seconds.
+pub const ANGRY_DURATION_DELTA: i32 = 0;
+/// `broadcast_range` 20 blocks.
+pub const ANGRY_BROADCAST_RANGE: i32 = 20;
+/// `broadcast_anger_when_dying` true.
+pub const ANGRY_BROADCAST_WHEN_DYING: bool = true;
+
 // minecraft:annotation.break_door (Mojang form `minecraft_annotation_break_door.form.json`)
 
 /// `break_time` 12 seconds.
@@ -190,6 +201,11 @@ pub const BREEDABLE_ENVIRONMENT_RADIUS: f32 = 5.0;
 /// Mojang form `minecraft_color.form.json`: `value` 0 (white).
 pub const COLOR_VALUE: i32 = 0;
 
+// minecraft:color2
+
+/// Mojang form `minecraft_color2.form.json`: `value` 0 (white).
+pub const COLOR2_VALUE: i32 = 0;
+
 // minecraft:conditional_bandwidth_optimization
 
 /// ML `minecraftcomponent_conditional_bandwidth_optimization`:
@@ -253,6 +269,11 @@ pub const HURT_ON_CONDITION_DAMAGE_PER_TICK: i32 = 1;
 /// Mojang form `minecraft_is_dyeable.form.json` publishes no default for
 /// `interact_text`; an absent text shows no touch-screen button label.
 pub const IS_DYEABLE_INTERACT_TEXT: &str = "";
+
+// minecraft:mark_variant
+
+/// Mojang form `minecraft_mark_variant.form.json`: `value` 0 (the base entity).
+pub const MARK_VARIANT_VALUE: i32 = 0;
 
 // minecraft:leashable
 
@@ -375,6 +396,11 @@ pub const RIDEABLE_SEAT_ROTATE_RIDER_BY: MolangValue = MolangValue::Float(0.0);
 /// ML `minecraftcomponent_scale`: `value` 1.
 pub const SCALE_VALUE: f32 = 1.0;
 
+// minecraft:skin_id
+
+/// Mojang form `minecraft_skin_id.form.json`: `value` 0 (the base skin).
+pub const SKIN_ID_VALUE: i32 = 0;
+
 // minecraft:spawn_entity (component root and each `entities` entry)
 
 /// ML `minecraftcomponent_spawn_entity`: `max_wait_time` 600.
@@ -406,6 +432,11 @@ pub const TRANSFORMATION_FLAG: bool = false;
 pub const TRANSFORMATION_DELAY_VALUE: f32 = 0.0;
 pub const TRANSFORMATION_DELAY_BLOCK_COUNT: i32 = 0;
 
+// minecraft:variant
+
+/// Mojang form `minecraft_variant.form.json`: `value` 0 (the base entity).
+pub const VARIANT_VALUE: i32 = 0;
+
 // minecraft:timer (Mojang form `minecraft_timer.form.json`)
 
 /// `looping` true.
@@ -432,3 +463,9 @@ pub const SHAREABLES_AMOUNT: i32 = -1;
 pub const SHAREABLES_FLAG: bool = false;
 /// Per-item `priority` 0 (the most wanted).
 pub const SHAREABLES_PRIORITY: i32 = 0;
+
+// minecraft:spell_effects
+
+/// ML `minecraftcomponent_spell_effects`: an added effect without an
+/// `amplifier` is level I (amplifier 0).
+pub const SPELL_EFFECTS_AMPLIFIER: i32 = 0;

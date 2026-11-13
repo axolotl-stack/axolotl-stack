@@ -25,7 +25,7 @@ arg_enum! {
 
 impl TimeSpec {
     /// The time of day BDS sets for the preset.
-    pub const fn ticks(self) -> u64 {
+    pub const fn ticks(self) -> i64 {
         match self {
             Self::Day => 1_000,
             Self::Noon => 6_000,
@@ -63,23 +63,22 @@ pub fn run(ctx: &mut CommandContext<'_>, args: TimeArgs) -> CommandResult {
                 TimeQuery::Daytime => ("commands.time.query.daytime", now.time_of_day()),
                 TimeQuery::Gametime => (
                     "commands.time.query.gametime",
-                    ctx.world.resource::<TickCounter>().current,
+                    ctx.world.resource::<TickCounter>().current as i64,
                 ),
+                // [INFERENCE] whole days, rounded toward zero (not captured
+                // for a negative clock).
                 TimeQuery::Day => ("commands.time.query.day", now.ticks / WorldTime::DAY_TICKS),
             };
             success!(key, value)
         }
         TimeArgs::Add { amount, .. } => {
-            let ticks = now
-                .ticks
-                .checked_add_signed(i64::from(amount))
-                .ok_or_else(|| out_of_range(i64::from(amount)))?;
-            set_clock(ctx, ticks, i64::from(amount))?;
+            set_clock(ctx, now.ticks + i64::from(amount), i64::from(amount))?;
             success!("commands.time.added", amount)
         }
+        // Measured: any `i32`, negative included (`/time set -5` keeps a
+        // clock of -5, whose daytime reads 23995).
         TimeArgs::Set { amount, .. } => {
-            let ticks = u64::try_from(amount).map_err(|_| out_of_range(amount.into()))?;
-            set_clock(ctx, ticks, i64::from(amount))?;
+            set_clock(ctx, i64::from(amount), i64::from(amount))?;
             success!("commands.time.set", amount)
         }
         TimeArgs::SetPreset { time, .. } => {
@@ -91,26 +90,26 @@ pub fn run(ctx: &mut CommandContext<'_>, args: TimeArgs) -> CommandResult {
             } else {
                 day_start + target + WorldTime::DAY_TICKS
             };
-            set_clock(ctx, ticks, target as i64)?;
+            set_clock(ctx, ticks, target)?;
             success!("commands.time.set", target)
         }
     }
 }
 
-fn set_clock(ctx: &mut CommandContext<'_>, ticks: u64, shown: i64) -> Result<(), CommandOutput> {
-    if ticks > WorldTime::MAX {
+fn set_clock(ctx: &mut CommandContext<'_>, ticks: i64, shown: i64) -> Result<(), CommandOutput> {
+    if !(WorldTime::MIN..=WorldTime::MAX).contains(&ticks) {
         return Err(out_of_range(shown));
     }
     clock::set_time(ctx.world, ticks);
     Ok(())
 }
 
-/// The clock is an `i32` counted from 0, as in BDS.
+/// The clock is an `i32`, as in BDS.
 fn out_of_range(value: i64) -> CommandOutput {
     if value < 0 {
         CommandOutput::failure(
             "commands.generic.num.tooSmall",
-            vec![value.to_string(), "0".into()],
+            vec![value.to_string(), WorldTime::MIN.to_string()],
         )
     } else {
         CommandOutput::failure(
@@ -161,12 +160,29 @@ mod tests {
         // A preset already passed today moves to tomorrow.
         h.run(op, "/time set day");
         assert_eq!(h.world().resource::<WorldTime>().ticks, 25_000);
+        // A negative clock is kept; its day starts 24000 ticks earlier.
         assert_eq!(
             h.run(op, "/time set -5"),
-            CommandOutput::failure(
-                "commands.generic.num.tooSmall",
-                vec!["-5".into(), "0".into()]
-            )
+            CommandOutput::success("commands.time.set", vec!["-5".into()])
         );
+        assert_eq!(h.world().resource::<WorldTime>().ticks, -5);
+        assert_eq!(
+            h.run(op, "/time query daytime"),
+            CommandOutput::success("commands.time.query.daytime", vec!["23995".into()])
+        );
+        h.run(op, "/time set night");
+        assert_eq!(h.world().resource::<WorldTime>().ticks, 13_000);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn time_matches_the_bds_capture() {
+        Replay::new().assert_segment("time", &[]);
     }
 }

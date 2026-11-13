@@ -53,32 +53,52 @@
     }
    ]
   },
+  "armor_wear": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "armor_wear.json",
+     "sha256": "e11f50fa59f7b3c5bd5852169d20918203671c3d9501e515f897718815a4a2c0"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py armor-wear, endstone-sweep plugin) at baeb50f259eae0a0a4b8461b4c6ad8a92a95c1c1",
+   "method": "sweep player (survival, max health 2000, natural regeneration off) wearing one breakable piece (the slot armor_slots.json assigns) takes one `/damage <player> D entity_attack` per D, spaced past the hurt cooldown; the piece is read back through Endstone before and after every hit",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "items-armor-wear",
+     "items": 30,
+     "runs": [
+      {
+       "items": 30,
+       "seconds": 215.1,
+       "started": "20261110T195327Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "attack_damage": {
    "bds_version": "1.26.51",
    "files": [
     {
      "path": "attack_damage.json",
-     "sha256": "8f08d4b6ba5e1ee826da08fa004a83e4eab49dd61df7631a2606164fa02c7e92"
+     "sha256": "ad256dbd66068e36d1e61fe5fd0228b4a14b332f4f7c42388cd6d78c599378a9"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py attack, endstone-sweep plugin) at 1e93dee335ccb136d3f5ce09e182bba4d96c764a",
-   "method": "sweep player (creative, on the ground, not sprinting) holding the item attacks a freshly spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the Endstone ActorDamageEvent for the pig, three trials after one warm-up attack",
+   "harness": "tools/bds-sweep (sweep.py attack, endstone-sweep plugin) at 68753e3022f8ed25765c0bb690fdfcecd1b7451a",
+   "method": "sweep player (creative, or survival where `gamemode` says so; on the ground, not sprinting) holding the item attacks a freshly spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the Endstone ActorDamageEvent for the pig, three trials after one warm-up attack; `wear`: change of the durability damage of the held stack per trial (warm-up first), read back through Endstone",
    "source": "bds_sweep",
    "sweeps": [
     {
-     "dir": "full-attack",
-     "items": 43,
+     "dir": "items-attack-survival",
+     "items": 50,
      "runs": [
       {
-       "items": 43,
-       "seconds": 15.7,
-       "started": "20261025T195553Z",
-       "status": "client exited 1"
-      },
-      {
-       "items": 43,
-       "seconds": 117.4,
-       "started": "20261025T204248Z",
+       "items": 50,
+       "seconds": 158.8,
+       "started": "20261110T193114Z",
        "status": "done"
       }
      ]
@@ -6343,11 +6363,11 @@
    "files": [
     {
      "path": "mining_ticks.json",
-     "sha256": "f3b1530c947137b8e032bf1fdd569fec79499b51b73a8d6331ec0d9aa2bbaa95"
+     "sha256": "6d584f4309ce861c5886f73a93b4550fffb19ae9b5f4e0377ece8767b42fc4e8"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py mining, endstone-sweep plugin) at c1dfa10ca1021df23e5c1dfb7634d2ac6ad52ada",
-   "method": "sweep player in survival facing the block keeps sending StartDestroyBlock then ContinueDestroyBlock (no prediction); BDS breaks the block itself; server ticks from the LEFT_CLICK_BLOCK interaction to the BlockBreakEvent, three trials (resolution +/-1 tick)",
+   "harness": "tools/bds-sweep (sweep.py mining, endstone-sweep plugin): slice-mining at c1dfa10ca1021df23e5c1dfb7634d2ac6ad52ada, items-held-mining, items-effect-mining and items-held-mining-2 at 68753e3022f8ed25765c0bb690fdfcecd1b7451a",
+   "method": "sweep player in survival facing the block keeps sending StartDestroyBlock then ContinueDestroyBlock (no prediction); BDS breaks the block itself; server ticks from the LEFT_CLICK_BLOCK interaction to the BlockBreakEvent (resolution +/-1 tick); three trials per tool-slice, effect and empty-hand cell, one per held-item cell; `wear`: change of the durability damage of the held stack per trial, read back through Endstone",
    "source": "bds_sweep",
    "sweeps": [
     {
@@ -6365,6 +6385,48 @@
        "seconds": 430.5,
        "started": "20261025T210327Z",
        "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "items-held-mining",
+     "items": 409,
+     "runs": [
+      {
+       "items": 409,
+       "seconds": 608.8,
+       "started": "20261110T191910Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "items-effect-mining",
+     "items": 5,
+     "runs": [
+      {
+       "items": 5,
+       "seconds": 115.1,
+       "started": "20261110T192919Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "items-held-mining-2",
+     "items": 24,
+     "runs": [
+      {
+       "items": 24,
+       "seconds": 66.7,
+       "started": "20261110T195220Z",
+       "status": "done"
+      },
+      {
+       "items": 24,
+       "seconds": 15.5,
+       "started": "20261110T195718Z",
+       "status": "client exited 1"
       }
      ]
     }

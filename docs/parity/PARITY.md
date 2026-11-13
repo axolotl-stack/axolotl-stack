@@ -12,14 +12,14 @@ Each domain's first line is its headline: the rows its family table, gap list an
 
 | Domain | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [Entities](#entities): actor rows (summon and replication) | 137 | 121 | 0 | 3 | 9 | 4 | 9.0% |
-| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1214 | 2645 | 170 | 7 | 46 | 4.4% |
+| [Entities](#entities): actor rows (summon and replication) | 137 | 113 | 1 | 3 | 16 | 4 | 14.3% |
+| Entities: behaviour sub-rows (components, spawn rules) | 4082 | 1004 | 2675 | 308 | 49 | 46 | 8.8% |
 | [Blocks](#blocks) | 1477 | 0 | 408 | 511 | 391 | 167 | 68.9% |
-| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 170 | 899 | 1073 | 28 | 177 | 50.7% |
+| [Items](#items): behaviour sub-rows (food, durability, placement, ...) | 2347 | 156 | 794 | 667 | 553 | 177 | 56.2% |
 | Items: registered (exists in the registry, no behaviour) | 2076 | 0 | 0 | 2076 | 0 | 0 | 100.0% |
-| [Commands](#commands) | 82 | 56 | 9 | 16 | 0 | 1 | 19.8% |
-| [Protocol](#protocol) | 231 | 137 | 21 | 46 | 12 | 15 | 26.9% |
-| [World generation](#world-generation) | 1275 | 87 | 451 | 621 | 9 | 107 | 53.9% |
+| [Commands](#commands) | 82 | 8 | 35 | 2 | 36 | 1 | 46.9% |
+| [Protocol](#protocol) | 231 | 136 | 22 | 42 | 16 | 15 | 26.9% |
+| [World generation](#world-generation) | 1275 | 87 | 430 | 642 | 9 | 107 | 55.7% |
 | [Gameplay systems](#gameplay-systems) | 72 | 33 | 35 | 4 | 0 | 0 | 5.6% |
 
 ## Where to help
@@ -30,20 +30,20 @@ Open rows are missing or partial headline rows (the first summary line of each d
 
 Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the `families`, `ids` or id `prefixes` you are taking, and `change` (the OpenSpec change doing the work, if any); remove it when you stop or when the change is archived. `parity check` rejects unknown families or ids and claims that overlap, so talk to the owner of a claimed area before working inside it. The rest of the workflow is in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Entities**: 62 open rows free, 59 claimed.
+**Entities**: 62 open rows free, 52 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
 | passive (part claimed) | 21 | 21 | 0 |
 | object | 16 | 16 | 0 |
-| projectile | 15 | 15 | 0 |
+| projectile | 15 | 14 | 1 |
 | built_in | 4 | 4 | 0 |
 | village | 4 | 4 | 0 |
 | boss | 2 | 2 | 0 |
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 59 |
+| Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats) | lane ENT | 2026-10-29 | 52 |
 
 **Blocks**: 237 open rows free, 171 claimed.
 
@@ -65,40 +65,40 @@ Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for t
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 7 |
 | Workstation blocks | lane ITEMS | 2026-10-29 | 10 |
 
-**Items**: 0 open rows free, 1069 claimed.
+**Items**: 0 open rows free, 950 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Item use | lane ITEMS | 2026-10-29 | 1069 |
+| Item use | lane ITEMS | 2026-10-29 | 950 |
 
-**Commands**: 0 open rows free, 65 claimed.
+**Commands**: 0 open rows free, 43 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
-| Commands | lane COMMANDS | 2026-10-29 | 65 |
+| Commands | lane COMMANDS | 2026-10-29 | 43 |
 
 **Protocol**: 158 open rows free, 0 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| clientbound | 96 | 88 | 8 |
+| clientbound | 96 | 87 | 9 |
 | bidirectional | 57 | 44 | 13 |
 | serverbound | 5 | 5 | 0 |
 
 Nothing in this domain is claimed.
 
-**World generation**: 0 open rows free, 538 claimed.
+**World generation**: 0 open rows free, 517 claimed.
 
 | Claimed area | Claimed by | Since | Open |
 |---|---|---|---:|
 | Bedrock world generation | lane BED | 2026-10-29 | 491 |
-| Java world generation | lane JAVA | 2026-10-29 | 47 |
+| Java world generation | lane JAVA | 2026-10-29 | 26 |
 
-**Gameplay systems**: 51 open rows free, 17 claimed.
+**Gameplay systems**: 50 open rows free, 18 claimed.
 
 | Free family | Open | Missing | Partial |
 |---|---:|---:|---:|
-| player | 16 | 5 | 11 |
+| player (part claimed) | 15 | 5 | 10 |
 | world (part claimed) | 12 | 5 | 7 |
 | mobs | 10 | 8 | 2 |
 | interface | 6 | 4 | 2 |
@@ -110,6 +110,7 @@ Nothing in this domain is claimed.
 | Gravity, fire, redstone, block updates and random ticks | lane BLOCKS | 2026-10-29 | 6 |
 | Liquids: water and lava flow, waterlogging, sponges | a contributor | 2026-10-29 | 1 |
 | Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting | lane ITEMS | 2026-10-29 | 8 |
+| Survival block breaking | lane ITEMS | 2026-11-10 | 1 |
 | Generation speed | lane PERF | 2026-10-29 | 1 |
 | Chunk streaming | lane LOAD | 2026-10-29 | 1 |
 
@@ -122,11 +123,11 @@ One row per vanilla actor (`minecraft:cow`): it can be spawned/summoned and is r
 | aquatic | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
 | boss | 2 | 2 | 0 | 0 | 0 | 0 | 0.0% |
 | built_in | 9 | 4 | 0 | 0 | 2 | 3 | 33.3% |
-| hostile | 38 | 37 | 0 | 0 | 1 | 0 | 2.6% |
+| hostile | 38 | 30 | 0 | 0 | 8 | 0 | 21.1% |
 | object | 18 | 16 | 0 | 0 | 1 | 1 | 5.9% |
 | passive | 39 | 35 | 0 | 0 | 4 | 0 | 10.3% |
 | player | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
-| projectile | 18 | 15 | 0 | 2 | 1 | 0 | 16.7% |
+| projectile | 18 | 14 | 1 | 2 | 1 | 0 | 16.7% |
 | village | 4 | 4 | 0 | 0 | 0 | 0 | 0.0% |
 
 Sub-rows by facet, most incomplete first (30 of 371):
@@ -134,35 +135,35 @@ Sub-rows by facet, most incomplete first (30 of 371):
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | pushable_by_block | 117 | 2 | 115 | 0 | 0 | 0 | 0.0% |
-| conditional_bandwidth_optimization | 116 | 105 | 10 | 0 | 0 | 1 | 0.0% |
-| physics | 125 | 0 | 115 | 9 | 0 | 1 | 7.3% |
-| type_family | 124 | 1 | 113 | 9 | 0 | 1 | 7.3% |
-| collision_box | 124 | 0 | 113 | 10 | 0 | 1 | 8.1% |
-| pushable_by_entity | 109 | 0 | 104 | 5 | 0 | 0 | 4.6% |
+| conditional_bandwidth_optimization | 116 | 98 | 15 | 0 | 2 | 1 | 1.7% |
+| physics | 125 | 0 | 108 | 15 | 1 | 1 | 12.9% |
+| type_family | 124 | 1 | 106 | 16 | 0 | 1 | 13.0% |
+| collision_box | 124 | 0 | 106 | 10 | 7 | 1 | 13.8% |
+| pushable_by_entity | 109 | 0 | 98 | 11 | 0 | 0 | 10.1% |
 | nameable | 93 | 0 | 93 | 0 | 0 | 0 | 0.0% |
-| health | 94 | 1 | 87 | 5 | 0 | 1 | 5.4% |
-| is_hidden_when_invisible | 92 | 1 | 86 | 0 | 5 | 0 | 5.4% |
-| movement | 92 | 0 | 87 | 5 | 0 | 0 | 5.4% |
+| health | 94 | 1 | 84 | 5 | 3 | 1 | 8.6% |
 | breathable | 84 | 1 | 83 | 0 | 0 | 0 | 0.0% |
-| hurt_on_condition | 87 | 0 | 80 | 6 | 0 | 1 | 7.0% |
-| experience_reward | 80 | 0 | 74 | 6 | 0 | 0 | 7.5% |
-| jump.static | 79 | 0 | 74 | 5 | 0 | 0 | 6.3% |
-| despawn | 76 | 0 | 71 | 5 | 0 | 0 | 6.6% |
-| loot | 78 | 0 | 71 | 6 | 0 | 1 | 7.8% |
-| behavior.look_at_player | 69 | 0 | 64 | 5 | 0 | 0 | 7.2% |
-| navigation.walk | 66 | 0 | 61 | 5 | 0 | 0 | 7.6% |
-| movement.basic | 65 | 0 | 60 | 5 | 0 | 0 | 7.7% |
-| behavior.random_stroll | 64 | 0 | 59 | 5 | 0 | 0 | 7.8% |
+| is_hidden_when_invisible | 92 | 1 | 80 | 0 | 11 | 0 | 12.0% |
+| movement | 92 | 0 | 81 | 5 | 6 | 0 | 12.0% |
+| hurt_on_condition | 87 | 0 | 77 | 9 | 0 | 1 | 10.5% |
+| jump.static | 79 | 0 | 69 | 10 | 0 | 0 | 12.7% |
+| experience_reward | 80 | 0 | 68 | 12 | 0 | 0 | 15.0% |
+| loot | 78 | 0 | 66 | 11 | 0 | 1 | 14.3% |
+| despawn | 76 | 0 | 65 | 11 | 0 | 0 | 14.5% |
+| behavior.look_at_player | 69 | 0 | 59 | 10 | 0 | 0 | 14.5% |
 | can_climb | 57 | 0 | 57 | 0 | 0 | 0 | 0.0% |
-| behavior.random_look_around | 55 | 0 | 55 | 0 | 0 | 0 | 0.0% |
+| navigation.walk | 66 | 0 | 55 | 11 | 0 | 0 | 16.7% |
 | spawn_rules | 59 | 5 | 50 | 4 | 0 | 0 | 6.8% |
-| behavior.nearest_attackable_target | 49 | 0 | 48 | 1 | 0 | 0 | 2.0% |
-| attack | 48 | 0 | 47 | 1 | 0 | 0 | 2.1% |
-| behavior.float | 49 | 0 | 45 | 4 | 0 | 0 | 8.2% |
+| movement.basic | 65 | 0 | 54 | 11 | 0 | 0 | 16.9% |
+| behavior.random_stroll | 64 | 0 | 53 | 11 | 0 | 0 | 17.2% |
+| behavior.random_look_around | 55 | 0 | 45 | 10 | 0 | 0 | 18.2% |
+| behavior.float | 49 | 0 | 44 | 5 | 0 | 0 | 10.2% |
+| behavior.nearest_attackable_target | 49 | 0 | 43 | 6 | 0 | 0 | 12.2% |
 | leashable | 43 | 39 | 4 | 0 | 0 | 0 | 0.0% |
-| behavior.hurt_by_target | 42 | 0 | 42 | 0 | 0 | 0 | 0.0% |
 | leashable_to | 42 | 38 | 4 | 0 | 0 | 0 | 0.0% |
-| scale | 47 | 0 | 42 | 5 | 0 | 0 | 10.6% |
+| attack | 48 | 0 | 41 | 7 | 0 | 0 | 14.6% |
+| damage_sensor | 39 | 0 | 38 | 1 | 0 | 0 | 2.6% |
+| behavior.hurt_by_target | 42 | 0 | 37 | 5 | 0 | 0 | 11.9% |
 
 ### Entities gaps
 
@@ -182,7 +183,7 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **hostile**
 
-- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:endermite`, `minecraft:evocation_illager`, `minecraft:ghast` and 25 more
+- missing: `minecraft:blaze`, `minecraft:bogged`, `minecraft:breeze`, `minecraft:cave_spider`, `minecraft:creaking`, `minecraft:creeper`, `minecraft:drowned`, `minecraft:elder_guardian`, `minecraft:enderman`, `minecraft:evocation_illager`, `minecraft:ghast`, `minecraft:guardian` and 18 more
 
 **object**
 
@@ -194,7 +195,8 @@ Top-level rows only; sub-row gaps are in the status file and rolled up by facet 
 
 **projectile**
 
-- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 3 more
+- `minecraft:xp_bottle`: players cannot throw bottles; AddActor/RemoveActor timing differs from BDS by a tick (see notes)
+- missing: `minecraft:breeze_wind_charge_projectile`, `minecraft:dragon_fireball`, `minecraft:ender_pearl`, `minecraft:fireball`, `minecraft:fishing_hook`, `minecraft:lingering_potion`, `minecraft:llama_spit`, `minecraft:shulker_bullet`, `minecraft:small_fireball`, `minecraft:splash_potion`, `minecraft:thrown_trident`, `minecraft:wind_charge_projectile` and 2 more
 
 **village**
 
@@ -250,8 +252,8 @@ One row per vanilla block: it can exist in the world, be placed and broken with 
 
 **banners**
 
-- `minecraft:standing_banner`: not placed by the banner item; no banner block actor (colour, patterns)
-- `minecraft:wall_banner`: not placed on walls by the banner item; no banner block actor (colour, patterns); no support check (stays when the block holding it is removed)
+- `minecraft:standing_banner`: no banner block actor (colour, patterns); placement not compared with a BDS capture
+- `minecraft:wall_banner`: no banner block actor (colour, patterns); its support check (the measured wall-banner holders) is not replayed against the support sweep; placement not compared with a BDS capture
 
 **beds**
 
@@ -407,34 +409,32 @@ The family table and gaps below count sub-rows; top-level rows are counted in th
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| armour_wearables | 90 | 1 | 32 | 29 | 28 | 0 | 63.3% |
-| block_items | 1568 | 24 | 680 | 817 | 0 | 47 | 53.7% |
-| buckets | 9 | 3 | 3 | 3 | 0 | 0 | 33.3% |
+| armour_wearables | 90 | 1 | 2 | 0 | 87 | 0 | 96.7% |
+| block_items | 1568 | 24 | 680 | 614 | 203 | 47 | 53.7% |
+| buckets | 9 | 3 | 3 | 2 | 1 | 0 | 33.3% |
 | education | 121 | 0 | 0 | 0 | 0 | 121 | n/a |
-| entity_placers | 57 | 31 | 0 | 24 | 0 | 2 | 43.6% |
-| food | 46 | 4 | 2 | 39 | 0 | 1 | 86.7% |
-| materials_misc | 40 | 2 | 0 | 38 | 0 | 0 | 95.0% |
-| melee_weapons | 17 | 0 | 1 | 16 | 0 | 0 | 94.1% |
+| entity_placers | 57 | 31 | 0 | 0 | 24 | 2 | 43.6% |
+| food | 46 | 4 | 0 | 40 | 1 | 1 | 91.1% |
+| materials_misc | 40 | 2 | 0 | 0 | 38 | 0 | 95.0% |
+| melee_weapons | 17 | 0 | 1 | 0 | 16 | 0 | 94.1% |
 | other_tools | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | potions_drinks | 3 | 2 | 0 | 0 | 0 | 1 | 0.0% |
-| ranged_weapons | 8 | 0 | 4 | 4 | 0 | 0 | 50.0% |
+| ranged_weapons | 8 | 0 | 2 | 2 | 4 | 0 | 75.0% |
 | spawn_eggs | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
-| throwables | 16 | 8 | 5 | 3 | 0 | 0 | 18.8% |
-| tools | 280 | 95 | 87 | 94 | 0 | 4 | 34.1% |
+| throwables | 16 | 8 | 2 | 2 | 4 | 0 | 37.5% |
+| tools | 280 | 81 | 19 | 1 | 175 | 4 | 63.8% |
 
 Sub-rows by facet, most incomplete first (25 of 25):
 
 | Facet | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | block_placer | 1504 | 28 | 692 | 615 | 0 | 169 | 46.1% |
-| digger | 141 | 0 | 111 | 28 | 0 | 2 | 20.1% |
 | spawn_egg | 91 | 0 | 85 | 5 | 0 | 1 | 5.6% |
 | entity_placer | 33 | 31 | 0 | 0 | 0 | 2 | 0.0% |
 | record | 22 | 22 | 0 | 0 | 0 | 0 | 0.0% |
 | bundle | 17 | 17 | 0 | 0 | 0 | 0 | 0.0% |
-| durability | 83 | 11 | 1 | 69 | 0 | 2 | 85.2% |
+| durability | 83 | 4 | 8 | 3 | 66 | 2 | 85.2% |
 | cooldown | 8 | 8 | 0 | 0 | 0 | 0 | 0.0% |
-| weapon | 44 | 7 | 1 | 36 | 0 | 0 | 81.8% |
 | enchantable | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | kinetic_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
 | piercing_weapon | 7 | 7 | 0 | 0 | 0 | 0 | 0.0% |
@@ -446,17 +446,18 @@ Sub-rows by facet, most incomplete first (25 of 25):
 | shooter | 2 | 0 | 2 | 0 | 0 | 0 | 0.0% |
 | wearable | 30 | 0 | 2 | 0 | 28 | 0 | 93.3% |
 | brush | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| food | 40 | 0 | 1 | 39 | 0 | 0 | 97.5% |
 | instrument | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | shield | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
 | spyglass | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| fuel | 277 | 0 | 0 | 277 | 0 | 0 | 100.0% |
+| weapon | 44 | 0 | 1 | 0 | 43 | 0 | 97.7% |
+| digger | 141 | 0 | 0 | 0 | 139 | 2 | 100.0% |
+| food | 40 | 0 | 0 | 40 | 0 | 0 | 100.0% |
+| fuel | 277 | 0 | 0 | 0 | 277 | 0 | 100.0% |
 
 ### Items gaps
 
 **armour_wearables**
 
-- `minecraft:chainmail_boots/digger`, `minecraft:chainmail_chestplate/digger`, `minecraft:chainmail_helmet/digger`, `minecraft:chainmail_leggings/digger`, `minecraft:copper_boots/digger`, `minecraft:copper_chestplate/digger`, `minecraft:copper_helmet/digger`, `minecraft:copper_leggings/digger`, `minecraft:diamond_boots/digger`, `minecraft:diamond_chestplate/digger`, `minecraft:diamond_helmet/digger`, `minecraft:diamond_leggings/digger` and 18 more: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:elytra/wearable`: equips to the chest slot; gliding is not implemented
 - `minecraft:turtle_helmet/wearable`: protection only: Water Breathing from the helmet is not applied
 - missing: `minecraft:elytra/durability`
@@ -484,8 +485,6 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **food**
 
-- `minecraft:apple/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
-- `minecraft:chorus_fruit/food`: the random teleport after eating is not covered by a test
 - missing: `minecraft:carrot/block_placer`, `minecraft:glow_berries/block_placer`, `minecraft:potato/block_placer`, `minecraft:sweet_berries/block_placer`
 
 **materials_misc**
@@ -502,7 +501,6 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **ranged_weapons**
 
-- `minecraft:bow/digger`, `minecraft:crossbow/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:bow/shooter`: Power, Punch and Flame are not applied; tipped arrows are not shot
 - `minecraft:crossbow/shooter`: Multishot, Piercing and Quick Charge are not applied; cannot load firework rockets or tipped arrows
 
@@ -517,18 +515,16 @@ Sub-rows by facet, most incomplete first (25 of 25):
 
 **throwables**
 
-- `minecraft:arrow/digger`, `minecraft:snowball/digger`, `minecraft:wind_charge/digger`: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:arrow/throwable`: tipped arrows (arrow data values above 0) are not used as ammunition or shot with their effects
 - `minecraft:trident/durability`: tridents cannot be thrown, so throws do not wear it
 - missing: `minecraft:ender_pearl/throwable`, `minecraft:lingering_potion/drink`, `minecraft:lingering_potion/throwable`, `minecraft:splash_potion/drink`, `minecraft:splash_potion/throwable`, `minecraft:trident/throwable`, `minecraft:wind_charge/cooldown`, `minecraft:wind_charge/throwable`
 
 **tools**
 
-- `minecraft:black_bundle/digger`, `minecraft:blue_bundle/digger`, `minecraft:breeze_rod/digger`, `minecraft:brewing_stand/digger`, `minecraft:brown_bundle/digger`, `minecraft:brush/digger`, `minecraft:bundle/digger`, `minecraft:cake/digger`, `minecraft:campfire/digger`, `minecraft:carrot_on_a_stick/digger`, `minecraft:cauldron/digger`, `minecraft:charcoal/digger` and 62 more: mines at empty-hand speed; the item data's mine_block_type is not used and nothing tests this item
 - `minecraft:brewing_stand/block_placer`, `minecraft:cake/block_placer`, `minecraft:campfire/block_placer`, `minecraft:cauldron/block_placer`, `minecraft:flower_pot/block_placer`, `minecraft:kelp/block_placer`, `minecraft:nether_sprouts/block_placer`, `minecraft:red_shrub/block_placer`, `minecraft:shelf_mushroom/block_placer`, `minecraft:soul_campfire/block_placer`: non-cube block: support and attachment rules are not checked and its placement has no test
+- `minecraft:copper_spear/durability`, `minecraft:diamond_spear/durability`, `minecraft:golden_spear/durability`, `minecraft:iron_spear/durability`, `minecraft:netherite_spear/durability`, `minecraft:stone_spear/durability`, `minecraft:wooden_spear/durability`: the jab reach and the charge attack are not implemented, so only plain hits wear it
 - `minecraft:frame/block_placer`, `minecraft:glow_frame/block_placer`: facing_direction is not set from the click or look
-- `minecraft:shears/digger`: shears speeds on cobweb, leaves, wool and vines exist but have no test
-- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/durability`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon` and 83 more
+- missing: `minecraft:black_bundle/bundle`, `minecraft:blue_bundle/bundle`, `minecraft:brown_bundle/bundle`, `minecraft:brush/brush`, `minecraft:brush/durability`, `minecraft:bundle/bundle`, `minecraft:carrot_on_a_stick/durability`, `minecraft:copper_spear/cooldown`, `minecraft:copper_spear/enchantable`, `minecraft:copper_spear/kinetic_weapon`, `minecraft:copper_spear/piercing_weapon`, `minecraft:copper_spear/repairable` and 69 more
 
 ## Commands
 
@@ -536,18 +532,18 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| admin | 7 | 5 | 2 | 0 | 0 | 0 | 0.0% |
-| any | 4 | 1 | 0 | 3 | 0 | 0 | 75.0% |
-| gamedirectors | 60 | 41 | 7 | 12 | 0 | 0 | 20.0% |
-| host | 1 | 1 | 0 | 0 | 0 | 0 | 0.0% |
-| owner | 10 | 8 | 0 | 1 | 0 | 1 | 11.1% |
+| admin | 7 | 3 | 1 | 1 | 2 | 0 | 42.9% |
+| any | 4 | 1 | 0 | 0 | 3 | 0 | 75.0% |
+| gamedirectors | 60 | 2 | 31 | 0 | 27 | 0 | 45.0% |
+| host | 1 | 0 | 1 | 0 | 0 | 0 | 0.0% |
+| owner | 10 | 2 | 2 | 1 | 4 | 1 | 55.6% |
 
 ### Commands gaps
 
 **admin**
 
-- `deop`, `op`: changes last until the server restarts: they are not written to the config or a permissions file
-- missing: `permission`, `place`, `reload`, `script`, `wsserver`
+- `permission`: visitor is applied as member (no visitor abilities); with an XUID the answer of set is not measured (unastar prints nothing, as BDS does without one)
+- missing: `place`, `script`, `wsserver`
 
 **any**
 
@@ -555,21 +551,23 @@ One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax, permi
 
 **gamedirectors**
 
-- `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused
-- `fill`: legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
-- `give`: no recipe unlocking after a give (BDS follows with UnlockedRecipes); legacy data values of flattened item families (wool with data 14) are not remapped
-- `setblock`: legacy block names with old block states (wool with a color state) answer a not-implemented failure
-- `setworldspawn`: the world spawn is not saved, and joining players still spawn by the configured spawn rules
-- 2 more partial rows with other gaps (see [commands.toml](commands.toml))
-- missing: `aimassist`, `camera`, `camerashake`, `clearspawnpoint`, `controlscheme`, `damage`, `daylock`, `dialogue`, `event`, `execute`, `fog`, `function` and 29 more
+- `aimassist`: set never applies aim assist: BDS checks the camera type the client reports and unastar learns none, so it always answers unsupportedCameraType (as BDS did for the capture's client); the join does not send BDS's aim assist definitions
+- `camera`: no camera splines exist (play_spline always fails, as on BDS without any); BDS's join also sends its aim assist definitions, which unastar does not
+- `clone`: block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks
+- `damage`: the hurt ActorEvent carries no damage cause (BDS sends the cause id, -1 for none)
+- `dialogue`: no actor has the NPC component and no dialogue scenes are loaded, so open and change always answer noNpcComponent (or noTargetMatch and npcNotFound without a target)
+- 26 more partial rows with other gaps (see [commands.toml](commands.toml))
+- missing: `locate`, `ride`
 
 **host**
 
-- missing: `setmaxplayers`
+- `setmaxplayers`: the server list status keeps advertising the configured maximum
 
 **owner**
 
-- missing: `allowlist`, `changesetting`, `reloadconfig`, `reloadpacketlimitconfig`, `save`, `sendshowstoreoffer`, `serveridentity`, `transfer`
+- `changesetting`: the settings are only stored: BDS sends nothing when they change and their effect on the running world is not measured
+- `save`: hold does not pause the world's writes, and query lists unastar's own world files (worlds/default)
+- missing: `reloadconfig`, `reloadpacketlimitconfig`
 
 ## Protocol
 
@@ -577,8 +575,8 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 | Family | Rows | Missing | Partial | Done | Verified | N/A | Done+verified |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| bidirectional | 80 | 44 | 13 | 16 | 1 | 6 | 23.0% |
-| clientbound | 146 | 88 | 8 | 30 | 11 | 9 | 29.9% |
+| bidirectional | 80 | 44 | 13 | 15 | 2 | 6 | 23.0% |
+| clientbound | 146 | 87 | 9 | 27 | 14 | 9 | 29.9% |
 | serverbound | 5 | 5 | 0 | 0 | 0 | 0 | 0.0% |
 
 ### Protocol gaps
@@ -595,13 +593,13 @@ One row per 1.26.51 packet: inbound packets are handled, outbound packets are se
 
 **clientbound**
 
-- `AddPlayerPacket`: sent to other players on join and chunk view, but untested and not preceded by a PlayerList entry (no skin)
+- `AddPlayerPacket`: sent to the players in send range like BDS (when and to whom are verified) with the feet position, game type and actor data of the BDS player-data capture; not preceded by a PlayerList entry (no skin)
 - `BlockEventPacket`: chest lid open/close only; note blocks, pistons, bells and other block events missing
 - `CompletedUsingItemPacket`: sent when food is eaten, milk is drunk and a crossbow finishes loading; potions cannot be drunk, so no completion is sent for them
 - `ContainerSetDataPacket`: furnace-family progress only; brewing stands and other data-bearing containers missing
 - `LevelEventPacket`: block cracking/destroy, door breaking, egg and grazing particles only; most vanilla level events (weather, sleeping, redstone, portals, ...) never sent
-- 3 more partial rows with other gaps (see [protocol.toml](protocol.toml))
-- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 76 more
+- 4 more partial rows with other gaps (see [protocol.toml](protocol.toml))
+- missing: `AddBehaviorTreePacket`, `AddPaintingPacket`, `AddVolumeEntityPacket`, `AnimateEntityPacket`, `AwardAchievementPacket`, `CameraAimAssistActorPriorityPacket`, `CameraAimAssistPacket`, `CameraAimAssistPresetsPacket`, `CameraInstructionPacket`, `CameraPacket`, `CameraPresetsPacket`, `CameraShakePacket` and 75 more
 
 **serverbound**
 
@@ -630,18 +628,18 @@ One row per worldgen element (biome, feature, structure, carver, surface rule) p
 | bedrock/unmatched/carver | 1 | 0 | 0 | 0 | 0 | 1 | n/a |
 | bedrock/unmatched/feature_rule | 54 | 0 | 0 | 0 | 0 | 54 | n/a |
 | java/end/biome | 5 | 0 | 0 | 5 | 0 | 0 | 100.0% |
-| java/end/feature | 5 | 0 | 1 | 4 | 0 | 0 | 80.0% |
+| java/end/feature | 5 | 0 | 0 | 5 | 0 | 0 | 100.0% |
 | java/end/structure | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | java/end/surface_rule | 1 | 0 | 0 | 1 | 0 | 0 | 100.0% |
 | java/nether/biome | 5 | 0 | 0 | 5 | 0 | 0 | 100.0% |
 | java/nether/carver | 1 | 0 | 0 | 0 | 1 | 0 | 100.0% |
 | java/nether/feature | 40 | 0 | 0 | 39 | 1 | 0 | 100.0% |
-| java/nether/structure | 4 | 0 | 1 | 3 | 0 | 0 | 75.0% |
+| java/nether/structure | 4 | 0 | 0 | 4 | 0 | 0 | 100.0% |
 | java/nether/surface_rule | 22 | 0 | 2 | 20 | 0 | 0 | 90.9% |
 | java/overworld/biome | 54 | 0 | 0 | 48 | 6 | 0 | 100.0% |
 | java/overworld/carver | 3 | 0 | 0 | 3 | 0 | 0 | 100.0% |
-| java/overworld/feature | 173 | 0 | 18 | 154 | 1 | 0 | 89.6% |
-| java/overworld/structure | 29 | 0 | 3 | 26 | 0 | 0 | 89.7% |
+| java/overworld/feature | 173 | 0 | 2 | 170 | 1 | 0 | 98.8% |
+| java/overworld/structure | 29 | 0 | 0 | 29 | 0 | 0 | 100.0% |
 | java/overworld/surface_rule | 102 | 0 | 22 | 80 | 0 | 0 | 78.4% |
 | java/pool/feature | 10 | 0 | 0 | 10 | 0 | 0 | 100.0% |
 
@@ -711,33 +709,18 @@ One row per worldgen element (biome, feature, structure, carver, surface rule) p
 
 - `bedrock/structure_set/abandoned_camp`, `bedrock/structure_set/trail_ruins`: Spread placement is only unit-tested synthetically; start positions unmeasured against BDS.
 
-**java/end/feature**
-
-- `java/end/feature/end_gateway_return`: The gateway's block entity gets no exit position or exact-teleport flag.
-
-**java/nether/structure**
-
-- `java/nether/structure/nether_fossil`: Never places the dried ghast Java can add to a fossil.
-
 **java/nether/surface_rule**
 
 - `java/nether/surface_rule/13-warped_wart_block`, `java/nether/surface_rule/15-nether_wart_block`: No committed test or native capture reaches this leaf's conditions.
 
 **java/overworld/feature**
 
-- `java/overworld/feature/birch_tall`, `java/overworld/feature/cherry_bees_005`, `java/overworld/feature/fancy_oak_bees`, `java/overworld/feature/mangrove_checked`, `java/overworld/feature/super_birch_bees`, `java/overworld/feature/tall_mangrove_checked`, `java/overworld/feature/trees_birch`, `java/overworld/feature/trees_birch_and_oak_leaf_litter`, `java/overworld/feature/trees_cherry`, `java/overworld/feature/trees_flower_forest`, `java/overworld/feature/trees_mangrove`, `java/overworld/feature/trees_meadow` and 1 more: Bee nests are placed without their bees: the nest block entity gets no occupants.
 - `java/overworld/feature/fossil_lower`, `java/overworld/feature/fossil_upper`: No test exercises the fossil feature type.
-- `java/overworld/feature/iceberg_blue`, `java/overworld/feature/iceberg_packed`: Ellipse cuts with a zero axis carve blocks Java keeps (Java treats the NaN distance as outside).
-- `java/overworld/feature/desert_well`: Suspicious sand gets no archaeology loot table on its block entity.
-
-**java/overworld/structure**
-
-- `java/overworld/structure/ruined_portal_jungle`, `java/overworld/structure/ruined_portal_swamp`: Vines attach only to sturdy faces; Java also hangs them from full collision cubes such as leaves.
-- `java/overworld/structure/shipwreck_beached`: Beached wrecks ignore template waterlogging; Java waterlogs their submerged stairs, slabs and fences.
 
 **java/overworld/surface_rule**
 
-- `java/overworld/surface_rule/13-red_sandstone`, `java/overworld/surface_rule/16-white_terracotta`, `java/overworld/surface_rule/17-stone`, `java/overworld/surface_rule/18-gravel`, `java/overworld/surface_rule/2-coarse_dirt`, `java/overworld/surface_rule/22-air`, `java/overworld/surface_rule/23-ice`, `java/overworld/surface_rule/24-water`, `java/overworld/surface_rule/3-coarse_dirt`, `java/overworld/surface_rule/36-calcite`, `java/overworld/surface_rule/38-stone`, `java/overworld/surface_rule/49-stone` and 10 more: No committed test or native capture reaches this leaf's conditions.
+- `java/overworld/surface_rule/16-white_terracotta`, `java/overworld/surface_rule/17-stone`, `java/overworld/surface_rule/18-gravel`, `java/overworld/surface_rule/23-ice`, `java/overworld/surface_rule/24-water`, `java/overworld/surface_rule/3-coarse_dirt`, `java/overworld/surface_rule/38-stone`, `java/overworld/surface_rule/49-stone`, `java/overworld/surface_rule/5-dirt`, `java/overworld/surface_rule/53-dirt`, `java/overworld/surface_rule/8-orange_terracotta`, `java/overworld/surface_rule/86-stone` and 1 more: No committed test or native capture reaches this leaf's conditions.
+- `java/overworld/surface_rule/13-red_sandstone`, `java/overworld/surface_rule/2-coarse_dirt`, `java/overworld/surface_rule/22-air`, `java/overworld/surface_rule/36-calcite`, `java/overworld/surface_rule/54-stone`, `java/overworld/surface_rule/63-water`, `java/overworld/surface_rule/74-calcite`, `java/overworld/surface_rule/76-stone`, `java/overworld/surface_rule/90-stone`: No committed test or committed native capture reaches this leaf's conditions.
 
 ## Gameplay systems
 
@@ -758,7 +741,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **crafting**
 
 - `crafting.crafting_grid`: shaped and shapeless 2x2/3x3 recipes work; recipe-book auto-craft, ingredient remainders (buckets, bottles) and special/multi recipes (repair, dyeing, fireworks) are rejected
-- `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking and infinity act; damage (sharpness, smite, bane of arthropods), protection, knockback, fire aspect, mending, power, punch, flame and the other armour, trident and crossbow enchantments have no effect
+- `crafting.enchantments`: efficiency, aqua affinity, silk touch, fortune, looting, unbreaking, infinity and feather falling (fall damage, as in the BDS movement capture) act; damage (sharpness, smite, bane of arthropods), protection, knockback, fire aspect, mending, power, punch, flame and the other armour, trident and crossbow enchantments have no effect
 - `crafting.loot_tables`: block, mob and generated-chest tables roll; missing functions enchant_randomly, enchant_with_levels, enchant_book_for_trading, exploration_map, random_aux_value, set_armor_trim, set_banner_details, set_damage, set_ominous_bottle_amplifier, set_potion, set_stew_effect, specific_enchants and conditions biome_has_tag, bool_property, damaged_by_entity, entity_killed, entity_properties, has_mark_variant, has_variant, killed_by_entity fail the roll; no fishing loot
 - `crafting.smelting`: furnace, blast furnace and smoker smelt with fuel, XP and hoppers; campfire and soul campfire cooking missing
 - missing: `crafting.anvil`, `crafting.brewing`, `crafting.enchanting`, `crafting.grindstone`, `crafting.recipe_book`, `crafting.smithing`, `crafting.stonecutter_loom_cartography`, `crafting.trading`
@@ -789,10 +772,10 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **player**
 
 - `player.abilities_permissions`: abilities follow the game mode; configured operators get operator commands, member/operator command levels answer like BDS and /op, /deop change them until restart (not saved); no visitor or custom permission levels, RequestAbility/RequestPermissions or UpdateAdventureSettings
-- `player.block_breaking`: break times, tool tiers, wear and loot drops work; breaking runs no neighbour updates (attached blocks and door halves stay), no ore experience
+- `player.block_breaking`: breaking runs no neighbour updates (attached blocks and door halves stay); no ore experience; what other players see of a break and creative breaking are not compared against BDS yet
 - `player.block_placing`: logs, stairs, slabs, facing blocks, doors, hoppers and torches place with orientation, and hoes, shovels, axes, shears, flint and steel, fire charges, bone meal and buckets act on blocks; no crops/seeds, beds, signs, buttons, fence/wall/pane connections or support checks
 - `player.combat`: melee against mobs and mob attacks on players with hurt timer, armour and knockback; bows, crossbows and snowballs; hits wear the weapon; no player-versus-player damage, melee critical hits, shields or thrown tridents
-- `player.damage_sources`: fall, lava, fire blocks, burning, void and mob attacks; no drowning, suffocation, freezing, cactus, starvation, magic, lightning or explosion damage; block identities resolved by name string for fall damage
+- `player.damage_sources`: falls (3 to 12.5 blocks, into water, onto hay, slime, a bed, into powder snow, a glide that slowed down and Feather Falling boots), a fire block and the burning after it (a 1-point burn 20, 40, ... ticks before the fire runs out) match the BDS movement capture; lava, void, mob attacks and drowning (air supply, BREATHING flag, a 2-damage hit every 20 ticks without air, the refill, Respiration, bubble columns and the air saved across a rejoin) match the BDS breath and player-data captures; a killing hit sends only the death event and other hits knock back before the hurt event; the damage game rules gate their causes from every source; no suffocation, freezing, cactus, starvation, magic, lightning or explosion damage, and no protection enchantment but Feather Falling; in a fire block BDS's hurts alternate between fire (6) and fire_tick (7) with its input timing where unastar's are fire; how long lava sets a player alight (15 s) and the descent under which a glide restarts the fall (0.5 a tick) are unmeasured; block identities resolved by name string for fall damage
 - 6 more partial rows with other gaps (see [systems.toml](systems.toml))
 - missing: `player.achievements`, `player.books`, `player.fishing`, `player.maps`, `player.sleeping`
 

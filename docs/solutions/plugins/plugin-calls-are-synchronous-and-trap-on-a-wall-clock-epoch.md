@@ -17,9 +17,11 @@ callback, and a slow callback stalls the whole tick.
 - Wall-clock limit: a tokio task increments the Wasmtime epoch every 5 ms and each
   invocation sets `set_epoch_deadline(2)`. A call therefore traps somewhere between about
   5 and 10 ms after it starts (the first increment can land at any point in the current
-  5 ms period). It traps, it does not yield: the host logs the error and moves on, and a
-  trapping cancellable callback fails closed. Fuel (`fuel_per_tick`) is a separate
-  instruction budget shared across the tick.
+  5 ms period). It traps, it does not yield. A trapped component instance cannot be
+  entered again, so the host disables the plugin (one `error!`, skipped by every later
+  dispatch and by `on-unload`); the trapping cancellable callback itself fails closed.
+  `on-unload` alone gets a longer deadline, `PLUGIN_UNLOAD_DEADLINE` (1 s). Fuel
+  (`fuel_per_tick`) is a separate instruction budget shared across the tick.
 - Component-model async (`future<T>`, `stream<T>`, WASI 0.3) was still experimental in
   Wasmtime 41 (Feb 2026, behind `component-model-async`), so it was not adopted. Moving
   to it later is mechanical: `async_support(true)`, async host impls, `.await` on calls,
@@ -35,4 +37,4 @@ callback, and a slow callback stalls the whole tick.
 - `crates/unastar/src/plugin/manager.rs` (`PluginManager::new` epoch task, `prepare_invocation`, `begin_fuel_budget`)
 - `crates/unastar/src/plugin/manifest.rs` (`[limits]`)
 - `crates/unastar-api/wit/host.wit`, `crates/unastar-api/wit/world.wit`
-- `PLUGIN_ARCHITECTURE.md` (resource limits)
+- `docs/guides/plugins.md` (resource limits, traps)

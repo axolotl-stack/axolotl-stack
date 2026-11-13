@@ -25,6 +25,9 @@ use jolyne::valentine::{MovePlayerPacket, MovePlayerTeleportData};
 const TELEPORT_CAUSE_COMMAND: i32 = 3;
 /// `source_actor_type` BDS 1.26.51 sends in command teleports (measured).
 const SOURCE_ACTOR_TYPE: i32 = 1;
+/// Measured: BDS reports a player 1.62001 above its feet (feet y from -22
+/// to 210 in the captured teleports).
+const REPORTED_EYE_HEIGHT: f64 = crate::entity::item_drop::PLAYER_REPORTED_EYE_HEIGHT;
 
 overloads! {
     /// One variant per captured overload; `victim` absent means the source.
@@ -255,7 +258,7 @@ pub fn run(ctx: &mut CommandContext<'_>, args: TeleportArgs) -> CommandResult {
         Facing::Position(p) => Some(ctx.position(Some(*p))),
         Facing::Entity(target) => {
             let entity = ctx.entities(Some(target))?[0];
-            ctx.eye(entity)
+            ctx.feet(entity)
         }
         Facing::Unchanged | Facing::Rotation(..) => None,
     };
@@ -275,37 +278,39 @@ pub fn run(ctx: &mut CommandContext<'_>, args: TeleportArgs) -> CommandResult {
             .copied()
             .unwrap_or_default();
         let (yaw, pitch) = match (&plan.facing, look_target) {
-            (_, Some(at)) => {
-                let eye =
-                    position + DVec3::Y * crate::entity::geometry::eye_height(ctx.world, victim);
-                look_at(eye, at)
-            }
+            // Measured: a facing position is turned to from the destination's
+            // feet (`/tp @s 8 200 8 facing 8 200 0` keeps pitch 0), and a
+            // facing entity too, toward its feet (segment `teleport_facing`:
+            // a cow at 4 200 4 gives yaw 135, pitch 0).
+            (_, Some(at)) => look_at(position, at),
             (Facing::Rotation(yaw, pitch), _) => ctx.rotation(*yaw, *pitch),
             _ => to_entity
                 .and_then(|e| ctx.world.get::<Rotation>(e))
                 .map_or((current.yaw, current.pitch), |r| (r.yaw, r.pitch)),
         };
         move_entity(ctx.world, victim, position, yaw, pitch);
-        if to_entity.is_none() {
-            ctx.notify(
-                victim,
-                "commands.tp.successVictim",
-                vec![format::position(position)],
-            );
-        }
+        let shown = match to_entity {
+            Some(entity) => ctx.name(entity),
+            None => format::position(position),
+        };
+        ctx.notify(victim, "commands.tp.successVictim", vec![shown]);
     }
 
     let names = ctx.names(&victims);
     let output = match to_entity {
+        // Measured: one player sent to an entity counts 2 (the destination
+        // too, [INFERENCE] for several victims).
         Some(entity) => {
             CommandOutput::success("commands.tp.success", vec![names, ctx.name(entity)])
+                .with_count(victims.len() + 1)
         }
         None => {
             let [x, y, z] = format::position_params(position);
             CommandOutput::success("commands.tp.success.coordinates", vec![names, x, y, z])
+                .with_count(victims.len())
         }
     };
-    Ok(output.with_count(victims.len()))
+    Ok(output)
 }
 
 /// Feet and head blocks at the destination do not block movement.
@@ -322,6 +327,19 @@ fn space_is_clear(world: &World, feet: DVec3) -> bool {
 
 /// Moves one entity; `position` is its new feet position.
 pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32, pitch: f32) {
+    move_entity_as(world, entity, position, yaw, pitch, SOURCE_ACTOR_TYPE);
+}
+
+/// [`move_entity`] with the `MovePlayer` teleport's source actor type
+/// (`/tp` sends 1, `/spreadplayers` 0: measured).
+pub(super) fn move_entity_as(
+    world: &mut World,
+    entity: Entity,
+    position: DVec3,
+    yaw: f32,
+    pitch: f32,
+    source_actor_type: i32,
+) {
     if let Some(mut rotation) = world.get_mut::<Rotation>(entity) {
         *rotation = Rotation::new(yaw, pitch);
     }
@@ -347,9 +365,9 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
             actor_runtime_id: runtime_id as u64,
         },
         position: Vec3 {
-            x: eye.x as f32,
-            y: eye.y as f32,
-            z: eye.z as f32,
+            x: position.x as f32,
+            y: (position.y + REPORTED_EYE_HEIGHT) as f32,
+            z: position.z as f32,
         },
         rotation: Vec2 { x: pitch, y: yaw },
         // Measured: BDS leaves head yaw 0 in command teleports, even with a yaw.
@@ -361,7 +379,7 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
         },
         teleport_data: Some(MovePlayerTeleportData {
             teleportation_cause: TELEPORT_CAUSE_COMMAND,
-            source_actor_type: SOURCE_ACTOR_TYPE,
+            source_actor_type,
         }),
         // The teleported player's own input tick, like every packet about it.
         tick: crate::entity::components::input_tick_of(world, entity),
@@ -392,9 +410,10 @@ mod tests {
         let McpePacketData::MovePlayerPacket(moved) = &sent[0] else {
             panic!("{sent:?}");
         };
+        // BDS's MovePlayer for this command reads y 101.62001.
         assert_eq!(
             (moved.position.x, moved.position.y, moved.position.z),
-            (0.5, 101.62, 0.5)
+            (0.5, 101.620_01, 0.5)
         );
         assert!(matches!(&sent[1], McpePacketData::TextPacket(t)
             if format!("{t:?}").contains("commands.tp.successVictim")
@@ -413,7 +432,7 @@ mod tests {
             (moved.rotation.x, moved.rotation.y, moved.y_head_rotation),
             (0.0, 90.0, 0.0)
         );
-        assert_eq!(moved.position.y, 106.62_f32);
+        assert_eq!(moved.position.y, 106.620_01_f32);
     }
 
     #[test]
@@ -424,8 +443,49 @@ mod tests {
         assert_eq!(h.run(op, "/tp NoSuchPlayer"), CommandOutput::no_targets());
         assert_eq!(
             h.run(op, "/tp Bob"),
+            // Measured: sending one player to an entity counts 2.
             CommandOutput::success("commands.tp.success", vec!["Op".into(), "Bob".into()])
+                .with_count(2)
         );
         assert_eq!(h.world().get::<Position>(op).unwrap().0.x, 20.5);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::{Replay, assert_same_packets};
+    use jolyne::valentine::McpePacketData;
+
+    #[test]
+    fn teleport_matches_the_bds_capture() {
+        let steps = Replay::new().assert_segment("teleport", &[]);
+        assert_same_packets(&steps, &["TextPacket", "MovePlayerPacket"], &[]);
+    }
+
+    /// Facing an entity, a position above the destination and a rotation.
+    /// BDS's pitch toward `4 210 4` is -60.503784, two f32 steps from the
+    /// correctly rounded -60.50379 unastar computes (BDS's trigonometry
+    /// rounds differently); that line is compared to 1e-5 degrees.
+    #[test]
+    fn teleport_facing_matches_the_bds_capture() {
+        const STEEP: &str = "/tp @s 8 200 8 facing 4 210 4";
+        let steps = Replay::new().assert_segment("teleport_facing", &[]);
+        assert_same_packets(&steps, &["MovePlayerPacket"], &[STEEP]);
+        let step = steps
+            .iter()
+            .find(|s| s.captured.command == STEEP)
+            .expect("the steep facing line");
+        let rotation = |packets: Vec<&McpePacketData>| match packets[..] {
+            [McpePacketData::MovePlayerPacket(m)] => (m.rotation.x, m.rotation.y),
+            _ => panic!("one MovePlayer: {packets:?}"),
+        };
+        let (ours, theirs) = (
+            rotation(step.sent_named("MovePlayerPacket")),
+            rotation(step.captured.named("MovePlayerPacket")),
+        );
+        assert_eq!(ours.1, theirs.1);
+        assert!((ours.0 - theirs.0).abs() < 1e-5, "{ours:?} vs {theirs:?}");
     }
 }

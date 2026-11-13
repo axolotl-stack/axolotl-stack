@@ -436,8 +436,12 @@ fn walking_cow_sends_move_actor_delta_to_viewers() {
     let mut terrain = Terrain::new(19, Terrain::grass());
     let (tx, mut rx): (_, Receiver<McpePacket>) = tokio::sync::mpsc::channel(4096);
     let world = terrain.world();
+    // A viewer in send range of the cow (`entity::send_range`).
     let viewer = world
-        .spawn(PlayerSession::new(2, "viewer".into(), None, None, tx))
+        .spawn((
+            PlayerSession::new(2, "viewer".into(), None, None, tx),
+            Position(DVec3::new(8.5, SURFACE + 1.62, 8.5)),
+        ))
         .id();
     let chunks: Vec<Entity> = world
         .query_filtered::<Entity, With<ChunkData>>()
@@ -599,4 +603,36 @@ fn strolling_herd_never_stacks() {
     }
     let worst = worst_overlap(terrain.world(), &cows);
     assert!(worst < 0.05, "the herd ended overlapping by {worst}");
+}
+
+/// `behavior.random_look_around`: an idle cow turns its head to random
+/// points within the goal's angle range of its body, without moving.
+#[test]
+fn idle_cow_looks_around_within_the_angle_range_without_moving() {
+    let mut terrain = Terrain::new(31, Terrain::grass());
+    let cow = terrain.cow(DVec3::new(8.5, SURFACE, 8.5));
+    terrain.without::<RandomStrollGoal>(cow);
+    let goal = terrain
+        .world()
+        .get::<RandomLookAroundGoal>(cow)
+        .cloned()
+        .expect("the vanilla cow looks around");
+    let (min, max) = goal.angle_range;
+    for _ in 0..5 {
+        terrain.tick();
+    }
+    let start = terrain.feet(cow);
+    let mut largest = 0.0f32;
+    for _ in 0..600 {
+        terrain.tick();
+        let rotation = *terrain.world().get::<Rotation>(cow).unwrap();
+        let off = (rotation.head_yaw - rotation.yaw + 540.0).rem_euclid(360.0) - 180.0;
+        assert!(
+            off >= min - 1e-3 && off <= max + 1e-3,
+            "head {off}° off the body, range {min}..{max}"
+        );
+        largest = largest.max(off.abs());
+    }
+    assert!(largest > 5.0, "the head never turned: {largest}°");
+    assert!(horizontal(terrain.feet(cow), start) < 1e-6);
 }

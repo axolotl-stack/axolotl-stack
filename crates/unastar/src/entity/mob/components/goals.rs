@@ -94,6 +94,14 @@ pub struct RandomStrollGoal {
     pub interval: i32,
 }
 
+/// `minecraft:behavior.flee_sun`: a burning mob in daylight walks to a
+/// covered block nearby (`mob::ai::flee_sun`).
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct FleeSunGoal {
+    pub base: GoalBase,
+    pub(crate) controls: GoalControls,
+}
+
 /// `minecraft:behavior.look_at_player`.
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct LookAtPlayerGoal {
@@ -203,6 +211,13 @@ pub fn register_component_kinds(
                 b.max_angle_of_view_horizontal,
             ),
         }
+    })?;
+    insert_infallible(builder, |b: body::BehaviorFleeSun| FleeSunGoal {
+        base: GoalBase {
+            priority: b.priority,
+            speed_multiplier: b.speed_multiplier,
+        },
+        controls: super::hostile::controls(&b.control_flags, GoalControls::MOVE),
     })?;
     insert(builder, compile_eat_block)
 }
