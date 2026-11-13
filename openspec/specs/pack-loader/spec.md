@@ -1,7 +1,7 @@
 # pack-loader Specification
 
 ## Purpose
-`crates/unastar-packs` is the one bevy-free reader of Bedrock behaviour packs: `.brarchive` containers, JSON with comments, BDS pack-stack resolution and the actor-definition loader that accepts, normalises and rejects pack documents the way BDS 1.26.51 does. Build scripts (`crates/unastar-data`, `crates/unastar_bedrock_codegen`) and the runtime share it; the filter, event and Molang parsers it calls belong to `rules-engine`, and what the decoded data provides belongs to `game-data`. The NBT template reader in the same crate is not covered here. Why: [decision 0020](../../../docs/decisions/0020-entity-data-from-bedrock-samples-checked-against-bds.md) and [decision 0025](../../../docs/decisions/0025-one-rust-implementation-per-component-kind.md).
+`crates/unastar-packs` is the one bevy-free reader of Bedrock behaviour packs: `.brarchive` containers, JSON with comments, BDS pack-stack resolution and the actor-definition loader that accepts, normalises and rejects pack documents the way BDS 1.26.51 does. Build scripts (`crates/unastar-data`, `crates/unastar_bedrock_codegen`) read packs with it and the runtime uses its types to decode the embedded, normalised data; no pack is read from disk at runtime; the filter, event and Molang parsers it calls belong to `rules-engine`, and what the decoded data provides belongs to `game-data`. The NBT template reader in the same crate is not covered here. Why: [decision 0020](../../../docs/decisions/0020-entity-data-from-bedrock-samples-checked-against-bds.md) and [decision 0025](../../../docs/decisions/0025-one-rust-implementation-per-component-kind.md).
 
 ## Requirements
 
@@ -21,6 +21,15 @@
 - **THEN** the error message starts with `pack/x.json`
 
 Evidence: crates/unastar-packs/Cargo.toml, crates/unastar-packs/src/error.rs (`Error`), crates/unastar-data/build.rs, crates/unastar-data/build/actors.rs, crates/unastar_bedrock_codegen/Cargo.toml, crates/unastar-packs/src/json.rs (test `errors_name_the_origin`)
+
+### Requirement: No pack is loaded at runtime
+The server SHALL read only vanilla data that `unastar-data` embedded at build time and MUST NOT load any behaviour pack from disk at startup or later. A startup loader for addon packs is planned (change `data-driven-gameplay`) but not built; the crate's docs MUST NOT describe one as existing. Addon packs are tracked by parity row `platform.addons` in [systems.toml](../../../docs/parity/systems.toml).
+
+#### Scenario: Server start
+- **WHEN** `unastar` starts with a world directory that contains behaviour packs
+- **THEN** it ignores them and uses the embedded vanilla data only
+
+Evidence: crates/unastar-packs/src/lib.rs (crate docs), crates/unastar-packs/src/actor.rs (module docs), crates/unastar-packs/README.md
 
 ### Requirement: brarchive container decoding
 `brarchive::parse` SHALL decode the BDS `.brarchive` layout (8-byte magic, little-endian entry count and format version, 256-byte entry slots, then a data blob that entry offsets are relative to) and return entries in stored order. It MUST reject a short header, a wrong magic, any version other than 1, an entry table past the end of the file, a name longer than its slot or not UTF-8, and a payload outside the blob.
@@ -189,18 +198,23 @@ Evidence: crates/unastar-packs/src/actor.rs (`Description::active_properties`, `
 Evidence: crates/unastar-packs/src/actor.rs (`ActorDefinition::to_json`; test `normalised_form_is_a_fixed_point`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_entity_loads_and_normalises_to_a_fixed_point`, `compact_filters_are_normalised_and_legacy_pushable_upgraded`), crates/unastar-data/src/actor_definitions.rs (`vanilla`), crates/unastar-data/tests/pack_data.rs (`actor_components_have_no_invented_defaults`)
 
 ### Requirement: Fidelity rules proven by BDS probes
-Every accept/reject rule of the actor loader SHALL be backed by a crafted probe recorded from BDS 1.26.51. The probe inputs (`tests/fixtures/bds-1.26.51-fidelity-inputs.json`, authored, not copied vanilla data) and the recorded observations (`tests/fixtures/bds-1.26.51-fidelity.json`) MUST have the same probe names, and the loader MUST accept exactly the probes BDS summoned. Every accepted probe's normalised form MUST reload to an equal definition.
+Every accept/reject rule of the actor loader SHALL be backed by a crafted probe recorded from BDS 1.26.51. The probe inputs (`tests/fixtures/bds-1.26.51-fidelity-inputs.json`, authored, not copied vanilla data) and the recorded observations (`tests/fixtures/bds-1.26.51-fidelity.json`) MUST have the same probe names, the loader MUST accept exactly the probes BDS summoned, and each probe's self-only sensor filter outcome MUST equal BDS's recorded `filter_pass`.
 
 #### Scenario: Golden matrix
 - **WHEN** `crafted_actor_acceptance_matches_the_recorded_bds_matrix` loads each of the 60 probe inputs
 - **THEN** a probe loads if and only if its observation has `summon_succeeded: true`
 - **AND** each loaded probe survives a normalise-and-reload round trip unchanged
 
+#### Scenario: Sensor filter outcomes
+- **WHEN** `crafted_actor_sensor_outcomes_match_the_recorded_bds_matrix` evaluates each probe's environment-sensor filter against the probe itself
+- **THEN** the result equals the recorded `filter_pass` for the other 53 probes
+- **AND** exactly the 3 probes with a `minecraft:entity_spawned` event and the 4 probes `subject_numeric_5/6/8/9` (subjects only the server's runtime filter context resolves) are skipped, the test asserting that those 4 are exactly the ones a self-only context gets wrong
+
 #### Scenario: Live probe run
 - **WHEN** `tools/bds_fidelity.py --check-report PATH` is given a report from a BDS run
 - **THEN** it compares the report's acceptance, filter results and deferred event order with the recorded fixture without starting BDS
 
-Evidence: crates/unastar-packs/tests/vanilla.rs (`crafted_actor_acceptance_matches_the_recorded_bds_matrix`), crates/unastar-packs/tests/fixtures/bds-1.26.51-fidelity.json, crates/unastar-packs/tests/fixtures/bds-1.26.51-fidelity-inputs.json, crates/unastar-packs/tools/bds_fidelity.py
+Evidence: crates/unastar-packs/tests/vanilla.rs (`crafted_actor_acceptance_matches_the_recorded_bds_matrix`, `crafted_actor_sensor_outcomes_match_the_recorded_bds_matrix`, `RUNTIME_SUBJECT_PROBES`), crates/unastar-packs/tests/fixtures/bds-1.26.51-fidelity.json, crates/unastar-packs/tests/fixtures/bds-1.26.51-fidelity-inputs.json, crates/unastar-packs/tools/bds_fidelity.py
 Verified by: `python crates/unastar-packs/tools/bds_fidelity.py --harness tools/bds-sweep --output DIR` against a reserved BDS 1.26.51 slot
 
 ### Requirement: Whole-file actor overrides over a stack
@@ -210,7 +224,15 @@ Verified by: `python crates/unastar-packs/tools/bds_fidelity.py --harness tools/
 - **WHEN** the bedrock-samples behaviour pack is resolved as a single pack
 - **THEN** 128 definitions load, none are skipped, and the only diagnostics are the two silverfish event `remove` paths ([quirk](../../../docs/quirks/bds.md))
 
-Evidence: crates/unastar-packs/src/actor.rs (`resolve_stack`, `Resolved`, `ResolvedDefinition`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_entity_loads_and_normalises_to_a_fixed_point`)
+#### Scenario: A later layer replaces a broken base file
+- **WHEN** layer `base` has a `t:cow` file that would be rejected on its own, and layers `patch_1` and `patch_2` each define `t:cow` in differently named files
+- **THEN** `t:cow` resolves from `patch_2`, the broken base copy is never parsed, and other base identifiers keep their base source
+
+#### Scenario: Same identifier twice in one layer
+- **WHEN** two files in layer `base` both define `t:cow`
+- **THEN** `resolve_stack` fails naming the identifier and the first file (`t:cow already defined in the same layer by base/entities:a.json`)
+
+Evidence: crates/unastar-packs/src/actor.rs (`resolve_stack`, `Resolved`, `ResolvedDefinition`; tests `a_later_layer_replaces_the_whole_file`, `a_second_definition_in_the_same_layer_is_an_error`), crates/unastar-packs/tests/vanilla.rs (`every_vanilla_entity_loads_and_normalises_to_a_fixed_point`)
 
 ### Requirement: Comparison against a BDS install
 `actor::diff` SHALL compare two resolved sets by normalised definition and report identifiers only on the left, only on the right, and differing. With `UNASTAR_BDS_DIR` set to a BDS 1.26.51 server directory, the bedrock-samples entities MUST equal the install's layered entities except that only the install has `minecraft:agent`, and the install's skipped files MUST be exactly the two identifier-less `npc.json` entries. Without the variable the check MUST skip with a message, not fail.

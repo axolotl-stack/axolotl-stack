@@ -208,9 +208,15 @@ pub fn hurt_event_data(cause: ActorDamageCause) -> i32 {
 /// the highest bits (BDS 1.26.51: speed, weakness, poison and absorption
 /// pack to 4789036), at most eight.
 pub fn visible_effects(effects: &Effects) -> i64 {
+    pack_visible_effects(effects.active.iter())
+}
+
+/// The `VISIBLE_MOB_EFFECTS` packing of [`visible_effects`] over `effects`
+/// (the ones without particles left out).
+pub fn pack_visible_effects<'a>(
+    effects: impl Iterator<Item = (&'a EffectType, &'a ActiveEffect)>,
+) -> i64 {
     let mut visible: Vec<(u8, bool)> = effects
-        .active
-        .iter()
         .filter(|(_, state)| state.show_particles)
         .map(|(effect, state)| (effect.0, state.ambient))
         .collect();

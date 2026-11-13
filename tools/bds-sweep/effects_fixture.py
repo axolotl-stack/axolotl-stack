@@ -3,7 +3,7 @@ fixture (`crates/unastar/src/entity/effects/testdata/bds-1.26.51-effects.json`).
 
     python tools/bds-sweep/effects_fixture.py OUT.json SWEEP_DIR [SWEEP_DIR ...]
 
-Decodes each run's `client/packets.jsonl` with `bds-extractor --decode`
+Decodes each run's `client-capture/packets.jsonl` with `bds-extractor --decode`
 (cargo build -p bds-extractor first) and, per item, keeps the commands and
 their ticks, every damage event (tick, whether it hit the mob or the
 player, damage, cause), the mob's position and Endstone health per tick,
@@ -128,7 +128,7 @@ def main() -> int:
     for directory in dirs:
         loaded = json.loads((directory / 'loaded.json').read_text(encoding='utf-8'))
         sources.append({'sweep': directory.name, **loaded})
-        records = decoded(directory / 'client' / 'packets.jsonl')
+        records = decoded(directory / 'client-capture' / 'packets.jsonl')
         for line in (directory / 'results.jsonl').read_text(encoding='utf-8').splitlines():
             if line.strip():
                 result = json.loads(line)

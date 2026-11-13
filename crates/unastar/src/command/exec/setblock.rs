@@ -7,10 +7,10 @@
 //! `commands.setblock.noChange`.
 //!
 //! Legacy block names BDS still accepts with old states
-//! (`wool ["color"="red"]` is `minecraft:red_wool` on BDS) need BDS's legacy
-//! block-state upgrade table, which unastar does not have: such names answer
-//! a literal "not implemented" failure. Current identifiers with their
-//! current states work.
+//! (`wool ["color"="red"]` is `minecraft:red_wool` on BDS) resolve through
+//! [`crate::command::legacy`] for the colour families; other legacy names
+//! answer a literal "not implemented" failure. Current identifiers with
+//! their current states work.
 
 use crate::command::parser::StateLiteral;
 use crate::command::prelude::*;
@@ -60,7 +60,13 @@ pub fn run(ctx: &mut CommandContext<'_>, args: SetBlockArgs) -> CommandResult {
     };
     let block = BlockSpec::resolve(&tile_name, states.as_ref())?.state();
     let pos = ctx.block_position(Some(position));
-    let Some(old) = block_at(ctx.world, (pos.x, pos.y, pos.z)) else {
+    // Measured: a position below the world answers `noChange` ([INFERENCE]
+    // above it too); where nothing is loaded (`/execute in nether`) it is
+    // out of the world.
+    if !in_height(pos.y) {
+        return failure!("commands.setblock.noChange");
+    }
+    let Some(old) = ctx.block_at(pos) else {
         return failure!("commands.setblock.outOfWorld");
     };
     let mode = mode.unwrap_or(SetBlockMode::Replace);
@@ -98,7 +104,12 @@ impl BlockSpec {
         };
         let Some(entry) = BlockRegistry::vanilla().get_by_name(&identifier) else {
             // Every captured `Block` value that is not a current identifier
-            // is a legacy alias resolved through the upgrade table.
+            // is a legacy alias: the mapped families resolve to the current
+            // block, the rest are not implemented.
+            let old = states.map_or(&[][..], |s| s.0.as_slice());
+            if let Some((current, rest)) = crate::command::legacy::block(tile_name, old) {
+                return Self::resolve(&current, Some(&BlockStates(rest)));
+            }
             return Err(CommandOutput::failure(
                 format!("Legacy block name '{tile_name}' is not implemented in unastar yet"),
                 vec![],
@@ -114,7 +125,7 @@ impl BlockSpec {
             else {
                 return Err(CommandOutput::failure(
                     "commands.blockstate.stateError",
-                    vec![name.clone(), tile_name.to_owned()],
+                    vec![name.clone(), identifier.clone()],
                 ));
             };
             let value = property
@@ -138,7 +149,7 @@ impl BlockSpec {
                 None if type_matches => {
                     return Err(CommandOutput::failure(
                         "commands.blockstate.valueError",
-                        vec![name.clone()],
+                        vec![name.clone(), identifier.clone()],
                     ));
                 }
                 None => {
@@ -177,6 +188,11 @@ impl BlockSpec {
             .expect("resolve checked the state combination")
     }
 
+    /// Whether `state` is a state of this block, whatever its values.
+    pub(super) fn is_block(&self, state: u32) -> bool {
+        (self.entry.min_state_id..=self.entry.max_state_id).contains(&state)
+    }
+
     /// Whether `state` is this block with the named states (any value for
     /// the states not named), as fill/clone filters match.
     pub(super) fn matches(&self, state: u32) -> bool {
@@ -188,9 +204,16 @@ impl BlockSpec {
     }
 }
 
+/// Whether `y` is inside the world height.
+pub(super) fn in_height(y: i32) -> bool {
+    let bottom = crate::world::chunk::MIN_Y;
+    let top = bottom + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16;
+    (bottom..top).contains(&y)
+}
+
 /// Whether every block of the box `min..=max` is inside the world height and
 /// in a loaded chunk.
-pub(super) fn box_loaded(world: &World, min: IVec3, max: IVec3) -> bool {
+pub(crate) fn box_loaded(world: &World, min: IVec3, max: IVec3) -> bool {
     use crate::world::ecs::{ChunkManager, world_to_chunk_coords};
     let bottom = crate::world::chunk::MIN_Y;
     let top = bottom + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16;
@@ -300,14 +323,14 @@ pub(super) mod tests {
             h.run(op, r#"/setblock 1 64 1 oak_stairs ["color"="red"]"#),
             CommandOutput::failure(
                 "commands.blockstate.stateError",
-                vec!["color".into(), "oak_stairs".into()]
+                vec!["color".into(), "minecraft:oak_stairs".into()]
             )
         );
         assert_eq!(
             h.run(op, r#"/setblock 1 64 1 oak_stairs ["weirdo_direction"=9]"#),
             CommandOutput::failure(
                 "commands.blockstate.valueError",
-                vec!["weirdo_direction".into()]
+                vec!["weirdo_direction".into(), "minecraft:oak_stairs".into()]
             )
         );
         assert_eq!(
@@ -326,7 +349,18 @@ pub(super) mod tests {
     fn legacy_names_and_unloaded_blocks_fail() {
         let mut h = Harness::new();
         let op = h.player("Op", true);
-        let legacy = h.run(op, r#"/setblock ~1 ~ ~ minecraft:wool ["color"="red"]"#);
+        // A colour family resolves to the flattened block.
+        assert!(
+            h.run(op, r#"/setblock ~1 ~ ~ minecraft:wool ["color"="silver"]"#)
+                .is_success()
+        );
+        assert_eq!(block(&mut h, 4, 64, 3), state("minecraft:light_gray_wool"));
+        h.run(op, "/setblock ~1 ~ ~ air");
+        // Other legacy names are not mapped.
+        let legacy = h.run(
+            op,
+            r#"/setblock ~1 ~ ~ minecraft:log ["old_log_type"="birch"]"#,
+        );
         assert!(!legacy.is_success());
         assert!(
             legacy.messages[0]
@@ -340,7 +374,7 @@ pub(super) mod tests {
         );
         assert_eq!(
             h.run(op, "/setblock 0 400 0 stone"),
-            CommandOutput::failure("commands.setblock.outOfWorld", vec![])
+            CommandOutput::failure("commands.setblock.noChange", vec![])
         );
     }
 
@@ -426,5 +460,17 @@ pub(super) mod tests {
         );
         assert_eq!(block(&mut h, 5, 64, 5), state("minecraft:stone"));
         assert_eq!(drops(&mut h), [("minecraft:oak_planks".to_owned(), 1)]);
+    }
+}
+
+/// Replays of the committed BDS 1.26.51 command capture
+/// (`crates/bds-extractor/captures/1.26.51/operator-commands`).
+#[cfg(test)]
+mod bds_capture {
+    use crate::command::exec::evidence::Replay;
+
+    #[test]
+    fn setblock_matches_the_bds_capture() {
+        Replay::new().assert_segment("setblock", &[]);
     }
 }

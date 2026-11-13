@@ -120,7 +120,7 @@ def observed(capture: Path, runtime_id: int):
 
 def distil(directory: Path) -> list[dict]:
     results = [json.loads(line) for line in (directory / 'results.jsonl').read_text(encoding='utf-8').splitlines()]
-    sent = inputs(directory / 'client' / 'packets.jsonl')
+    sent = inputs(directory / 'client-capture' / 'packets.jsonl')
     runtime_id = results[0]['player_runtime_id']
     seen = list(observed(directory / 'observer' / 'packets.jsonl', runtime_id))
     items = []

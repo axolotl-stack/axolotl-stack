@@ -52,10 +52,13 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
     assert!(h.dead());
     assert_eq!(h.health(), 0.0);
 
+    // The killing hit sends no hurt event and no knockback: only the death
+    // (BDS 1.26.51 slime and drowning kills).
     let packets = h.drain();
-    assert_eq!(
-        actor_events(&packets, SESSION),
-        [EnumsActorEvent::Hurt, EnumsActorEvent::Death]
+    assert_eq!(actor_events(&packets, SESSION), [EnumsActorEvent::Death]);
+    assert!(
+        motions(&packets).is_empty(),
+        "no knockback on a killing hit"
     );
     let message = (
         "death.attack.mob".to_owned(),
@@ -63,7 +66,7 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
     );
     assert_eq!(death_infos(&packets), std::slice::from_ref(&message));
     assert_eq!(translations(&packets), std::slice::from_ref(&message));
-    let spawn = world_spawn(&mut h);
+    let spawn = reported(world_spawn(&mut h));
     assert_eq!(
         respawns(&packets),
         [
@@ -72,10 +75,7 @@ fn a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen() 
         ]
     );
     let seen = drain(&mut viewer);
-    assert_eq!(
-        actor_events(&seen, SESSION),
-        [EnumsActorEvent::Hurt, EnumsActorEvent::Death]
-    );
+    assert_eq!(actor_events(&seen, SESSION), [EnumsActorEvent::Death]);
     assert_eq!(translations(&seen), [message], "everyone reads the death");
     assert!(
         death_infos(&seen).is_empty(),

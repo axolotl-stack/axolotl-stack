@@ -53,32 +53,52 @@
     }
    ]
   },
+  "armor_wear": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "armor_wear.json",
+     "sha256": "e11f50fa59f7b3c5bd5852169d20918203671c3d9501e515f897718815a4a2c0"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py armor-wear, endstone-sweep plugin) at baeb50f259eae0a0a4b8461b4c6ad8a92a95c1c1",
+   "method": "sweep player (survival, max health 2000, natural regeneration off) wearing one breakable piece (the slot armor_slots.json assigns) takes one `/damage <player> D entity_attack` per D, spaced past the hurt cooldown; the piece is read back through Endstone before and after every hit",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "items-armor-wear",
+     "items": 30,
+     "runs": [
+      {
+       "items": 30,
+       "seconds": 215.1,
+       "started": "20261110T195327Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "attack_damage": {
    "bds_version": "1.26.51",
    "files": [
     {
      "path": "attack_damage.json",
-     "sha256": "8f08d4b6ba5e1ee826da08fa004a83e4eab49dd61df7631a2606164fa02c7e92"
+     "sha256": "ad256dbd66068e36d1e61fe5fd0228b4a14b332f4f7c42388cd6d78c599378a9"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py attack, endstone-sweep plugin) at 1e93dee335ccb136d3f5ce09e182bba4d96c764a",
-   "method": "sweep player (creative, on the ground, not sprinting) holding the item attacks a freshly spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the Endstone ActorDamageEvent for the pig, three trials after one warm-up attack",
+   "harness": "tools/bds-sweep (sweep.py attack, endstone-sweep plugin) at 68753e3022f8ed25765c0bb690fdfcecd1b7451a",
+   "method": "sweep player (creative, or survival where `gamemode` says so; on the ground, not sprinting) holding the item attacks a freshly spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the Endstone ActorDamageEvent for the pig, three trials after one warm-up attack; `wear`: change of the durability damage of the held stack per trial (warm-up first), read back through Endstone",
    "source": "bds_sweep",
    "sweeps": [
     {
-     "dir": "full-attack",
-     "items": 43,
+     "dir": "items-attack-survival",
+     "items": 50,
      "runs": [
       {
-       "items": 43,
-       "seconds": 15.7,
-       "started": "20261025T195553Z",
-       "status": "client exited 1"
-      },
-      {
-       "items": 43,
-       "seconds": 117.4,
-       "started": "20261025T204248Z",
+       "items": 50,
+       "seconds": 158.8,
+       "started": "20261110T193114Z",
        "status": "done"
       }
      ]
@@ -6072,6 +6092,175 @@
     }
    ]
   },
+  "block_updates": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "block_updates/connection_faces.json",
+     "sha256": "887fae7a58d862c101dc622fa0e51e1fda44511e71ef17c0d48ca82e9e37a5fd"
+    },
+    {
+     "path": "block_updates/connections.json",
+     "rows": 1549,
+     "sha256": "8ea8689d93e0b8474f5807843e96ed8c73f4c6dcba5a54e60c3cbf4c2eaf1c7c"
+    },
+    {
+     "path": "block_updates/connections_blocks.json",
+     "rows": 233,
+     "sha256": "7855a3081bd97be595d2293b676c725cb43de2c1c7a74df8610de9b2acd97cad"
+    },
+    {
+     "path": "block_updates/gate_in_wall.json",
+     "rows": 192,
+     "sha256": "d16dbaf55b65988ff467c267ef03084fc02d285f4c5268967067b165ed3bbb45"
+    },
+    {
+     "path": "block_updates/halves.json",
+     "rows": 30,
+     "sha256": "a1e9cbaf4afe43bf56236219304ae28d78fae503805a3570f1290adf86f6b278"
+    },
+    {
+     "path": "block_updates/junctions.json",
+     "rows": 1407,
+     "sha256": "299127d3d4d6bb13ae8b512b29f397756e5d66bbf07907c4c29940775165510d"
+    },
+    {
+     "path": "block_updates/multiface_support.json",
+     "rows": 416,
+     "sha256": "82de612fe9bda5a89eef4551b2f9e62c58f5d8f979c6c6342f3739b71c3972f6"
+    },
+    {
+     "path": "block_updates/plant_soils.json",
+     "sha256": "8f1d141d94d0336bc52a66c6466165a7a2953b66ab095d9c2a8c3e8c35557ad0"
+    },
+    {
+     "path": "block_updates/rails.json",
+     "rows": 648,
+     "sha256": "ef0a8f4c9faa604c6cbcb01005936ee2802ac879dda58d2429b85526c4957595"
+    },
+    {
+     "path": "block_updates/soils.json",
+     "rows": 21,
+     "sha256": "fc37dfe3cb00b1317ae3f9e914cb456b5d1505398a558efc8424709b2a79e0e8"
+    },
+    {
+     "path": "block_updates/soils_more.json",
+     "rows": 7,
+     "sha256": "0831abbf784a9dc11ab8d9033a6fbdff1e9116054a0205ba8c9cfeab3453bb12"
+    },
+    {
+     "path": "block_updates/stairs.json",
+     "rows": 3840,
+     "sha256": "18d9d5754c00f5ae2ddcc7d4c214cdab861069b854f786c275421eaec028870a"
+    },
+    {
+     "path": "block_updates/stairs_blocks.json",
+     "rows": 24576,
+     "sha256": "5d378c729526ba01ec79606035f86c708b8b2fe3f4c456cc68cc260a22981675"
+    },
+    {
+     "path": "block_updates/support.json",
+     "rows": 6047,
+     "sha256": "635cc634e9a068dd3f6f10b30fb1f451ad73091116ff0266f090b4201f986016"
+    },
+    {
+     "path": "block_updates/support_holders.json",
+     "sha256": "301602d80aeb91fd202cdc059f0bb83de8e64423f7cebe93bb855294327e1d71"
+    },
+    {
+     "path": "block_updates/surfaces.json",
+     "rows": 34,
+     "sha256": "c54ef972d29c5ff052519d8b274d65de98d0ef7108786fc4beffc488c7b2348c"
+    },
+    {
+     "path": "block_updates/wall_above.json",
+     "rows": 1396,
+     "sha256": "fd2778cfd60318369c6870ebc1a938ada27a378f6c76fdc18ed10f16719e3063"
+    },
+    {
+     "path": "block_updates/wall_heights_blocks.json",
+     "rows": 544,
+     "sha256": "21aaf072a371c26edb231ac5dbb4392232450f7d8d6e0f78b7e3a11271b48fb3"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at 343b0c5d60e0b4892db053447ab74c4e1998fba7; tools/bds-sweep (sweep.py scenarios, endstone-sweep plugin) at e19a52c8685d1c2e414471576ab960f421669362",
+   "method": "block scenarios (tools/bds-sweep/scenarios.py) run by the endstone-sweep `scenarios` job on a superflat world with random ticks off: blocks set through the Endstone block API with or without the block update a placement triggers, read back after the stated wait; see each file's `method`",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "scenarios-blocks-1",
+     "items": 33292,
+     "runs": [
+      {
+       "items": 33292,
+       "seconds": 214.5,
+       "started": "20261110T190832Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-blocks-2a",
+     "items": 31160,
+     "runs": [
+      {
+       "items": 31160,
+       "seconds": 86.2,
+       "started": "20261110T194726Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-blocks-2c",
+     "items": 24600,
+     "runs": [
+      {
+       "items": 24600,
+       "seconds": 81.8,
+       "started": "20261110T194854Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-blocks-2b",
+     "items": 34035,
+     "runs": [
+      {
+       "items": 34035,
+       "seconds": 99.0,
+       "started": "20261110T195019Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-r2-a",
+     "items": 24576,
+     "runs": [
+      {
+       "items": 24576,
+       "seconds": 59.8,
+       "started": "20261110T224631Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "scenarios-r2-b",
+     "items": 25683,
+     "runs": [
+      {
+       "items": 25683,
+       "seconds": 124.8,
+       "started": "20261110T224734Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "fuel_burn_ticks": {
    "bds_version": "1.26.51",
    "files": [
@@ -6104,16 +6293,42 @@
     }
    ]
   },
+  "item_blocks": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "item_blocks.json",
+     "sha256": "cc2f690ae8d3d1d7a33ddba2b6953ee6df4ad15701d60ce06f715a9d58d8a6c7"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py item-blocks, endstone-sweep plugin) at 58fe526cbd1bd0a776ab0df8986e562c8255fb12",
+   "method": "`/replaceitem entity <player> slot.hotbar 0 <item> 1` from the console for every item of the item registry; the block runtime id of hotbar slot 0 in the next main-inventory `InventoryContent` the scripted client received (null: no block); `not_given` lists the items the command refuses",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "item-blocks-1",
+     "items": 2076,
+     "runs": [
+      {
+       "items": 2076,
+       "seconds": 232.7,
+       "started": "20261110T211305Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "mining_ticks": {
    "bds_version": "1.26.51",
    "files": [
     {
      "path": "mining_ticks.json",
-     "sha256": "f3b1530c947137b8e032bf1fdd569fec79499b51b73a8d6331ec0d9aa2bbaa95"
+     "sha256": "6d584f4309ce861c5886f73a93b4550fffb19ae9b5f4e0377ece8767b42fc4e8"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py mining, endstone-sweep plugin) at c1dfa10ca1021df23e5c1dfb7634d2ac6ad52ada",
-   "method": "sweep player in survival facing the block keeps sending StartDestroyBlock then ContinueDestroyBlock (no prediction); BDS breaks the block itself; server ticks from the LEFT_CLICK_BLOCK interaction to the BlockBreakEvent, three trials (resolution +/-1 tick)",
+   "harness": "tools/bds-sweep (sweep.py mining, endstone-sweep plugin): slice-mining at c1dfa10ca1021df23e5c1dfb7634d2ac6ad52ada, items-held-mining, items-effect-mining and items-held-mining-2 at 68753e3022f8ed25765c0bb690fdfcecd1b7451a",
+   "method": "sweep player in survival facing the block keeps sending StartDestroyBlock then ContinueDestroyBlock (no prediction); BDS breaks the block itself; server ticks from the LEFT_CLICK_BLOCK interaction to the BlockBreakEvent (resolution +/-1 tick); three trials per tool-slice, effect and empty-hand cell, one per held-item cell; `wear`: change of the durability damage of the held stack per trial, read back through Endstone",
    "source": "bds_sweep",
    "sweeps": [
     {
@@ -6131,6 +6346,48 @@
        "seconds": 430.5,
        "started": "20261025T210327Z",
        "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "items-held-mining",
+     "items": 409,
+     "runs": [
+      {
+       "items": 409,
+       "seconds": 608.8,
+       "started": "20261110T191910Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "items-effect-mining",
+     "items": 5,
+     "runs": [
+      {
+       "items": 5,
+       "seconds": 115.1,
+       "started": "20261110T192919Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "items-held-mining-2",
+     "items": 24,
+     "runs": [
+      {
+       "items": 24,
+       "seconds": 66.7,
+       "started": "20261110T195220Z",
+       "status": "done"
+      },
+      {
+       "items": 24,
+       "seconds": 15.5,
+       "started": "20261110T195718Z",
+       "status": "client exited 1"
       }
      ]
     }

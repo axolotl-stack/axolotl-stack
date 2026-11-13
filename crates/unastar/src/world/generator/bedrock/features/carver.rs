@@ -10,12 +10,17 @@
 //! are a pure function of `(world seed, feature, source chunk)`, so the
 //! pieces carved by neighbouring chunks line up without any shared state.
 //!
+//! Source chunk seeding (measured against the natural seed-12345 BDS world,
+//! see "Carver source seeding" in the codegen README): with `L` the level
+//! seed and `a`, `b` the first two 31-bit draws of a random seeded with `L`,
+//! each forced odd, source chunk `(sx, sz)` seeds its random with
+//! `(sx * a + sz * b) ^ L` (wrapping 32-bit). Every carver feature shares
+//! these seeds.
+//!
 //! Per source chunk (the classic worm algorithm):
-//! - the chunk starts caves with probability `1 / skip_carve_chance` (see
-//!   [`source_seed`]);
-//! - `n = r(r(r(bound) + 1) + 1)` cave starts (`bound` 15, nether 10), each
-//!   at a random block of the source chunk, at
-//!   `y = min_y + 8 + r(height_limit)`;
+//! - `n = r(r(r(bound) + 1) + 1)` cave starts (`bound` 15, nether 10), then
+//!   the skip roll: the chunk carves only when `r(skip_carve_chance) == 0`;
+//! - each start draws z, then y (`min_y + 8 + r(height_limit)`), then x;
 //! - each start samples `horizontal_radius_multiplier`,
 //!   `vertical_radius_multiplier` and `floor_level` once; with chance 1/4 it
 //!   opens a room (an ellipsoid of radius `2.5..8.5`, vertical radius scaled
@@ -24,9 +29,12 @@
 //!   radius is `1.5 + sin(pi * step / steps) * thickness`; thick tunnels split
 //!   once into two thinner side branches; 3 in 4 steps carve an ellipsoid.
 //!
-//! An ellipsoid carves block centres with `x^2 + y^2 + z^2 < 1` (coordinates
+//! An ellipsoid carves blocks with `x^2 + y^2 + z^2 < 1` (coordinates
 //! relative to the centre, divided by the radii) and `y > floor_level`, which
-//! flattens cave floors.
+//! flattens cave floors. `x` and `z` are measured at block centres, `y` half a
+//! block *below* the block (`block_y - 0.5`), so caves sit one block higher
+//! than a centred test would put them (measured against the natural
+//! seed-12345 BDS world, see "Carve height" in the codegen README).
 //!
 //! Interpretation of the pack keys (documented next to each [`Params`]
 //! field): `height_limit` is the span of start heights above `min_y + 8`
@@ -124,10 +132,13 @@ pub struct FloatRange {
 }
 
 impl FloatRange {
-    /// Uniform draw in `[min, max)` (one draw even when `min == max`, so the
-    /// draw sequence does not depend on the data).
+    /// Uniform draw in `[min, max)`; a degenerate range is its value without
+    /// a draw.
     #[inline]
     pub fn sample(self, rng: &mut BedrockRandom) -> f64 {
+        if self.min == self.max {
+            return f64::from(self.min);
+        }
         f64::from(self.min + (self.max - self.min) * rng.next_float())
     }
 }
@@ -136,9 +147,6 @@ impl FloatRange {
 #[derive(Debug, Clone, Copy)]
 pub struct Params {
     pub kind: Kind,
-    /// Per-feature salt (FNV-1a of the feature identifier, computed at build
-    /// time) so two carvers of the same type pick different source chunks.
-    pub salt: u64,
     /// `fill_with`: what carved terrain becomes.
     pub fill_with: u32,
     /// `replace_air_with`: what air inside the carved volume becomes
@@ -179,58 +187,22 @@ pub fn place<W: BlockWorld>(
         max_y: ctx.world.max_y(),
     };
     let (chunk_x, chunk_z) = (pos.x >> 4, pos.z >> 4);
+    let level_seed = ctx.seed as u32 ^ (ctx.seed >> 32) as u32;
+    let mut multipliers = BedrockRandom::new(level_seed);
+    let mul_x = multipliers.next_non_negative_int() as u32 | 1;
+    let mul_z = multipliers.next_non_negative_int() as u32 | 1;
     let mut carved = false;
     for sx in chunk_x - SOURCE_RADIUS..=chunk_x + SOURCE_RADIUS {
         for sz in chunk_z - SOURCE_RADIUS..=chunk_z + SOURCE_RADIUS {
-            let Some(seed) = source_seed(ctx.seed, params.salt, sx, sz, params.skip_carve_chance)
-            else {
-                continue;
-            };
+            let seed = (sx as u32)
+                .wrapping_mul(mul_x)
+                .wrapping_add((sz as u32).wrapping_mul(mul_z))
+                ^ level_seed;
             let mut rng = BedrockRandom::new(seed);
             carved |= carver.carve_source(ctx, &mut rng, sx, sz);
         }
     }
     carved.then_some(pos)
-}
-
-/// SplitMix64 finaliser: a bijective 64-bit mix.
-#[inline]
-const fn mix64(mut z: u64) -> u64 {
-    z = z.wrapping_add(0x9e37_79b9_7f4a_7c15);
-    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
-    z ^ (z >> 31)
-}
-
-/// Whether source chunk `(chunk_x, chunk_z)` starts caves, and if so the
-/// 32-bit seed of its [`BedrockRandom`].
-///
-/// Formula: `h = splitmix64(world_seed ^ salt ^ chunk_x * K1 ^ chunk_z * K2)`
-/// (wrapping 64-bit, `K1`/`K2` odd constants); the chunk carves when
-/// `(h >> 32) % skip_carve_chance == 0` and seeds its random with the low 32
-/// bits. Rolling the skip chance on the hash instead of the first random draw
-/// avoids seeding an MT19937 (2.5 KiB of state) for each of the 289 source
-/// chunks when only ~1/33 of them carve. BDS's own source-chunk seeding is not
-/// measured: unmeasured: to confirm by BDS fixture, including random draw order.
-pub fn source_seed(
-    world_seed: i64,
-    salt: u64,
-    chunk_x: i32,
-    chunk_z: i32,
-    skip_carve_chance: i32,
-) -> Option<u32> {
-    const K1: u64 = 0x9e37_79b9_7f4a_7c15;
-    const K2: u64 = 0xc2b2_ae3d_27d4_eb4f;
-    let h = mix64(
-        world_seed as u64
-            ^ salt
-            ^ (i64::from(chunk_x) as u64).wrapping_mul(K1)
-            ^ (i64::from(chunk_z) as u64).wrapping_mul(K2),
-    );
-    if skip_carve_chance > 1 && !((h >> 32) as u32).is_multiple_of(skip_carve_chance as u32) {
-        return None;
-    }
-    Some(h as u32)
 }
 
 /// `[lo, hi]` blocks whose centres may lie within `radius` of `center`
@@ -326,11 +298,15 @@ impl Carver<'_> {
             let b = rng.next_int(a) + 1;
             rng.next_int(b)
         };
+        // The skip roll follows the count, on the same random.
+        if p.skip_carve_chance > 1 && rng.next_int(p.skip_carve_chance) != 0 {
+            return false;
+        }
         let mut carved = false;
         for _ in 0..starts {
-            let x = f64::from(sx * 16 + rng.next_int(16));
-            let y = f64::from(self.min_y + START_ABOVE_BOTTOM + rng.next_int(p.height_limit));
             let z = f64::from(sz * 16 + rng.next_int(16));
+            let y = f64::from(self.min_y + START_ABOVE_BOTTOM + rng.next_int(p.height_limit));
+            let x = f64::from(sx * 16 + rng.next_int(16));
             let shape = Shape {
                 horizontal: p.horizontal_radius_multiplier.sample(rng),
                 vertical: p.vertical_radius_multiplier.sample(rng),
@@ -339,9 +315,11 @@ impl Carver<'_> {
             let mut tunnels = 1;
             if rng.next_int(4) == 0 {
                 // A room: radius 1.5 + thickness (the tunnel formula at its
-                // widest point), unaffected by the radius multipliers.
-                let y_scale = p.y_scale.sample(rng);
+                // widest point), unaffected by the radius multipliers. Its
+                // vertical scale comes from a random of its own.
                 let thickness = 1.0 + f64::from(rng.next_float()) * 6.0;
+                let mut room = BedrockRandom::new(rng.next_non_negative_int() as u32);
+                let y_scale = p.y_scale.sample(&mut room);
                 let radius = 1.5 + thickness + width;
                 carved |=
                     self.carve_ellipsoid(ctx, x + 1.0, y, z, radius, radius * y_scale, shape.floor);
@@ -355,7 +333,7 @@ impl Carver<'_> {
                 // Each tunnel walks its own random so stopping early (out of
                 // reach of this column) never shifts the source chunk's
                 // remaining draws: every column sees the same caves.
-                let seed = rng.next_u32();
+                let seed = rng.next_non_negative_int() as u32;
                 let tunnel = Tunnel {
                     x,
                     y,
@@ -418,14 +396,15 @@ impl Carver<'_> {
             yaw_change += f64::from((rng.next_float() - rng.next_float()) * rng.next_float() * 4.0);
             if step == split && thickness > 1.0 {
                 for turn in [-FRAC_PI_2, FRAC_PI_2] {
-                    let branch_seed = rng.next_u32();
+                    let thickness = f64::from(rng.next_float()) * 0.5 + 0.5;
+                    let branch_seed = rng.next_non_negative_int() as u32;
                     let branch = Tunnel {
                         x,
                         y,
                         z,
                         yaw: yaw + turn,
                         pitch: pitch / 3.0,
-                        thickness: f64::from(rng.next_float()) * 0.5 + 0.5,
+                        thickness,
                         y_scale: 1.0,
                         start: step,
                         steps,
@@ -471,8 +450,10 @@ impl Carver<'_> {
         let Some((z_lo, z_hi)) = clip_span(cz, horizontal, self.z0, self.z0 + 15) else {
             return false;
         };
-        // Never the bottom layer (vanilla keeps `min_y` intact).
-        let Some((y_lo, y_hi)) = clip_span(cy, vertical, self.min_y + 1, self.max_y - 1) else {
+        // Never the bottom layer (vanilla keeps `min_y` intact). Heights are
+        // tested at `y - 0.5`, i.e. a centred test around `cy + 1`.
+        let Some((y_lo, y_hi)) = clip_span(cy + 1.0, vertical, self.min_y + 1, self.max_y - 1)
+        else {
             return false;
         };
         if self.params.kind == Kind::UnderwaterCave
@@ -493,7 +474,7 @@ impl Carver<'_> {
                 // dirt it exposes (see `carve_block`).
                 let mut exposed_top = None;
                 for y in (y_lo..=y_hi).rev() {
-                    let dy = (f64::from(y) + 0.5 - cy) / vertical;
+                    let dy = (f64::from(y) - 0.5 - cy) / vertical;
                     if in_carve_shape(dxz_sq, dy, floor) {
                         carved |= self.carve_block(ctx, BlockPos::new(x, y, z), &mut exposed_top);
                     }
@@ -709,7 +690,6 @@ mod tests {
     fn cave(skip: i32) -> Params {
         Params {
             kind: Kind::Cave,
-            salt: 0x1234,
             fill_with: bb::AIR,
             replace_air_with: None,
             width_modifier: 0.0,
@@ -734,29 +714,6 @@ mod tests {
             seed,
         };
         place(&mut ctx, pos, params)
-    }
-
-    #[test]
-    fn source_seed_is_deterministic_and_rolls_one_in_n() {
-        let a = source_seed(42, 7, 3, -5, 1);
-        assert_eq!(a, source_seed(42, 7, 3, -5, 1));
-        assert!(a.is_some());
-        // Different chunk, salt or world seed: a different random.
-        assert_ne!(a, source_seed(42, 7, -5, 3, 1));
-        assert_ne!(a, source_seed(42, 8, 3, -5, 1));
-        assert_ne!(a, source_seed(43, 7, 3, -5, 1));
-        // Over many chunks, about 1/33 start caves.
-        let mut hits = 0;
-        for x in -100..100 {
-            for z in -50..50 {
-                hits += i32::from(source_seed(-9_876_543_210, 99, x, z, 33).is_some());
-            }
-        }
-        let expected = 20_000 / 33;
-        assert!(
-            (hits - expected).abs() < expected / 5,
-            "{hits} vs {expected}"
-        );
     }
 
     #[test]
@@ -803,11 +760,13 @@ mod tests {
         };
         // Centre on the column edge: half of it lies in the next column.
         assert!(carver.carve_ellipsoid(&mut ctx, 15.5, 20.0, 8.5, 6.0, 4.0, -0.5));
-        // Floor at 20 - 0.5 * 4 = 18: centre 18.5 carved, 17.5 kept.
-        assert_eq!(world.get(BlockPos::new(15, 18, 8)), bb::AIR);
-        assert_eq!(world.get(BlockPos::new(15, 17, 8)), bb::STONE);
-        assert_eq!(world.get(BlockPos::new(15, 23, 8)), bb::AIR);
-        assert_eq!(world.get(BlockPos::new(15, 24, 8)), bb::STONE);
+        // Heights are tested at y - 0.5. Floor at 20 - 0.5 * 4 = 18: block 19
+        // (tested at 18.5) carved, 18 (17.5) kept; top 20 + 4 = 24: block 24
+        // (23.5) carved, 25 (24.5) kept.
+        assert_eq!(world.get(BlockPos::new(15, 19, 8)), bb::AIR);
+        assert_eq!(world.get(BlockPos::new(15, 18, 8)), bb::STONE);
+        assert_eq!(world.get(BlockPos::new(15, 24, 8)), bb::AIR);
+        assert_eq!(world.get(BlockPos::new(15, 25, 8)), bb::STONE);
         // Nothing outside [0, 16) x [0, 16).
         assert_eq!(world.get(BlockPos::new(16, 20, 8)), bb::STONE);
         assert_eq!(world.get(BlockPos::new(18, 20, 8)), bb::STONE);

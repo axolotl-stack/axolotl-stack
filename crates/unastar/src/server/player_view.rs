@@ -36,6 +36,7 @@ use crate::entity::components::{
     ActorViewers, GameMode, Player, PlayerName, PlayerSession, PlayerUuid, Position, Rotation,
     RuntimeEntityId,
 };
+use crate::entity::player_life::actor_data::{ExplicitGameMode, PlayerActorData};
 use crate::entity::send_range::{Candidates, ViewerChanges};
 use crate::entity::systems::physics::{BlockSource, collect_block_boxes};
 use crate::registry::collision::Aabb;
@@ -121,6 +122,8 @@ pub fn sync_player_viewers(
             &Position,
             &Rotation,
             &GameMode,
+            Has<ExplicitGameMode>,
+            &PlayerActorData,
             Option<&mut ActorViewers>,
         ),
         With<Player>,
@@ -146,7 +149,19 @@ pub fn sync_player_viewers(
             moves.entry(relayed.player).or_default().push(relayed);
         }
     }
-    for (player, runtime_id, uuid, name, position, rotation, game_mode, viewers) in &mut players {
+    for (
+        player,
+        runtime_id,
+        uuid,
+        name,
+        position,
+        rotation,
+        game_mode,
+        explicit_game_mode,
+        actor_data,
+        viewers,
+    ) in &mut players
+    {
         let Some(mut viewers) = viewers else {
             commands.entity(player).insert(ActorViewers::default());
             continue;
@@ -178,7 +193,8 @@ pub fn sync_player_viewers(
                 &name.0,
                 position,
                 rotation,
-                *game_mode,
+                super::broadcast::add_player_game_type(*game_mode, explicit_game_mode),
+                actor_data,
             ));
             for viewer in changes.fresh {
                 if let Ok((_, session, _)) = sessions.get(viewer)

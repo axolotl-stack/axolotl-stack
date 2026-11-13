@@ -153,7 +153,7 @@ def main() -> int:
     trials, sources = {}, []
     for directory in dirs:
         loaded = json.loads((directory / 'loaded.json').read_text(encoding='utf-8'))
-        capture = list(packets(directory / 'client' / 'packets.jsonl'))
+        capture = list(packets(directory / 'client-capture' / 'packets.jsonl'))
         sources.append({'sweep': directory.name, **loaded})
         job = json.loads((directory / 'job.json').read_text(encoding='utf-8'))
         specs = {item['key']: {k: item[k] for k in SPEC_KEYS if k in item} for item in job['items']}

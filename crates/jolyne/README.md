@@ -221,8 +221,8 @@ the Login authentication:
 The client never requests or sends a Mojang-signed legacy chain (a top-level
 legacy `chain` is not a modern BDS identity token). Client-generated metadata
 uses Android `DeviceOS: 1`: BDS 1.26.51 rejects the retired UWP `DeviceOS: 7`
-as an invalid connection request, reporting the misleading
-`readNoHeader failed` before authentication (observed with the client-diff
+as an invalid connection request, reporting a misleading packet-reader
+failure in its `PacketViolationWarning` before authentication (observed with the client-diff
 harness, `tools/client-diff/examples/rejected-login.md`), so caller-supplied
 metadata must also name a supported platform. The client advertises
 client-side chunk generation as disabled.

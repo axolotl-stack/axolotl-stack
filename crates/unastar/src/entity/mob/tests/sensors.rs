@@ -26,7 +26,7 @@ use crate::world::chunk::{Chunk, blocks};
 use crate::world::ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkViewers};
 use crate::world::rules::Difficulty;
 
-const MIDNIGHT: u64 = 18_000;
+const MIDNIGHT: i64 = 18_000;
 const RIDING: &str = "minecraft:is_riding_zombie_horse";
 /// Where the zombie stands: inside the water column at (4, 64..=66, 4).
 const FEET: DVec3 = DVec3::new(4.5, 64.0, 4.5);

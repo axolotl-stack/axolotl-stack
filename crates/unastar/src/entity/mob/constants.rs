@@ -23,7 +23,8 @@ pub const MOVE_ARRIVAL_FLOOR: f32 = 0.5;
 pub const MOVE_DESCEND_CAP: f32 = 0.25;
 /// The travel step's forward input is the move control's speed × this
 /// (BDS 1.26.51: a walking cow at speed `s` gains `0.98 s²` per tick on
-/// grass, through every step of its 10 %/tick speed ramp).
+/// grass, through every step of its 10 %/tick speed ramp). Measured on
+/// land and in the air only; it is applied in liquids too, unmeasured.
 pub const MOVE_INPUT_DECAY: f32 = 0.98;
 /// Vertical velocity of a living mob with gravity when it spawns or is born
 /// (80 of the 112 BDS 1.26.51 summon captures: every living actor with
@@ -434,10 +435,29 @@ pub const LEGACY_BUCKET_ITEMS: [(i16, &str); 11] = [
 /// regard to case, as item names are. Provisional: pmmp's
 /// BedrockItemUpgradeSchema, which agrees with the identity BDS reports for
 /// its own `muttonRaw` furnace recipe input.
-pub const LEGACY_ITEM_NAMES: [(&str, &str); 1] = [("minecraft:muttonRaw", "minecraft:mutton")];
+pub const LEGACY_ITEM_NAMES: [(&str, &str); 2] = [
+    ("minecraft:muttonRaw", "minecraft:mutton"),
+    // `entities/wither_boss` (measured: `/loot … loot "entities/wither_boss"`
+    // drops a nether star).
+    ("minecraft:netherStar", "minecraft:nether_star"),
+];
 /// The legacy loot item name that picks its wool item by data value
 /// (the palette colour): `minecraft:wool` with data 14 is red wool.
 pub const LEGACY_WOOL: &str = "minecraft:wool";
+/// The legacy loot item name that picks its head item by data value: the
+/// vanilla wither skeleton table drops `minecraft:skull` with data 1.
+pub const LEGACY_SKULL: &str = "minecraft:skull";
+/// Head item of each legacy skull data value. Provisional: pmmp's
+/// BedrockItemUpgradeSchema, as for [`LEGACY_ITEM_NAMES`].
+pub const SKULL_ITEMS: [&str; 7] = [
+    "minecraft:skeleton_skull",
+    "minecraft:wither_skeleton_skull",
+    "minecraft:zombie_head",
+    "minecraft:player_head",
+    "minecraft:creeper_head",
+    "minecraft:dragon_head",
+    "minecraft:piglin_head",
+];
 
 // --- Palette colours ------------------------------------------------------------
 

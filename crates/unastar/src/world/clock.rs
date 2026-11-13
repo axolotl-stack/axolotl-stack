@@ -81,8 +81,11 @@ impl Default for ClockSync {
 }
 
 /// Set the clock (`/time set`, `/time add`) and broadcast it this tick.
-pub fn set_time(world: &mut World, ticks: u64) {
-    assert!(ticks <= WorldTime::MAX, "the world clock is an i32");
+pub fn set_time(world: &mut World, ticks: i64) {
+    assert!(
+        (WorldTime::MIN..=WorldTime::MAX).contains(&ticks),
+        "the world clock is an i32"
+    );
     world.resource_mut::<WorldTime>().ticks = ticks;
     world.resource_mut::<ClockSync>().changed = true;
 }

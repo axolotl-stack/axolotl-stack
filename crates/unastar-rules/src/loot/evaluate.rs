@@ -218,8 +218,18 @@ fn apply_functions(
                 count = if *add { count + n } else { n };
             }
             LootFunctionKind::SetData { data } => {
-                drop.data =
-                    sample_int(*data, rng).clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16
+                let data =
+                    sample_int(*data, rng).clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16;
+                // A legacy name that selects its item by data value
+                // (`minecraft:skull` with data 1) becomes that item.
+                match ctx.data_alias(authored, data) {
+                    Some(item) => {
+                        drop.item_id.clear();
+                        drop.item_id.push_str(item);
+                        drop.data = 0;
+                    }
+                    None => drop.data = data,
+                }
             }
             LootFunctionKind::LootingEnchant { count: n, limit } => {
                 count += (0..ctx.looting())

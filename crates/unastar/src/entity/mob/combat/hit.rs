@@ -37,6 +37,8 @@ use crate::entity::mob::components::{
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
 use crate::entity::mob::{MobKind, constants};
+use crate::item::ItemStack;
+use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::collision::Aabb;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
@@ -109,7 +111,7 @@ pub fn player_attack(
         return;
     }
     let held = held_item(world, player).cloned();
-    let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
+    let damage = melee_damage(held.as_ref());
     let applied = hurt_mob(
         world,
         target,
@@ -130,6 +132,16 @@ pub fn player_attack(
         let wear = crate::server::game::durability::attack_wear(entry);
         crate::server::game::durability::wear_held(world, player, wear);
     }
+}
+
+/// Damage of a player's melee hit with `held` (`None`: empty hand): the
+/// item's measured BDS damage plus 1.25 per Sharpness level, truncated to
+/// whole points as BDS deals it (a diamond sword with Sharpness I-V hits for
+/// 9, 10, 11, 13 and 14, not 9.25 ... 14.25; `docs/quirks/bds.md`).
+pub fn melee_damage(held: Option<&ItemStack>) -> f32 {
+    let base = unastar_data::melee::attack_damage(held.map(ItemStack::item_id));
+    let sharpness = held.map_or(0, |stack| enchantment_level(stack, Enchantment::Sharpness));
+    (base + 1.25 * f32::from(sharpness)).floor()
 }
 
 /// The eye position of a player that may attack this tick.
@@ -354,6 +366,9 @@ pub fn hurt_on_condition(
         }
     }
 }
+
+#[cfg(test)]
+mod measured_tests;
 
 #[cfg(test)]
 mod tests;

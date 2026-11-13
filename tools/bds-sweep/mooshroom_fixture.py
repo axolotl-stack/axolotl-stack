@@ -4,7 +4,7 @@ mooshroom fixture
 
     python tools/bds-sweep/mooshroom_fixture.py OUT.json SWEEP_DIR [SWEEP_DIR ...]
 
-Decodes each run's `client/packets.jsonl` with `bds-extractor --decode`
+Decodes each run's `client-capture/packets.jsonl` with `bds-extractor --decode`
 (cargo build -p bds-extractor first). Per item it keeps the mooshroom's
 feet and facing, the events run on it before the interactions, and for
 every interaction that went through (BDS swung the player's arm): the
@@ -128,7 +128,7 @@ def main() -> int:
     out = Path(sys.argv[1])
     items = []
     for sweep in map(Path, sys.argv[2:]):
-        records = decoded(sweep / 'client' / 'packets.jsonl')
+        records = decoded(sweep / 'client-capture' / 'packets.jsonl')
         names = {}
         for record in records:
             if record['name'] == 'ItemRegistryPacket':

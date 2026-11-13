@@ -19,6 +19,14 @@ use crate::server::game::types::ItemEntityIdCounter;
 /// eye position carried by `PlayerAuthInput`.
 pub const PLAYER_EYE_HEIGHT: f64 = 1.62;
 
+/// How high above the feet BDS reports a player in the positions it sends
+/// (`MovePlayer`, `Respawn`): 1.62001, one f32 step or so above
+/// [`PLAYER_EYE_HEIGHT`]. Every captured teleport and the join captures'
+/// respawns carry the f32 nearest feet + 1.62001 (201.62001 for feet 200,
+/// 137.62001 for 136). Only packets use it; the player's eyes stay 1.62 above
+/// the feet everywhere else.
+pub const PLAYER_REPORTED_EYE_HEIGHT: f64 = 1.620_01;
+
 /// Random source for entity spawning (drop velocities and offsets).
 ///
 /// Seedable so tests are deterministic; servers seed it from entropy.

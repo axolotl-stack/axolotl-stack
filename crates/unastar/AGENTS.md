@@ -24,6 +24,27 @@ Extends the root [AGENTS.md](../../AGENTS.md). Behaviour, configuration and evid
 - **Persistence**: loaded chunk columns are never regenerated or marked dirty; player data is
   restored and saved symmetrically; corrupt records are preserved, not dropped.
 
+## Code shape
+
+- **One canonical type per domain concept.** Enchantments, mob effects, dimensions, game modes,
+  damage causes and actor flags each have exactly one type; extend it, never add a parallel enum,
+  `const` table or `match name { "minecraft:x" => … }`. Before adding one, `rg` for the existing
+  type. A missing entry goes into its source data and is regenerated, not hand-added in a branch.
+- **No hand-written id↔name tables when data exists.** Ids, names and per-entry facts come from
+  `unastar-data` (vanilla packs, the BDS command capture in `output/available_commands.json`,
+  `data/measured/`) or from `valentine`, through a generator that cross-checks its sources and
+  fails the build on a mismatch. Protocol magic numbers (level events, ability bits, update flags)
+  live in exactly one module with their provenance.
+- **Resolve names when data loads, with a typed error; runtime code takes typed values.** Decoders
+  turn names into ids and report the source path on failure. Gameplay code doesn't take `&str`
+  identifiers where a typed id exists, doesn't match on `"minecraft:…"` strings and doesn't build
+  or strip `minecraft:` by hand. No `unwrap`/`expect`/`panic!` on data from the network, disk or
+  plugins outside tests.
+- **Conversions are trait impls; tests reuse production code.** `From`/`TryFrom` for ids,
+  `FromStr`/`Display` for names, serde for config and fixtures. Test helpers call production
+  parsers and the shared test support instead of re-implementing them, and fixtures are structured
+  JSON deserialized into production types, never encoded strings parsed with `split`/`trim_*`.
+
 ## Map
 
 | Path | What |
