@@ -23,6 +23,7 @@
 
 pub mod ai;
 pub mod archetype;
+pub mod attributes;
 pub mod combat;
 pub mod components;
 pub mod constants;
@@ -34,7 +35,6 @@ pub mod life;
 pub mod native;
 pub mod net;
 pub mod persistence;
-pub mod spawn_bonus;
 pub mod state;
 
 #[cfg(test)]
@@ -97,6 +97,9 @@ pub enum SpawnCause {
     Born,
     /// Restored from storage: no event; the saved groups are re-applied.
     Loaded,
+    /// Another mob's `minecraft:transformation`:
+    /// `minecraft:entity_transformed`.
+    Transformed,
 }
 
 /// Create a mob of `identifier` with its feet at `position`, fire its
@@ -126,13 +129,13 @@ pub fn spawn_mob(
     };
     let entity = spawn_unattached(world, &archetype, position, yaw)?;
     if cause == SpawnCause::Loaded {
-        // The spawn knockback resistance was rolled once and saved; restoring
-        // puts it back (BDS 1.26.51 keeps it across a save and load).
+        // The spawn bonuses were rolled once and saved; restoring puts them
+        // back (BDS 1.26.51 keeps them across a save and load).
         world
             .entity_mut(entity)
             .insert(persistence::Restoring)
-            .remove::<combat::knockback::KnockbackResistance>()
-            .remove::<spawn_bonus::FollowRangeBonus>();
+            .remove::<attributes::KnockbackResistance>()
+            .remove::<attributes::FollowRange>();
     }
     attach_definition(world, entity, Arc::clone(&archetype.definition))
         .expect("a freshly spawned mob exists and has no definition stack");
@@ -140,6 +143,7 @@ pub fn spawn_mob(
     let event = match cause {
         SpawnCause::Spawned => archetype.lifecycle.spawned.as_ref(),
         SpawnCause::Born => archetype.lifecycle.born.as_ref(),
+        SpawnCause::Transformed => archetype.lifecycle.transformed.as_ref(),
         SpawnCause::Loaded => None,
     };
     if let Some(event) = event
@@ -150,6 +154,13 @@ pub fn spawn_mob(
     }
     apply_pending_definitions(world);
     derive_entity(world, entity);
+    // What the mob spawned with is what `UpdateAttributes` reports as the
+    // defaults; its viewers get every attribute once more after the
+    // `AddActor`, as BDS 1.26.51 sends them.
+    if let Some(mut attributes) = world.get_mut::<ActorAttributes>(entity) {
+        attributes.reset_defaults();
+        attributes.mark_all_changed();
+    }
     let falls = world
         .get::<PhysicsBody>(entity)
         .is_some_and(|body| body.model == PhysicsModel::Living && body.gravity > 0.0);
@@ -188,16 +199,27 @@ fn spawn_unattached(
     };
     let mut molang = PropertyDefaults(rand::SeedableRng::seed_from_u64(seed));
     let properties = ActorProperties::new(Arc::clone(&archetype.properties), &mut molang)?;
-    // From the mob's own seed, so the shared random sequence is unchanged.
-    let knockback_resistance = archetype
+    // The native class's spawn bonuses, from the mob's own seed so the
+    // shared random sequence is unchanged; the definition's components set
+    // the bases when it applies.
+    let knockback_resistance =
+        archetype
+            .native
+            .knockback_resistance_bonus
+            .map(|max| attributes::KnockbackResistance {
+                spawn_bonus: Some(attributes::KnockbackResistance::roll_bonus(
+                    &mut molang.0,
+                    max,
+                )),
+                ..attributes::KnockbackResistance::NONE
+            });
+    let follow_range = archetype
         .native
-        .knockback_resistance_bonus
-        .map(|max| combat::knockback::KnockbackResistance::roll(&mut molang.0, max));
-    let follow_range_bonus = if archetype.native.follow_range_bonus {
-        spawn_bonus::FollowRangeBonus::roll(&mut molang.0)
-    } else {
-        None
-    };
+        .follow_range_bonus
+        .then(|| attributes::FollowRange {
+            spawn_bonus: attributes::FollowRange::roll_bonus(&mut molang.0),
+            ..attributes::FollowRange::DEFAULT
+        });
     let attributes = ActorAttributes::new(
         Arc::clone(&archetype.attributes),
         archetype.attribute_seed.clone(),
@@ -272,8 +294,8 @@ fn spawn_unattached(
         if let Some(resistance) = knockback_resistance {
             entity.insert(resistance);
         }
-        if let Some(bonus) = follow_range_bonus {
-            entity.insert(bonus);
+        if let Some(range) = follow_range {
+            entity.insert(range);
         }
     }
     Ok(entity.id())

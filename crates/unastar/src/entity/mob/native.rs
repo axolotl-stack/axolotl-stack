@@ -32,10 +32,10 @@ pub struct NativeTraits {
     /// zombie pigman 3, drowned 4).
     pub aux_value: Option<i16>,
     /// The class spawns with a random knockback resistance below this
-    /// (`mob::combat::knockback`); `None` for no resistance.
+    /// (`mob::attributes::KnockbackResistance`); `None` for no bonus.
     pub knockback_resistance_bonus: Option<f64>,
     /// The class rolls a follow-range bonus at spawn and saves its
-    /// `minecraft:follow_range` (`mob::spawn_bonus`).
+    /// `minecraft:follow_range` (`mob::attributes::FollowRange`).
     pub follow_range_bonus: bool,
     /// The `VARIANT` actor data the class starts with, if it sets one: the
     /// native skeleton classes number their kind there (skeleton 0, wither

@@ -55,6 +55,7 @@ pub use config::{
     ImpactDamage, OnSpawn, ParticleOnHit, ProjectileConfig, ProjectileError, ProjectileRules,
     SpawnChance, register_component_kinds,
 };
+pub(crate) use flight::set_invisible as set_actor_invisible;
 pub use flight::tick_projectiles;
 #[cfg(test)]
 pub(crate) use hit::spawn_count;

@@ -6,7 +6,7 @@ use jolyne::valentine::RespawnPacket;
 use jolyne::valentine::types::PlayerInputTick;
 
 use super::*;
-use crate::entity::components::{EffectType, Effects, Hunger};
+use crate::entity::components::{EffectType, Hunger};
 use crate::entity::xp_orb::spawn_orb;
 
 /// The `PlayerInputTick` of each packet about `runtime_id`, in send order.
@@ -107,12 +107,13 @@ fn every_tick_field_sent_to_a_player_follows_its_input_timeline() {
     client.input(&mut h);
 
     // An effect starts.
-    h.world()
-        .entity_mut(player)
-        .insert(Effects::default())
-        .get_mut::<Effects>()
-        .unwrap()
-        .add(EffectType::SPEED, 0, 200);
+    crate::entity::effects::give(
+        h.world(),
+        player,
+        EffectType::SPEED,
+        crate::entity::components::ActiveEffect::new(0, 200),
+    );
+    client.record(&mut h);
     client.input(&mut h);
 
     // An experience orb lands on the player and is collected.

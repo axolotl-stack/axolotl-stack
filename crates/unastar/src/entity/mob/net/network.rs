@@ -32,8 +32,8 @@
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::types::{
-    ActorRuntimeId, ActorUniqueId, AttributeData, MoveActorDeltaData, PlayerInputTick,
-    PropertySyncData, SynchedActorDataCopyableDataList, Vec2, Vec3,
+    ActorRuntimeId, ActorUniqueId, MoveActorDeltaData, PlayerInputTick, PropertySyncData,
+    SynchedActorDataCopyableDataList, Vec2, Vec3,
 };
 use jolyne::valentine::{
     AddActorPacket, McpePacket, MoveActorDeltaPacket, RemoveActorPacket, SetActorDataPacket,
@@ -490,27 +490,14 @@ pub fn sync_mob_viewers(
             metadata.mark_clean();
             net.properties_revision = properties.sync_revision();
         }
+        // Only the attributes that changed, once per change, with their
+        // spawn defaults and modifiers (BDS 1.26.51 effects capture).
         if attributes.is_dirty() {
-            let snapshot = attributes.snapshot();
             updates.push(McpePacket::from(UpdateAttributesPacket {
                 target_runtime_id: rid.clone(),
-                attribute_list: snapshot
-                    .entries()
-                    .iter()
-                    .map(|row| AttributeData {
-                        min_value: row.min_value,
-                        max_value: row.max_value,
-                        current_value: row.current_value,
-                        default_min_value: row.min_value,
-                        default_max_value: row.max_value,
-                        default_value: row.current_value,
-                        name: row.attribute_name.clone(),
-                        modifiers: Vec::new(),
-                    })
-                    .collect(),
+                attribute_list: attributes.take_changes(),
                 tick: PlayerInputTick { inputtick: 0 },
             }));
-            attributes.mark_clean();
         }
         if let (Some(gear), Some(items)) = (gear.as_mut(), items.as_ref())
             && gear.is_dirty()

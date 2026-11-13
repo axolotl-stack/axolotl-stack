@@ -29,6 +29,8 @@ sweep harness (T2). Everything here needs a BDS runtime: the shared one
 | `range_fixture.py` | `range` sweeps (one per view / simulation distance) to `crates/unastar/src/entity/testdata/bds-1.26.51-send-range.json`: each marker's kind and position, the observer's steps, and the step and tick of every add and remove it got |
 | `player_relay_fixture.py` | `walk` sweeps to `crates/unastar/src/server/testdata/bds-1.26.51-player-relay.json`: for every input of the sweep player, the input it sent and the `MovePlayer` the observer got for it |
 | `spawn_bonus_fixture.py` | `bonus` sweeps (with `--keep-world`; their actor records dumped by `cargo run -p unastar --example bds_actor_records`) to `crates/unastar/src/entity/mob/persistence/testdata/bds-1.26.51-spawn-bonus.json`: per kind, how many were saved and every `RandomSpawnBonus` amount |
+| `effects_fixture.py` | `effects` sweeps (run with `--client-capture`) to the committed effects fixture `crates/unastar/src/entity/effects/testdata/bds-1.26.51-effects.json`: per item the commands and their ticks, every damage event, the mob's position and health per tick and every `MobEffect`, effect actor data, `UpdateAttributes` and `ActorEvent` about the mob or the player, each on the tick of the `bds-sweep:mark` before it (decoded with `bds-extractor --decode`) |
+| `mooshroom_fixture.py` | `mooshroom` sweeps (`--items basic` and `--items geometry`, run with `--client-capture`) to `crates/unastar/src/entity/mob/interaction/testdata/bds-1.26.51-mooshroom.json`: per item the mooshroom's feet, facing and events, and per interaction BDS let through the player's eyes and held item, the particle level event, the held slot afterwards, the sounds, the mark variant, the dropped items and the actor it turned into, each with its tick |
 | `script.py` | Plays a `bds-sweep-client --script` scenario against plain BDS (no Endstone) and records the client's packets; the same script runs against unastar with `bds-sweep-client --addr <unastar> --script ...` |
 | `scripts/breaking.txt` | Survival block breaking scenarios: by hand, tools, instant, abort, a frozen client, Haste, a block above, client predictions on time and early, `StopDestroyBlock`, blocks put back where a break goes on, a burst of inputs |
 | `breaking_fixture.py` | Cuts the committed breaking fixtures (`crates/unastar/src/server/game/blocks/testdata/bds-breaking*.jsonl`) out of a `script.py` capture of `scripts/breaking.txt` (or other windows, `--windows`), with a second player's packets moved onto the first player's clock (`--observer`) |
@@ -108,6 +110,7 @@ send the same text with `tellraw <player> {"rawtext":[{"text":"bds-sweep:..."}]}
 | `bds-sweep:burst INPUTS` | Send that many more `PlayerAuthInput`s right after the next one, at once (a client running faster than real time) |
 | `bds-sweep:release` | Release the button: `StopDestroyBlock` with the default position, and no more mining |
 | `bds-sweep:attack RUNTIME_ID` | Attack using the synchronized held stack |
+| `bds-sweep:interact RUNTIME_ID` | Interact with the actor using the synchronized held stack (the first use after the plugin changed the hand is refused and makes BDS resend the slot) |
 | `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
 | `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
 | `bds-sweep:close-inventory` | Close the tracked native inventory window |
@@ -228,6 +231,11 @@ see `crates/unastar/README.md` for its setup and retained native evidence.
 | `range` | which actors BDS sends a viewer, by where it stands (needs `--observer`) | still markers (cows, armor stand, item, arrow, minecart, xp orb, and the sweep player) around chunk (0, 0); the observer walks away and back along +x, the diagonal and -x in one-block steps of ten ticks, then jumps between 40 and 112 blocks; a `bds-sweep:mark` chat line every tick puts each observer packet on a tick. Run once per `--view-distance` / `--tick-distance` |
 | `bonus` | the random spawn bonuses BDS saves for each kind (`--keep-world`, `--difficulty easy\|hard`) | 870 mobs of 13 kinds (no villagers, golems, wolves or illagers, which fight the others) frozen on a grid around the sweep player and left in the world; read their records from the kept world |
 | `walk` | how BDS relays a player's movement to another player (needs `--observer`) | the sweep player driven by `bds-sweep:walk` (standing, turning, walking, stepping up, tilting) with the observer 8 blocks south and a cow spawned at yaw 33.3 for its `AddActor` rotation |
+| `effects` | what effects do to a mob or to the sweep player, tick by tick (`--items mobs\|players\|all`) | a cow or zombie in a barrier cell three blocks east, or the survival player; `/effect` and `/damage` at fixed ticks (poison, regeneration, wither, instant effects, resistance, fire resistance, health boost, absorption, speed, slowness, invisibility, hidden particles, several at once, stacking, clearing, expiry; levitation and slow falling on a frozen cow; hunger and saturation on the player); every tick a `bds-sweep:mark` chat line puts the capture on the samples |
+| `ranged` | how the skeleton family shoots (once per `--difficulty`) | a frozen skeleton (8 and 15 blocks), stray, bogged and parched shooting at the survival sweep player, kept alive by Resistance V and Regeneration; 300 ticks each |
+| `melee-effects` | the effect a husk's hit applies, per `--difficulty` | a husk walks up to the survival player and hits it for 200 ticks; Health Boost X, a full heal and Regeneration V keep the player alive without Resistance (which would change the hits); `--client-capture` holds each hit's hunger `MobEffect` |
+| `mooshroom` | the mooshroom's interactions | the survival player holding a bowl, an allium (brown mooshroom) or shears interacts with a frozen mooshroom (`bds-sweep:interact`, twice); `--items geometry` moves the particle: the player on a block diagonally above, a baby mooshroom, and a bowl after the allium (suspicious stew). One mooshroom in 20 spawns a baby, which has no interactions, so those items grow theirs up first |
+| `entity-loot` | `/loot spawn … kill <mob>` outcomes, like `drops` for blocks (`--items <mob>,...`, `--samples`) | a frozen, resistant mob; the sweep player runs the command |
 | `scenarios` | block states BDS stores after a scripted sequence of block sets (with or without the block update a placement triggers), waits and reads | items from `scenarios.py` families run in waves of up to 64 cells (6 blocks apart, east of the player); one wait covers a wave; touched cells are cleared without updates and the superflat layers restored after each wave |
 | `placements` | what BDS stores and sends when the survival player clicks a block face with a stack (blocks read back, the held stack, every packet both ways), and what a second scripted player watching sees | per item: the arena box around (4,-60,4) is cleared, its blocks set with block updates, the stack put in hotbar slot 0 with `/replaceitem` (the inventory API does not reach the client), the player teleported with its look; chat markers `bds-sweep:mark <key>` / `bds-sweep:mark end` cut the client capture (`--capture-dir`, on automatically) per item |
 | `item-blocks` | the block state BDS describes a stack of each item with | `/replaceitem` of every registry item into hotbar slot 0, one per two ticks behind a chat marker; slot 0 of the next main-inventory `InventoryContent` in the client capture |
@@ -257,7 +265,7 @@ python tools/bds-sweep/combat_fixture.py <dir>/client-capture/packets.jsonl <fix
 & $py tools/bds-sweep/summarize.py scenarios <dir>
 & $py tools/bds-sweep/summarize.py placements <dir>   # -> crates/unastar/src/server/game/testdata/bds-placements.json
 & $py tools/bds-sweep/summarize.py item-blocks <dir>  # -> data/measured/item_blocks.json
-& $py tools/bds-sweep/sweep.py knockback --items slice --client-capture   # also air, far
+& $py tools/bds-sweep/sweep.py knockback --items slice --client-capture   # also air, far, resist
 python tools/bds-sweep/knockback_fixture.py <fixture.json> <sweep dir> [<sweep dir> ...]
 & $py tools/bds-sweep/sweep.py knockback --items cadence --observer --client-capture --view-distance 10 --tick-distance 10
 python tools/bds-sweep/replication_fixture.py <fixture.json> <cadence dir> <cadence2 dir>
@@ -271,6 +279,14 @@ python tools/bds-sweep/player_relay_fixture.py <fixture.json> <walk dir>
 & $py tools/bds-sweep/sweep.py bonus --difficulty easy --keep-world --client-capture   # and hard
 cargo run -p unastar --example bds_actor_records -- <bonus dir>/world/db <bonus dir>/actor_records.jsonl
 python tools/bds-sweep/spawn_bonus_fixture.py <fixture.json> <easy dir> <hard dir>
+& $py tools/bds-sweep/sweep.py effects --client-capture   # --items mobs | players
+python tools/bds-sweep/effects_fixture.py <fixture.json> <effects dir> [<effects dir> ...]
+& $py tools/bds-sweep/sweep.py ranged --difficulty easy --client-capture   # and normal, hard
+& $py tools/bds-sweep/sweep.py mooshroom --client-capture   # and --items geometry
+& $py tools/bds-sweep/sweep.py melee-effects --difficulty hard --client-capture
+python tools/bds-sweep/mooshroom_fixture.py <fixture.json> <basic dir> <geometry dir>
+& $py tools/bds-sweep/sweep.py entity-loot --items wither_skeleton --samples 800
+cargo run -p bds-extractor -- --decode <dir>/client-capture/packets.jsonl --only MobEffectPacket --output <out.jsonl>
 ```
 
 The `placements` job runs a second scripted player, `BDSWatch`, unless

@@ -1,0 +1,438 @@
+{
+ "source": "BDS 1.26.51, tools/bds-sweep/sweep.py mooshroom --client-capture (--items basic, geometry)",
+ "items": [
+  {
+   "key": "mooshroom|bowl",
+   "at": [
+    2.5,
+    -60,
+    0.5,
+    90
+   ],
+   "events": [],
+   "interactions": [
+    {
+     "t": 30,
+     "eyes": [
+      0.5,
+      -58.37999,
+      0.5
+     ],
+     "held": {
+      "item": "minecraft:bowl",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [],
+     "sounds": [
+      {
+       "t": 31,
+       "sound": "milk_suspiciously",
+       "position": [
+        2.5,
+        -59.35,
+        0.5
+       ],
+       "baby": false
+      }
+     ],
+     "held_after": {
+      "item": "minecraft:mushroom_stew",
+      "aux": 0,
+      "count": 1
+     },
+     "mark_variant": null,
+     "drops": [],
+     "transformed": null
+    }
+   ]
+  },
+  {
+   "key": "mooshroom|allium",
+   "at": [
+    2.5,
+    -60,
+    0.5,
+    90
+   ],
+   "events": [
+    "minecraft:become_brown"
+   ],
+   "interactions": [
+    {
+     "t": 30,
+     "eyes": [
+      0.5,
+      -58.37999,
+      0.5
+     ],
+     "held": {
+      "item": "minecraft:allium",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [
+      {
+       "t": 30,
+       "data": 5,
+       "position": [
+        1.5448442,
+        -58.803894,
+        0.5
+       ]
+      }
+     ],
+     "sounds": [
+      {
+       "t": 31,
+       "sound": "eat",
+       "position": [
+        2.5,
+        -59.35,
+        0.5
+       ],
+       "baby": false
+      }
+     ],
+     "held_after": {
+      "item": null,
+      "aux": 0,
+      "count": 0
+     },
+     "mark_variant": {
+      "t": 31,
+      "value": 7
+     },
+     "drops": [],
+     "transformed": null
+    }
+   ]
+  },
+  {
+   "key": "mooshroom|shears",
+   "at": [
+    2.5,
+    -60,
+    0.5,
+    90
+   ],
+   "events": [],
+   "interactions": [
+    {
+     "t": 30,
+     "eyes": [
+      0.5,
+      -58.37999,
+      0.5
+     ],
+     "held": {
+      "item": "minecraft:shears",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [
+      {
+       "t": 30,
+       "data": 16,
+       "position": [
+        1.5448442,
+        -58.803894,
+        0.5
+       ]
+      }
+     ],
+     "sounds": [
+      {
+       "t": 31,
+       "sound": "shear",
+       "position": [
+        2.5,
+        -59.35,
+        0.5
+       ],
+       "baby": false
+      }
+     ],
+     "held_after": {
+      "item": "minecraft:shears",
+      "aux": 0,
+      "count": 1
+     },
+     "mark_variant": null,
+     "drops": [
+      {
+       "t": 31,
+       "item": "minecraft:red_mushroom",
+       "aux": 0,
+       "count": 1
+      },
+      {
+       "t": 31,
+       "item": "minecraft:red_mushroom",
+       "aux": 0,
+       "count": 1
+      },
+      {
+       "t": 31,
+       "item": "minecraft:red_mushroom",
+       "aux": 0,
+       "count": 1
+      },
+      {
+       "t": 31,
+       "item": "minecraft:red_mushroom",
+       "aux": 0,
+       "count": 1
+      },
+      {
+       "t": 31,
+       "item": "minecraft:red_mushroom",
+       "aux": 0,
+       "count": 1
+      }
+     ],
+     "transformed": {
+      "t": 32,
+      "actor": "minecraft:cow",
+      "position": [
+       2.5,
+       -60.0,
+       0.5
+      ],
+      "yaw": 90.0
+     }
+    }
+   ]
+  },
+  {
+   "key": "mooshroom|allium-raised",
+   "at": [
+    2.5,
+    -60,
+    1.5,
+    90
+   ],
+   "events": [
+    "minecraft:ageable_grow_up",
+    "minecraft:become_brown"
+   ],
+   "interactions": [
+    {
+     "t": 31,
+     "eyes": [
+      0.5,
+      -57.37999,
+      3.5
+     ],
+     "held": {
+      "item": "minecraft:allium",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [
+      {
+       "t": 31,
+       "data": 5,
+       "position": [
+        1.8864117,
+        -58.60299,
+        2.1135883
+       ]
+      }
+     ],
+     "sounds": [
+      {
+       "t": 32,
+       "sound": "eat",
+       "position": [
+        2.5,
+        -59.35,
+        1.5
+       ],
+       "baby": false
+      }
+     ],
+     "held_after": {
+      "item": null,
+      "aux": 0,
+      "count": 0
+     },
+     "mark_variant": {
+      "t": 32,
+      "value": 7
+     },
+     "drops": [],
+     "transformed": null
+    }
+   ]
+  },
+  {
+   "key": "mooshroom|allium-baby",
+   "at": [
+    2.5,
+    -60,
+    0.5,
+    90
+   ],
+   "events": [
+    "minecraft:entity_born",
+    "minecraft:become_brown"
+   ],
+   "interactions": [
+    {
+     "t": 31,
+     "eyes": [
+      0.5,
+      -58.37999,
+      0.5
+     ],
+     "held": {
+      "item": "minecraft:allium",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [
+      {
+       "t": 31,
+       "data": 5,
+       "position": [
+        1.5958502,
+        -58.997784,
+        0.5
+       ]
+      }
+     ],
+     "sounds": [
+      {
+       "t": 32,
+       "sound": "eat",
+       "position": [
+        2.5,
+        -59.675,
+        0.5
+       ],
+       "baby": true
+      }
+     ],
+     "held_after": {
+      "item": null,
+      "aux": 0,
+      "count": 0
+     },
+     "mark_variant": {
+      "t": 32,
+      "value": 7
+     },
+     "drops": [],
+     "transformed": null
+    }
+   ]
+  },
+  {
+   "key": "mooshroom|suspicious-stew",
+   "at": [
+    2.5,
+    -60,
+    0.5,
+    90
+   ],
+   "events": [
+    "minecraft:ageable_grow_up",
+    "minecraft:become_brown"
+   ],
+   "interactions": [
+    {
+     "t": 31,
+     "eyes": [
+      0.5,
+      -58.37999,
+      0.5
+     ],
+     "held": {
+      "item": "minecraft:allium",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [
+      {
+       "t": 31,
+       "data": 5,
+       "position": [
+        1.5448442,
+        -58.803894,
+        0.5
+       ]
+      }
+     ],
+     "sounds": [
+      {
+       "t": 32,
+       "sound": "eat",
+       "position": [
+        2.5,
+        -59.35,
+        0.5
+       ],
+       "baby": false
+      }
+     ],
+     "held_after": {
+      "item": null,
+      "aux": 0,
+      "count": 0
+     },
+     "mark_variant": {
+      "t": 32,
+      "value": 7
+     },
+     "drops": [],
+     "transformed": null
+    },
+    {
+     "t": 52,
+     "eyes": [
+      0.5,
+      -58.37999,
+      0.5
+     ],
+     "held": {
+      "item": "minecraft:bowl",
+      "aux": 0,
+      "count": 1
+     },
+     "swing": true,
+     "particles": [],
+     "sounds": [
+      {
+       "t": 53,
+       "sound": "milk_suspiciously",
+       "position": [
+        2.5,
+        -59.35,
+        0.5
+       ],
+       "baby": false
+      }
+     ],
+     "held_after": {
+      "item": "minecraft:suspicious_stew",
+      "aux": 7,
+      "count": 1
+     },
+     "mark_variant": {
+      "t": 53,
+      "value": -1
+     },
+     "drops": [],
+     "transformed": null
+    }
+   ]
+  }
+ ]
+}

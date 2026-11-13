@@ -78,17 +78,18 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
             .insert(crate::entity::mob::state::LastAttack { tick, target });
         after_hurt(world, attacker, target, &goal, holding, is_player);
     }
+    // Through the shared effect system (`entity::effects`), which keeps it
+    // off an immune target and shows it.
     if let Some(effect) = attack.effect
         && alive(world, target)
         && !immune(world, target)
-        && !crate::entity::mob::components::stats::immune_to_effect(world, target, effect.effect)
     {
-        world
-            .entity_mut(target)
-            .entry::<Effects>()
-            .or_default()
-            .get_mut()
-            .add(effect.effect, 0, effect.duration_ticks);
+        crate::entity::effects::give(
+            world,
+            target,
+            effect.effect,
+            crate::entity::components::ActiveEffect::new(0, effect.duration_ticks),
+        );
     }
 }
 

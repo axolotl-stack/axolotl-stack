@@ -1,5 +1,6 @@
 //! Player interactions with mobs: dyeing, spawn eggs, feeding babies, love
-//! mode and authored `minecraft:interact` rows (milking, shearing, saddling).
+//! mode and authored `minecraft:interact` rows (milking, shearing, saddling,
+//! feeding a mooshroom flowers).
 //!
 //! [`player_interact`] tries, in order: a dye on a `minecraft:is_dyeable`
 //! mob of another colour (recolours it), the mob's own spawn egg on a mob
@@ -13,9 +14,9 @@
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use jolyne::valentine::actor_flags;
-use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, Vec3};
+use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, EnumsAnimatePacketPayloadAction};
 use jolyne::valentine::{
-    ActorEventPacket, ItemUseOnActorInventoryTransaction, LevelSoundEventPacket, McpePacket,
+    ActorEventPacket, AnimatePacket, ItemUseOnActorInventoryTransaction, McpePacket,
 };
 use rand::Rng;
 use tracing::warn;
@@ -23,12 +24,14 @@ use tracing::warn;
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    ActorViewers, GameMode, HeldSlot, MainInventory, PlayerSession, Position, RuntimeId,
+    ActorViewers, GameMode, HeldSlot, MainInventory, PlayerSession, Position, RuntimeEntityId,
+    RuntimeId,
 };
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::mob::components::{
-    AgeableConfig, BreedableConfig, InteractConfig, ItemMatcher, SpawnEggInteraction,
+    AgeableConfig, BreedableConfig, InteractConfig, InteractParticle, ItemMatcher,
+    SpawnEggInteraction,
 };
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::life::ageing::BabyAge;
@@ -269,9 +272,16 @@ pub struct InteractCooldown {
 }
 
 /// The first `minecraft:interact` row whose filter passes (other = the
-/// player) and whose cooldown is not running: uses or wears the held item,
-/// hands out `transform_to_item`, drops `spawn_items` loot, plays the row's
-/// sounds, starts the cooldown and fires the row's event on the mob.
+/// player) and whose cooldown is not running: shows its particle, swings the
+/// player's arm, uses or wears the held item, hands out `transform_to_item`
+/// and `add_items` loot, drops `spawn_items` loot, plays the row's sounds,
+/// starts the cooldown and fires the row's event on the mob.
+///
+/// BDS 1.26.51 sends the particle, the swing and the inventory change while
+/// it handles the player's packet and the sounds (at the middle of the mob's
+/// box) and the event's actor data with the next tick; unastar handles the
+/// packet at the start of a tick, so all of it goes out with that tick
+/// (`sweep.py mooshroom`).
 fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bool {
     let Some(config) = world.get::<InteractConfig>(target) else {
         return false;
@@ -295,19 +305,26 @@ fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bo
     }) else {
         return false;
     };
-    let result = match &row.transform_to_item {
-        Some(matcher) => {
-            let Some(stack) = modern_item(matcher).and_then(|id| world_stack(world, id, 1)) else {
-                warn!(item = %matcher.identifier, aux = ?matcher.aux,
-                    "interaction result item is not in the item registry");
-                return false;
-            };
-            Some(stack)
-        }
-        None => None,
-    };
-    if row.use_item || result.is_some() {
-        use_held_item_with(world, player, row.use_item, result);
+    let mut results = Vec::new();
+    if let Some(matcher) = &row.transform_to_item {
+        let Some(stack) = modern_item(matcher).and_then(|id| world_stack(world, id, 1)) else {
+            warn!(item = %matcher.identifier, aux = ?matcher.aux,
+                "interaction result item is not in the item registry");
+            return false;
+        };
+        results.push(stack);
+    }
+    if let Some(particle) = row.particle {
+        interaction_particle(world, player, target, particle);
+    }
+    if row.swing {
+        swing_arm(world, player);
+    }
+    if let Some(table) = &row.add_items {
+        results.extend(roll_interaction_loot(world, target, table));
+    }
+    if row.use_item || !results.is_empty() {
+        use_held_item_with(world, player, row.use_item, results);
     }
     if row.hurt_item > 0 {
         hurt_held_item(world, player, row.hurt_item);
@@ -315,8 +332,16 @@ fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bo
     if let Some(spawn) = &row.spawn_items {
         spawn_interaction_loot(world, target, spawn);
     }
-    for sound in row.play_sounds.iter() {
-        play_mob_sound(world, target, sound);
+    if let Some(centre) = crate::entity::mob::net::sound::body_centre(world, target) {
+        for sound in row.play_sounds.iter() {
+            crate::entity::mob::net::sound::play_level_sound(
+                world,
+                Some(target),
+                centre,
+                sound,
+                -1,
+            );
+        }
     }
     if row.cooldown_ticks > 0 {
         world.entity_mut(target).insert(InteractCooldown {
@@ -384,50 +409,59 @@ fn hurt_held_item(world: &mut World, player: Entity, amount: i32) {
     send_slot(world, player, usize::from(slot), &worn);
 }
 
-/// Roll an interaction's `spawn_items` table for `mob` (its colour and fire
-/// state are the THIS actor's) and drop the items at its feet raised by the
-/// row's offset.
+/// `particle_on_start`: one particle level event at the middle of `mob`'s
+/// box raised by the row's offset, moved towards the player's eyes when the
+/// row asks (see [`constants::INTERACT_PARTICLE_TOWARDS`]).
+fn interaction_particle(world: &World, player: Entity, mob: Entity, particle: InteractParticle) {
+    let Some(centre) = crate::entity::mob::net::sound::body_centre(world, mob) else {
+        return;
+    };
+    let mut at = centre + DVec3::Y * f64::from(particle.y_offset);
+    if particle.towards_interactor
+        && let Some(eyes) = world.get::<Position>(player).map(|p| p.0)
+    {
+        let aim = at + DVec3::Y * constants::INTERACT_PARTICLE_AIM_LIFT;
+        at += (eyes - aim).normalize_or_zero() * constants::INTERACT_PARTICLE_TOWARDS;
+    }
+    crate::entity::mob::net::sound::level_event(
+        world,
+        at,
+        constants::PROJECTILE_PARTICLE_LEVEL_EVENT,
+        particle.particle,
+    );
+}
+
+/// An interaction row's `swing`: the interacting player gets `Animate`
+/// Swing for itself with source `interact`, as BDS 1.26.51 sends it.
+fn swing_arm(world: &World, player: Entity) {
+    let (Some(runtime_id), Some(session)) = (
+        world.get::<RuntimeEntityId>(player),
+        world.get::<PlayerSession>(player),
+    ) else {
+        return;
+    };
+    let _ = session.send(McpePacket::from(AnimatePacket {
+        action: EnumsAnimatePacketPayloadAction::Swing,
+        target_actor_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id.0 as u64,
+        },
+        data: 0.0,
+        swing_source: Some("interact".into()),
+    }));
+}
+
+/// Roll an interaction's `spawn_items` table for `mob` and drop the items
+/// at its feet raised by the row's offset.
 fn spawn_interaction_loot(
     world: &mut World,
     mob: Entity,
     spawn: &crate::entity::mob::components::SpawnItems,
 ) {
-    use rand::SeedableRng;
-    let Some(table) = unastar_data::loot::get(&spawn.table) else {
-        warn!(table = %spawn.table, "interaction loot table is not in the loot registry");
-        return;
-    };
     let Some(feet) = world.get::<Position>(mob).map(|p| p.0) else {
         return;
     };
-    let recipes = world
-        .get_resource::<crate::server::game::types::RecipeRegistryResource>()
-        .map(|r| r.0.clone());
-    let items = world
-        .get_resource::<ItemRegistryResource>()
-        .map(|r| r.0.clone());
-    let ctx = crate::server::game::LootContext {
-        on_fire: Some(crate::entity::mob::combat::fire::is_burning(world, mob)),
-        recipes: recipes.as_deref(),
-        color_index: crate::entity::mob::components::color::color_of(world, mob),
-        items: items.as_deref(),
-        ..Default::default()
-    };
-    let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
-    let drops = match unastar_rules::loot::roll(
-        unastar_data::loot::vanilla(),
-        table,
-        &ctx,
-        &mut rand::rngs::StdRng::seed_from_u64(seed),
-    ) {
-        Ok(drops) => drops,
-        Err(error) => {
-            warn!(table = %spawn.table, %error, "interaction loot table cannot be evaluated");
-            return;
-        }
-    };
     let at = feet + DVec3::new(0.0, f64::from(spawn.y_offset), 0.0);
-    for stack in crate::server::game::loot_stacks(world, drops) {
+    for stack in roll_interaction_loot(world, mob, &spawn.table) {
         let Some(item) = crate::entity::spawn_item_drop(world, at, stack, None) else {
             continue;
         };
@@ -443,6 +477,44 @@ fn spawn_interaction_loot(
             velocity.0 += jitter;
         }
     }
+}
+
+/// Roll an interaction loot table for `mob` (its colour, mark variant and
+/// fire state are the THIS actor's) into item stacks.
+fn roll_interaction_loot(world: &mut World, mob: Entity, table_name: &str) -> Vec<ItemStack> {
+    use rand::SeedableRng;
+    let Some(table) = unastar_data::loot::get(table_name) else {
+        warn!(table = %table_name, "interaction loot table is not in the loot registry");
+        return Vec::new();
+    };
+    let recipes = world
+        .get_resource::<crate::server::game::types::RecipeRegistryResource>()
+        .map(|r| r.0.clone());
+    let items = world
+        .get_resource::<ItemRegistryResource>()
+        .map(|r| r.0.clone());
+    let ctx = crate::server::game::LootContext {
+        on_fire: Some(crate::entity::mob::combat::fire::is_burning(world, mob)),
+        recipes: recipes.as_deref(),
+        color_index: crate::entity::mob::components::color::color_of(world, mob),
+        mark_variant: crate::entity::mob::components::variant::mark_variant_of(world, mob),
+        items: items.as_deref(),
+        ..Default::default()
+    };
+    let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
+    let drops = match unastar_rules::loot::roll(
+        unastar_data::loot::vanilla(),
+        table,
+        &ctx,
+        &mut rand::rngs::StdRng::seed_from_u64(seed),
+    ) {
+        Ok(drops) => drops,
+        Err(error) => {
+            warn!(table = %table_name, %error, "interaction loot table cannot be evaluated");
+            return Vec::new();
+        }
+    };
+    crate::server::game::loot_stacks(world, drops)
 }
 
 /// The flattened identifier of an authored item name; legacy `bucket:<aux>`
@@ -466,14 +538,15 @@ fn is_baby(world: &World, entity: Entity) -> bool {
 
 /// Use one of the held item (kept in creative).
 fn use_held_item(world: &mut World, player: Entity, result: Option<ItemStack>) {
-    use_held_item_with(world, player, true, result);
+    use_held_item_with(world, player, true, result.into_iter().collect());
 }
 
 /// Optionally use one of the held item (never in creative) and hand the
-/// player `result`: it replaces a used-up held stack, otherwise it goes into
-/// the inventory (dropped at the player when full). Creative players only
-/// receive `result` when they hold none of it yet. Changed slots are resent.
-fn use_held_item_with(world: &mut World, player: Entity, consume: bool, result: Option<ItemStack>) {
+/// player `results`: each replaces a used-up held stack, otherwise it goes
+/// into the inventory (dropped at the player when full). Creative players
+/// only receive a result when they hold none of it yet. Changed slots are
+/// resent.
+fn use_held_item_with(world: &mut World, player: Entity, consume: bool, results: Vec<ItemStack>) {
     let creative = world.get::<GameMode>(player) == Some(&GameMode::Creative);
     let (Some(slot), Some(mut inventory)) = (
         world
@@ -490,8 +563,8 @@ fn use_held_item_with(world: &mut World, player: Entity, consume: bool, result: 
     {
         *held = held.grow(-1);
     }
-    let mut leftover = None;
-    if let Some(result) = result {
+    let mut leftovers = Vec::new();
+    for result in results {
         let held_empty = inventory.0.item(slot).is_none_or(ItemStack::is_empty);
         if held_empty {
             let _ = inventory.0.set_item(slot, result);
@@ -502,7 +575,9 @@ fn use_held_item_with(world: &mut World, player: Entity, consume: bool, result: 
                 .is_none()
         {
             let (_, rest) = inventory.0.add_item(result);
-            leftover = Some(rest).filter(|rest| !rest.is_empty());
+            if !rest.is_empty() {
+                leftovers.push(rest);
+            }
         }
     }
     let changed: Vec<(usize, ItemStack)> = inventory
@@ -517,10 +592,10 @@ fn use_held_item_with(world: &mut World, player: Entity, consume: bool, result: 
     for (index, stack) in &changed {
         send_slot(world, player, *index, stack);
     }
-    if let Some(rest) = leftover
-        && let Some(position) = world.get::<Position>(player).map(|p| p.0)
-    {
-        crate::entity::spawn_item_drop(world, position, rest, Some(player));
+    if let Some(position) = world.get::<Position>(player).map(|p| p.0) {
+        for rest in leftovers {
+            crate::entity::spawn_item_drop(world, position, rest, Some(player));
+        }
     }
 }
 
@@ -566,36 +641,6 @@ pub(crate) fn broadcast_actor_event(world: &World, mob: Entity, event: EnumsActo
         },
         event_id: event,
         data,
-        fire_at_position: None,
-    };
-    for viewer in &viewers.viewers {
-        if let Some(session) = world.get::<PlayerSession>(*viewer) {
-            let _ = session.send(McpePacket::from(packet.clone()));
-        }
-    }
-}
-
-/// Play a named level sound at `mob` for its viewers.
-fn play_mob_sound(world: &World, mob: Entity, sound: &str) {
-    let (Some(kind), Some(position), Some(viewers)) = (
-        world.get::<MobKind>(mob),
-        world.get::<Position>(mob),
-        world.get::<ActorViewers>(mob),
-    ) else {
-        return;
-    };
-    let packet = LevelSoundEventPacket {
-        sound_event: sound.into(),
-        position: Vec3 {
-            x: position.0.x as f32,
-            y: position.0.y as f32,
-            z: position.0.z as f32,
-        },
-        data: -1,
-        actor_identifier: kind.0.identifier.as_ref().into(),
-        is_baby: is_baby(world, mob),
-        is_global: false,
-        actor_unique_id: world.get::<RuntimeId>(mob).map_or(0, |id| id.0),
         fire_at_position: None,
     };
     for viewer in &viewers.viewers {

@@ -11,13 +11,12 @@ pub mod death;
 pub mod fall;
 pub mod fire;
 pub mod hit;
-pub mod knockback;
 pub mod melee;
 
 #[cfg(test)]
 mod bds_knockback;
 
 pub use hit::{
-    Hit, HurtTimer, fire_immune, hurt_mob, hurt_on_condition, knockback_power_of,
+    Hit, HurtTimer, fire_immune, hurt_mob, hurt_mob_quietly, hurt_on_condition, knockback_power_of,
     knockback_velocity, player_attack, send_actor_event,
 };

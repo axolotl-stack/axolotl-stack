@@ -1,6 +1,8 @@
 //! Knockback and the movement it causes, against BDS 1.26.51
 //! (`testdata/bds-1.26.51-knockback.json`: `tools/bds-sweep/sweep.py
-//! knockback --client-capture` runs distilled by `knockback_fixture.py`).
+//! knockback --client-capture` runs distilled by `knockback_fixture.py`;
+//! `testdata/bds-1.26.51-knockback-resistance.json`: the same for the
+//! zoglin, hoglin and iron golem, `--items resist`).
 //!
 //! The frozen trials are replayed tick by tick. The mob spawns where BDS
 //! spawned it, without AI (BDS held it with Slowness 255), on the same grass
@@ -9,7 +11,8 @@
 //! position and ground contact, and every position update and motion packet
 //! the viewer gets about the mob, must equal BDS's. A replayed zombie gets
 //! the knockback resistance BDS's zombie showed on its first hit (each
-//! zombie draws its own).
+//! zombie draws its own); a replayed zoglin resists by its definition's
+//! `minecraft:knockback_resistance` alone.
 
 use std::sync::OnceLock;
 
@@ -20,7 +23,6 @@ use jolyne::valentine::{McpePacket, McpePacketData};
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-use super::knockback::KnockbackResistance;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
     Experience, GameMode, Health, HeldSlot, MainInventory, OnGround, Player, PlayerSession,
@@ -29,6 +31,7 @@ use crate::entity::components::{
 use crate::entity::definition::apply_pending_definitions;
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::ai::MobBrain;
+use crate::entity::mob::attributes::KnockbackResistance;
 use crate::entity::mob::constants::{KNOCKBACK_HORIZONTAL, ZOMBIE_KNOCKBACK_RESISTANCE_BONUS};
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::server::game::{GameServer, ServerConfig};
@@ -45,6 +48,17 @@ fn fixture() -> &'static Value {
     static FIXTURE: OnceLock<Value> = OnceLock::new();
     FIXTURE.get_or_init(|| {
         serde_json::from_str(include_str!("testdata/bds-1.26.51-knockback.json")).unwrap()
+    })
+}
+
+/// The zoglin, hoglin and iron golem trials (`--items resist`).
+fn resistance_fixture() -> &'static Value {
+    static FIXTURE: OnceLock<Value> = OnceLock::new();
+    FIXTURE.get_or_init(|| {
+        serde_json::from_str(include_str!(
+            "testdata/bds-1.26.51-knockback-resistance.json"
+        ))
+        .unwrap()
     })
 }
 
@@ -162,7 +176,10 @@ struct Replay {
 /// chunks -1..=1 × -1..=1 at midnight on easy, viewed by one creative
 /// player; the mob spawns at the trial's spawn point without its brain.
 fn replay(key: &str) -> Replay {
-    let trial = trial(key);
+    replay_trial(key, trial(key))
+}
+
+fn replay_trial(key: &str, trial: &Value) -> Replay {
     let mut server = GameServer::with_config(ServerConfig {
         world: crate::world::WorldConfig::void_spawn_platform(1),
         ..ServerConfig::default()
@@ -239,9 +256,10 @@ fn replay(key: &str) -> Replay {
         let push = vec3(&hits[0]["push"]);
         let resistance = 1.0 - push.x.hypot(push.z) / KNOCKBACK_HORIZONTAL;
         assert!((0.0..ZOMBIE_KNOCKBACK_RESISTANCE_BONUS).contains(&resistance));
-        world
-            .entity_mut(mob)
-            .insert(KnockbackResistance(resistance));
+        world.entity_mut(mob).insert(KnockbackResistance {
+            spawn_bonus: Some(resistance as f32),
+            ..KnockbackResistance::NONE
+        });
     }
     let runtime_id = world.get::<RuntimeId>(mob).unwrap().0 as u64;
 
@@ -463,9 +481,11 @@ fn zombies_spawn_with_their_own_knockback_resistance_below_the_bonus() {
     let mut seen = Vec::new();
     for _ in 0..64 {
         let zombie = spawn(world, "minecraft:zombie");
-        let resistance = world.get::<KnockbackResistance>(zombie).unwrap().0;
-        assert!((0.0..ZOMBIE_KNOCKBACK_RESISTANCE_BONUS).contains(&resistance));
-        seen.push(resistance);
+        let resistance = *world.get::<KnockbackResistance>(zombie).unwrap();
+        assert_eq!(resistance.base, 0.0);
+        let bonus = f64::from(resistance.spawn_bonus.unwrap());
+        assert!((0.0..ZOMBIE_KNOCKBACK_RESISTANCE_BONUS).contains(&bonus));
+        seen.push(bonus);
     }
     seen.sort_by(f64::total_cmp);
     assert!(
@@ -474,6 +494,59 @@ fn zombies_spawn_with_their_own_knockback_resistance_below_the_bonus() {
     );
     let cow = spawn(world, "minecraft:cow");
     assert!(world.get::<KnockbackResistance>(cow).is_none());
+    // The zoglin's definition gives it 0.6 and no spawn bonus.
+    let zoglin = spawn(world, "minecraft:zoglin");
+    assert_eq!(
+        world.get::<KnockbackResistance>(zoglin),
+        Some(&KnockbackResistance {
+            base: 0.6,
+            spawn_bonus: None
+        })
+    );
+}
+
+/// The frozen BDS zoglin, hit three times, flies and lands like the
+/// replayed one, whose only resistance is its definition's 0.6: every
+/// push and lift is 0.4 of a cow's. The iron golem's 1 stops BDS's
+/// knockback altogether (no velocity change at all, not even the halving);
+/// the golem cannot spawn here yet, so its rule is checked on the attribute.
+#[test]
+fn definition_knockback_resistance_scales_pushes_like_bds() {
+    let key = "zoglin|east|frozen";
+    let trial = &resistance_fixture()["trials"][key];
+    let first = vec3(&trial["hits"][0]["push"]);
+    assert!(
+        (first.x - KNOCKBACK_HORIZONTAL * 0.4).abs() < 1e-6,
+        "{first}"
+    );
+    let replay = replay_trial(key, trial);
+    for (sample, row) in trial["positions"].as_array().unwrap().iter().enumerate() {
+        let bds = vec3(row);
+        let (position, on_ground) = replay.positions[sample];
+        assert!(
+            (position - bds).abs().max_element() < POSITION_TOLERANCE,
+            "{key} tick {sample}: {position:?}, BDS {bds:?}"
+        );
+        if sample >= 2 {
+            assert_eq!(
+                on_ground,
+                row[3].as_u64().unwrap() == 1,
+                "{key} tick {sample}"
+            );
+        }
+    }
+    let golem = &resistance_fixture()["trials"]["iron_golem|east|frozen"];
+    for hit in golem["hits"].as_array().unwrap() {
+        assert_eq!(vec3(&hit["push"]), DVec3::ZERO, "the golem is not pushed");
+    }
+    let resistance = KnockbackResistance {
+        base: 1.0,
+        spawn_bonus: None,
+    };
+    assert_eq!(
+        resistance.resist(crate::entity::mob::components::KnockbackPower::DEFAULT),
+        None
+    );
 }
 
 /// Prints how far each frozen replay is from BDS: worst position error, the

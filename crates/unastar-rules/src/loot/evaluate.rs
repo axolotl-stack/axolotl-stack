@@ -26,6 +26,10 @@ pub trait LootContext {
     fn is_baby(&self) -> bool {
         false
     }
+    /// The THIS actor's mark variant; `None` without a THIS actor.
+    fn this_mark_variant(&self) -> Option<i32> {
+        None
+    }
     /// Whether the THIS actor rides an actor with the namespaced identifier
     /// `entity_type`; false without a THIS actor or vehicle.
     fn vehicle_is(&self, _entity_type: &str) -> bool {
@@ -155,6 +159,7 @@ fn condition_passes(
         LootCondition::Inverted(inner) => !condition_passes(inner, ctx, rng)?,
         LootCondition::ThisOnFire(expected) => ctx.on_fire() == Some(*expected),
         LootCondition::IsBaby => ctx.is_baby(),
+        LootCondition::HasMarkVariant { value } => ctx.this_mark_variant() == Some(*value),
         LootCondition::PassengerOfEntity { entity_type } => ctx.vehicle_is(entity_type),
         LootCondition::RandomDifficultyChance { chances } => {
             let roll = rng.r#gen::<f32>();

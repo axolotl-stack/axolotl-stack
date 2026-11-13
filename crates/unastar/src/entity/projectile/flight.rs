@@ -200,12 +200,6 @@ fn step(
         };
     next.y -= rules.gravity;
     let (yaw, pitch) = heading(velocity);
-    // A projectile that stuck in a block this tick stays where it met it,
-    // on the ground with no motion and its rotation as it was (`hit::stick`;
-    // BDS 1.26.51 falling and dispensed arrows).
-    if world.get::<super::Stuck>(projectile).is_some() {
-        return;
-    }
     let mut entity = world.entity_mut(projectile);
     entity.insert((Position(to), Velocity(next)));
     // The head yaw stays as spawned (0): BDS 1.26.51 never sends a
@@ -235,10 +229,11 @@ fn lerp_rotation(current: f32, target: f32) -> f32 {
     current + delta * PROJECTILE_ROTATION_SMOOTHING
 }
 
-/// Turn a projectile invisible or visible, as BDS does for any actor: when
-/// the state changes, `INVISIBLE` follows `on`, `CAN_SHOW_NAME` the
-/// opposite, and the actor plays the synchronised `disappeared` or
-/// `reappeared` sound at the centre of its box (data -1).
+/// Turn an actor (a projectile, or a mob under invisibility) invisible or
+/// visible, as BDS does for any actor: when the state changes, `INVISIBLE`
+/// follows `on`, `CAN_SHOW_NAME` the opposite, and the actor plays the
+/// synchronised `disappeared` or `reappeared` sound at the centre of its box
+/// (data -1).
 pub(crate) fn set_invisible(world: &mut World, projectile: Entity, on: bool) {
     let mut entity = world.entity_mut(projectile);
     let Some(mut flags) = entity.get_mut::<ActorFlags>() else {

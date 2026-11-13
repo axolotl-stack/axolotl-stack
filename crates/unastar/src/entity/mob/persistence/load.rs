@@ -21,8 +21,7 @@ use super::{
     FOLLOW_RANGE_ATTRIBUTE, HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, LoadedActorIds,
     MobUniqueId, SPAWN_BONUS_MODIFIER,
 };
-use crate::entity::mob::combat::knockback::KnockbackResistance;
-use crate::entity::mob::spawn_bonus::FollowRangeBonus;
+use crate::entity::mob::attributes::{FollowRange, KnockbackResistance};
 
 /// Why stored actor NBT could not be turned back into a mob.
 #[derive(Debug, thiserror::Error)]
@@ -347,11 +346,20 @@ fn restore_state(
 
     let now = current_tick(world);
     let mut entity = world.entity_mut(mob);
+    // The definition already set the bases; the record gives the bonuses.
     if let Some(resistance) = spawn_resistance {
-        entity.insert(KnockbackResistance(f64::from(resistance)));
+        entity
+            .entry::<KnockbackResistance>()
+            .or_insert(KnockbackResistance::NONE)
+            .get_mut()
+            .spawn_bonus = Some(resistance);
     }
     if let Some(bonus) = follow_range_bonus {
-        entity.insert(FollowRangeBonus(bonus));
+        entity
+            .entry::<FollowRange>()
+            .or_insert(FollowRange::DEFAULT)
+            .get_mut()
+            .spawn_bonus = Some(bonus);
     }
     if let Some((current, max)) = health
         && let Some(mut component) = entity.get_mut::<Health>()

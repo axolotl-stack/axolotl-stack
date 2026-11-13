@@ -35,6 +35,7 @@ pub mod shearing;
 pub mod spawn_entity;
 pub mod stats;
 pub mod target_triggers;
+pub mod transformation;
 pub mod variant;
 
 use std::sync::Arc;
@@ -61,13 +62,16 @@ pub use hostile::{
     NearestAttackableTargetGoal,
 };
 pub use hurt_on_condition::{HurtCondition, HurtOnConditionConfig};
-pub use interact::{InteractConfig, Interaction, SpawnEggInteraction, SpawnItems};
+pub use interact::{
+    InteractConfig, InteractParticle, Interaction, SpawnEggInteraction, SpawnItems,
+};
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 pub use target_triggers::{OnFriendlyAnger, OnTargetAcquired, OnTargetEscape, TargetTrigger};
+pub use transformation::TransformationConfig;
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 use crate::registry::ItemRegistry;
@@ -111,11 +115,14 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     ),
     (
         ActorComponent::Transformation,
-        "the pig gains it only when struck by lightning (not implemented); \
-         the zombie gains it after 30 s underwater, but its target, the \
-         drowned, is not spawnable yet (it needs swim navigation, the \
-         trident ranged attack and target_nearby_sensor), so an underwater \
-         zombie shakes (is_shaking) without converting",
+        "only a transformation naming nothing but its target runs (the \
+         mooshroom's into a cow); one with a delay, sounds, added groups, a \
+         spawn event or carry-over flags has no behaviour: the pig gains it \
+         only when struck by lightning (not implemented); the zombie gains it \
+         after 30 s underwater, but its target, the drowned, is not spawnable \
+         yet (it needs swim navigation, the trident ranged attack and \
+         target_nearby_sensor), so an underwater zombie (and husk) shakes \
+         (is_shaking) without converting",
     ),
     (
         ActorComponent::BehaviorStompTurtleEgg,
@@ -179,7 +186,7 @@ pub fn register_component_kinds(
     inert::<bodies::Boostable>(builder)?;
     inert::<bodies::ItemControllable>(builder)?;
     inert::<bodies::BehaviorControlledByPlayer>(builder)?;
-    inert::<bodies::Transformation>(builder)?;
+    transformation::register_component_kinds(builder)?;
     inert::<bodies::GameEventMovementTracking>(builder)?;
     inert::<bodies::BehaviorStompTurtleEgg>(builder)?;
     inert::<bodies::BehaviorFindMount>(builder)?;

@@ -3,4 +3,6 @@
 //! `minecraft:interact` rows).
 
 pub mod actions;
+#[cfg(test)]
+mod bds_mooshroom;
 pub mod interact;

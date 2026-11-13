@@ -183,6 +183,16 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
 /// A fire-immune mob ignores the [`constants::FIRE_IMMUNE_CAUSES`] before
 /// anything else looks at the hit.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
+    hurt_mob_with(world, target, hit, true)
+}
+
+/// [`hurt_mob`] without the hurt animation: instant health on an undead
+/// mob (BDS 1.26.51 sends the zombie's lower health and no hurt event).
+pub fn hurt_mob_quietly(world: &mut World, target: Entity, hit: Hit) -> f32 {
+    hurt_mob_with(world, target, hit, false)
+}
+
+fn hurt_mob_with(world: &mut World, target: Entity, hit: Hit, animate: bool) -> f32 {
     if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
@@ -214,6 +224,9 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         }
         _ => (hit.damage, now + u64::from(constants::HURT_TICKS), true),
     };
+    // Resistance takes its share, then absorption what it can.
+    let resisted = crate::entity::effects::resisted(world, target, applied);
+    let to_health = crate::entity::effects::absorbed(world, target, resisted);
     let dead = {
         let mut entity = world.entity_mut(target);
         entity.insert((
@@ -229,14 +242,19 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
             },
         ));
         let mut health = entity.get_mut::<Health>().expect("health checked above");
-        health.damage(applied);
+        health.damage(to_health);
         health.is_dead()
     };
-    if full {
+    if full && animate {
         // A killing hit shows only the death (`ActorEvent` death from
         // `begin_death`), still with its knockback (BDS 1.26.51 spear capture).
         if !dead {
-            send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
+            send_actor_event(
+                world,
+                target,
+                EnumsActorEvent::Hurt,
+                crate::entity::effects::hurt_event_data(hit.cause),
+            );
         }
         if let Some(from) = hit.knockback_from {
             apply_knockback(world, target, from, hit.knockback_power);
@@ -283,9 +301,15 @@ fn apply_knockback(world: &mut World, target: Entity, from: DVec3, power: Knockb
             .gen_range(0.0..std::f64::consts::TAU);
         away = DVec2::from_angle(angle);
     }
-    let power = world
-        .get::<super::knockback::KnockbackResistance>(target)
-        .map_or(power, |resistance| resistance.resist(power));
+    // A resistance of 1 or more stops the knockback altogether: the old
+    // velocity is not even halved (the BDS 1.26.51 iron golem).
+    let power = match world.get::<crate::entity::mob::attributes::KnockbackResistance>(target) {
+        Some(resistance) => match resistance.resist(power) {
+            Some(power) => power,
+            None => return,
+        },
+        None => power,
+    };
     if let Some(mut velocity) = world.get_mut::<Velocity>(target) {
         velocity.0 = knockback_velocity(velocity.0, away.normalize(), power);
     }

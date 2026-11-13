@@ -19,9 +19,7 @@ use super::{
     FOLLOW_RANGE_ATTRIBUTE, HEALTH_ATTRIBUTE, KNOCKBACK_RESISTANCE_ATTRIBUTE, SPAWN_BONUS_MODIFIER,
     SPAWN_BONUS_UUID,
 };
-use crate::entity::mob::combat::knockback::KnockbackResistance;
-use crate::entity::mob::constants::DEFAULT_FOLLOW_RANGE;
-use crate::entity::mob::spawn_bonus::FollowRangeBonus;
+use crate::entity::mob::attributes::{FollowRange, KnockbackResistance};
 
 pub(super) fn list<T: Into<NBTTag>>(values: impl IntoIterator<Item = T>) -> NBTTag {
     NBTTag::List(tag::List(values.into_iter().map(Into::into).collect()))
@@ -93,15 +91,19 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
                 .build(),
         );
     }
-    if let Some(resistance) = world.get::<KnockbackResistance>(mob) {
-        attributes.push(spawn_bonus_resistance(resistance.0 as f32));
+    // The classes that roll spawn bonuses save both attributes (the follow
+    // range also without a bonus), as BDS 1.26.51 does.
+    if let Some(resistance) = world.get::<KnockbackResistance>(mob)
+        && let Some(bonus) = resistance.spawn_bonus
+    {
+        attributes.push(spawn_bonus_resistance(resistance.base, bonus));
     }
-    // The classes that roll a follow-range bonus save their follow range,
-    // with the bonus when they rolled one.
     if archetype.native.follow_range_bonus {
-        attributes.push(follow_range(
-            world.get::<FollowRangeBonus>(mob).map(|bonus| bonus.0),
-        ));
+        let range = world
+            .get::<FollowRange>(mob)
+            .copied()
+            .unwrap_or(FollowRange::DEFAULT);
+        attributes.push(follow_range(range));
     }
     if !attributes.is_empty() {
         put("Attributes", list(attributes));
@@ -170,9 +172,9 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     out
 }
 
-/// A spawn knockback resistance as BDS saves it: the attribute at base 0
-/// with one `RandomSpawnBonus` addition.
-pub(super) fn spawn_bonus_resistance(amount: f32) -> tag::Compound {
+/// A spawn knockback resistance as BDS saves it: the attribute at its base
+/// (0 for every class that rolls one) with one `RandomSpawnBonus` addition.
+pub(super) fn spawn_bonus_resistance(base: f32, amount: f32) -> tag::Compound {
     let modifier = tag::Compound::builder()
         .with_string("Name", SPAWN_BONUS_MODIFIER)
         .with_float("Amount", amount)
@@ -183,8 +185,8 @@ pub(super) fn spawn_bonus_resistance(amount: f32) -> tag::Compound {
         .build();
     tag::Compound::builder()
         .with_string("Name", KNOCKBACK_RESISTANCE_ATTRIBUTE)
-        .with_float("Base", 0.0)
-        .with_float("Current", amount)
+        .with_float("Base", base)
+        .with_float("Current", base + amount)
         .with_float("Max", 1.0)
         .with_float("Min", -2.0)
         .with_float("DefaultMax", 1.0)
@@ -193,12 +195,12 @@ pub(super) fn spawn_bonus_resistance(amount: f32) -> tag::Compound {
         .build()
 }
 
-/// A zombie class's follow range as BDS 1.26.51 saves it: base 16 (the
-/// default; these classes set none), and with a spawn bonus one
+/// A zombie class's follow range as BDS 1.26.51 saves it: its base (16, the
+/// default: these classes set none), and with a spawn bonus one
 /// `RandomSpawnBonus` multiplier (`Operation` 2: base × (1 + amount)) with
 /// the spawn-bonus modifier id.
-pub(super) fn follow_range(bonus: Option<f32>) -> tag::Compound {
-    let base = DEFAULT_FOLLOW_RANGE;
+pub(super) fn follow_range(range: FollowRange) -> tag::Compound {
+    let (base, bonus) = (range.base, range.spawn_bonus);
     let mut attribute = tag::Compound::builder()
         .with_string("Name", FOLLOW_RANGE_ATTRIBUTE)
         .with_float("Base", base)

@@ -397,8 +397,13 @@ def knockback_items(args) -> list[dict]:
     far = [{'key': f'cow|fall-{distance}|frozen', 'mob': 'minecraft:cow', 'at': [0.5 + distance, -40, 0.5, 90],
             'frozen': True, 'tool': None, 'player': [0.5, -60, 0.5, -90], 'settle': 0, 'tail': 45, 'hits': []}
            for distance in (4, 6, 7, 10, 16, 24, 32, 48)]
+    # Mobs whose definitions give them a knockback resistance (zoglin and
+    # hoglin 0.6, iron golem 1), hit like the frozen cows and zombies.
+    resist = [{'key': f'{mob}|east|frozen', 'mob': f'minecraft:{mob}', 'at': [2.5, -60, 0.5, 90], 'frozen': True,
+               'tool': None, 'settle': 40, 'tail': 40, 'hits': [{**east, 'tick': tick} for tick in (0, 11, 30)]}
+              for mob in ('zoglin', 'hoglin', 'iron_golem')]
     sets = {'slice': hits, 'air': air, 'far': far, 'cadence': cadence_items(), 'cadence2': cadence2_items(),
-            'cadence3': cadence3_items(), 'all': hits + air + far}
+            'cadence3': cadence3_items(), 'resist': resist, 'all': hits + air + far}
     if args.items not in sets:
         raise SystemExit(f"knockback --items must be one of {sorted(sets)}")
     return sets[args.items]
@@ -599,6 +604,180 @@ def walk_items(args) -> list[dict]:
             for key, order, ticks in orders]
 
 
+# `effects`: the mob stands in a barrier cell (interior x 3, y -60..-58, z 0)
+# three blocks east of the sweep player.
+EFFECT_CELL = 'fill 2 -61 -1 4 -57 1 {}'
+EFFECT_CELL_SETUP = [EFFECT_CELL.format('barrier hollow')]
+EFFECT_CELL_CLEANUP = [EFFECT_CELL.format('air'), 'fill 2 -61 -1 4 -61 1 grass']
+EFFECT_PLAYER = [0.5, -60, 0.5, -90]
+EFFECT_MOB_AT = [3.5, -60, 0.5, 90]
+
+
+def effect_items(args) -> list[dict]:
+    """`effects --items mobs|players|all` (default all): what effects do to
+    a cow or zombie in a barrier cell and to the sweep player (survival),
+    tick by tick: poison, regeneration, wither, instant health and damage
+    (living and undead), resistance and fire resistance against `/damage`,
+    health boost, absorption, speed, slowness, invisibility, hidden
+    particles, several effects at once, a weaker or stronger effect over an
+    active one, clearing, expiry, levitation and slow falling (cow out of the
+    cell, frozen), hunger and saturation (player). Actions run at tick `t`
+    after the spawn; run with `--client-capture`."""
+    def cmd(target: str, text: str) -> str:
+        return text.replace('@T', target)
+
+    def mob_item(key, mob, actions, ticks=160, cell=True, at=None, frozen=False):
+        target = f'@e[type=minecraft:{mob}]'
+        return {'key': f'{mob}|{key}', 'mob': f'minecraft:{mob}', 'at': at or EFFECT_MOB_AT,
+                'player': EFFECT_PLAYER, 'frozen': frozen, 'ticks': ticks,
+                'setup': EFFECT_CELL_SETUP if cell else [], 'cleanup': EFFECT_CELL_CLEANUP if cell else [],
+                'actions': [{'t': t, 'commands': [cmd(target, line) for line in lines]} for t, lines in actions]}
+
+    def player_item(key, actions, ticks=160):
+        target = f'"{PLAYER}"'
+        return {'key': f'player|{key}', 'mob': None, 'player': EFFECT_PLAYER, 'ticks': ticks,
+                'setup': [f'gamemode survival {target}'],
+                # Back to full health and food, no effects, creative.
+                # (`instant_health 1 20` heals nothing on BDS; amplifier 4 does.)
+                'cleanup': [f'effect {target} clear', f'effect {target} instant_health 1 4 true',
+                            f'effect {target} saturation 1 4 true', f'effect {target} clear',
+                            f'gamemode creative {target}'],
+                'actions': [{'t': t, 'commands': [cmd(target, line) for line in lines]} for t, lines in actions]}
+
+    shared = [
+        ('poison', [(10, ['effect @T poison 6 0'])]),
+        ('poison-2', [(10, ['effect @T poison 6 1'])]),
+        ('regeneration', [(5, ['damage @T 6']), (10, ['effect @T regeneration 6 0'])]),
+        ('regeneration-2', [(5, ['damage @T 6']), (10, ['effect @T regeneration 6 1'])]),
+        ('wither', [(10, ['effect @T wither 6 0'])]),
+        ('instant-damage', [(10, ['effect @T instant_damage 1 0'])]),
+        ('instant-health', [(5, ['damage @T 8']), (10, ['effect @T instant_health 1 0']),
+                            (40, ['effect @T instant_health 1 1'])]),
+        ('resistance', [(10, ['effect @T resistance 10 0']), (20, ['damage @T 5']),
+                        (50, ['effect @T resistance 10 1']), (60, ['damage @T 5']),
+                        (90, ['effect @T resistance 10 4']), (100, ['damage @T 5'])]),
+        ('fire-resistance', [(10, ['effect @T fire_resistance 10 0']), (20, ['damage @T 3 fire']),
+                             (40, ['damage @T 3 lava']), (60, ['damage @T 3 fire_tick']),
+                             (80, ['damage @T 3 entity_attack'])]),
+        ('health-boost', [(10, ['effect @T health_boost 5 0']), (40, ['effect @T health_boost 5 1'])]),
+        ('absorption', [(10, ['effect @T absorption 5 0']), (30, ['damage @T 2']),
+                        (60, ['effect @T absorption 5 1'])]),
+        ('speed-slowness', [(10, ['effect @T speed 3 1']), (40, ['effect @T slowness 3 1']),
+                            (70, ['effect @T clear'])]),
+        ('invisibility', [(10, ['effect @T invisibility 3 0'])]),
+        ('hidden', [(10, ['effect @T speed 5 0 true']), (40, ['effect @T poison 5 0'])]),
+        ('several', [(10, ['effect @T speed 5 0']), (20, ['effect @T poison 5 0']),
+                     (30, ['effect @T weakness 5 0']), (40, ['effect @T absorption 5 0'])]),
+        ('stacking', [(10, ['effect @T poison 10 0']), (30, ['effect @T poison 4 1']),
+                      (50, ['effect @T poison 20 0']), (70, ['effect @T poison 2 0'])]),
+        ('clear', [(10, ['effect @T poison 10 0', 'effect @T speed 10 0']), (40, ['effect @T clear'])]),
+        ('expiry', [(10, ['effect @T poison 1 0', 'effect @T speed 2 0'])]),
+    ]
+    mobs = [mob_item(key, 'cow', actions, ticks=300 if key == 'stacking' else 160) for key, actions in shared]
+    for key, actions in shared:
+        if key in ('poison', 'regeneration', 'wither', 'instant-damage', 'instant-health'):
+            mobs.append(mob_item(key, 'zombie', actions))
+    # Out of the cell, frozen so its AI cannot move it sideways.
+    mobs.append(mob_item('levitation', 'cow', [(10, ['effect @T levitation 2 1'])], ticks=120, cell=False,
+                         frozen=True))
+    mobs.append(mob_item('slow-falling', 'cow', [(0, ['effect @T slow_falling 10 0'])], ticks=120, cell=False,
+                         frozen=True, at=[3.5, -40, 0.5, 90]))
+    players = [player_item(key, actions, ticks=300 if key == 'stacking' else 160) for key, actions in shared]
+    players.append(player_item('hunger', [(10, ['effect @T hunger 5 1'])]))
+    players.append(player_item('saturation', [(5, ['effect @T hunger 4 250']),
+                                              (100, ['effect @T saturation 1 0'])], ticks=180))
+    sets = {'mobs': mobs, 'players': players, 'all': mobs + players}
+    choice = 'all' if args.items == 'slice' else args.items
+    if choice not in sets:
+        raise SystemExit(f'effects --items must be one of {sorted(sets)}')
+    return sets[choice]
+
+
+def ranged_items(args) -> list[dict]:
+    """`ranged`: a frozen skeleton (stray, bogged, parched) 8 or 15 blocks
+    east of the sweep player, who stands in survival with Resistance V (no
+    damage) and Regeneration so it lives through every shot; the mob is
+    sampled every tick for 300 ticks and the capture holds every arrow it
+    shoots (run with `--client-capture`, once per `--difficulty`)."""
+    target = f'"{PLAYER}"'
+    protect = [f'gamemode survival {target}', f'effect {target} resistance 100000 4 true',
+               f'effect {target} regeneration 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}', 'kill @e[type=minecraft:arrow]']
+    items = []
+    for mob, distance in (('skeleton', 8), ('skeleton', 15), ('stray', 8), ('bogged', 8), ('parched', 8)):
+        items.append({'key': f'{mob}|shoot-{distance}', 'mob': f'minecraft:{mob}',
+                      'at': [0.5 + distance, -60, 0.5, 90], 'player': [0.5, -60, 0.5, -90], 'frozen': True,
+                      'ticks': 300, 'setup': protect, 'cleanup': restore, 'actions': []})
+    return items
+
+
+def melee_effect_items(args) -> list[dict]:
+    """`melee-effects`: a husk spawned two blocks east of the sweep player
+    (survival) walks up and hits it for 200 ticks; the player lives through
+    the hits on Health Boost X, a full heal and Regeneration V (no
+    Resistance, which would change the hits). Run once per `--difficulty`
+    with `--client-capture` for the hunger `MobEffect` each hit sends."""
+    target = f'"{PLAYER}"'
+    protect = [f'gamemode survival {target}', f'effect {target} health_boost 1000 9 true',
+               f'effect {target} regeneration 1000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    return [{'key': 'husk|hits', 'mob': 'minecraft:husk', 'at': [2.5, -60, 0.5, 90],
+             'player': [0.5, -60, 0.5, -90], 'frozen': False, 'ticks': 200, 'setup': protect,
+             'cleanup': restore, 'actions': [{'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}]}]
+
+
+def mooshroom_items(args) -> list[dict]:
+    """`mooshroom`: the sweep player (survival) interacts with a frozen
+    mooshroom two blocks east of it holding a bowl (red mooshroom: stew into
+    the hand), an allium (brown mooshroom: eats it, smoke particles) and
+    shears (red mooshroom: sheared into a cow, mushrooms dropped). The
+    `geometry` items (`--items geometry`) move the particles: the player on a
+    block north-west of the mooshroom, a baby mooshroom, and a brown
+    mooshroom milked with a bowl after its allium (suspicious stew). One
+    mooshroom in 20 spawns a baby, which has no interactions, so the
+    geometry items that need an adult grow theirs up first."""
+    target = f'"{PLAYER}"'
+    setup = [f'gamemode survival {target}']
+    restore = [f'gamemode creative {target}', 'kill @e[type=minecraft:item]']
+    brown = 'event entity @e[type=minecraft:mooshroom] minecraft:become_brown'
+    born = 'event entity @e[type=minecraft:mooshroom] minecraft:entity_born'
+    grown = 'event entity @e[type=minecraft:mooshroom] minecraft:ageable_grow_up'
+    bowl = f'replaceitem entity {target} slot.weapon.mainhand 0 minecraft:bowl'
+
+    # The first use of an item the plugin put in the hand is refused (the
+    # client still holds the old stack) and makes BDS resend the slot, so
+    # every item interacts twice, 20 ticks apart.
+    def item(key, hold, actions, at=(2.5, -60, 0.5, 90), player=(0.5, -60, 0.5, -90), ticks=80,
+             extra_setup=(), extra_cleanup=()):
+        uses = [{'t': 10, 'commands': [], 'order': 'interact'}, {'t': 30, 'commands': [], 'order': 'interact'}]
+        return {'key': f'mooshroom|{key}', 'mob': 'minecraft:mooshroom', 'at': list(at),
+                'player': list(player), 'frozen': True, 'ticks': ticks, 'setup': setup + list(extra_setup),
+                'cleanup': list(extra_cleanup) + restore, 'actions': actions + uses, 'hold': hold}
+
+    allium = {'item': 'minecraft:allium'}
+    basic = [
+        item('bowl', {'item': 'minecraft:bowl'}, []),
+        item('allium', allium, [{'t': 5, 'commands': [brown]}]),
+        item('shears', {'item': 'minecraft:shears'}, []),
+    ]
+    geometry = [
+        item('allium-raised', allium, [{'t': 3, 'commands': [grown]}, {'t': 5, 'commands': [brown]}],
+             at=(2.5, -60, 1.5, 90),
+             player=(0.5, -59, 3.5, -135), extra_setup=['setblock 0 -60 3 stone'],
+             extra_cleanup=['setblock 0 -60 3 air']),
+        item('allium-baby', allium, [{'t': 3, 'commands': [born]}, {'t': 5, 'commands': [brown]}]),
+        item('suspicious-stew', allium, [{'t': 3, 'commands': [grown]}, {'t': 5, 'commands': [brown]},
+                                         {'t': 40, 'commands': [bowl]},
+                                         {'t': 50, 'commands': [], 'order': 'interact'},
+                                         {'t': 60, 'commands': [], 'order': 'interact'}], ticks=90),
+    ]
+    sets = {'basic': basic, 'geometry': geometry, 'all': basic + geometry}
+    choice = 'basic' if args.items == 'slice' else args.items
+    if choice not in sets:
+        raise SystemExit(f'mooshroom --items must be one of {sorted(sets)}')
+    return sets[choice]
+
+
 def reload_items(args) -> list[dict]:
     """`knockback-reload --items spawn` (three zombies, each hit once and left
     in the world) or `--items reload` (the same zombies, loaded from the first
@@ -648,6 +827,23 @@ def build_job(args, out: Path) -> dict:
                         'bonus': bonus_items}[args.kind](args)
         if args.kind == 'bonus':
             job['kind'] = 'spawn_bonus'
+    elif args.kind == 'effects':
+        # Zombies need a difficulty above peaceful and burn in daylight.
+        job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
+        job['items'] = effect_items(args)
+    elif args.kind in ('ranged', 'mooshroom', 'melee-effects'):
+        # The generic per-tick job of `effects`; hostile mobs need a
+        # difficulty above peaceful and skeletons burn in daylight.
+        job['kind'] = 'effects'
+        job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
+        job['items'] = {'ranged': ranged_items, 'mooshroom': mooshroom_items,
+                        'melee-effects': melee_effect_items}[args.kind](args)
+    elif args.kind == 'entity-loot':
+        # Hostile mobs need a difficulty above peaceful.
+        job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
+        mobs = ['wither_skeleton'] if args.items == 'slice' else args.items.split(',')
+        job['items'] = [{'key': mob, 'mob': f'minecraft:{mob}', 'at': [3.5, -60, 0.5], 'drop': [0, -58, 4],
+                         'samples': args.samples} for mob in mobs]
     elif args.kind == 'walk':
         if not args.observer:
             raise SystemExit('walk needs --observer')
@@ -666,7 +862,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'armor-wear', 'attack',
                                          'fuel', 'scenarios', 'placements', 'item-blocks', 'knockback',
-                                         'knockback-reload', 'range', 'bonus', 'walk'])
+                                         'knockback-reload', 'range', 'bonus', 'walk', 'effects', 'entity-loot',
+                                         'ranged', 'mooshroom', 'melee-effects'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -697,7 +894,8 @@ def main() -> int:
     parser.add_argument('--view-distance', type=int, default=6, help='server view distance in chunks')
     parser.add_argument('--tick-distance', type=int, default=4, help='server simulation distance in chunks (4-12)')
     parser.add_argument('--difficulty', default='easy', choices=['easy', 'normal', 'hard'],
-                        help='knockback, knockback-reload, bonus: the difficulty set before the job')
+                        help='knockback, knockback-reload, bonus, effects, entity-loot: the difficulty set '
+                             'before the job')
     parser.add_argument('--keep-world', action='store_true',
                         help='copy the world to <out>/world after BDS stops (it is deleted otherwise)')
     parser.add_argument('--world-from', type=Path,

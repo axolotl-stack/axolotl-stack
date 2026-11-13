@@ -11,11 +11,10 @@ use zuri_nbt::{NBTTag, encoding::LittleEndian, tag};
 
 use super::{encode_for_tests, restore_mob};
 use crate::entity::EntityRandom;
-use crate::entity::mob::combat::knockback::KnockbackResistance;
+use crate::entity::mob::attributes::{FollowRange, KnockbackResistance};
 use crate::entity::mob::combat::knockback_velocity;
 use crate::entity::mob::components::KnockbackPower;
 use crate::entity::mob::constants;
-use crate::entity::mob::spawn_bonus::FollowRangeBonus;
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::server::game::{GameServer, ServerConfig};
 
@@ -113,9 +112,10 @@ fn a_zombie_saves_its_spawn_knockback_resistance_as_bds_does() {
             panic!("Current");
         };
         let zombie = zombie(world);
-        world
-            .entity_mut(zombie)
-            .insert(KnockbackResistance(f64::from(current.0)));
+        world.entity_mut(zombie).insert(KnockbackResistance {
+            spawn_bonus: Some(current.0),
+            ..KnockbackResistance::NONE
+        });
         let record = encode_for_tests(world, zombie);
         assert_eq!(saved_resistance(&record), bds, "{}", row["key"]);
         world.despawn(zombie);
@@ -136,13 +136,14 @@ fn a_loaded_zombie_keeps_the_knockback_resistance_it_spawned_with() {
         };
         assert_eq!(push("push_before_save"), push("push_after_load"));
         let zombie = zombie(world);
-        let rolled = world.get::<KnockbackResistance>(zombie).unwrap().0;
+        let rolled = *world.get::<KnockbackResistance>(zombie).unwrap();
+        assert!(rolled.spawn_bonus.is_some() && rolled.base == 0.0);
         let record = encode_for_tests(world, zombie);
         world.despawn(zombie);
         for _ in 0..3 {
             let loaded = restore_mob(world, &record).unwrap();
-            let kept = world.get::<KnockbackResistance>(loaded).unwrap().0;
-            assert_eq!(kept, f64::from(rolled as f32), "{}", row["key"]);
+            let kept = *world.get::<KnockbackResistance>(loaded).unwrap();
+            assert_eq!(kept, rolled, "{}", row["key"]);
             world.despawn(loaded);
         }
         // And BDS's own value gives BDS's push after the load.
@@ -153,7 +154,12 @@ fn a_loaded_zombie_keeps_the_knockback_resistance_it_spawned_with() {
         let Some(NBTTag::Float(current)) = fields.0.get("Current") else {
             panic!("Current");
         };
-        let resisted = KnockbackResistance(f64::from(current.0)).resist(KnockbackPower::DEFAULT);
+        let resisted = KnockbackResistance {
+            spawn_bonus: Some(current.0),
+            ..KnockbackResistance::NONE
+        }
+        .resist(KnockbackPower::DEFAULT)
+        .unwrap();
         let pushed = knockback_velocity(DVec3::ZERO, DVec2::X, resisted);
         assert!(
             (pushed.x - push("push_after_load")).abs() < 1e-6,
@@ -184,14 +190,10 @@ fn bonus_amount(attribute: &Value) -> Option<f32> {
 }
 
 fn set_bonus(world: &mut World, zombie: Entity, bonus: Option<f32>) {
-    match bonus {
-        Some(amount) => {
-            world.entity_mut(zombie).insert(FollowRangeBonus(amount));
-        }
-        None => {
-            world.entity_mut(zombie).remove::<FollowRangeBonus>();
-        }
-    }
+    world.entity_mut(zombie).insert(FollowRange {
+        spawn_bonus: bonus,
+        ..FollowRange::DEFAULT
+    });
 }
 
 #[test]
@@ -225,7 +227,9 @@ fn a_loaded_zombie_keeps_the_follow_range_bonus_it_spawned_with() {
         for _ in 0..3 {
             let loaded = restore_mob(world, &record).unwrap();
             assert_eq!(
-                world.get::<FollowRangeBonus>(loaded).map(|kept| kept.0),
+                world
+                    .get::<FollowRange>(loaded)
+                    .and_then(|kept| kept.spawn_bonus),
                 bonus,
                 "restored, not re-rolled"
             );
@@ -296,7 +300,7 @@ fn the_zombie_classes_roll_the_spawn_bonuses_bds_saved() {
     let mut rng = rand::rngs::StdRng::seed_from_u64(5);
     let draws = 30_000;
     let mut ours: Vec<f32> = (0..draws)
-        .filter_map(|_| FollowRangeBonus::roll(&mut rng).map(|bonus| bonus.0))
+        .filter_map(|_| FollowRange::roll_bonus(&mut rng))
         .collect();
     let (bds_share, our_share) = (
         follow.len() as f64 / rolling as f64,
@@ -317,8 +321,7 @@ fn the_zombie_classes_roll_the_spawn_bonuses_bds_saved() {
     );
     let mut resisted: Vec<f32> = (0..draws)
         .map(|_| {
-            KnockbackResistance::roll(&mut rng, constants::ZOMBIE_KNOCKBACK_RESISTANCE_BONUS).0
-                as f32
+            KnockbackResistance::roll_bonus(&mut rng, constants::ZOMBIE_KNOCKBACK_RESISTANCE_BONUS)
         })
         .collect();
     let gap = ks_distance(&mut resistance, &mut resisted);

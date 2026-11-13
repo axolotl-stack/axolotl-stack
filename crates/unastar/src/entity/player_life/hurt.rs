@@ -17,6 +17,9 @@
 //!    (override and self-destruct damage ignore the timer).
 //! 4. Armour: the summed defence and toughness of the worn pieces reduce
 //!    the damage of the causes armour stops (`unastar_data::armour`).
+//! 5. Effects (`entity::effects`): fire resistance ignores fire, fire tick,
+//!    lava and magma (BDS 1.26.51 refuses `/damage` with them); resistance
+//!    takes its share; absorption takes what it can before health.
 //!
 //! A full hit that leaves the player alive knocks it back when the hit has
 //! a source position (the player moves itself, so the push goes to its own
@@ -87,6 +90,15 @@ pub(super) fn apply_hit(
     if !allowed_by_rules(world.resource::<GameRules>(), hit.cause) {
         return 0.0;
     }
+    if crate::entity::mob::constants::FIRE_IMMUNE_CAUSES.contains(&hit.cause)
+        && world
+            .get::<crate::entity::components::Effects>(player)
+            .is_some_and(|effects| {
+                effects.has(crate::entity::components::EffectType::FIRE_RESISTANCE)
+            })
+    {
+        return 0.0;
+    }
     let damage = if hit.attacker.is_some() && !hit.by_player {
         let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
         if scaled <= 0.0 {
@@ -117,6 +129,8 @@ pub(super) fn apply_hit(
     } else {
         dealt
     };
+    let dealt = crate::entity::effects::resisted(world, player, dealt);
+    let dealt = crate::entity::effects::absorbed(world, player, dealt);
 
     let (applied, dead) = {
         let mut entity = world.entity_mut(player);
@@ -271,16 +285,13 @@ fn send_hurt_event(world: &World, player: Entity, cause: ActorDamageCause) {
             y: position.0.y as f32,
             z: position.0.z as f32,
         });
-    send_player_event_with_data(world, player, EnumsActorEvent::Hurt, cause_id(cause), at);
-}
-
-/// The wire ID of a damage cause: its place in the published
-/// `ActorDamageCause` enum, counting `override` as 0 (`none` is -1). BDS
-/// 1.26.51 sends it as the hurt event's data (fall 5, lava 8, entity attack
-/// 2, magic 14, drowning 9 and void 12 in `testdata/bds-1.26.51-breath.json`).
-fn cause_id(cause: ActorDamageCause) -> i32 {
-    // The generated enum declares the causes in the published order.
-    cause as i32 - 1
+    send_player_event_with_data(
+        world,
+        player,
+        EnumsActorEvent::Hurt,
+        crate::entity::effects::hurt_event_data(cause),
+        at,
+    );
 }
 
 /// Push `player` away from `from` (horizontally) with the native knockback

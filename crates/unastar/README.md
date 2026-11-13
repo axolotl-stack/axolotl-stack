@@ -539,6 +539,20 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
+### Status effects
+
+`entity::effects` gives, takes and steps the effects of mobs and players
+alike (one implementation; `/effect`, food, milk, mob attacks and
+`spell_effects` all go through it). `sweep.py effects --client-capture`
+(`src/entity/effects/testdata/bds-1.26.51-effects.json`, 45 scenarios on a
+cow, a zombie and the sweep player) is replayed tick by tick by
+`src/entity/effects/tests.rs`: pulses of poison, regeneration and wither,
+instant effects, resistance, fire resistance, health boost, absorption,
+speed and slowness modifiers, invisibility, hidden particles, stacking,
+clearing, expiry, levitation and slow falling, with every `MobEffect`,
+visible-effects actor data, effect flag, `UpdateAttributes` entry and hurt
+event on BDS's tick (a player's within the tick its input moves it).
+
 ### Measured mob behaviour
 
 Mob AddActor packets are compared field by field with the retained native
@@ -559,6 +573,16 @@ and `src/entity/mob/tests/projectiles.rs` replay each fixture;
 `src/entity/mob/tests/facets.rs` runs every shared behaviour
 check (physics, strolling, loot, targeting, gear, ...) for each spawnable mob
 that uses it.
+
+Mooshroom interactions (`sweep.py mooshroom --client-capture`, distilled by
+`tools/bds-sweep/mooshroom_fixture.py` into
+`src/entity/mob/interaction/testdata/bds-1.26.51-mooshroom.json`) are replayed
+by `src/entity/mob/interaction/bds_mooshroom.rs`: stew and suspicious stew
+into the hand (`add_items`, `has_mark_variant` loot), flowers eaten with
+`particle_on_start` smoke, shearing with largeexplode particles, five
+mushrooms and the cow it turns into (`minecraft:transformation`, which runs
+only when it names nothing but its target), the particle positions for an
+adult, a baby and a raised player, and the sounds at the middle of its box.
 
 ### Measured item and falling-block motion
 
@@ -754,7 +778,6 @@ copied on purpose are in `docs/quirks/bds.md`. Known differences from BDS:
 | `/give`, `/clear`, `/setblock`, `/fill`, `/clone` | Legacy names with old block states map only for the colour families (and `/give`'s data values also for log, log2 and planks); other legacy names fail with "not implemented" | No full legacy item/block upgrade table yet |
 | `/give`, `/recipe` | Items reaching an inventory unlock no recipes (BDS follows a give with `UnlockedRecipes`); unlocked recipes are not saved; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
 | `/gamemode` | Also resends `UpdateAbilities`; `default` puts the player in the configured mode instead of keeping it on `default` | Unastar's join abilities depend on the game mode; no `default` player mode |
-| `/effect` | Speed/slowness do not change movement and send no movement attribute modifier | No attribute-modifier system yet |
 | `/weather`, `/toggledownfall` | State, client events and the fading levels `/weather query` reports; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
 | `/setworldspawn`, `/scoreboard`, `/tickingarea`, `/structure`, `/mobevent` | The world spawn, objectives and scores, ticking areas, structures and mob event switches are not saved with the world (players' spawn points, tags and recipes, and mobs' tags, are) | No level-data store yet |
 | `/scoreboard` | `belowname` sends no score actor data | Not built |
@@ -959,7 +982,7 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
 | Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; movement exhaustion matches the BDS movement capture tick by tick (`entity/player_life/tests/movement.rs`) |
 | Attribute sync (health, absorption, hunger, saturation, exhaustion, movement with the sprint modifier) to the player and its viewers | done, changed values once | BDS join ranges and movement capture; BDS also repeats some attributes, not copied |
-| Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
+| Player effects (regeneration, poison, wither, hunger, saturation, absorption, health boost, resistance, fire resistance, speed and slowness attributes, instant health/damage) and `MobEffect` packets | done | the shared `entity::effects` step, replayed against BDS effects captures (`entity/effects/testdata`) and the stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
 | Tool wear: mining (swords, mace, trident 2; other tools and shears 1; non-tools 0), melee (swords, mace, trident, spears 1; other tools 2), bow and crossbow shots, Unbreaking, break sound | done | BDS mining and attack sweeps (`unastar-data/data/measured/`) for mining and melee wear; Unbreaking and sounds are public references |
 | Break time: tier speed, Efficiency (not on a sword's cobweb speed), Haste `(1 + 0.2L) × 1.2^L`, Mining Fatigue `0.21^L`, harvestability divisor | done | BDS mining sweep, every measured cell within ±1 tick (`server/game/mining/measured_tests.rs`); airborne, riding and underwater divisors are public references |
 | Melee damage: measured per item, Sharpness +1.25 per level truncated to whole points | done | BDS attack sweep (`entity/mob/combat/hit/measured_tests.rs`); critical hits not done |

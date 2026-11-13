@@ -269,6 +269,7 @@ struct Mob {
     player: bool,
     pet: bool,
     baby: bool,
+    mark_variant: Option<i32>,
     vehicle: Option<&'static str>,
     difficulty: Option<Difficulty>,
     regional: Option<f32>,
@@ -281,6 +282,7 @@ impl Default for Mob {
             player: false,
             pet: false,
             baby: false,
+            mark_variant: None,
             vehicle: None,
             difficulty: Some(Difficulty::Normal),
             regional: Some(0.0),
@@ -310,6 +312,9 @@ impl LootContext for Mob {
     }
     fn is_baby(&self) -> bool {
         self.baby
+    }
+    fn this_mark_variant(&self) -> Option<i32> {
+        self.mark_variant
     }
     fn vehicle_is(&self, entity_type: &str) -> bool {
         self.vehicle == Some(entity_type)
@@ -396,6 +401,22 @@ fn baby_and_vehicle_conditions_read_the_this_actor() {
         ..rider
     };
     assert_eq!(hits(&table, walking), 0);
+}
+
+#[test]
+fn mark_variant_condition_reads_the_this_actor() {
+    let table = guarded(json!([{"condition": "has_mark_variant", "value": -1}]));
+    let plain = Mob {
+        mark_variant: Some(-1),
+        ..Mob::default()
+    };
+    assert_eq!(hits(&table, plain), 200);
+    let fed = Mob {
+        mark_variant: Some(7),
+        ..Mob::default()
+    };
+    assert_eq!(hits(&table, fed), 0);
+    assert_eq!(hits(&table, Mob::default()), 0, "no THIS actor");
 }
 
 #[test]

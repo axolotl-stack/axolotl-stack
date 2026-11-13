@@ -32,6 +32,8 @@ pub struct LootContext<'a> {
     pub color_index: Option<u8>,
     /// The THIS actor is a baby (`is_baby`).
     pub is_baby: bool,
+    /// The THIS actor's mark variant (`has_mark_variant`).
+    pub mark_variant: Option<i32>,
     /// The actor the THIS actor rides (`passenger_of_entity`).
     pub vehicle: Option<ActorType>,
     /// Level facts for difficulty conditions and gear enchanting; tables
@@ -96,6 +98,10 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
 
     fn is_baby(&self) -> bool {
         self.is_baby
+    }
+
+    fn this_mark_variant(&self) -> Option<i32> {
+        self.mark_variant
     }
 
     fn vehicle_is(&self, entity_type: &str) -> bool {

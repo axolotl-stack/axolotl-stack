@@ -20,6 +20,7 @@ import experience_table  # noqa: E402
 import food_table  # noqa: E402
 import capture  # noqa: E402
 import commit_fixtures  # noqa: E402
+import effects_fixture  # noqa: E402
 import knockback_fixture  # noqa: E402
 import replication_fixture  # noqa: E402
 import leveldb_read  # noqa: E402
@@ -789,6 +790,119 @@ class PlayerRelayFixture(unittest.TestCase):
         path = Path(tempfile.mkdtemp()) / 'packets.jsonl'
         path.write_text(json.dumps({'t_ms': 0, 'dir': 'c2s', 'id': 144, 'hex': body.hex()}) + '\n', encoding='utf-8')
         self.assertEqual(player_relay_fixture.inputs(path), {800: {'pitch': -2.0, 'yaw': 5.0, 'head': 5.0}})
+
+
+class EffectTrials(unittest.TestCase):
+    def args(self, items: str = 'slice', difficulty: str = 'easy'):
+        return type('Args', (), {'items': items, 'difficulty': difficulty})()
+
+    def test_mob_and_player_items_time_their_effects_after_the_spawn(self):
+        mobs = sweep.effect_items(self.args('mobs'))
+        players = sweep.effect_items(self.args('players'))
+        everything = sweep.effect_items(self.args())
+        self.assertEqual(len(everything), len(mobs) + len(players))
+        keys = [item['key'] for item in everything]
+        self.assertEqual(len(keys), len(set(keys)))
+        for item in mobs:
+            self.assertTrue(item['mob'].startswith('minecraft:'), item['key'])
+            self.assertTrue(all(action['t'] < item['ticks'] for action in item['actions']), item['key'])
+            for action in item['actions']:
+                for command in action['commands']:
+                    self.assertNotIn('@T', command)
+                    if command.startswith('effect') or command.startswith('damage'):
+                        self.assertIn(item['mob'], command)
+        for item in players:
+            self.assertIsNone(item['mob'])
+            self.assertIn('gamemode survival', item['setup'][0])
+            self.assertIn('gamemode creative', item['cleanup'][-1])
+
+    def test_unknown_effect_set_is_refused(self):
+        with self.assertRaises(SystemExit):
+            sweep.effect_items(self.args('every'))
+
+    def test_ranged_items_protect_the_survival_player(self):
+        items = sweep.ranged_items(self.args())
+        self.assertEqual([item['key'] for item in items],
+                         ['skeleton|shoot-8', 'skeleton|shoot-15', 'stray|shoot-8', 'bogged|shoot-8',
+                          'parched|shoot-8'])
+        for item in items:
+            self.assertTrue(item['frozen'])
+            self.assertTrue(any('resistance 100000 4' in line for line in item['setup']))
+
+    def test_mooshroom_items_interact_twice_with_the_held_item(self):
+        items = sweep.mooshroom_items(self.args())
+        self.assertEqual([item['hold']['item'] for item in items],
+                         ['minecraft:bowl', 'minecraft:allium', 'minecraft:shears'])
+        for item in items:
+            orders = [action['t'] for action in item['actions'] if action.get('order') == 'interact']
+            self.assertEqual(orders, [10, 30])
+
+    def test_melee_effect_items_keep_the_player_alive_without_resistance(self):
+        items = sweep.melee_effect_items(self.args())
+        self.assertEqual([item['key'] for item in items], ['husk|hits'])
+        husk = items[0]
+        self.assertFalse(husk['frozen'])
+        self.assertTrue(any('health_boost' in line for line in husk['setup']))
+        self.assertFalse(any('resistance' in line for line in husk['setup']))
+        self.assertIn('effect "BDSSweep" clear', husk['cleanup'])
+
+    def test_mooshroom_geometry_items_move_the_player_and_restore_the_block(self):
+        items = sweep.mooshroom_items(self.args('geometry'))
+        self.assertEqual([item['key'] for item in items],
+                         ['mooshroom|allium-raised', 'mooshroom|allium-baby', 'mooshroom|suspicious-stew'])
+        raised = items[0]
+        self.assertIn('setblock 0 -60 3 stone', raised['setup'])
+        self.assertIn('setblock 0 -60 3 air', raised['cleanup'])
+        self.assertEqual(raised['player'][:3], [0.5, -59, 3.5])
+        stew = items[2]
+        orders = sorted(action['t'] for action in stew['actions'] if action.get('order') == 'interact')
+        self.assertEqual(orders, [10, 30, 50, 60])
+        with self.assertRaises(SystemExit):
+            sweep.mooshroom_items(self.args('every'))
+
+    def test_resist_set_hits_the_resistant_mobs_like_the_slice(self):
+        items = sweep.knockback_items(type('Args', (), {'items': 'resist'})())
+        self.assertEqual([item['mob'] for item in items],
+                         ['minecraft:zoglin', 'minecraft:hoglin', 'minecraft:iron_golem'])
+        self.assertTrue(all(item['frozen'] and len(item['hits']) == 3 for item in items))
+
+
+class EffectFixture(unittest.TestCase):
+    def test_packets_are_put_on_their_mark_and_attributed_to_mob_or_player(self):
+        def text(message):
+            return {'name': 'TextPacket', 'packet': {'body': {'MessageOnly': {'message': message}}}}
+
+        def data(rid, rows):
+            return {'name': 'SetActorDataPacket', 'packet': {
+                'target_runtime_id': {'actor_runtime_id': rid},
+                'actor_data': {'data': [{'id': key, 'payload': {'DataItemInt64Payload': {'value': value}}}
+                                        for key, value in rows]}}}
+
+        records = [
+            text('bds-sweep:mark cow|poison 9'),
+            data(2, [(131, 99)]),
+            text('bds-sweep:mark cow|poison 10'),
+            data(2, [(131, 38), (7, 300)]),
+            data(1, [(131, 2)]),
+            data(5, [(131, 4)]),
+            {'name': 'ActorEventPacket', 'packet': {'target_runtime_id': {'actor_runtime_id': 2},
+                                                    'event_id': 'Hurt', 'data': 14}},
+            text('bds-sweep:mark other 0'),
+            data(2, [(131, 0)]),
+        ]
+        result = {'key': 'cow|poison', 'mob': 'minecraft:cow', 'runtime_id': 2, 'player_runtime_id': 1,
+                  'first_tick': 100, 'spec': {}, 'failed_commands': [],
+                  'damage': [[130, 'minecraft:cow', 1.0, 'magic']],
+                  'samples': [{'player': {'health': 20}, 'mob': {'health': 10, 'pos': [1, 2, 3], 'ground': True}}]}
+        item = effects_fixture.distil(result, records)
+        self.assertEqual(item['packets'], [
+            {'t': 9, 'about': 'mob', 'kind': 'data', 'data': {'131': 99}},
+            {'t': 10, 'about': 'mob', 'kind': 'data', 'data': {'131': 38}},
+            {'t': 10, 'about': 'player', 'kind': 'data', 'data': {'131': 2}},
+            {'t': 10, 'about': 'mob', 'kind': 'event', 'event': 'Hurt', 'data': 14},
+        ])
+        self.assertEqual(item['damage'], [{'t': 30, 'about': 'mob', 'damage': 1.0, 'cause': 'magic'}])
+        self.assertNotIn('mob_positions', item)
 
 
 if __name__ == '__main__':

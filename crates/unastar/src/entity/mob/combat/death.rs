@@ -112,6 +112,7 @@ fn drop_loot(world: &mut World, mob: Entity) {
         is_baby: world
             .get::<ActorFlags>(mob)
             .is_some_and(|flags| flags.get(actor_flags::BABY).unwrap_or(false)),
+        mark_variant: crate::entity::mob::components::variant::mark_variant_of(world, mob),
         // Riding is not implemented: no mob has a vehicle.
         vehicle: None,
         level: LootLevel::of(world),
