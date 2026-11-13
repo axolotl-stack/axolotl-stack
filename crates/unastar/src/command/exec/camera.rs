@@ -463,8 +463,9 @@ pub fn run_aimassist(ctx: &mut CommandContext<'_>, args: AimAssistArgs) -> Comma
 
 /// The join's camera definitions, as BDS 1.26.51 sends them after
 /// `PlayerFog`: the presets [`PRESETS`] (indices of `/camera set`), then
-/// (no) splines. BDS also sends its aim assist definitions between them;
-/// unastar does not.
+/// (no) splines, with its aim assist definitions between them. The join
+/// sends the vendored BDS payloads (`server::game::join_data`); this builder
+/// pins the `/camera set` preset indices to the same capture.
 pub fn join_packets() -> (CameraPresetsPacket, CameraSplinePacket) {
     let preset = |name: &str| SharedTypesv12650CameraPreset {
         name: name.into(),

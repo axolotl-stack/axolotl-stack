@@ -96,31 +96,45 @@ impl LastPublisherState {
 #[derive(Component, Debug, Default)]
 pub struct AwaitingSpawnStatus;
 
+/// A player waiting for its spawn status, with what the status packets need.
+type SpawnStatusPlayer = (
+    Entity,
+    &'static PlayerSession,
+    &'static LastPublisherState,
+    Option<&'static crate::entity::components::Health>,
+    &'static crate::entity::components::PlayerName,
+    &'static crate::entity::components::PlayerUuid,
+    Option<&'static crate::command::exec::UnlockedRecipes>,
+);
+
 /// System: Send `PlayStatus(PlayerSpawn)` once, after this tick's publisher
 /// update and chunks. The client then loads the terrain still streaming in
 /// and sends `SetLocalPlayerAsInitialized` when it is ready.
 ///
+/// BDS 1.26.51 sends `SetHealth` with the player's health right before it
+/// (member join capture `00202-SetHealthPacket.bin`); it is the only time
+/// BDS sends that packet, health changes travel in `UpdateAttributes`.
+///
 /// This is also where plugins learn of the join: `PlayerJoin` is queued
 /// exactly once, when `AwaitingSpawnStatus` clears, so `on-player-join` never
 /// runs while the client is still on the loading screen.
+///
+/// The player's unlocked recipes follow the spawn status (BDS lists them after
+/// `PlayStatus(PlayerSpawn)` in the member join capture).
 pub fn send_spawn_status(
     mut commands: Commands,
-    players: Query<
-        (
-            Entity,
-            &PlayerSession,
-            &LastPublisherState,
-            &crate::entity::components::PlayerName,
-            &crate::entity::components::PlayerUuid,
-        ),
-        With<AwaitingSpawnStatus>,
-    >,
+    players: Query<SpawnStatusPlayer, With<AwaitingSpawnStatus>>,
     mut events: Option<ResMut<crate::ecs::events::EventBuffer>>,
 ) {
-    for (player_entity, session, publisher_state, name, uuid) in players.iter() {
+    for (player_entity, session, publisher_state, health, name, uuid, unlocked) in players.iter() {
         if !publisher_state.published() {
             continue; // the view comes first
         }
+        let health = health.cloned().unwrap_or_default();
+        // [INFERENCE] Fractional health is truncated; BDS was measured at 20.
+        session.send(McpePacket::from(jolyne::valentine::SetHealthPacket {
+            health: health.current as i32,
+        }));
         let spawned = session.send(McpePacket::from(PlayStatusPacket {
             status: PlayStatusPacketStatus::Playerspawn,
         }));
@@ -129,6 +143,10 @@ pub fn send_spawn_status(
             commands
                 .entity(player_entity)
                 .remove::<AwaitingSpawnStatus>();
+            let unlocked = unlocked.cloned().unwrap_or_default();
+            session.send(McpePacket::from(crate::command::exec::recipes_join_packet(
+                &unlocked,
+            )));
             if let Some(events) = events.as_mut() {
                 events.push(crate::ecs::events::ServerEvent::PlayerJoin {
                     entity: player_entity,

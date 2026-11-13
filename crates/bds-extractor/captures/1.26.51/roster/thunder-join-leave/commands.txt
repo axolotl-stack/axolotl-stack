@@ -1,0 +1,33 @@
+# pair: host sets thunder, guest joins and leaves during the /list fillers
+weather thunder
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+list
+gamerule pvp false
+list
+gamerule showtags false
+list
+weather clear
+list
