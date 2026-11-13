@@ -2,13 +2,15 @@
 generic per-tick job with `track`) into one committed mob fixture, e.g.
 `crates/unastar/src/entity/mob/ai/testdata/bds-1.26.51-polar_bear.json`.
 
-    python tools/bds-sweep/mob_fixture.py [--only KIND,...] OUT.json SWEEP_DIR [SWEEP_DIR ...]
+    python tools/bds-sweep/mob_fixture.py [--only KIND,...] [--events-only KIND,...] OUT.json SWEEP_DIR [SWEEP_DIR ...]
 
 Decodes each run's `client/packets.jsonl` with `bds-extractor --decode`
 (cargo build -p bds-extractor first; `BDS_EXTRACTOR` overrides the
 binary); an item of a later sweep replaces one of the same name, and
 `--only` keeps the items whose name (without the trailing `-<n>`) is
-listed. Per item
+listed; `--events-only` keeps the items of those kinds without their
+actors' per-tick rows (a long run that only its damage, flags, events and
+sounds are wanted from). Per item
 it keeps the item's spec (where the player stood, the setup commands and
 the actions) and:
 
@@ -169,9 +171,13 @@ def distil(result: dict, rows: list[tuple[int, dict]], adds: dict[int, int | Non
 
 def main() -> int:
     args = sys.argv[1:]
-    only = None
-    if args[:1] == ['--only'] and len(args) > 1:
-        only = set(args[1].split(','))
+    only, events_only = None, set()
+    while args[:1] in (['--only'], ['--events-only']) and len(args) > 1:
+        kinds = set(args[1].split(','))
+        if args[0] == '--only':
+            only = kinds
+        else:
+            events_only = kinds
         args = args[2:]
     if len(args) < 2:
         print(__doc__)
@@ -186,9 +192,14 @@ def main() -> int:
         sources.append(job['items'][0]['key'].split('|', 1)[0])
         for line in (directory / 'results.jsonl').read_text(encoding='utf-8').splitlines():
             result = json.loads(line)
-            if only is not None and result['key'].split('|', 1)[1].rsplit('-', 1)[0] not in only:
+            kind = result['key'].split('|', 1)[1].rsplit('-', 1)[0]
+            if only is not None and kind not in only and kind not in events_only:
                 continue
-            items[result['key']] = distil(result, rows.get(result['key'], []), adds)
+            item = distil(result, rows.get(result['key'], []), adds)
+            if kind in events_only:
+                for actor in item['actors']:
+                    actor['ticks'] = []
+            items[result['key']] = item
     kinds = ', '.join(sorted(set(sources)))
     fixture = {
         'source': f'BDS 1.26.51, sweep.py {kinds} --client-capture (tools/bds-sweep/mob_fixture.py)',

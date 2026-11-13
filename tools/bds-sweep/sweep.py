@@ -1224,9 +1224,12 @@ def vex_items(args) -> list[dict]:
     """`vex`: a vex summoned and sampled every tick. `--items idle` (in the
     closed glass room, `ROOM`, the creative player outside, 400 ticks,
     twice), `charge` (the survival player 8 blocks away, Health Boost X and
-    Regeneration V, no Resistance, 300 ticks, twice), `decay` (summoned with
-    `minecraft:add_damage_timer`, the creative player outside, 2,800
-    ticks: when its hurting starts and how often it hurts) or `all`."""
+    Regeneration V, no Resistance, 300 ticks, six times), `decay` (summoned
+    with `minecraft:add_damage_timer`, the creative player teleported four
+    blocks over the vex every 40 ticks so it stays in view, 2,800 ticks,
+    twice: when its hurting starts and how often it hurts), `look` (a frozen
+    cow four blocks below the vex, the player far away, 400 ticks, twice)
+    or `all`."""
     target = f'"{PLAYER}"'
     alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
              f'effect {target} regeneration 100000 4 true']
@@ -1237,11 +1240,74 @@ def vex_items(args) -> list[dict]:
         'idle': [track_row('vex', f'idle-{n}', 'vex', None, [20.5, -56, 0.5, 0], far, 400,
                            setup=ROOM, cleanup=UNROOM) for n in range(2)],
         'charge': [track_row('vex', f'charge-{n}', 'vex', None, [8.5, -58, 0.5, 90], [0.5, -60, 0.5, -90], 300,
-                             setup=alive, cleanup=restore, actions=[heal]) for n in range(2)],
-        'decay': [track_row('vex', 'decay-0', 'vex', 'add_damage_timer', [20.5, -56, 0.5, 0], far, 2800,
-                            setup=ROOM, cleanup=UNROOM)],
+                             setup=alive, cleanup=restore, actions=[heal]) for n in range(6)],
+        # A frozen cow beside the vex, the player far: what
+        # `look_at_entity` looks at.
+        'look': [track_row('vex', f'look-{n}', 'vex', None, [20.5, -56, 0.5, 0], far, 400,
+                           setup=['summon minecraft:cow 20.5 -60 2.5 0 0',
+                                  'effect @e[type=minecraft:cow] slowness 100000 255 true'],
+                           cleanup=['kill @e[type=minecraft:cow]'], track=['minecraft:vex', 'minecraft:cow'])
+                 for n in range(2)],
+        # The vex flies through walls: the player follows it to stay in view.
+        'decay': [track_row('vex', f'decay-{n}', 'vex', 'add_damage_timer', [20.5, -56, 0.5, 0], far, 2800,
+                            setup=ROOM, cleanup=UNROOM,
+                            actions=[{'t': t, 'commands': [f'execute at @e[type=minecraft:vex] run tp {target} ~ ~4 ~']}
+                                     for t in range(40, 2800, 40)])
+                  for n in range(2)],
     }
     return pick_set('vex', sets, args.items)
+
+
+def goat_items(args) -> list[dict]:
+    """`goat`: adult goats (summoned with `minecraft:ageable_grow_up`, then
+    given their variant with `/event … minecraft:born_screamer` or
+    `born_default` on tick 0) sampled every tick. `--items ram` (a screamer
+    8 blocks east of the survival player, Health Boost X and Regeneration V,
+    no Resistance, 600 ticks, three times), `ram-default` (the same with a
+    default goat, twice), `horn` (a screamer 9 blocks east of the player
+    behind a one-block wall of stone, packed ice, an oak log or glass at
+    x 3, items tracked too, 400 ticks, twice each: which blocks a ram that
+    hits them snaps a horn off on), `jump` (a default goat in a stone well
+    three blocks deep, the creative player far away, 1,200 ticks, twice),
+    `fall` (a goat summoned 8, 12, 16 and 24 blocks over the floor, 100
+    ticks) or `all`."""
+    target = f'"{PLAYER}"'
+    alive = [f'gamemode survival {target}', f'effect {target} health_boost 100000 9 true',
+             f'effect {target} regeneration 100000 4 true']
+    restore = [f'effect {target} clear', f'gamemode creative {target}']
+    heal = {'t': 0, 'commands': [f'effect {target} instant_health 1 9 true']}
+    far = [0.5, -60, -24.5, 0]
+    adult = 'ageable_grow_up'
+
+    def variant(name: str) -> dict:
+        return {'t': 0, 'commands': [f'event entity @e[type=minecraft:goat] minecraft:born_{name}']}
+
+    def wall(block: str) -> list[str]:
+        return [f'fill 3 -60 -4 3 -60 4 {block}']
+
+    unwall = ['fill 3 -60 -4 3 -60 4 air']
+    well = ['fill 9 -60 -2 13 -58 2 stone', 'fill 10 -60 -1 12 -58 1 air']
+    unwell = ['fill 9 -60 -2 13 -58 2 air']
+    sets = {
+        'ram': [track_row('goat', f'ram-{n}', 'goat', adult, [8.5, -60, 0.5, 90], [0.5, -60, 0.5, -90], 600,
+                          setup=alive, cleanup=restore,
+                          actions=[{'t': 0, 'commands': heal['commands'] + variant('screamer')['commands']}])
+                for n in range(3)],
+        'ram-default': [track_row('goat', f'ram-default-{n}', 'goat', adult, [8.5, -60, 0.5, 90],
+                                  [0.5, -60, 0.5, -90], 600, setup=alive, cleanup=restore,
+                                  actions=[{'t': 0, 'commands': heal['commands'] + variant('default')['commands']}])
+                        for n in range(2)],
+        'horn': [track_row('goat', f'horn-{block}-{n}', 'goat', adult, [9.5, -60, 0.5, 90], [1.5, -60, 0.5, -90],
+                           400, setup=alive + wall(block), cleanup=restore + unwall,
+                           actions=[{'t': 0, 'commands': heal['commands'] + variant('screamer')['commands']}],
+                           track=['minecraft:goat', 'minecraft:item'])
+                 for block in ('stone', 'packed_ice', 'oak_log', 'glass') for n in range(2)],
+        'jump': [track_row('goat', f'jump-{n}', 'goat', adult, [11.5, -60, 0.5, 0], far, 1200,
+                           setup=well, cleanup=unwell, actions=[variant('default')]) for n in range(2)],
+        'fall': [track_row('goat', f'fall-{h}', 'goat', adult, [11.5, -60 + h, 0.5, 0], far, 100,
+                           actions=[variant('default')]) for h in (8, 12, 16, 24)],
+    }
+    return pick_set('goat', sets, args.items)
 
 
 def witch_items(args) -> list[dict]:
@@ -1408,7 +1474,7 @@ def build_job(args, out: Path) -> dict:
         job['setup_commands'] = SETUP + [f'difficulty {args.difficulty}', 'time set 18000']
         job['items'] = effect_items(args)
     elif args.kind in ('ranged', 'mooshroom', 'melee-effects', 'silverfish', 'creeper', 'slime', 'drowned',
-                       'witch', 'bat', 'polar-bear', 'tadpole', 'ghast', 'vex'):
+                       'witch', 'bat', 'polar-bear', 'tadpole', 'ghast', 'vex', 'goat'):
         # The generic per-tick job of `effects`; hostile mobs need a
         # difficulty above peaceful and skeletons burn in daylight.
         job['kind'] = 'effects'
@@ -1417,7 +1483,8 @@ def build_job(args, out: Path) -> dict:
                         'melee-effects': melee_effect_items, 'silverfish': silverfish_items,
                         'creeper': creeper_items, 'slime': slime_items, 'drowned': drowned_items,
                         'witch': witch_items, 'bat': bat_items, 'polar-bear': polar_bear_items,
-                        'tadpole': tadpole_items, 'ghast': ghast_items, 'vex': vex_items}[args.kind](args)
+                        'tadpole': tadpole_items, 'ghast': ghast_items, 'vex': vex_items,
+                        'goat': goat_items}[args.kind](args)
     elif args.kind == 'slime-spawn':
         job['kind'] = 'spawn_watch'
         job['items'] = slime_spawn_items(args)
@@ -1447,7 +1514,7 @@ def main() -> int:
                                          'knockback', 'knockback-reload', 'range', 'bonus', 'walk',
                                          'effects', 'entity-loot', 'ranged', 'mooshroom', 'melee-effects',
                                          'silverfish', 'creeper', 'slime', 'slime-spawn', 'drowned', 'witch',
-                                         'bat', 'polar-bear', 'tadpole', 'ghast', 'vex'])
+                                         'bat', 'polar-bear', 'tadpole', 'ghast', 'vex', 'goat'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
