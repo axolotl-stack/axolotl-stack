@@ -317,21 +317,17 @@ fn has_creative_destroy(input: &jolyne::valentine::PlayerAuthInputPacket) -> boo
 /// (the network loop then closes the connection), and nothing of the input
 /// is applied.
 fn refuse_malformed_input(world: &mut bevy_ecs::world::World, entity: bevy_ecs::prelude::Entity) {
-    use jolyne::valentine::{
-        EnumsPacketViolationSeverity, EnumsPacketViolationType, PacketViolationWarningPacket,
-    };
+    use jolyne::valentine::{EnumsPacketViolationSeverity, EnumsPacketViolationType};
     world.entity_mut(entity).insert(MalformedInput);
     let Some(session) = world.get::<crate::entity::components::PlayerSession>(entity) else {
         return;
     };
-    let _ = session.send(McpePacket::from(PacketViolationWarningPacket {
-        violation_type: EnumsPacketViolationType::Packetmalformed,
-        violation_severity: EnumsPacketViolationSeverity::Terminatingconnection,
-        violation_packet_id: 144,
-        violation_context: concat!(
-            "PlayerAuthInputPacket: unsupported player block action type\n",
-            "readNoHeader failed! packetId: 144"
-        )
-        .into(),
-    }));
+    let _ = session.send(McpePacket::from(
+        crate::network::violation::packet_violation(
+            EnumsPacketViolationType::Packetmalformed,
+            EnumsPacketViolationSeverity::Terminatingconnection,
+            144,
+            Some("PlayerAuthInputPacket: unsupported player block action type"),
+        ),
+    ));
 }
