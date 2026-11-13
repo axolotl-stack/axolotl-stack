@@ -14,6 +14,8 @@
 //! - [`actor_data`] keeps the player's synched actor data (flags, air, box,
 //!   pose, last death) and sends its changes, its join `SetActorData` and
 //!   the rows `AddPlayer` carries.
+//! - [`pvp`] is one player's melee hit on another: its checks, damage,
+//!   critical hits and the extra knockback of a sprint or Knockback.
 //! - [`death`] runs when health reaches zero: the death event, the death
 //!   message, the drops and the respawn screen.
 //! - [`respawn`] answers the client's respawn and puts the player back at
@@ -33,6 +35,7 @@ pub mod death;
 pub mod environment;
 pub mod hurt;
 pub mod motion;
+pub mod pvp;
 pub mod respawn;
 pub mod rules;
 #[cfg(test)]

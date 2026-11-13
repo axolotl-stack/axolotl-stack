@@ -91,12 +91,17 @@
 //! directions, in `DIR/packets.jsonl` using the client-diff wire recorder.
 //! Packets are flushed as recorded and again on session completion/error.
 //!
+//! `--also NAME` (repeatable) logs further clients in from the same
+//! process, a few seconds apart, for lockstep play ([`lockstep`]): the sweep
+//! plugin then decides tick by tick what each client sends.
+//!
 //! Exits successfully when the server closes the session.
 
+mod lockstep;
 mod physics;
 mod world;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use clap::Parser;
 use client_diff::recording::{self, Recorder};
 use jolyne::stream::client::ClientHandshakeConfig;
@@ -158,6 +163,19 @@ struct Args {
     /// Run the timed orders and commands of this file (see the crate docs).
     #[arg(long)]
     script: Option<PathBuf>,
+    /// Log in another client with this name from the same process (in
+    /// order, `--stagger` seconds apart) for lockstep play; its capture goes
+    /// to CAPTURE_DIR/NAME/packets.jsonl.
+    #[arg(long)]
+    also: Vec<String>,
+    /// Seconds between the logins of `--also` clients (BDS refuses a
+    /// loopback login right after another).
+    #[arg(long, default_value = "7")]
+    stagger: u64,
+    /// Milliseconds after a lockstep tick line arrives at which its steps
+    /// are sent (see the `lockstep` module).
+    #[arg(long, default_value = "0")]
+    lockstep_delay_ms: u64,
 }
 
 /// A mining order in progress.
@@ -254,6 +272,12 @@ enum Order {
     /// Use the held item in the air (item use `Use`, the next input flagged
     /// `StartUsingItem`).
     UseItem,
+    /// Ask the server for the whole inventory (inventory mismatch).
+    Resync,
+    /// Offset the position attacks claim.
+    Claim([f32; 3]),
+    /// Name this hotbar slot (and its item) in attacks; `None`: the held one.
+    ClaimSlot(Option<u8>),
     /// Leave the server.
     Quit,
     /// Move one item of this hotbar slot to an armour slot (0 head, 3 feet).
@@ -490,6 +514,19 @@ fn parse_order(text: &str) -> Option<Order> {
         "animate" => return Some(Order::Animate),
         "missed-swing" => return Some(Order::MissedSwing),
         "release-item" => return Some(Order::ReleaseItem),
+        "resync" => return Some(Order::Resync),
+        "claim" => {
+            let values = decimals(words, 3)?;
+            return Some(Order::Claim([values[0], values[1], values[2]]));
+        }
+        "claim-slot" => {
+            let word = words.next()?;
+            if word.starts_with("off") {
+                return Some(Order::ClaimSlot(None));
+            }
+            let slot = u8::try_from(numbers(std::iter::once(word), 1)?[0]).ok()?;
+            return (slot < 9).then_some(Order::ClaimSlot(Some(slot)));
+        }
         "consume" => return Some(Order::Consume),
         keyword @ ("flags" | "held-flags") => {
             let flags = words
@@ -773,6 +810,10 @@ struct Player {
     pending_equip: Option<(u8, u8)>,
     /// `CorrectPlayerMovePrediction` packets received.
     corrections: u32,
+    /// Added to the position attacks claim (`claim`).
+    claim_offset: [f32; 3],
+    /// The hotbar slot attacks name instead of the held one (`claim-slot`).
+    claim_slot: Option<u8>,
 }
 
 /// The input flags a vanilla client sets for this tick's keys and move.
@@ -876,6 +917,8 @@ impl Player {
             quit: false,
             pending_equip: None,
             corrections: 0,
+            claim_offset: [0.0; 3],
+            claim_slot: None,
         }
     }
 
@@ -1040,6 +1083,16 @@ impl Player {
                     self.use_item(EnumsItemUseInventoryTransactionActionType::Use),
                 ]);
             }
+            Order::Claim(offset) => self.claim_offset = offset,
+            Order::ClaimSlot(slot) => self.claim_slot = slot,
+            Order::Resync => {
+                return Ok(vec![McpePacket::from(InventoryTransactionPacket {
+                    transaction: InventoryTransactionPacketTransaction::InventoryMismatchData(
+                        Default::default(),
+                    ),
+                    ..Default::default()
+                })]);
+            }
             Order::Quit => self.quit = true,
             Order::Equip { slot, armour } => {
                 if self.inventory_window.is_some() {
@@ -1126,8 +1179,14 @@ impl Player {
         })
     }
 
-    /// `InventoryTransaction` use-item-on-actor `Attack` with the held slot.
+    /// `InventoryTransaction` use-item-on-actor `Attack` with the held slot,
+    /// claiming the client's position (moved by any `claim` offset).
     fn attack(&self, target: u64) -> McpePacket {
+        let mut from = self.position();
+        from.x += self.claim_offset[0];
+        from.y += self.claim_offset[1];
+        from.z += self.claim_offset[2];
+        let slot = self.claim_slot.unwrap_or(self.selected_slot);
         McpePacket::from(InventoryTransactionPacket {
             transaction: InventoryTransactionPacketTransaction::ItemUseOnActorInventoryTransaction(
                 ItemUseOnActorInventoryTransaction {
@@ -1135,9 +1194,11 @@ impl Player {
                         actor_runtime_id: target,
                     },
                     action_type: EnumsItemUseOnActorInventoryTransactionActionType::Attack,
-                    slot: i32::from(self.selected_slot),
-                    item: self.held_stack(),
-                    from_position: self.position(),
+                    slot: i32::from(slot),
+                    item: self.inventory[usize::from(slot)]
+                        .clone()
+                        .unwrap_or_default(),
+                    from_position: from,
                     ..Default::default()
                 },
             ),
@@ -1889,12 +1950,113 @@ async fn run(args: Args) -> Result<()> {
         )?,
         None => Vec::new(),
     };
-    let mut config = ClientHandshakeConfig::random(args.addr, &args.name);
-    if let Some(uuid) = args.uuid {
+    if args.also.is_empty() {
+        let capture = args.capture_dir.clone();
+        return connect_and_play(&args, &args.name, args.uuid, capture, script, None).await;
+    }
+    ensure!(script.is_empty(), "--script and --also do not combine");
+    // Lockstep: every client in this process, the first one taking the
+    // plugin's tick lines.
+    let names: Vec<String> = std::iter::once(args.name.clone())
+        .chain(args.also.iter().cloned())
+        .collect();
+    let runtime_ids = Arc::new(Mutex::new(vec![None; names.len()]));
+    let (scripts_tx, scripts_rx) = tokio::sync::mpsc::unbounded_channel();
+    let mut controls = Vec::new();
+    let mut to_sessions = Vec::new();
+    for _ in &names {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        to_sessions.push(tx);
+        controls.push(Some(rx));
+    }
+    let coordinator = tokio::spawn(lockstep::coordinate(
+        scripts_rx,
+        to_sessions,
+        runtime_ids.clone(),
+        Duration::from_millis(args.lockstep_delay_ms),
+    ));
+    let args = Arc::new(args);
+    let mut sessions = tokio::task::JoinSet::new();
+    for (index, name) in names.iter().enumerate() {
+        if index > 0 {
+            // Wait for the previous client to spawn, then the login gap.
+            while runtime_ids
+                .lock()
+                .map_err(|_| anyhow::anyhow!("runtime ids poisoned"))?[index - 1]
+                .is_none()
+            {
+                if let Some(joined) = sessions.try_join_next() {
+                    joined.context("session task")??;
+                    bail!("client {} ended before it spawned", names[index - 1]);
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            tokio::time::sleep(Duration::from_secs(args.stagger)).await;
+        }
+        let link = SessionLink {
+            index,
+            runtime_ids: runtime_ids.clone(),
+            controls: controls[index].take().expect("one receiver per client"),
+            scripts: (index == 0).then(|| scripts_tx.clone()),
+        };
+        let capture = args.capture_dir.as_ref().map(|dir| {
+            if index == 0 {
+                dir.clone()
+            } else {
+                dir.join(name)
+            }
+        });
+        let (args, name) = (args.clone(), name.clone());
+        sessions.spawn(async move {
+            connect_and_play(&args, &name, None, capture, Vec::new(), Some(link))
+                .await
+                .with_context(|| format!("client {name}"))
+        });
+    }
+    drop(scripts_tx);
+    // The run ends with the first client to end (the server stopping ends
+    // them all), or the first failure, the coordinator's included: a
+    // lockstep run must not fall back to the clients' own timers.
+    let mut coordinator = coordinator;
+    tokio::select! {
+        joined = sessions.join_next() => {
+            coordinator.abort();
+            match joined {
+                Some(joined) => joined.context("session task")?,
+                None => Ok(()),
+            }
+        }
+        ended = &mut coordinator => {
+            match ended.context("lockstep coordinator task")? {
+                Ok(()) => bail!("the lockstep coordinator stopped before the clients"),
+                Err(error) => Err(error.context("lockstep coordinator")),
+            }
+        }
+    }
+}
+
+/// Ties one lockstep session to the coordinator.
+struct SessionLink {
+    index: usize,
+    runtime_ids: Arc<Mutex<Vec<Option<u64>>>>,
+    controls: tokio::sync::mpsc::UnboundedReceiver<lockstep::Control>,
+    /// The first client forwards the plugin's tick lines.
+    scripts: Option<tokio::sync::mpsc::UnboundedSender<lockstep::Line>>,
+}
+
+async fn connect_and_play(
+    args: &Args,
+    name: &str,
+    uuid: Option<uuid::Uuid>,
+    capture_dir: Option<PathBuf>,
+    script: Vec<(u64, Step)>,
+    link: Option<SessionLink>,
+) -> Result<()> {
+    let mut config = ClientHandshakeConfig::random(args.addr, name);
+    if let Some(uuid) = uuid {
         config.uuid = uuid;
     }
-    let recorder = args
-        .capture_dir
+    let recorder = capture_dir
         .as_ref()
         .map(|dir| {
             std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
@@ -1916,8 +2078,8 @@ async fn run(args: Args) -> Result<()> {
             .await
             .context("login timed out")?
             .context("login")?;
-            info!("spawned as {}", args.name);
-            run_session(play, game, script).await
+            info!("spawned as {name}");
+            run_session(play, game, script, link).await
         } else {
             let (play, game) = tokio::time::timeout(Duration::from_secs(args.timeout), async {
                 BedrockStream::connect(args.addr).await?.join(config).await
@@ -1925,8 +2087,8 @@ async fn run(args: Args) -> Result<()> {
             .await
             .context("login timed out")?
             .context("login")?;
-            info!("spawned as {}", args.name);
-            run_session(play, game, script).await
+            info!("spawned as {name}");
+            run_session(play, game, script, link).await
         }
     }
     .await;
@@ -1937,30 +2099,53 @@ async fn run(args: Args) -> Result<()> {
             .flush()?;
         info!(
             "capture complete: {}/packets.jsonl",
-            args.capture_dir
-                .as_ref()
-                .expect("capture directory")
-                .display()
+            capture_dir.as_ref().expect("capture directory").display()
         );
     }
     session
+}
+
+/// What one lockstep step makes `player` send.
+fn lockstep_packets(
+    player: &mut Player,
+    acts: Vec<lockstep::SessionAct>,
+) -> Result<Vec<McpePacket>> {
+    let mut packets = Vec::new();
+    for act in acts {
+        match act {
+            lockstep::SessionAct::Input => packets.extend(player.auth_input()?),
+            lockstep::SessionAct::Attack(target) => packets.push(player.attack(target)),
+            lockstep::SessionAct::Order(order) => packets.extend(player.order(order)?),
+        }
+    }
+    Ok(packets)
 }
 
 async fn run_session<T: Transport>(
     mut play: BedrockStream<Play, Client, T>,
     game: GameData,
     script: Vec<(u64, Step)>,
+    mut link: Option<SessionLink>,
 ) -> Result<()> {
     let mut player = Player::new(
         game.start_game.runtime_id.actor_runtime_id,
         game.start_game.position.clone(),
         game.start_game.rotation.clone(),
     );
+    if let Some(link) = &link {
+        link.runtime_ids
+            .lock()
+            .map_err(|_| anyhow::anyhow!("runtime ids poisoned"))?[link.index] =
+            Some(player.runtime_id);
+    }
+    // A lockstep session sends inputs only when a tick line asks, from the
+    // first one on.
+    let mut lockstep = false;
     let mut ticker = tokio::time::interval(Duration::from_millis(50));
     let mut steps = script.into_iter().peekable();
     loop {
         tokio::select! {
-            _ = ticker.tick() => {
+            _ = ticker.tick(), if !lockstep => {
                 if player.paused > 0 {
                     player.paused -= 1;
                     continue;
@@ -1984,6 +2169,34 @@ async fn run_session<T: Transport>(
                     for packet in player.auth_input()? {
                         play.send_packet(packet).await?;
                     }
+                }
+            }
+            control = async {
+                match link.as_mut() {
+                    Some(link) => link.controls.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                let Some(control) = control else {
+                    bail!("the lockstep coordinator is gone");
+                };
+                lockstep = true;
+                let sent = async {
+                    let packets = lockstep_packets(&mut player, control.acts)?;
+                    if control.batch {
+                        play.send_batch(&packets, true).await?;
+                    } else {
+                        for packet in packets {
+                            play.send_packet(packet).await?;
+                        }
+                    }
+                    Ok::<_, anyhow::Error>(())
+                }
+                .await;
+                let failed = sent.as_ref().err().map(|error| anyhow::anyhow!("{error:#}"));
+                let _ = control.done.send(sent);
+                if let Some(error) = failed {
+                    return Err(error);
                 }
             }
             packet = play.recv_packet_raw() => {
@@ -2024,7 +2237,23 @@ async fn run_session<T: Transport>(
                             | McpePacketName::AddActorPacket
                     )
                 ) {
-                    for reply in player.handle(packet.decode()?.data)? {
+                    let data = packet.decode()?.data;
+                    if let (McpePacketData::TextPacket(text), Some(scripts)) =
+                        (&data, link.as_ref().and_then(|link| link.scripts.as_ref()))
+                        && let Some(script) = lockstep::parse_tick(&format!("{:?}", text.body))
+                    {
+                        if scripts
+                            .send(lockstep::Line {
+                                script: script?,
+                                arrived: std::time::Instant::now(),
+                            })
+                            .is_err()
+                        {
+                            bail!("tick line after the lockstep coordinator stopped");
+                        }
+                        continue;
+                    }
+                    for reply in player.handle(data)? {
                         play.send_packet(reply).await?;
                     }
                     if player.quit {

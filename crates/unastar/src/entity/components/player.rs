@@ -169,6 +169,9 @@ pub struct PlayerInput {
     pub sprinting: bool,
     /// Client tick this input was sent
     pub tick: i64,
+    /// The player's velocity: what its last input reported (`pos_delta`, the
+    /// motion after that move), or a knockback the server gave it since.
+    pub velocity: glam::DVec3,
 }
 
 impl PlayerInput {
