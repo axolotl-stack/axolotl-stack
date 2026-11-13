@@ -515,3 +515,95 @@ fn chi_square_detects_a_different_distribution() {
     assert!(homogeneity(&a, &same).unwrap() > 0.5);
     assert!(homogeneity(&a, &other).unwrap() < 1e-6);
 }
+
+/// Counts the draws a sub-chunk's random ticks take.
+struct Counting(Mix, u64);
+
+impl RngCore for Counting {
+    fn next_u32(&mut self) -> u32 {
+        self.1 += 1;
+        self.0.next_u32()
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.1 += 1;
+        self.0.next_u64()
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.0.fill_bytes(dest);
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        self.0.try_fill_bytes(dest)
+    }
+}
+
+/// A huge `randomtickspeed` is capped at one pick per cell of the sub-chunk
+/// (a safety cap; BDS's handling is not measured).
+#[test]
+fn a_huge_tick_speed_picks_each_sub_chunk_at_most_once_per_cell() {
+    let mut field = Field::new();
+    let mut rng = Counting(Mix(7), 0);
+    // An all-air sub-chunk: every pick is one draw.
+    tick_subchunk(&mut field, IVec3::new(0, 32, 0), u32::MAX, &mut rng);
+    assert_eq!(rng.1, 16 * 16 * 16);
+}
+
+/// A block registry the rules were not built for.
+struct Foreign(Field);
+
+impl BlockSource for Foreign {
+    fn block_at(&self, pos: IVec3) -> Option<u32> {
+        self.0.block_at(pos)
+    }
+
+    fn registry(&self) -> &BlockRegistry {
+        static EMPTY: std::sync::LazyLock<BlockRegistry> =
+            std::sync::LazyLock::new(BlockRegistry::new);
+        &EMPTY
+    }
+}
+
+impl UpdateTarget for Foreign {
+    fn write(&mut self, pos: IVec3, state: u32) {
+        self.0.write(pos, state);
+    }
+
+    fn pop(&mut self, pos: IVec3, state: u32) {
+        self.0.pop(pos, state);
+    }
+}
+
+/// Random ticks do nothing in a world whose registry is not the vanilla one
+/// (the same runtime id may be another block there).
+#[test]
+fn random_ticks_skip_a_registry_that_is_not_vanilla() {
+    let wheat = id("minecraft:wheat");
+    let planted = || {
+        let mut field = Field::new();
+        for x in 0..16 {
+            for z in 0..16 {
+                field.write(IVec3::new(x, 0, z), id("minecraft:farmland"));
+                field.write(IVec3::new(x, 1, z), wheat);
+            }
+        }
+        field
+    };
+    let untouched = |field: &Field| {
+        (0..16).all(|x| (0..16).all(|z| field.block_at(IVec3::new(x, 1, z)) == Some(wheat)))
+    };
+    // The same ticks grow wheat under the vanilla registry.
+    let mut vanilla = planted();
+    let mut rng = Mix(3);
+    for _ in 0..200 {
+        tick_subchunk(&mut vanilla, IVec3::ZERO, 64, &mut rng);
+    }
+    assert!(!untouched(&vanilla));
+    let mut foreign = Foreign(planted());
+    let mut rng = Mix(3);
+    for _ in 0..200 {
+        tick_subchunk(&mut foreign, IVec3::ZERO, 64, &mut rng);
+    }
+    assert!(untouched(&foreign.0));
+}

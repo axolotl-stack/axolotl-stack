@@ -41,6 +41,12 @@ use crate::server::game::block_update::{UpdateTarget, changed};
 /// `randomtickspeed`.
 pub(crate) const PICKS_PER_SPEED: u32 = 2;
 
+/// Most random picks one sub-chunk gets in a game tick: as many as it has
+/// cells. A safety cap, not a measured rule: how BDS handles a huge
+/// `randomtickspeed` is not measured, and without the cap
+/// `/gamerule randomtickspeed 2147483647` stalls the tick.
+const MAX_PICKS: u32 = 16 * 16 * 16;
+
 /// What a block does on a random tick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Rule {
@@ -173,10 +179,12 @@ impl Rules {
     }
 }
 
-fn rules(registry: &BlockRegistry) -> &'static Rules {
+/// The rules for `registry`: `None` unless it is the vanilla registry the
+/// rules are built for (the random tick rules are measured on vanilla
+/// blocks; another registry's runtime ids would pick the wrong rules).
+fn rules(registry: &BlockRegistry) -> Option<&'static Rules> {
     static VANILLA: LazyLock<Rules> = LazyLock::new(|| Rules::build(BlockRegistry::vanilla()));
-    debug_assert_eq!(registry.len(), BlockRegistry::vanilla().len());
-    &VANILLA
+    (registry.len() == BlockRegistry::vanilla().len()).then(|| &*VANILLA)
 }
 
 fn entry(blocks: &impl BlockSource, state: u32) -> Option<&BlockEntry> {
@@ -224,7 +232,10 @@ pub(crate) fn random_tick<T: UpdateTarget>(
     state: u32,
     rng: &mut impl Rng,
 ) {
-    match rules(world.registry()).get(state) {
+    let Some(rules) = rules(world.registry()) else {
+        return;
+    };
+    match rules.get(state) {
         Rule::None | Rule::Oxidised => {}
         Rule::Crop => crop(world, pos, state, rng),
         Rule::Cane | Rule::Cactus => column(world, pos, state),
@@ -452,7 +463,7 @@ fn leaves<T: UpdateTarget>(world: &mut T, pos: IVec3, state: u32) {
 /// The oxidation age of the copper at `pos`, if it is unwaxed copper.
 fn copper_age(world: &impl BlockSource, pos: IVec3) -> Option<u8> {
     let state = world.block_at(pos)?;
-    match rules(world.registry()).get(state) {
+    match rules(world.registry())?.get(state) {
         Rule::Copper { age, .. } => Some(age),
         Rule::Oxidised => Some(3),
         _ => None,
@@ -496,7 +507,7 @@ fn copper<T: UpdateTarget>(world: &mut T, pos: IVec3, age: u8, next: u32, rng: &
             } else {
                 pos + IVec3::Y
             };
-            match rules(world.registry()).get(world.block_at(other)?) {
+            match rules(world.registry())?.get(world.block_at(other)?) {
                 Rule::Copper { next, .. } => Some((other, next)),
                 _ => None,
             }
@@ -518,7 +529,7 @@ pub(crate) fn tick_subchunk<T: UpdateTarget>(
     speed: u32,
     rng: &mut impl Rng,
 ) {
-    for _ in 0..speed * PICKS_PER_SPEED {
+    for _ in 0..speed.saturating_mul(PICKS_PER_SPEED).min(MAX_PICKS) {
         // One draw: 12 bits are a uniform position in the sub-chunk.
         let bits = rng.next_u32();
         let pos = origin
@@ -563,10 +574,15 @@ pub(crate) fn tick_random_blocks(world: &mut bevy_ecs::prelude::World) {
     use crate::world::ecs::{ChunkData, ChunkFlags, ChunkPosition, ChunkStateFlags};
     use unastar_data::game_rules::GameRuleValue;
 
-    if world
-        .get_resource::<super::types::BlockRegistryResource>()
-        .is_none()
-    {
+    let Some(registry) = world.get_resource::<super::types::BlockRegistryResource>() else {
+        return;
+    };
+    if rules(&registry.0).is_none() {
+        // Fail fast once: the rules only know the vanilla registry.
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| {
+            tracing::warn!("random ticks are off: the block registry is not the vanilla one");
+        });
         return;
     }
     let speed = world
