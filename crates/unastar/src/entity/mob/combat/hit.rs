@@ -32,7 +32,7 @@ use crate::entity::components::{
     Velocity,
 };
 use crate::entity::mob::components::{
-    HurtCondition, HurtOnConditionConfig, KnockbackPower, KnockbackRules,
+    DamageOverTime, HurtCondition, HurtOnConditionConfig, KnockbackPower, KnockbackRules,
 };
 use crate::entity::mob::events::{MobFacts, held_item};
 use crate::entity::mob::state::{Dead, LastHurt};
@@ -366,6 +366,71 @@ pub fn hurt_on_condition(
                     },
                 );
             }
+        }
+    }
+}
+
+/// Ticks until a mob's next `minecraft:damage_over_time` hurt.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DamageOverTimeClock(u32);
+
+/// System (exclusive): `minecraft:damage_over_time`. A mob hurts itself
+/// by `damage` with no cause and no knockback every `interval` ticks, the
+/// first `interval` ticks after the component arrived (BDS 1.26.51: a vex
+/// whose decay timer ran out took 1 every 20 ticks, cause `none`, and died
+/// on its 14th hurt, `sweep.py vex --items decay`).
+#[allow(clippy::type_complexity)]
+pub fn damage_over_time(
+    world: &mut World,
+    mobs: &mut QueryState<
+        (
+            Entity,
+            Ref<DamageOverTime>,
+            Option<&mut DamageOverTimeClock>,
+        ),
+        (With<MobKind>, Without<Dead>),
+    >,
+    mut due: Local<Vec<(Entity, Option<u32>, Option<i32>)>>,
+) {
+    for (entity, config, clock) in mobs.iter_mut(world) {
+        let left = match &clock {
+            Some(clock) if !config.is_added() => clock.0,
+            _ => config.interval_ticks,
+        };
+        let (next, hurt) = if left <= 1 {
+            (config.interval_ticks, Some(config.damage))
+        } else {
+            (left - 1, None)
+        };
+        // The clock is inserted once and stepped in place after.
+        let missing = match clock {
+            Some(mut clock) => {
+                clock.0 = next;
+                None
+            }
+            None => Some(next),
+        };
+        if missing.is_some() || hurt.is_some() {
+            due.push((entity, missing, hurt));
+        }
+    }
+    for (entity, missing, hurt) in due.drain(..) {
+        if let Some(left) = missing {
+            world.entity_mut(entity).insert(DamageOverTimeClock(left));
+        }
+        if let Some(damage) = hurt {
+            hurt_mob(
+                world,
+                entity,
+                Hit {
+                    damage: damage as f32,
+                    cause: ActorDamageCause::None,
+                    attacker: None,
+                    by_player: false,
+                    knockback_from: None,
+                    knockback_power: KnockbackPower::DEFAULT,
+                },
+            );
         }
     }
 }

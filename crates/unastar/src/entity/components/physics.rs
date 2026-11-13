@@ -76,6 +76,12 @@ pub struct PhysicsBody {
     /// polar bear knocked across water keeps 0.98 of its horizontal motion
     /// a tick while its vertical motion keeps 0.8).
     pub water_drag: Option<f64>,
+    /// Whether the body collides with blocks. A living body without
+    /// collision (`minecraft:physics` `has_collision: false`, the vex) moves
+    /// its whole velocity through blocks and is never on the ground (BDS
+    /// 1.26.51: a vex flew out of a closed glass room through its walls and
+    /// ceiling, `sweep.py vex`).
+    pub collides: bool,
 }
 
 impl PhysicsBody {
@@ -96,6 +102,7 @@ impl PhysicsBody {
         step_height: 0.0,
         wing_flap_drag: None,
         water_drag: None,
+        collides: true,
     };
 
     /// Falling block: measured 0.98 box, 0.49 wire offset, 0.04 pre-move
@@ -114,6 +121,7 @@ impl PhysicsBody {
         step_height: 0.0,
         wing_flap_drag: None,
         water_drag: None,
+        collides: true,
     };
 
     /// Living mob: gravity 0.08 after the move, 0.98 vertical drag, 0.91
@@ -136,6 +144,7 @@ impl PhysicsBody {
             step_height: MOB_STEP_HEIGHT,
             wing_flap_drag: None,
             water_drag: None,
+            collides: true,
         }
     }
 
@@ -154,6 +163,7 @@ impl PhysicsBody {
             step_height: 0.0,
             wing_flap_drag: None,
             water_drag: None,
+            collides: true,
         }
     }
 }

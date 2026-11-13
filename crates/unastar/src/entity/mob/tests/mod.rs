@@ -29,4 +29,5 @@ mod sensors;
 mod silverfish;
 mod slime;
 mod spawn;
+mod vex;
 mod zombie;

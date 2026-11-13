@@ -499,8 +499,17 @@ class EffectTrials(unittest.TestCase):
         self.assertEqual(tadpoles[-1]['track'], ['minecraft:tadpole', 'minecraft:frog'])
         vexes = sweep.vex_items(self.args('all'))
         self.assertEqual([item['key'] for item in vexes],
-                         ['vex|idle-0', 'vex|idle-1', 'vex|charge-0', 'vex|charge-1', 'vex|decay-0'])
+                         ['vex|idle-0', 'vex|idle-1'] + [f'vex|charge-{n}' for n in range(6)]
+                         + ['vex|look-0', 'vex|look-1', 'vex|decay-0', 'vex|decay-1'])
         self.assertTrue(vexes[-1]['setup'][-1].endswith('minecraft:add_damage_timer'))
+        # The player follows the decaying vex so it stays in view.
+        self.assertEqual(vexes[-1]['actions'][0]['commands'],
+                         ['execute at @e[type=minecraft:vex] run tp "BDSSweep" ~ ~4 ~'])
+        goats = sweep.goat_items(self.args('all'))
+        self.assertEqual(len(goats), 19)
+        self.assertEqual(goats[0]['actions'][0]['commands'][-1],
+                         'event entity @e[type=minecraft:goat] minecraft:born_screamer')
+        self.assertEqual(sweep.goat_items(self.args('horn'))[0]['track'], ['minecraft:goat', 'minecraft:item'])
         self.assertEqual(len(sweep.ghast_items(self.args('all'))), 2)
         with self.assertRaises(SystemExit):
             sweep.polar_bear_items(self.args('nothing'))
