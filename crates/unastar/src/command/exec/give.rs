@@ -556,8 +556,12 @@ mod tests {
                 .map(|i| u8::from_str_radix(&bds.user_data[i..i + 2], 16).unwrap())
                 .collect();
             let bds_stack = stack.clone().with_nbt(bds_bytes.clone());
-            let tail = |bytes: &[u8]| bytes[bytes.len().saturating_sub(10)..].to_vec();
+            // Equal tags encode to the same length in any key order, so the
+            // lengths and the last 8 bytes (the can-place-on and
+            // can-destroy counts) compare what follows the NBT.
+            let tail = |bytes: &[u8]| bytes[bytes.len().saturating_sub(8)..].to_vec();
             if item_tag(&stack) != item_tag(&bds_stack)
+                || ours.user_data_buffer.len() != bds_bytes.len()
                 || tail(&ours.user_data_buffer) != tail(&bds_bytes)
             {
                 wrong.push(format!(
@@ -580,7 +584,7 @@ mod tests {
 "
             )
         );
-        assert_eq!(other, 112, "item, aux or block differences");
+        assert_eq!(other, 36, "item, aux or block differences");
     }
 }
 
