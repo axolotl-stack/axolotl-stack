@@ -1021,7 +1021,164 @@ def enderman_items(args) -> list[dict]:
                                                 'poppy', 'red_mushroom', 'stone', 'netherrack', 'oak_planks')]
     items.append(take('nogrief', 'grass_block', setup=['gamerule mobgriefing false']))
     items.append(take('kill', 'grass_block', actions=[{'t': 300, 'commands': ['kill @e[type=minecraft:enderman]']}]))
+    items += enderman_round_two(item, target, protect, look)
     return pick('enderman', items, args.items)
+
+
+def enderman_round_two(item, target: str, protect: list[str], look) -> list[dict]:
+    """The second round of `enderman` items, each kept from teleporting
+    away before it is measured (put back on tick 5) or unable to:
+    `spawn` (30 on the superflat, 20 on a stone platform 16 above it, at
+    y -45: whether it teleports in its spawn tick, and where to),
+    `hurtflat` / `hurthigh` (hurt by `magic` every 20 ticks, put back and
+    healed 10 ticks later: how often a hurt teleports it and where to),
+    `idle` (on the platform, put back every 40 ticks, at midnight, noon and
+    noon under a roof: the random teleport rate), `look` (the gaze cone
+    off in yaw at 4 to 32 blocks, the eye height, 48 to 64 blocks, how
+    long a look must last, when the look starts, a pumpkin, creative, and
+    a stone or a glass wall between), `anger` (provoked, then the player
+    turns away, turns creative or hits it: how long it stays angry),
+    `step` (provoked and walking: over a block or a slab), `dodge` (a
+    dispenser's arrow), and `carry` (sealed in a 5 × 5 × 4 room inside
+    stone that fills its whole teleport cube: which blocks of a ring at its
+    feet it takes, from the floor or covered, and where it puts one back).
+    Round three: `hurtnear` (the hurt cycles with the player near, so no
+    enderman despawns past 32 blocks), `pool` (spawn-tick teleports next to
+    water), `dodgemore` and `dodgesealed` (arrows on the superflat and in
+    the sealed room) and `chase` (provoked, then the player stands 24
+    blocks away: teleports toward a far target)."""
+    home = [4.5, -60, 0.5, 90]
+    back = {'t': 5, 'commands': [f'tp @e[type=minecraft:enderman] {home[0]} {home[1]} {home[2]} 90 0']}
+    platform = 'fill -12 -45 -16 21 -45 17 stone'
+    high = [4.5, -44, 0.5, 90]
+    near = [4.5, -60, -8.5, 180]
+    unplatform = [platform.replace(' stone', ' air')]
+    items = [item(f'spawn-flat-{n}', 25) for n in range(30)]
+    items += [item(f'spawn-high-{n}', 25, setup=[platform], cleanup=unplatform, spot=high) for n in range(20)]
+    hurt = 'damage @e[type=minecraft:enderman] 1 magic'
+    mend = 'effect @e[type=minecraft:enderman] instant_health 1 4 true'
+
+    def cycles(spot, count):
+        put = f'tp @e[type=minecraft:enderman] {spot[0]} {spot[1]} {spot[2]} 90 0'
+        out = [{'t': 5, 'commands': [put]}]
+        for k in range(count):
+            out += [{'t': 20 + 20 * k, 'commands': [hurt]}, {'t': 30 + 20 * k, 'commands': [put, mend]}]
+        return out
+
+    items += [item(f'hurtflat-{n}', 1220, cycles(home, 60)) for n in range(3)]
+    items += [item(f'hurthigh-{n}', 1220, cycles(high, 60), setup=[platform], cleanup=unplatform, spot=high)
+              for n in range(2)]
+
+    def idle(spot, count):
+        put = f'tp @e[type=minecraft:enderman] {spot[0]} {spot[1]} {spot[2]} 90 0'
+        return [{'t': 5 + 40 * k, 'commands': [put]} for k in range(count)]
+
+    roof = 'fill -12 -38 -16 21 -38 17 stone'
+    items += [item(f'idle-night-{n}', 2000, idle(high, 50), setup=[platform], cleanup=unplatform, spot=high,
+                   player=near) for n in range(2)]
+    items += [item(f'idle-noon-{n}', 2000, idle(high, 50), setup=[platform, 'time set 6000'], cleanup=unplatform,
+                   spot=high, player=near) for n in range(2)]
+    items += [item('idle-roof', 2000, idle(high, 50), setup=[platform, roof, 'time set 6000'],
+                   cleanup=unplatform + [roof.replace(' stone', ' air')], spot=high, player=near)]
+
+    def gaze(key, distance, height, yaw_off=0.0, start=10, hold=None, setup=(), extra=(), ticks=60):
+        spot = [0.5 + distance, -60, 0.5, 90]
+        put = f'tp @e[type=minecraft:enderman] {spot[0]} -60 0.5 90 0'
+        actions = [{'t': 5, 'commands': [put]}, {'t': start, 'commands': [look(distance, height, yaw_off)]}]
+        if hold is not None:
+            actions.append({'t': start + hold, 'commands': [f'tp {target} 0.5 -60 0.5 90 0']})
+        return item(f'look-{key}', ticks, actions + list(extra), setup=list(setup) + protect,
+                    player=[0.5, -60, 0.5, 90], spot=spot)
+
+    eye = 2.465
+    for distance, offsets in ((4, (5.6, 6.0, 6.4, 6.8, 7.2)), (8, (4.0, 4.3, 4.6, 4.9, 5.2)),
+                              (16, (2.6, 2.9, 3.2, 3.5, 3.8)), (32, (1.7, 2.0, 2.3, 2.6, 2.9))):
+        items += [gaze(f'yaw{off}-{distance}', distance, eye, yaw_off=off) for off in offsets]
+    items += [gaze(f'h{h}-8', 8, h) for h in (1.78, 1.84, 1.90, 1.96, 3.02, 3.08, 3.14, 3.20)]
+    items += [gaze(f'd{d}', d, eye) for d in (48, 56, 60, 63, 64)]
+    items += [gaze(f'hold{k}-8', 8, eye, hold=k) for k in (2, 3, 4, 5, 6, 7, 8)]
+    items += [gaze(f'start{k}-8', 8, eye, start=10 + k) for k in (1, 2, 3, 4)]
+    items.append(gaze('pumpkin-8', 8, eye, setup=[f'replaceitem entity {target} slot.armor.head 0 carved_pumpkin']))
+    creative = gaze('creative-8', 8, eye)
+    creative['setup'] = []
+    items.append(creative)
+    for block in ('stone', 'glass'):
+        items.append(gaze(f'wall-{block}-8', 8, eye, setup=[f'fill 3 -60 -2 3 -57 2 {block}'],
+                          extra=[], ticks=60))
+        items[-1]['cleanup'] = items[-1]['cleanup'] + ['fill 3 -60 -2 3 -57 2 air']
+    away = {'t': 30, 'commands': [f'tp {target} 0.5 -60 0.5 90 0']}
+    items += [gaze(f'anger-away-{n}', 8, eye, extra=[away], ticks=800) for n in range(2)]
+    calm = {'t': 30, 'commands': [f'tp {target} 0.5 -60 0.5 90 0', f'gamemode creative {target}']}
+    items += [gaze(f'anger-creative-{n}', 8, eye, extra=[calm], ticks=800) for n in range(2)]
+    # Hit by the player, unprovoked (the player looks at the ground).
+    hit = [{'t': 5, 'commands': ['tp @e[type=minecraft:enderman] 2.5 -60 0.5 90 0',
+                                 f'tp {target} 0.5 -60 0.5 -90 89']},
+           {'t': 10, 'commands': [], 'order': 'attack'}]
+    items += [item(f'anger-hit-{n}', 400, hit, setup=protect, player=[0.5, -60, 0.5, -90], spot=[2.5, -60, 0.5, 90])
+              for n in range(3)]
+    # Provoked and free to walk: over a one-block wall or a slab between.
+    for key, block in (('block', 'stone'), ('slab', 'oak_slab')):
+        wall = f'fill 4 -60 -6 4 -60 6 {block}'
+        for n in range(2):
+            row = gaze(f'step-{key}-{n}', 8, eye, setup=[wall], ticks=200)
+            row['key'] = row['key'].replace('look-step', 'step')
+            row['frozen'] = False
+            row['cleanup'] = row['cleanup'] + [wall.replace(f' {block}', ' air')]
+            items.append(row)
+    dispenser = ['setblock 2 -59 0 dispenser ["facing_direction"=5]',
+                 'replaceitem block 2 -59 0 slot.container 0 arrow 8']
+    fire = {'t': 20, 'commands': ['setblock 2 -58 0 redstone_block']}
+    off = {'t': 25, 'commands': ['setblock 2 -58 0 air']}
+    items += [item(f'dodge-{n}', 80, [back, fire, off], setup=dispenser,
+                   cleanup=['setblock 2 -58 0 air', 'setblock 2 -59 0 air']) for n in range(6)]
+    # Sealed: stone fills the enderman's whole teleport cube but a 5 × 5
+    # room 4 tall (x 2..6, z -2..2) on a stone floor, so it cannot leave.
+    seal = ['fill -12 -60 -16 21 -43 17 stone', 'fill 2 -61 -2 6 -61 2 stone', 'fill 2 -60 -2 6 -57 2 air']
+    unseal = ['fill -12 -60 -16 21 -43 17 air', 'fill 2 -61 -2 6 -61 2 grass_block']
+    ring = [(x, z) for x in range(2, 7) for z in range(-2, 3) if (x, z) != (4, 0)]
+
+    def carry(key, block, ticks=400, layer=-60, extra=(), actions=()):
+        place = [f'setblock {x} {layer} {z} {block}' for x, z in ring] if block else []
+        return item(f'carry-{key}', ticks, list(actions), setup=seal + place + list(extra), cleanup=unseal)
+
+    for block in ('grass_block', 'dirt', 'sand', 'gravel', 'tnt', 'pumpkin', 'melon_block', 'clay', 'poppy',
+                  'red_mushroom', 'moss_block', 'mud', 'crimson_nylium', 'stone', 'oak_planks', 'netherrack'):
+        items.append(carry(block, block))
+    items += [carry(f'grass-{n}', 'grass_block') for n in range(6)]
+    # The floor under the room is grass: blocks below the feet.
+    items.append(carry('floor', None, extra=['fill 2 -61 -2 6 -61 2 grass_block']))
+    # Every ring block covered by stone.
+    items.append(carry('covered', 'grass_block', extra=[f'setblock {x} -59 {z} stone' for x, z in ring]))
+    items.append(carry('nogrief', 'grass_block', extra=['gamerule mobgriefing false']))
+    items.append(carry('kill', 'grass_block', actions=[{'t': 350, 'commands': ['kill @e[type=minecraft:enderman]']}]))
+    items += [carry(f'place-{n}', 'grass_block', ticks=3000) for n in range(2)]
+    # Round three. The hurt cycles again with the player near enough that
+    # no teleport takes the enderman past 32 blocks (where it may despawn).
+    items += [item(f'hurtnear-{n}', 1220, cycles(home, 60), player=near) for n in range(4)]
+    items += [item(f'hurtnearhigh-{n}', 1220, cycles(high, 60), setup=[platform], cleanup=unplatform, spot=high,
+                   player=near) for n in range(2)]
+    # Water one block deep on the floor west of x 5: whether a teleport
+    # lands in it (spawned at x 12.5, its cube reaches x -3.5).
+    pool = 'fill -12 -60 -16 4 -60 17 water'
+    items += [item(f'pool-{n}', 25, setup=[pool], cleanup=['fill -12 -60 -16 4 -60 17 air'],
+                   spot=[12.5, -60, 0.5, 90], player=[12.5, -60, -8.5, 180]) for n in range(30)]
+    # Provoked at 8 blocks, then the player (still survival) stands 24
+    # blocks west looking away: teleports toward a far target.
+    # More dodges on the superflat (about half of single attempts fail
+    # there), and in the sealed room, where every attempt fails: whether
+    # the arrow then hits.
+    items += [item(f'dodgemore-{n}', 80, [back, fire, off], setup=dispenser, player=near,
+                   cleanup=['setblock 2 -58 0 air', 'setblock 2 -59 0 air']) for n in range(12)]
+    inside = ['setblock 2 -59 0 dispenser ["facing_direction"=5]',
+              'replaceitem block 2 -59 0 slot.container 0 arrow 8']
+    items += [item(f'dodgesealed-{n}', 80, [fire, off], setup=seal + inside,
+                   cleanup=['setblock 2 -58 0 air'] + unseal) for n in range(4)]
+    far_away = {'t': 30, 'commands': [f'tp {target} -15.5 -60 0.5 90 0']}
+    for n in range(3):
+        row = gaze(f'chase-{n}', 8, eye, extra=[far_away], ticks=600)
+        row['key'] = row['key'].replace('look-chase', 'chase')
+        items.append(row)
+    return items
 
 
 def melee_effect_items(args) -> list[dict]:

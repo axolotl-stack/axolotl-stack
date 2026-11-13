@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bds_runtime  # noqa: E402
 import effects_fixture  # noqa: E402
 import knockback_fixture  # noqa: E402
+import mob_fixture  # noqa: E402
 import replication_fixture  # noqa: E402
 import native  # noqa: E402
 import player_relay_fixture  # noqa: E402
@@ -543,6 +544,44 @@ class EffectFixture(unittest.TestCase):
         ])
         self.assertEqual(item['damage'], [{'t': 30, 'about': 'mob', 'damage': 1.0, 'cause': 'magic'}])
         self.assertNotIn('mob_positions', item)
+
+
+class MobFixture(unittest.TestCase):
+    def test_teleports_carried_blocks_and_player_turns_are_kept(self):
+        def add(rid):
+            return {'name': 'AddActorPacket', 'packet': {
+                'target_runtime_id': {'actor_runtime_id': rid}, 'target_actor_id': {'actor_unique_id': -rid},
+                'actor_type': 'minecraft:enderman', 'actor_data': {'data': []}}}
+
+        rows = [
+            (0, add(2)),
+            (3, {'name': 'MoveActorDeltaPacket', 'packet': {'move_data': {
+                'actor_runtime_id': {'actor_runtime_id': 2}, 'force_move': True, 'ticks': 0,
+                'is_on_ground': True}}}),
+            (3, {'name': 'MoveActorDeltaPacket', 'packet': {'move_data': {
+                'actor_runtime_id': {'actor_runtime_id': 2}, 'force_move': False, 'ticks': 2,
+                'is_on_ground': True}}}),
+            (3, {'name': 'LevelEventGenericPacket', 'packet': {'event_id': 2023, '__ctd__': {'Count': 128}}}),
+            (3, {'name': 'LevelEventGenericPacket', 'packet': {'event_id': 9801, '__ctd__': {}}}),
+            (5, {'name': 'MobEquipmentPacket', 'packet': {
+                'target_runtime_id': {'actor_runtime_id': 2}, 'container_id': 0, 'slot': 0,
+                'item': {'id': 2, 'stacksize': 1, 'block_runtime_id': 77}}}),
+        ]
+        result = {'key': 'enderman|look-x', 'mob': 'minecraft:enderman', 'runtime_id': 2,
+                  'player_runtime_id': 1, 'first_tick': 0, 'damage': [],
+                  'spec': {'at': [1, 2, 3, 90], 'player': [0, 0, 0, 0], 'frozen': True, 'ticks': 9,
+                           'actions': [{'t': 10, 'commands': ['tp "BDSSweep" 0.5 -60 0.5 -86.000 -9.500',
+                                                              'tp @e[type=minecraft:enderman] 1 2 3 90 0']}]},
+                  'samples': [{'t': 0, 'player': {'pos': [0, 0, 0]}, 'mob': {'pos': [1, 2, 3], 'ground': True}}]}
+        item = mob_fixture.distil(result, rows, 'normal')
+        self.assertEqual(item['player_turns'], [{'t': 10, 'feet': [0.5, -60.0, 0.5], 'yaw': -86.0,
+                                                 'pitch': -9.5}])
+        events = [e for e in item['events'] if e['event'] != 'add']
+        self.assertEqual(events, [
+            {'t': 3, 'event': 'forced_move', 'ticks': 0, 'on_ground': True},
+            {'t': 3, 'event': 'level_event_generic', 'id': 2023, 'data': {'Count': 128}},
+            {'t': 5, 'event': 'equipment', 'container': 0, 'slot': 0, 'item': 2, 'count': 1, 'block': 77},
+        ])
 
 
 if __name__ == '__main__':
