@@ -98,7 +98,12 @@ fn process_auth_input_block_actions(
     player_entity: Entity,
     block_actions: &[jolyne::valentine::PlayerBlockActionData],
 ) -> bool {
+    breaking_hit_sound(world, player_entity);
     let mut predicted = None;
+    // A creative start breaks at once; a prediction in the same input is
+    // the client's own prediction of that break.
+    let mut creative_broken = None;
+    let mut creative_predicted = false;
     for action_item in block_actions.iter().take(MAX_BLOCK_ACTIONS) {
         let position = (
             action_item.position.x,
@@ -135,11 +140,17 @@ fn process_auth_input_block_actions(
             .get::<crate::entity::components::GameMode>(player_entity)
             .is_some_and(|mode| mode.instant_break());
         match action_item.player_action_type {
+            // No client gets here with it: BDS reads an input carrying one
+            // as malformed, and `packets.rs` refuses the whole input so.
             EnumsPlayerActionType::Creativedestroyblock => {
                 break_block(world, player_entity, position, true);
             }
             EnumsPlayerActionType::Predictdestroyblock if creative => {
-                break_block(world, player_entity, position, true);
+                if creative_broken == Some(position) {
+                    creative_predicted = true;
+                } else {
+                    refuse_prediction(world, player_entity, position, face);
+                }
             }
             // Judged with this input's progress, after the actions.
             EnumsPlayerActionType::Predictdestroyblock => predicted = Some((position, face)),
@@ -154,6 +165,10 @@ fn process_auth_input_block_actions(
                 }
                 if !creative {
                     start_breaking(world, player_entity, position, face);
+                } else if breaks_in_creative(world, player_entity)
+                    && break_block(world, player_entity, position, true)
+                {
+                    creative_broken = Some(position);
                 }
             }
             EnumsPlayerActionType::Crackblock | EnumsPlayerActionType::Continuedestroyblock
@@ -186,7 +201,79 @@ fn process_auth_input_block_actions(
             _ => {}
         }
     }
+    // An unpredicted creative break is the server's own, as in survival.
+    if let (Some(position), false) = (creative_broken, creative_predicted)
+        && let Some(mut state) = world.get_mut::<BreakingState>(player_entity)
+    {
+        state.completing = Some(position);
+    }
     advance_breaking(world, player_entity, predicted)
+}
+
+/// Items with which a creative player breaks nothing: the start breaks
+/// nothing and a prediction is refused (BDS; spears and every other item
+/// tried break, `blocks/testdata/bds-creative-break-items.json`).
+const NO_CREATIVE_BREAK: &[&str] = &[
+    "minecraft:wooden_sword",
+    "minecraft:stone_sword",
+    "minecraft:copper_sword",
+    "minecraft:iron_sword",
+    "minecraft:golden_sword",
+    "minecraft:diamond_sword",
+    "minecraft:netherite_sword",
+    "minecraft:trident",
+    "minecraft:mace",
+];
+
+/// Whether a creative player holding `item` breaks blocks.
+pub(crate) fn item_breaks_in_creative(item: &str) -> bool {
+    !NO_CREATIVE_BREAK.contains(&item)
+}
+
+fn breaks_in_creative(world: &World, player: Entity) -> bool {
+    held_item(world, player).is_none_or(|held| item_breaks_in_creative(held.item_id()))
+}
+
+/// Before an input's block actions: on the first input after a break
+/// started and every fifth after it, the other players near the block hear
+/// the break's hit sound, named for the block the break started on, until
+/// an input finds no block there that can break (BDS; the breaking client
+/// plays its own).
+fn breaking_hit_sound(world: &mut World, player: Entity) {
+    let Some(mut state) = world
+        .get_mut::<BreakingState>(player)
+        .filter(|state| state.is_breaking())
+    else {
+        return;
+    };
+    state.ticks += 1;
+    if state.ticks % 5 != 1 || !state.sounding {
+        return;
+    }
+    let (position, block) = (state.position.expect("breaking"), state.block);
+    let (cx, cz) = world_to_chunk_coords(position.0, position.2);
+    let Some(viewers) = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz))
+        .and_then(|chunk| world.get::<ChunkViewers>(chunk))
+    else {
+        return;
+    };
+    let packet = jolyne::valentine::LevelSoundEventPacket {
+        sound_event: "hit".into(),
+        position: block_centre(position),
+        data: super::types::block_network_ids(world).to_wire(block) as i32,
+        actor_identifier: "".into(),
+        is_baby: false,
+        is_global: false,
+        actor_unique_id: -1,
+        fire_at_position: None,
+    };
+    for viewer in viewers.iter().filter(|viewer| *viewer != player) {
+        if let Some(session) = world.get::<PlayerSession>(viewer) {
+            let _ = session.send(McpePacket::from(packet.clone()));
+        }
+    }
 }
 
 /// Fraction of the block at `position` one input of `player`'s breaking
@@ -281,6 +368,17 @@ fn advance_breaking(
         }
         return false;
     };
+    // A survival break does not go on in creative (BDS: a block put back
+    // after the switch is not broken).
+    if world
+        .get::<crate::entity::components::GameMode>(player)
+        .is_some_and(|mode| mode.instant_break())
+    {
+        if let Some(mut live) = world.get_mut::<BreakingState>(player) {
+            live.stop();
+        }
+        return false;
+    }
     let position = state.position.expect("breaking");
     if let Some((other, face)) = predicted.filter(|(at, _)| *at != position) {
         refuse_prediction(world, player, other, face);
@@ -288,6 +386,7 @@ fn advance_breaking(
     let predicted_here = predicted.is_some_and(|(at, _)| at == position);
     state.advance();
     let block = block_at(world, position).filter(|_| break_speed(world, player, position) > 0.0);
+    state.sounding &= block.is_some();
     let mut queued = false;
     match block {
         None => {}
@@ -506,7 +605,7 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     Some((block.default_state_id, stack, item.network_id()))
 }
 
-fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
+pub(crate) fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
     let Some(block_runtime_id) = block_at(world, position) else {
         return;
     };
@@ -907,6 +1006,12 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
             original_block_id,
             tool.as_ref(),
         );
+        super::block_drops::drop_block_experience(
+            world,
+            IVec3::new(x, y, z),
+            original_block_id,
+            tool.as_ref(),
+        );
         wear_held_tool(world, breaking_player, original_block_id);
         super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
     }
@@ -1249,7 +1354,8 @@ fn click_names_held_stack(
         && data.item.stacksize == u16::from(stack.count)
         && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
         && crate::item::user_data::stored_user_data(stack.item_id(), &data.item.user_data_buffer)
-            == stack.nbt
+            .as_ref()
+            == stack.nbt()
         && u32::try_from(stack.runtime_id)
             .ok()
             .map(|id| block_ids.item_block_to_wire(i32::from(data.item.id), id))
@@ -1322,24 +1428,34 @@ pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
 /// [`set_block`] without block updates: store the block, broadcast it and
 /// schedule gravity checks.
 pub(crate) fn write_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
-    store_block(world, pos, block_runtime_id, place_sound, true);
+    store_block(world, pos, block_runtime_id, place_sound, true, true);
 }
 
 /// [`write_block`] for the redstone circuit's own changes: not noted as an
 /// outside change, so the circuit does not see its own writes as a player's
 /// edit (which would recover burnt-out torches and delay what it sees).
 pub(crate) fn write_circuit_block(world: &mut World, pos: IVec3, block_runtime_id: u32) {
-    store_block(world, pos, block_runtime_id, false, false);
+    store_block(world, pos, block_runtime_id, false, false, true);
+}
+
+/// [`set_block`] whose update reaches the viewers only with the tick's
+/// batched block updates, after what the server sends meanwhile (BDS answers
+/// a flint and steel click with its corrections first).
+pub(crate) fn set_block_batched(world: &mut World, pos: IVec3, block_runtime_id: u32) {
+    store_block(world, pos, block_runtime_id, false, true, false);
+    super::block_update::world_changed(world, pos, true);
 }
 
 /// Store, broadcast and schedule gravity checks; `outside` notes the change
-/// to the redstone circuit.
+/// to the redstone circuit, `send_now` sends the update now rather than with
+/// the tick's batched block updates.
 fn store_block(
     world: &mut World,
     pos: IVec3,
     block_runtime_id: u32,
     place_sound: bool,
     outside: bool,
+    send_now: bool,
 ) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
@@ -1395,6 +1511,9 @@ fn store_block(
     super::falling::schedule_gravity_checks(world, pos);
 
     // Broadcast to viewers
+    if !send_now {
+        return;
+    }
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 

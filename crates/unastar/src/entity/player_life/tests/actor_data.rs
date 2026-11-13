@@ -822,9 +822,9 @@ fn respiration_spares_the_air() {
             health.max = 100.0;
             health.current = 100.0;
         }
-        let helmet = crate::item::enchant::with_enchantment_ids(
+        let helmet = crate::item::enchant::with_enchantments(
             &stack("minecraft:diamond_helmet", 1),
-            [(6, level)],
+            [(unastar_rules::ids::Enchantment::Respiration, level)],
         );
         h.world()
             .get_mut::<ArmourInventory>(player)

@@ -22,9 +22,10 @@
 //! stay airborne within reach) and the underwater divisor (the sweep's water
 //! ran off the player's head between trials).
 
+use unastar_rules::ids::Enchantment;
+
 use crate::entity::components::{EffectType, Effects};
 use crate::item::ItemStack;
-use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::block::BlockEntry;
 use crate::registry::item::{ToolKind, ToolTier};
 
@@ -125,7 +126,7 @@ pub fn item_destroy_speed(tool: Option<&ItemStack>, block: &BlockEntry) -> f32 {
     // diamond sword breaks cobweb in the same 7 ticks with Efficiency I-V).
     let efficiency = match info.kind {
         Some(ToolKind::Sword) => 0,
-        _ => enchantment_level(tool, Enchantment::Efficiency),
+        _ => tool.enchantment_level(Enchantment::Efficiency),
     };
     if base > 1.0 && efficiency > 0 {
         base + f32::from(efficiency) * f32::from(efficiency) + 1.0
@@ -189,7 +190,7 @@ pub fn destroy_progress(
     if conditions.riding || (!conditions.on_ground && !conditions.flying) {
         speed /= 5.0;
     }
-    let aqua_affinity = tool.is_some_and(|t| enchantment_level(t, Enchantment::AquaAffinity) > 0);
+    let aqua_affinity = tool.is_some_and(|t| t.enchantment_level(Enchantment::AquaAffinity) > 0);
     if conditions.underwater && !aqua_affinity {
         speed /= 5.0;
     }
@@ -320,7 +321,7 @@ mod tests {
         let stone = block("minecraft:stone");
         let pick = with_enchantments(
             &tool("minecraft:iron_pickaxe"),
-            &[(Enchantment::Efficiency, 5)],
+            [(Enchantment::Efficiency, 5)],
         );
         // (6 + 25 + 1) / 1.5 / 30 = 0.711 -> 2 ticks
         assert_eq!(break_ticks(stone, Some(&pick), GROUND), 2);
@@ -366,7 +367,7 @@ mod tests {
         );
         let aqua = with_enchantments(
             &tool("minecraft:iron_pickaxe"),
-            &[(Enchantment::AquaAffinity, 1)],
+            [(Enchantment::AquaAffinity, 1)],
         );
         assert_eq!(break_ticks(stone, Some(&aqua), wet), 8);
     }

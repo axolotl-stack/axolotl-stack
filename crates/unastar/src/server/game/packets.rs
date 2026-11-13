@@ -49,6 +49,11 @@ impl GameServer {
 
         // Route by packet type into domain queues
         let world = self.ecs.world_mut();
+        // After a malformed input, nothing more from the client counts while
+        // the network layer closes its connection (BDS stops reading it).
+        if world.get::<MalformedInput>(entity).is_some() {
+            return;
+        }
 
         if applied_before_commands(packet.packet_id())
             && let Some(mut order) = world.get_resource_mut::<super::commands::CommandOrder>()
@@ -137,7 +142,9 @@ impl GameServer {
     ) {
         match packet.data {
             McpePacketData::PlayerAuthInputPacket(pk) => {
-                if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
+                if has_creative_destroy(&pk) {
+                    refuse_malformed_input(world, entity);
+                } else if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
                     q.0.push((entity, MovementInput::AuthInput(pk)));
                 }
             }
@@ -276,6 +283,11 @@ fn air_use(
         T::ItemUseInventoryTransaction(use_item) if use_item.action_type == ItemUse::Use => {
             Some(UseRequest::UseAir)
         }
+        T::ItemUseInventoryTransaction(use_item)
+            if use_item.action_type == ItemUse::Useasattack =>
+        {
+            Some(UseRequest::AttackAir)
+        }
         T::ItemReleaseInventoryTransaction(release) => match release.action_type {
             Release::Release => Some(UseRequest::Release),
             Release::Use => Some(UseRequest::Consume),
@@ -283,4 +295,39 @@ fn air_use(
         },
         _ => None,
     }
+}
+
+/// A client whose input was malformed: its later packets are ignored.
+#[derive(bevy_ecs::prelude::Component)]
+struct MalformedInput;
+
+/// Whether an input carries a `CreativeDestroyBlock` block action, which BDS
+/// cannot read in a `PlayerAuthInput` (captured with
+/// `tools/bds-sweep/scripts/breaking-2.txt`).
+fn has_creative_destroy(input: &jolyne::valentine::PlayerAuthInputPacket) -> bool {
+    input.player_block_actions.as_ref().is_some_and(|actions| {
+        actions.iter().any(|action| {
+            action.player_action_type
+                == jolyne::valentine::types::EnumsPlayerActionType::Creativedestroyblock
+        })
+    })
+}
+
+/// BDS answers such an input as a malformed packet: this terminating warning
+/// (the network loop then closes the connection), and nothing of the input
+/// is applied.
+fn refuse_malformed_input(world: &mut bevy_ecs::world::World, entity: bevy_ecs::prelude::Entity) {
+    use jolyne::valentine::{EnumsPacketViolationSeverity, EnumsPacketViolationType};
+    world.entity_mut(entity).insert(MalformedInput);
+    let Some(session) = world.get::<crate::entity::components::PlayerSession>(entity) else {
+        return;
+    };
+    let _ = session.send(McpePacket::from(
+        crate::network::violation::packet_violation(
+            EnumsPacketViolationType::Packetmalformed,
+            EnumsPacketViolationSeverity::Terminatingconnection,
+            144,
+            Some("PlayerAuthInputPacket: unsupported player block action type"),
+        ),
+    ));
 }

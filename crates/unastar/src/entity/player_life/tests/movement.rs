@@ -678,7 +678,7 @@ fn feather_falling_softens_a_fall() {
     let player = h.player;
     let boots = crate::item::enchant::with_enchantments(
         &stack("minecraft:diamond_boots", 1),
-        &[(crate::item::enchant::Enchantment::FeatherFalling, 4)],
+        [(unastar_rules::ids::Enchantment::FeatherFalling, 4)],
     );
     h.world()
         .get_mut::<ArmourInventory>(player)

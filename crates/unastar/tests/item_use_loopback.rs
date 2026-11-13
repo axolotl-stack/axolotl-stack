@@ -306,22 +306,34 @@ fn eat_mine_and_shoot_over_loopback() {
         })
         .await;
         send(&mut client, release(2)).await;
-        recv_until(&mut client, "arrow flies", |data| match data {
-            McpePacketData::AddActorPacket(actor) if &*actor.actor_type == "minecraft:arrow" => {
-                Some(())
-            }
-            _ => None,
-        })
-        .await;
-        recv_until(&mut client, "cow is hurt", |data| match data {
-            McpePacketData::ActorEventPacket(event)
-                if event.target_runtime_id.actor_runtime_id == cow
-                    && event.event_id == EnumsActorEvent::Hurt =>
-            {
-                Some(())
-            }
-            _ => None,
-        })
+        // The arrow is announced and the cow hurt, in either order. A full
+        // draw's critical bonus is a roll from an unseeded RNG: up to 11
+        // damage kills the cow, and a killing hit sends only its death.
+        let (mut arrow, mut hurt) = (false, false);
+        recv_until(
+            &mut client,
+            "the arrow and the cow's hurt or death",
+            |data| {
+                match data {
+                    McpePacketData::AddActorPacket(actor)
+                        if &*actor.actor_type == "minecraft:arrow" =>
+                    {
+                        arrow = true;
+                    }
+                    McpePacketData::ActorEventPacket(event)
+                        if event.target_runtime_id.actor_runtime_id == cow
+                            && matches!(
+                                event.event_id,
+                                EnumsActorEvent::Hurt | EnumsActorEvent::Death
+                            ) =>
+                    {
+                        hurt = true;
+                    }
+                    _ => {}
+                }
+                (arrow && hurt).then_some(())
+            },
+        )
         .await;
         server_task.abort();
     });
