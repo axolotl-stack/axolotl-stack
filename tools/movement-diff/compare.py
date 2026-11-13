@@ -2,6 +2,9 @@
 
     python tools/movement-diff/compare.py BDS.json UNASTAR.json BEDSIM.json [ACACIA.json] [--report OUT.md]
                                           [--scenario NAME] [--ticks]
+                                          [--worlds UNASTAR-WORLD.json BEDSIM-WORLD.json ACACIA-WORLD.json]
+                                          [--validation RUN/validation.json] [--checks CHECKS.json]
+                                          [--mutations MUTATIONS.json]
 
 Every trace file is one implementation's states after every input of every
 scenario (`movement-diff simulate`, `movement-diff extract`, the bedsim
@@ -15,6 +18,14 @@ For each scenario and pair of implementations the report gives the first
 tick and field where they differ, by how much (absolute and in f32 ULPs),
 and how many ticks agree. `--ticks` adds every differing tick of the chosen
 scenario.
+
+`--worlds` takes each runner's dump of its scenario worlds (`movement-diff
+world`, the bedsim runner's and the acacia runner's `--world-out`): a
+scenario whose world a runner builds differently from unastar's (BDS's
+shapes and friction) is marked "runner world" for that runner, so a
+divergence it causes is not read as the library's physics. `--validation`,
+`--checks` and `--mutations` add the harness validation section. A report's
+text from the `MANUAL` marker on is kept when the report is rewritten.
 """
 
 from __future__ import annotations
@@ -117,11 +128,72 @@ def verdict(diffs: list[Difference], compared: int) -> str:
     return f'differs t{first.tick} {first.field}'
 
 
-def report(traces: dict[str, dict], only: str | None, ticks: bool) -> str:
+MANUAL = '<!-- manual: everything below is hand-written and kept by compare.py -->'
+
+
+def world_differences(worlds: dict[str, dict]) -> dict[str, dict[str, list[str]]]:
+    """Per runner and scenario, the cells whose boxes or friction differ from unastar's world."""
+    base = worlds.get('unastar', {}).get('scenarios', {})
+    out: dict[str, dict[str, list[str]]] = {}
+    for runner, data in worlds.items():
+        if runner == 'unastar':
+            continue
+        for name, cells in data['scenarios'].items():
+            ours = base.get(name, {})
+            diffs = []
+            for pos in sorted(set(ours) | set(cells)):
+                a, b = ours.get(pos), cells.get(pos)
+                if a is None or b is None:
+                    plain = runner if a else 'unastar'
+                    diffs.append(f'{pos} {(a or b)["block"]}: a plain full cube of friction 0.6 to {plain} only')
+                elif sorted(map(tuple, a['boxes'])) != sorted(map(tuple, b['boxes'])):
+                    diffs.append(f'{pos} {a["block"]}: boxes {b["boxes"]} instead of {a["boxes"]}')
+                elif abs(a['friction'] - b['friction']) > 1e-7:
+                    diffs.append(f'{pos} {a["block"]}: friction {b["friction"]} instead of {a["friction"]}')
+            if diffs:
+                out.setdefault(runner, {})[name] = diffs
+    return out
+
+
+def validation_section(validation: dict | None, checks: dict | None, mutations: dict | None) -> list[str]:
+    """The harness validation results, from the run's checks, the other runs and the mutation check."""
+    lines = ['', '## Harness validation', '']
+    if validation:
+        runs = validation['scenarios']
+        failed = {n: v for n, v in runs.items() if v['setup'] or v['inputs'] or v['relays'] != v['ticks']}
+        relays = sum(v['relays'] for v in runs.values())
+        ticks = sum(v['ticks'] for v in runs.values())
+        lines.append(f'- **Setup, inputs and relays** (the committed run\'s `validation.json`): '
+                     f'{len(runs) - len(failed)} of {len(runs)} scenarios played exactly as the corpus says '
+                     f'(world, effects, chest slot, start teleport; every input\'s move vector, rotation and keys); '
+                     f'{relays} relays for {ticks} inputs.')
+        for name, v in sorted(failed.items()):
+            lines.append(f'  - `{name}`: ' + '; '.join(v['setup'] + v['inputs'][:3]))
+    if checks:
+        for run in checks['runs']:
+            differs = run.get('differs', {})
+            same = len(run['digests']) - len(differs)
+            lines.append(f'- **{run["check"]}** (`{run["run"]}`, offset {run["offset"]}, flags from '
+                         f'{run["flag_source"]}): {same} of {len(run["digests"])} scenarios bit-identical '
+                         f'to the committed run.')
+            for name, why in sorted(differs.items()):
+                lines.append(f'  - `{name}` differs: {why}')
+    if mutations:
+        lines.append(f'- **Mutations** (`mutate.py`): {mutations["caught"]} of {mutations["mutations"]} '
+                     f'caught by at least one scenario that matches BDS without them.')
+        for r in mutations['results']:
+            caught = r['caught_by']
+            text = f'caught by {len(caught)} scenarios (e.g. `{caught[0]}`)' if caught else '**missed**'
+            lines.append(f'  - {r["change"]}: {text}')
+    return lines
+
+
+def report(traces: dict[str, dict], only: str | None, ticks: bool,
+           worlds: dict[str, dict] | None = None, extra: list[str] | None = None) -> str:
     names = sorted(set().union(*(t['scenarios'].keys() for t in traces.values())))
     if only:
         names = [n for n in names if n == only]
-    lines = ['# Movement differential: BDS 1.26.51, unastar, bedsim', '']
+    lines = ['# Movement differential: BDS 1.26.51, unastar, bedsim, acacia-physics', '']
     for implementation in ORDER:
         if implementation in traces:
             lines.append(f'- **{implementation}**: {traces[implementation]["source"]}')
@@ -132,6 +204,7 @@ def report(traces: dict[str, dict], only: str | None, ticks: bool) -> str:
               '|---|---|' + '---|' * len(pairs)]
     totals = {pair: 0 for pair in pairs}
     details = []
+    runner_worlds = world_differences(worlds) if worlds else {}
     for name in names:
         row = [name]
         lengths = {len(t['scenarios'][name]['ticks']) for t in traces.values() if name in t['scenarios']}
@@ -142,7 +215,11 @@ def report(traces: dict[str, dict], only: str | None, ticks: bool) -> str:
                 continue
             diffs, compared = differences(traces[left]['scenarios'][name]['ticks'],
                                           traces[right]['scenarios'][name]['ticks'])
-            row.append(verdict(diffs, compared))
+            text = verdict(diffs, compared)
+            runner = left if right == 'bds' else None
+            if diffs and runner in runner_worlds and name in runner_worlds[runner]:
+                text += ' (runner world)'
+            row.append(text)
             if compared and not diffs:
                 totals[(left, right)] += 1
             if diffs:
@@ -156,6 +233,16 @@ def report(traces: dict[str, dict], only: str | None, ticks: bool) -> str:
                     details += [f'  - {d.describe()}' for d in diffs]
         lines.append('| ' + ' | '.join(row) + ' |')
     lines.append(f'| **equal** | {len(names)} | ' + ' | '.join(str(totals[pair]) for pair in pairs) + ' |')
+    if runner_worlds:
+        lines += ['', '## Runner world fidelity', '',
+                  'Scenarios whose world a runner builds differently from unastar\'s (BDS 1.26.51\'s shapes '
+                  'and friction). Their divergences above are marked "runner world": they come from the runner, '
+                  'not from the library\'s physics.', '']
+        for runner, scenarios in sorted(runner_worlds.items()):
+            lines.append(f'- **{runner}**: {len(scenarios)} scenarios')
+            for name, diffs in sorted(scenarios.items()):
+                lines.append(f'  - `{name}`: {len(diffs)} cells, e.g. {diffs[0]}')
+    lines += extra or []
     if details:
         lines += ['', '## Divergences', ''] + details
     return '\n'.join(lines) + '\n'
@@ -167,10 +254,30 @@ def main() -> int:
     parser.add_argument('--report', type=Path, help='write the markdown report here')
     parser.add_argument('--scenario', help='only this scenario')
     parser.add_argument('--ticks', action='store_true', help='list every differing tick')
+    parser.add_argument('--worlds', nargs='*', type=Path, default=[],
+                        help='each runner\'s world dump (movement-diff world, --world-out)')
+    parser.add_argument('--validation', type=Path, help='the committed run\'s validation.json')
+    parser.add_argument('--checks', type=Path, help='the harness checks file (movement-diff check)')
+    parser.add_argument('--mutations', type=Path, help='mutate.py\'s output')
     args = parser.parse_args()
-    text = report(load(args.traces), args.scenario, args.ticks)
+
+    def read(path: Path | None) -> dict | None:
+        return json.loads(path.read_text(encoding='utf-8')) if path else None
+
+    worlds = {}
+    for path in args.worlds:
+        data = read(path)
+        worlds[data['runner']] = data
+    extra = []
+    if args.validation or args.checks or args.mutations:
+        extra = validation_section(read(args.validation), read(args.checks), read(args.mutations))
+    text = report(load(args.traces), args.scenario, args.ticks, worlds, extra)
     if args.report:
-        args.report.write_text(text, encoding='utf-8')
+        if args.report.exists():
+            old = args.report.read_text(encoding='utf-8')
+            if MANUAL in old:
+                text += '\n' + old[old.index(MANUAL):]
+        args.report.write_text(text, encoding='utf-8', newline='\n')
     sys.stdout.write(text)
     return 0
 

@@ -2,8 +2,12 @@
 //! `Cargo.toml`) and writes its traces in the harness's format.
 //!
 //! ```text
-//! cargo run --release -- --corpus resolved.json --out acacia.json
+//! cargo run --release -- --corpus resolved.json --out acacia.json [--world-out acacia-world.json]
 //! ```
+//!
+//! A scenario with a block acacia has no physics for is skipped (listed on
+//! stderr); `--world-out` writes each scenario's blocks as the runner builds
+//! them (boxes and friction) for `compare.py --worlds`.
 //!
 //! The corpus must be `movement-diff resolve`'s: every block state spelled out
 //! and each block's collision boxes (BDS 1.26.51's shapes). The block physics
@@ -143,6 +147,7 @@ struct Traces {
 /// A cell of the scenario's world.
 #[derive(Clone)]
 struct Cell {
+    name: String,
     boxes: Vec<Aabb>,
     physics: BlockPhysics,
 }
@@ -166,18 +171,68 @@ impl WorldView for World {
     }
 }
 
+impl World {
+    /// The cells as the runner built them, but plain full cubes of friction
+    /// 0.6: world-space boxes and acacia's friction.
+    fn dump(&self) -> serde_json::Value {
+        let mut out = serde_json::Map::new();
+        for (pos, cell) in &self.cells {
+            let p = pos.map(|v| v as f32);
+            let boxes: Vec<[f32; 6]> = cell
+                .boxes
+                .iter()
+                .map(|b| {
+                    [
+                        b.min[0] + p[0],
+                        b.min[1] + p[1],
+                        b.min[2] + p[2],
+                        b.max[0] + p[0],
+                        b.max[1] + p[1],
+                        b.max[2] + p[2],
+                    ]
+                })
+                .collect();
+            let full = [p[0], p[1], p[2], p[0] + 1.0, p[1] + 1.0, p[2] + 1.0];
+            if cell.physics.liquid.is_none() && cell.physics.friction == 0.6 && boxes == [full] {
+                continue;
+            }
+            out.insert(
+                format!("{},{},{}", pos[0], pos[1], pos[2]),
+                serde_json::json!({ "block": cell.name, "boxes": boxes, "friction": cell.physics.friction }),
+            );
+        }
+        serde_json::Value::Object(out)
+    }
+}
+
 /// acacia's physics of a BDS block, or why it has none.
 fn physics(block: &Block) -> Result<BlockPhysics, String> {
     let name = block.name.strip_prefix("minecraft:").unwrap_or(&block.name);
     let flag = |state: &str| block.states.get(state).and_then(serde_json::Value::as_bool);
     let kind = match name {
-        "stone" | "glass" => "stone",
+        "stone" | "glass" | "dirt" => "stone",
         "smooth_stone_slab" => "slab",
         "oak_stairs" => "stair",
         "honey_block" => "honey",
         "web" => "web",
         "water" | "lava" | "ladder" | "vine" | "ice" | "packed_ice" | "blue_ice" | "soul_sand"
-        | "slime" | "scaffolding" => name,
+        | "slime" | "scaffolding" | "powder_snow" | "bed" => name,
+        "sweet_berry_bush" => "berry_bush",
+        "twisting_vines" | "weeping_vines" | "cave_vines" => "vine",
+        // Plain solid blocks to acacia: their shapes are BDS's.
+        "magma" | "white_carpet" | "snow_layer" | "trapdoor" | "wooden_door" | "iron_chain"
+        | "iron_bars" | "glass_pane" | "frosted_ice" => {
+            return Ok(BlockPhysics {
+                friction: if name == "frosted_ice" { 0.98 } else { 0.6 },
+                ..BlockPhysics::block()
+            });
+        }
+        "fence_gate" | "cobblestone_wall" => {
+            return Ok(BlockPhysics {
+                fence_or_wall: true,
+                ..BlockPhysics::block()
+            });
+        }
         "oak_fence" => {
             return Ok(BlockPhysics {
                 fence_or_wall: true,
@@ -204,6 +259,7 @@ fn build(scenario: &Scenario) -> Result<World, String> {
     let mut world = World::default();
     for fill in &scenario.world {
         let cell = Cell {
+            name: fill.block.name.clone(),
             boxes: fill
                 .block
                 .collision
@@ -323,8 +379,9 @@ fn main() -> ExitCode {
             .and_then(|i| args.get(i + 1))
             .cloned()
     };
+    let world_out = arg("--world-out");
     let (Some(corpus), Some(out)) = (arg("--corpus"), arg("--out")) else {
-        eprintln!("usage: acacia-runner --corpus RESOLVED.json --out ACACIA.json");
+        eprintln!("usage: acacia-runner --corpus RESOLVED.json --out ACACIA.json [--world-out WORLD.json]");
         return ExitCode::from(2);
     };
     let result = (|| -> Result<(), String> {
@@ -335,9 +392,23 @@ fn main() -> ExitCode {
             source: PINNED,
             scenarios: BTreeMap::new(),
         };
+        let mut worlds = serde_json::Map::new();
         for scenario in &corpus.scenarios {
+            let world = match build(scenario) {
+                Ok(world) => world,
+                Err(error) => {
+                    eprintln!("acacia-runner: skipping {}: {error}", scenario.name);
+                    continue;
+                }
+            };
+            worlds.insert(scenario.name.clone(), world.dump());
             let trace = run(scenario).map_err(|e| format!("scenario {}: {e}", scenario.name))?;
             traces.scenarios.insert(scenario.name.clone(), trace);
+        }
+        if let Some(path) = &world_out {
+            let value = serde_json::json!({ "runner": "acacia", "scenarios": worlds });
+            let text = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())? + "\n";
+            std::fs::write(path, text).map_err(|e| format!("{path}: {e}"))?;
         }
         let text = serde_json::to_string_pretty(&traces).map_err(|e| e.to_string())? + "\n";
         std::fs::write(&out, text).map_err(|e| format!("{out}: {e}"))

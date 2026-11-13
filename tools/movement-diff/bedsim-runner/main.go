@@ -24,6 +24,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/oomph-ac/bedsim"
+	bedsimblock "github.com/oomph-ac/bedsim/block"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
@@ -169,6 +170,39 @@ func (w blockWorld) Liquid(pos cube.Pos) (world.Liquid, bool) {
 }
 
 func floor(v float32) int { return int(math.Floor(float64(v))) }
+
+// worldCell is what one placed block is to the runner: its collision boxes
+// in world coordinates and bedsim's ground friction.
+type worldCell struct {
+	Block    string       `json:"block"`
+	Boxes    [][6]float32 `json:"boxes"`
+	Friction float32      `json:"friction"`
+}
+
+// dumpWorld lists the scenario's placed blocks as the runner sees them, but
+// plain full cubes with the ordinary 0.6 friction (harness validation:
+// compared with unastar's world by compare.py --worlds).
+func dumpWorld(w blockWorld) map[string]worldCell {
+	out := map[string]worldCell{}
+	for pos, b := range w {
+		name, _ := b.EncodeBlock()
+		cell := worldCell{Block: name, Boxes: [][6]float32{}, Friction: bedsimblock.Friction(b, name)}
+		for _, box := range w.BlockCollisions(pos) {
+			min, max := box.Min(), box.Max()
+			cell.Boxes = append(cell.Boxes, [6]float32{
+				min[0] + float32(pos[0]), min[1] + float32(pos[1]), min[2] + float32(pos[2]),
+				max[0] + float32(pos[0]), max[1] + float32(pos[1]), max[2] + float32(pos[2])})
+		}
+		full := [6]float32{float32(pos[0]), float32(pos[1]), float32(pos[2]),
+			float32(pos[0] + 1), float32(pos[1] + 1), float32(pos[2] + 1)}
+		_, liquid := b.(world.Liquid)
+		if !liquid && cell.Friction == 0.6 && len(cell.Boxes) == 1 && cell.Boxes[0] == full {
+			continue
+		}
+		out[fmt.Sprintf("%d,%d,%d", pos[0], pos[1], pos[2])] = cell
+	}
+	return out
+}
 
 type effects map[int32]int32
 
@@ -367,6 +401,7 @@ func run(s scenario) (scenarioTrace, error) {
 func main() {
 	corpusPath := flag.String("corpus", "", "resolved corpus (movement-diff resolve)")
 	outPath := flag.String("out", "", "traces to write")
+	worldPath := flag.String("world-out", "", "also write each scenario's blocks as the runner sees them")
 	flag.Parse()
 	if *corpusPath == "" || *outPath == "" {
 		flag.Usage()
@@ -386,12 +421,29 @@ func main() {
 		Source:         "oomph-ac/bedsim " + bedsimVersion(),
 		Scenarios:      map[string]scenarioTrace{},
 	}
+	worlds := map[string]map[string]worldCell{}
 	for _, s := range c.Scenarios {
+		if *worldPath != "" {
+			w, err := buildWorld(s)
+			if err != nil {
+				fail(fmt.Errorf("scenario %s: %w", s.Name, err))
+			}
+			worlds[s.Name] = dumpWorld(w)
+		}
 		trace, err := run(s)
 		if err != nil {
 			fail(fmt.Errorf("scenario %s: %w", s.Name, err))
 		}
 		out.Scenarios[s.Name] = trace
+	}
+	if *worldPath != "" {
+		encoded, err := json.MarshalIndent(map[string]any{"runner": "bedsim", "scenarios": worlds}, "", " ")
+		if err != nil {
+			fail(err)
+		}
+		if err := os.WriteFile(*worldPath, append(encoded, '\n'), 0o644); err != nil {
+			fail(err)
+		}
 	}
 	encoded, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {

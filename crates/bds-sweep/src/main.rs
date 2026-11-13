@@ -124,6 +124,27 @@ struct Args {
     /// Where to write each scenario's runtime id and first input tick.
     #[arg(long, requires = "scenarios")]
     scenario_log: Option<PathBuf>,
+    /// How far off the scenario's reported position is, per axis
+    /// (`x,y,z`; harness validation reruns with other offsets).
+    #[arg(long, requires = "scenarios", value_delimiter = ',', num_args = 1,
+          allow_hyphen_values = true, default_values_t = SCENARIO_OFFSET)]
+    scenario_offset: Vec<f32>,
+    /// Where a scenario's derived input flags come from.
+    #[arg(long, requires = "scenarios", value_enum, default_value_t = FlagSource::Simulation)]
+    flag_source: FlagSource,
+}
+
+/// How a scenario input's derived flags (`StartSprinting`, `StartJumping`,
+/// the collisions...) are chosen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum FlagSource {
+    /// From the client's own simulation, as a vanilla client derives them
+    /// from its prediction.
+    Simulation,
+    /// From the keys alone, with no simulation: starts and stops on the
+    /// key edges, no collision or swim flags (harness validation: BDS's
+    /// copy must not depend on them).
+    Keys,
 }
 
 /// A mining order in progress.
@@ -538,6 +559,8 @@ struct Player {
     drift: [f32; 3],
     /// The movement corpus being played (`--scenarios`).
     script: Option<Script>,
+    /// The controls of the last input.
+    previous_controls: Controls,
     /// The login identity, the origin of the commands this client sends.
     uuid: uuid::Uuid,
 }
@@ -549,6 +572,54 @@ struct Player {
 /// horizontal position within 0.1 of its copy on each horizontal axis even
 /// when the height is 3 blocks off.
 const SCENARIO_OFFSET: [f32; 3] = [3.0, 3.0, 3.0];
+
+/// The input flags a client with no simulation sends for `controls`, after
+/// `previous`: the keys and their edges only.
+fn key_flags(
+    controls: &Controls,
+    previous: &Controls,
+    glide: bool,
+    teleported: bool,
+) -> Vec<EnumsPlayerAuthInputPacketPayloadInputData> {
+    use EnumsPlayerAuthInputPacketPayloadInputData as Flag;
+    let (forward, strafe) = (controls.forward, controls.strafe);
+    let sprinting = controls.sprint && forward > 0.0 && !controls.sneak;
+    let was_sprinting = previous.sprint && previous.forward > 0.0 && !previous.sneak;
+    [
+        (forward > 0.0, Flag::Up),
+        (forward < 0.0, Flag::Down),
+        (strafe > 0.0, Flag::Left),
+        (strafe < 0.0, Flag::Right),
+        (forward > 0.0 && strafe > 0.0, Flag::Upleft),
+        (forward > 0.0 && strafe < 0.0, Flag::Upright),
+        (forward < 0.0 && strafe > 0.0, Flag::Downleft),
+        (forward < 0.0 && strafe < 0.0, Flag::Downright),
+        (controls.sprint, Flag::Sprintdown),
+        (sprinting, Flag::Sprinting),
+        (sprinting && !was_sprinting, Flag::Startsprinting),
+        (!sprinting && was_sprinting, Flag::Stopsprinting),
+        (controls.sneak, Flag::Sneakdown),
+        (controls.sneak, Flag::Sneakcurrentraw),
+        (controls.sneak, Flag::Sneaking),
+        (controls.sneak && !previous.sneak, Flag::Startsneaking),
+        (controls.sneak && !previous.sneak, Flag::Sneakpressedraw),
+        (!controls.sneak && previous.sneak, Flag::Stopsneaking),
+        (!controls.sneak && previous.sneak, Flag::Sneakreleasedraw),
+        (glide, Flag::Startgliding),
+        (controls.jump, Flag::Jumpdown),
+        (controls.jump, Flag::Jumping),
+        (controls.jump, Flag::Jumpcurrentraw),
+        (controls.jump && !previous.jump, Flag::Jumppressedraw),
+        (!controls.jump && previous.jump, Flag::Jumpreleasedraw),
+        (controls.jump && !previous.jump, Flag::Startjumping),
+        (teleported, Flag::Handledteleport),
+    ]
+    .into_iter()
+    .filter_map(|(on, flag)| on.then_some(flag))
+    .collect()
+}
+/// Idle inputs between a scenario's last input and the next setup.
+const SCENARIO_LEAD: u32 = 3;
 /// Inputs to wait after a scenario's setup commands for their blocks.
 const SCENARIO_SETTLE: u32 = 20;
 /// Where the player waits while a scenario is built.
@@ -559,6 +630,9 @@ const LOBBY: &str = "/tp @s -14.5 100 10.5 0 0";
 /// second input after the teleport (BDS rests the first) play its inputs.
 struct Script {
     scenarios: Vec<scenario::Scenario>,
+    /// The reported position's offset while a scenario plays.
+    offset: [f32; 3],
+    flags: FlagSource,
     next: usize,
     stage: Stage,
     runs: Vec<scenario::ScenarioRun>,
@@ -570,6 +644,11 @@ enum Stage {
     Waiting,
     /// One command per input, then `settle` inputs for the blocks.
     Setup {
+        /// Idle inputs before the first command: BDS may run a command
+        /// before it simulates an input that arrived in the same tick, so a
+        /// lobby teleport right after a scenario's last input could move the
+        /// player before that input's move.
+        lead: u32,
         commands: VecDeque<String>,
         settle: u32,
     },
@@ -593,14 +672,23 @@ struct ScriptTick {
     input: Option<scenario::TickInput>,
     /// Commands to send after the input.
     commands: Vec<String>,
+    /// Turn to this yaw and pitch from the next input on.
+    look: Option<(f32, f32)>,
 }
 
 impl Script {
-    fn load(path: &std::path::Path, log: Option<PathBuf>) -> Result<Self> {
+    fn load(
+        path: &std::path::Path,
+        log: Option<PathBuf>,
+        offset: [f32; 3],
+        flags: FlagSource,
+    ) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         Ok(Self {
             scenarios: scenario::Corpus::parse(&text)?.scenarios,
+            offset,
+            flags,
             next: 0,
             stage: Stage::Waiting,
             runs: Vec::new(),
@@ -631,6 +719,7 @@ impl Script {
         commands.extend(scenario.setup_commands()?);
         info!(scenario = scenario.name, "setting up");
         self.stage = Stage::Setup {
+            lead: SCENARIO_LEAD,
             commands,
             settle: SCENARIO_SETTLE,
         };
@@ -655,13 +744,23 @@ impl Script {
         match &mut self.stage {
             Stage::Waiting => {}
             Stage::Done { linger } => *linger = linger.saturating_sub(1),
-            Stage::Setup { commands, settle } => {
-                if let Some(command) = commands.pop_front() {
+            Stage::Setup {
+                lead,
+                commands,
+                settle,
+            } => {
+                if *lead > 0 {
+                    *lead -= 1;
+                } else if let Some(command) = commands.pop_front() {
                     out.commands.push(command);
                 } else if *settle > 0 {
                     *settle -= 1;
                 } else {
-                    out.commands.push(self.scenarios[self.next].start_command());
+                    let scenario = &self.scenarios[self.next];
+                    out.commands.push(scenario.start_command());
+                    // Inputs sent before the teleport arrives already face the
+                    // start's way, as the scenario's first inputs must.
+                    out.look = Some((scenario.start.yaw, scenario.start.pitch));
                     self.stage = Stage::Teleport { waited: 0 };
                 }
             }
@@ -808,6 +907,7 @@ impl Player {
             offset: [0.0; 3],
             drift: [0.0; 3],
             script: None,
+            previous_controls: Controls::default(),
             uuid,
         }
     }
@@ -1235,13 +1335,19 @@ impl Player {
             Some(script) => Some(script.tick(self.tick, self.runtime_id)?),
             None => None,
         };
+        if let Some((yaw, pitch)) = script.as_ref().and_then(|tick| tick.look) {
+            self.controls.yaw = yaw;
+            self.controls.pitch = pitch;
+        }
         if let Some(script) = &script {
             match script.input {
                 Some(input) => {
                     self.controls = input.controls;
                     self.jump_ticks = u32::from(input.controls.jump);
                     self.glide |= input.glide;
-                    self.offset = SCENARIO_OFFSET;
+                    if let Some(script) = &self.script {
+                        self.offset = script.offset;
+                    }
                 }
                 None => {
                     self.controls = Controls {
@@ -1256,6 +1362,13 @@ impl Player {
         self.follow_late_teleport();
         let walk = self.walk_input();
         let controls = self.tick_controls();
+        let previous = std::mem::replace(&mut self.previous_controls, controls);
+        let key_derived = script.as_ref().is_some_and(|tick| tick.input.is_some())
+            && self
+                .script
+                .as_ref()
+                .is_some_and(|script| script.flags == FlagSource::Keys);
+        let glide_key = self.glide;
         let started_gliding = std::mem::take(&mut self.glide)
             && !self.body.on_ground
             && !self.body.gliding
@@ -1300,6 +1413,7 @@ impl Player {
             .into_iter()
             .filter_map(|(on, flag)| on.then_some(flag))
             .collect(),
+            None if key_derived => key_flags(&controls, &previous, glide_key, teleported),
             None => movement_flags(
                 &controls,
                 &self.body,
@@ -1742,7 +1856,11 @@ async fn run(args: Args) -> Result<()> {
     let script = args
         .scenarios
         .as_deref()
-        .map(|path| Script::load(path, args.scenario_log.clone()))
+        .map(|path| {
+            let offset = <[f32; 3]>::try_from(args.scenario_offset.as_slice())
+                .context("--scenario-offset takes x,y,z")?;
+            Script::load(path, args.scenario_log.clone(), offset, args.flag_source)
+        })
         .transpose()?;
     let recorder = args
         .capture_dir

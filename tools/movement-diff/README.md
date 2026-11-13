@@ -59,8 +59,26 @@ target/debug/movement-diff resolve --corpus tools/movement-diff/corpus.json --ou
 BDS_RUNTIME=.../bds-slots/slotN BDS_PORT=... python tools/movement-diff/bds_run.py [--only NAME ...]
 # acacia-physics (its own Cargo project and toolchain, outside the workspace)
 (cd tools/movement-diff/acacia-runner && CARGO_BUILD_JOBS=4 cargo run --release -- --corpus ../../../resolved.json --out ../../../acacia.json)
-# compare
-python tools/movement-diff/compare.py RUN/bds.json unastar.json bedsim.json acacia.json --report report.md [--scenario NAME --ticks]
+# the runners' worlds, for the runner-world check
+target/debug/movement-diff world --corpus tools/movement-diff/corpus.json --out unastar-world.json
+(cd tools/movement-diff/bedsim-runner && go run . -corpus ../../../resolved.json -out ../../../bedsim.json -world-out ../../../bedsim-world.json)
+(cd tools/movement-diff/acacia-runner && cargo run --release -- --corpus ../../../resolved.json --out ../../../acacia.json --world-out ../../../acacia-world.json)
+# compare, with the harness validation section
+python tools/movement-diff/compare.py RUN/bds.json unastar.json bedsim.json acacia.json --report tools/movement-diff/report.md     --worlds unastar-world.json bedsim-world.json acacia-world.json --validation RUN/validation.json     --checks crates/bds-sweep/testdata/bds-1.26.51-movement-diff-checks.json --mutations tools/movement-diff/mutations.json
+# harness checks: another session, another offset, flags from the keys alone
+python tools/movement-diff/bds_run.py --out RUN2
+python tools/movement-diff/bds_run.py --out RUN3 --offset=-5,5,-4
+python tools/movement-diff/bds_run.py --out RUN4 --flag-source keys
+target/debug/movement-diff check --traces RUN2/bds.json --against crates/bds-sweep/testdata/bds-1.26.51-movement-diff.json     --check repeat --offset 3,3,3 --into crates/bds-sweep/testdata/bds-1.26.51-movement-diff-checks.json
+# velocity on every input
+target/debug/movement-diff shift --corpus tools/movement-diff/corpus.json --shifts 1,2,3,4,5 --out shifted.json
+python tools/movement-diff/bds_run.py --corpus shifted.json --out RUN5
+target/debug/movement-diff velocities --base crates/bds-sweep/testdata/bds-1.26.51-movement-diff.json     --shifted RUN5/bds.json --out crates/bds-sweep/testdata/bds-1.26.51-movement-diff-velocities.json
+# random scenarios
+target/debug/movement-diff random --first 1 --last 200 --out random.json
+python tools/movement-diff/bds_run.py --corpus random.json --out RUN6
+# mutation check
+python tools/movement-diff/mutate.py
 ```
 
 A full BDS run of the corpus takes about 6 minutes (one scenario after another, about 30 setup
@@ -142,6 +160,75 @@ the box touches water. The glide is requested from its press on. The effects go 
 
 `report.md` ends with a hand-written assessment of acacia against BDS ("How close is
 acacia-physics to BDS?"). Regenerating the table does not rewrite it.
+
+## Harness validation
+
+The harness is checked as hard as the simulations it compares. Each check has a test or a
+committed result; `report.md` ("Harness validation") gives the numbers of the committed run.
+
+1. **Setup.** `movement-diff extract` replays the subject's capture: every chunk, sub-chunk and
+   block update BDS sent, the effects (`MobEffect`), the chest slot and the start teleport
+   (`MovePlayer`). At each scenario's first input it compares the whole scenario area, both
+   layers, with the corpus. A position passes when it holds the corpus's block with the same
+   collision boxes, friction, movement family and liquid; a state that differs only in what does
+   not move a player (a plant's age) is logged and passes. The effects and amplifiers, the
+   chest slot and the teleport's position and rotation must equal the corpus's bit for bit. Any
+   difference fails the run (`validation.json` in the run directory says what differed;
+   `bds.invalid.json` keeps the traces for diagnosis only).
+2. **Inputs.** The same replay decodes every `PlayerAuthInput` the subject sent. Each scenario
+   tick must have exactly one input, with the corpus's move vector (sent and raw), rotation and
+   held keys (`JumpDown`, `SneakDown`, `SprintDown`, the direction flags), and no glide request
+   without the glide key.
+3. **Relays.** The viewer must have exactly one relay of every scenario input (a missing or
+   second relay fails the extraction).
+4. **Known answers.** `known_still` and `known_free_fall` have physics simple enough to write
+   down independently of unastar: a body standing on stone, and a fall from rest
+   (`v = (v - 0.08) × 0.98` in `f32`, the first input resting as the teleport leaves it). The
+   test `bds_reads_the_known_answers_bit_for_bit` works the answers out on its own and requires
+   BDS's positions, ground contact and corrected velocities to equal them bit for bit. This
+   checks the whole reading path: the relays, the corrections, the wire offset and the tick
+   alignment.
+5. **Repeatability and offset independence.** The corpus is played again in fresh BDS sessions:
+   once as committed (offset 3, 3, 3), once with the reported position off by (-5, 5, -4) (other
+   signs, sizes and axis order). `movement-diff check` reduces each run to one SHA-256 per
+   scenario over every exact value of its trace
+   (`crates/bds-sweep/testdata/bds-1.26.51-movement-diff-checks.json`), and the test
+   `other_bds_runs_give_the_committed_traces` requires every scenario to be bit-identical to the
+   committed run, except the scenarios a run lists with the reason it differs.
+6. **Flag derivation.** The subject derives its derived flags (`StartSprinting`, `StartJumping`,
+   the collision flags...) from unastar's simulation, as a vanilla client derives them from its
+   prediction. A third run takes them from the keys alone (`--flag-source keys`: starts and stops
+   on the key edges, no collision or swim flags). Every scenario whose trace stays bit-identical
+   does not depend on the derived flags at all; the others are listed with what BDS took from
+   the flag.
+7. **Runner worlds.** `movement-diff world` and the runners' `--world-out` write each scenario's
+   blocks as each implementation builds them (world-space boxes and friction, plain full cubes
+   left out). `compare.py --worlds` marks a scenario "runner world" for a runner whose world
+   differs from unastar's (BDS's shapes), so a divergence the runner causes is not reported as
+   the library's physics.
+8. **Mutations.** `mutate.py` changes the simulation a little (a constant one `f32` ULP off, two
+   operations swapped, a threshold moved), plays the corpus and lists the scenarios that catch
+   each change (`mutations.json`). A mutation no scenario catches is a blind spot, and the next
+   scenario to write.
+9. **CI.** `cargo test -p bds-sweep` runs the replay, known-answer and other-run tests; the
+   `movement-harness` job runs `test_compare.py` and the bedsim runner's `go vet` and `go test`.
+
+### Velocity on every input
+
+BDS corrects at most every sixth input, counted from the scenario's start, so its velocity shows
+on one input in six. `movement-diff shift --shifts 1,2,3,4,5` writes the corpus again with one to
+five more idle inputs before each scenario; BDS then corrects other inputs of the same movement.
+`movement-diff velocities` merges the shifted run with the committed one: for every scenario
+whose shifted copies move exactly as the original (positions and ground contact bit for bit,
+which holds for a player resting on the ground at the start), it gives BDS's velocity after every
+input (`crates/bds-sweep/testdata/bds-1.26.51-movement-diff-velocities.json`), and the replay
+test compares unastar's velocity on every one of those inputs. A scenario whose start is not at
+rest (a fall from a teleport in the air, levitation, liquids) moves during the extra idle inputs
+and keeps one velocity in six.
+
+Deriving the velocity from consecutive positions is not exact: the wire position is the feet
+plus 1.62001 rounded to `f32`, and the feet are the centre of a translated box, so a position
+difference is the velocity only up to the rounding of two sums (several ULPs at y 100).
 
 ## Known gaps
 

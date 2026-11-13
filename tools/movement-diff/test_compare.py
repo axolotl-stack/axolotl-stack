@@ -41,6 +41,51 @@ class CompareTest(unittest.TestCase):
     def test_f32_text_is_the_shortest_round_trip(self):
         self.assertEqual(compare.f32_text(struct.unpack('<f', struct.pack('<f', 0.1))[0]), '0.1')
 
+    def test_runner_worlds_are_compared_with_unastars(self):
+        cell = {'block': 'minecraft:oak_fence', 'boxes': [[0, 100, 0.375, 1, 101.5, 0.625]], 'friction': 0.6}
+        post = {'block': 'minecraft:oak_fence', 'boxes': [[0.375, 100, 0.375, 0.625, 101.5, 0.625]], 'friction': 0.6}
+        worlds = {
+            'unastar': {'runner': 'unastar', 'scenarios': {'fence': {'0,100,0': cell}, 'flat': {}}},
+            'bedsim': {'runner': 'bedsim', 'scenarios': {'fence': {'0,100,0': post}, 'flat': {}}},
+            'acacia': {'runner': 'acacia', 'scenarios': {'fence': {'0,100,0': cell}, 'flat': {'1,99,1': cell}}},
+        }
+        diffs = compare.world_differences(worlds)
+        self.assertEqual(sorted(diffs), ['acacia', 'bedsim'])
+        self.assertEqual(list(diffs['bedsim']), ['fence'])
+        self.assertIn('boxes', diffs['bedsim']['fence'][0])
+        self.assertIn('plain full cube', diffs['acacia']['flat'][0])
+
+    def test_a_runner_world_divergence_is_labelled(self):
+        traces = {
+            'bds': {'source': 'b', 'scenarios': {'fence': {'ticks': [state(1, 0.5)]}}},
+            'bedsim': {'source': 's', 'scenarios': {'fence': {'ticks': [state(1, 0.6)]}}},
+        }
+        worlds = {
+            'unastar': {'runner': 'unastar', 'scenarios': {'fence': {}}},
+            'bedsim': {'runner': 'bedsim', 'scenarios': {'fence': {'0,100,0': {
+                'block': 'minecraft:oak_fence', 'boxes': [], 'friction': 0.6}}}},
+        }
+        text = compare.report(traces, None, False, worlds)
+        self.assertIn('differs t1 position.z (runner world)', text)
+        self.assertIn('## Runner world fidelity', text)
+
+    def test_validation_results_are_reported_with_numbers(self):
+        validation = {'scenarios': {
+            'a': {'setup': [], 'inputs': [], 'relays': 3, 'ticks': 3, 'flags': []},
+            'b': {'setup': ['1 blocks differ'], 'inputs': [], 'relays': 2, 'ticks': 2, 'flags': []},
+        }}
+        checks = {'runs': [{'check': 'repeat', 'run': 'r2', 'offset': [3, 3, 3], 'flag_source': 'simulation',
+                            'digests': {'a': 'x', 'b': 'y'}, 'differs': {'b': 'why'}}]}
+        mutations = {'caught': 1, 'mutations': 2, 'results': [
+            {'mutation': 'm1', 'change': 'gravity', 'caught_by': ['a']},
+            {'mutation': 'm2', 'change': 'nothing', 'caught_by': []}]}
+        text = '\n'.join(compare.validation_section(validation, checks, mutations))
+        self.assertIn('1 of 2 scenarios played exactly', text)
+        self.assertIn('5 relays for 5 inputs', text)
+        self.assertIn('1 of 2 scenarios bit-identical', text)
+        self.assertIn('1 of 2 caught', text)
+        self.assertIn('nothing: **missed**', text)
+
 
 if __name__ == '__main__':
     unittest.main()

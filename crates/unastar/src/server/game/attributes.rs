@@ -8,17 +8,21 @@
 //! sent, one packet per player per tick, from [`sync_player_attributes`], to
 //! the player and the players that see it (BDS 1.26.51 sends a player's
 //! health, exhaustion and movement to its viewers too; movement capture).
-//! A sprinting player's movement is 0.13 with BDS's sprint modifier. Experience
-//! is sent by the experience code itself (`entity::xp_orb`).
+//! A sprinting player's movement is 0.13 with BDS's sprint modifier, and the
+//! speed and slowness effects add their own modifiers (BDS 1.26.51 movement
+//! differential: 0.14 for speed II, 0.07 for slowness II, 0.182 and 0.091
+//! sprinting, each modifier listed). Experience is sent by the experience
+//! code itself (`entity::xp_orb`).
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
 use crate::entity::components::{
-    ActorViewers, Health, Hunger, Player, PlayerInput, PlayerSession, PlayerState, Position,
-    RuntimeEntityId,
+    ActorViewers, Effects, Health, Hunger, Player, PlayerInput, PlayerSession, PlayerState,
+    Position, RuntimeEntityId,
 };
+use crate::entity::player_life::authority::movement_effects_of;
 use crate::entity::send_range::Candidates;
 
 /// Maximum food level.
@@ -38,6 +42,36 @@ pub const WALK_SPEED: f32 = 0.1;
 const SPRINT_MODIFIER_ID: &str = "d208fc00-42aa-4aad-9276-d5446530de43";
 const SPRINT_MODIFIER_NAME: &str = "Sprinting speed boost";
 const SPRINT_BOOST: f32 = 0.3;
+/// The speed effect's modifier: +20 % a level (operation and operand 2).
+const SPEED_MODIFIER_ID: &str = "91aeaa56-376b-4498-935b-2f7f68070635";
+const SPEED_MODIFIER_NAME: &str = "MovementSpeed";
+const SPEED_STEP: f32 = 0.2;
+/// The slowness effect's modifier: -15 % a level.
+const SLOWNESS_MODIFIER_ID: &str = "7107de5e-7ce8-4030-940e-514c1f160890";
+const SLOWNESS_MODIFIER_NAME: &str = "MovementSlowdown";
+const SLOWNESS_STEP: f32 = -0.15;
+
+/// What the movement attribute says: the sprint and the speed and slowness
+/// levels (1-based, 0 for none).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Movement {
+    pub sprinting: bool,
+    pub speed: u8,
+    pub slowness: u8,
+}
+
+impl Movement {
+    /// The value: the simulation's own speed for these effects and sprint,
+    /// so the client is told the speed the server moves its copy with.
+    pub fn value(self) -> f32 {
+        let walk = unastar_rules::movement::walk_speed(self.speed, self.slowness);
+        if self.sprinting {
+            walk * unastar_rules::movement::SPRINT_MULTIPLIER
+        } else {
+            walk
+        }
+    }
+}
 
 fn attr(name: &str, current: f32, max: f32, default: f32) -> AttributeData {
     AttributeData {
@@ -87,21 +121,39 @@ pub fn exhaustion(hunger: &Hunger) -> AttributeData {
     )
 }
 
-/// `minecraft:movement` of a player, sprinting or not (BDS 1.26.51: 0.13
-/// with the sprint modifier, 0.1 without).
-pub fn movement(sprinting: bool) -> AttributeData {
-    let mut data = attr("minecraft:movement", WALK_SPEED, f32::MAX, WALK_SPEED);
-    if sprinting {
-        data.current_value = WALK_SPEED * (1.0 + SPRINT_BOOST);
-        data.modifiers
-            .push(jolyne::valentine::types::AttributeModifier {
-                id: SPRINT_MODIFIER_ID.into(),
-                name: SPRINT_MODIFIER_NAME.into(),
-                amount: SPRINT_BOOST,
-                operation: 2,
-                operand: 2,
-                is_serializable: false,
-            });
+/// `minecraft:movement` of a player (BDS 1.26.51: 0.1 with no modifier, the
+/// effects' modifiers in the order speed, slowness, then the sprint's).
+pub fn movement(state: Movement) -> AttributeData {
+    let mut data = attr("minecraft:movement", state.value(), f32::MAX, WALK_SPEED);
+    let modifier =
+        |id: &str, name: &str, amount: f32| jolyne::valentine::types::AttributeModifier {
+            id: id.into(),
+            name: name.into(),
+            amount,
+            operation: 2,
+            operand: 2,
+            is_serializable: false,
+        };
+    if state.speed > 0 {
+        data.modifiers.push(modifier(
+            SPEED_MODIFIER_ID,
+            SPEED_MODIFIER_NAME,
+            SPEED_STEP * f32::from(state.speed),
+        ));
+    }
+    if state.slowness > 0 {
+        data.modifiers.push(modifier(
+            SLOWNESS_MODIFIER_ID,
+            SLOWNESS_MODIFIER_NAME,
+            SLOWNESS_STEP * f32::from(state.slowness),
+        ));
+    }
+    if state.sprinting {
+        data.modifiers.push(modifier(
+            SPRINT_MODIFIER_ID,
+            SPRINT_MODIFIER_NAME,
+            SPRINT_BOOST,
+        ));
     }
     data
 }
@@ -118,8 +170,8 @@ pub struct SentAttributes {
     food: Option<i32>,
     saturation: Option<f32>,
     exhaustion: Option<f32>,
-    /// The movement attribute: sprinting or not.
-    movement: Option<bool>,
+    /// The movement attribute.
+    movement: Option<Movement>,
 }
 
 impl SentAttributes {
@@ -132,7 +184,7 @@ impl SentAttributes {
             food: Some(hunger.food_level),
             saturation: Some(hunger.saturation),
             exhaustion: Some(hunger.exhaustion),
-            movement: Some(false),
+            movement: Some(Movement::default()),
         }
     }
 
@@ -153,12 +205,12 @@ impl SentAttributes {
         health: &Health,
         hunger: &Hunger,
         absorb: f32,
-        sprinting: bool,
+        moving: Movement,
     ) -> Vec<AttributeData> {
         let mut out = Vec::new();
-        if self.movement != Some(sprinting) {
-            self.movement = Some(sprinting);
-            out.push(movement(sprinting));
+        if self.movement != Some(moving) {
+            self.movement = Some(moving);
+            out.push(movement(moving));
         }
         if self.health != Some((health.current, health.max)) {
             self.health = Some((health.current, health.max));
@@ -200,6 +252,7 @@ pub fn sync_player_attributes(
         &Hunger,
         Option<&Absorption>,
         Option<&PlayerState>,
+        Option<&Effects>,
         Option<&Position>,
         Option<&ActorViewers>,
         &mut SentAttributes,
@@ -220,13 +273,19 @@ pub fn sync_player_attributes(
         hunger,
         absorb,
         state,
+        effects,
         position,
         shown_to,
         mut sent,
     ) in &mut players
     {
-        let sprinting = state.is_some_and(|state| state.sprinting);
-        let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0), sprinting);
+        let levels = movement_effects_of(effects);
+        let moving = Movement {
+            sprinting: state.is_some_and(|state| state.sprinting),
+            speed: levels.speed,
+            slowness: levels.slowness,
+        };
+        let changed = sent.diff(health, hunger, absorb.map_or(0.0, |a| a.0), moving);
         if changed.is_empty() {
             continue;
         }
@@ -279,11 +338,14 @@ mod tests {
         let health = Health::new(20.0);
         let mut hunger = Hunger::default();
         let mut sent = SentAttributes::sent(&health, &hunger, 0.0);
-        assert!(sent.diff(&health, &hunger, 0.0, false).is_empty());
+        assert!(
+            sent.diff(&health, &hunger, 0.0, Movement::default())
+                .is_empty()
+        );
         hunger.food_level = 17;
         hunger.exhaustion = 0.5;
         let names: Vec<_> = sent
-            .diff(&health, &hunger, 0.0, false)
+            .diff(&health, &hunger, 0.0, Movement::default())
             .into_iter()
             .map(|a| a.name.to_string())
             .collect();
@@ -291,6 +353,38 @@ mod tests {
             names,
             ["minecraft:player.hunger", "minecraft:player.exhaustion"]
         );
-        assert!(sent.diff(&health, &hunger, 0.0, false).is_empty());
+        assert!(
+            sent.diff(&health, &hunger, 0.0, Movement::default())
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn effect_modifiers_are_listed_as_bds_sends_them() {
+        let slowed = movement(Movement {
+            sprinting: true,
+            speed: 0,
+            slowness: 2,
+        });
+        // BDS 1.26.51 (movement differential, slowness_sprint): 0.091,
+        // MovementSlowdown -0.3 then the sprint's 0.3.
+        assert_eq!(slowed.current_value, 0.091);
+        let names: Vec<_> = slowed
+            .modifiers
+            .iter()
+            .map(|m| (&*m.name, m.amount))
+            .collect();
+        assert_eq!(
+            names,
+            [("MovementSlowdown", -0.3), ("Sprinting speed boost", 0.3)]
+        );
+        let fast = movement(Movement {
+            sprinting: false,
+            speed: 2,
+            slowness: 0,
+        });
+        assert_eq!(fast.current_value, 0.14);
+        assert_eq!(fast.modifiers[0].id, "91aeaa56-376b-4498-935b-2f7f68070635");
+        assert_eq!(movement(Movement::default()).modifiers.len(), 0);
     }
 }

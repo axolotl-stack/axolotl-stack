@@ -450,19 +450,26 @@ fn a_survival_client_cannot_fly() {
 }
 
 /// A sprint the copy picks up after trusted inputs keeps its speed: a
-/// client that starts sprinting under an effect the copy trusts
-/// (levitation) goes on sprinting once the effect ends, and the copy
+/// client that starts sprinting beside a block the copy trusts (bubble
+/// columns) goes on sprinting once the blocks are gone, and the copy
 /// follows it exactly, without a correction.
 #[test]
 fn a_sprint_goes_on_after_trusted_inputs() {
-    use crate::entity::components::{EffectType, Effects};
     let mut h = harness_sized(Difficulty::Easy, 4, 4);
-    let player = h.player;
     let start = h.feet();
     h.put(start);
-    let mut effects = Effects::new();
-    effects.add(EffectType::LEVITATION, 0, 100_000);
-    h.world().entity_mut(player).insert(effects);
+    let column = h
+        .world()
+        .resource::<crate::server::game::types::BlockRegistryResource>()
+        .0
+        .default_state_id_by_name("minecraft:bubble_column")
+        .unwrap();
+    let beside: Vec<IVec3> = (0..4)
+        .map(|z| start.floor().as_ivec3() + IVec3::new(1, 0, z))
+        .collect();
+    for &pos in &beside {
+        h.set_block(pos, column);
+    }
     let mut client = unastar_rules::movement::Body::at(start.as_vec3().to_array());
     client.on_ground = true;
     let controls = unastar_rules::movement::Controls {
@@ -473,14 +480,16 @@ fn a_sprint_goes_on_after_trusted_inputs() {
     let mut sent = 0;
     for tick in 1..=40 {
         if tick == 10 {
-            h.world().entity_mut(player).insert(Effects::new());
+            for &pos in &beside {
+                h.set_block(pos, *blocks::AIR);
+            }
         }
         let input = h.predict(&mut client, &controls, tick);
         h.route(input);
         h.tick();
         let judged = judgement(&mut h);
         if tick < 10 {
-            assert_eq!(judged, Judgement::Trusted(Trust::Effect), "input {tick}");
+            assert_eq!(judged, Judgement::Trusted(Trust::Block), "input {tick}");
         } else {
             assert!(
                 matches!(judged, Judgement::Judged(_)),
@@ -673,11 +682,11 @@ fn a_riptide_spin_is_trusted_for_twenty_inputs() {
 }
 
 /// Inputs the simulation does not reproduce are trusted, each for its
-/// reason, and only where it applies: levitation, slowness, swift sneak sneaking,
-/// depth strider next to water, soul speed on soul soil, a riptide
-/// trident's spin started in water, a block at eye height (a crawl space),
-/// scaffolding. What the movement differential verified is judged: speed,
-/// jump boost, ice, ladders, honey.
+/// reason, and only where it applies: swift sneak sneaking, depth strider
+/// next to water, soul speed on soul soil, a riptide trident's spin started
+/// in water, a block at eye height (a crawl space), a bubble column. What
+/// the movement differential verified is judged: speed, slowness,
+/// levitation, jump boost, ice, ladders, honey, scaffolding, lava.
 #[test]
 fn situations_the_simulation_does_not_cover_are_trusted() {
     use crate::entity::components::{
@@ -706,7 +715,7 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
 
     type Setup = fn(&mut Harness) -> Vec<Flag>;
     type Case = (&'static str, Setup, Option<Trust>);
-    let cases: [Case; 19] = [
+    let cases: [Case; 21] = [
         ("nothing", |_| Vec::new(), None),
         (
             "levitation",
@@ -717,7 +726,7 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
                 h.world().entity_mut(player).insert(effects);
                 Vec::new()
             },
-            Some(Trust::Effect),
+            None,
         ),
         (
             "slowness",
@@ -728,7 +737,7 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
                 h.world().entity_mut(player).insert(effects);
                 Vec::new()
             },
-            Some(Trust::Effect),
+            None,
         ),
         (
             "speed (judged: the simulation matches BDS)",
@@ -836,10 +845,28 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
             Some(Trust::Crawl),
         ),
         (
-            "scaffolding beside",
+            "scaffolding beside (judged)",
             |h| {
                 let scaffolding = block_named(h, "minecraft:scaffolding");
                 h.set_block(HOME.floor().as_ivec3() + IVec3::X, scaffolding);
+                Vec::new()
+            },
+            None,
+        ),
+        (
+            "lava beside (judged)",
+            |h| {
+                let lava = block_named(h, "minecraft:lava");
+                h.set_block(HOME.floor().as_ivec3() + IVec3::X * 2, lava);
+                Vec::new()
+            },
+            None,
+        ),
+        (
+            "a bubble column beside",
+            |h| {
+                let column = block_named(h, "minecraft:bubble_column");
+                h.set_block(HOME.floor().as_ivec3() + IVec3::X, column);
                 Vec::new()
             },
             Some(Trust::Block),
@@ -905,7 +932,8 @@ fn situations_the_simulation_does_not_cover_are_trusted() {
 
 /// The copy reads both block layers: the water of a waterlogged block (in
 /// the second layer) is water to it, as to the sweep client; flowing water
-/// and lava are not supported (a current pushes), still water is.
+/// and flowing lava are not supported (a current pushes), sources of water
+/// and lava are (the movement differential's `lava_*` scenarios).
 #[test]
 fn waterlogged_blocks_are_water_and_flowing_water_is_trusted() {
     use crate::entity::player_life::authority::{MotionTable, WorldTerrain};
@@ -925,6 +953,10 @@ fn waterlogged_blocks_are_water_and_flowing_water_is_trusted() {
         })
         .unwrap();
     let lava = registry.default_state_id_by_name("minecraft:lava").unwrap();
+    let flowing_lava = registry
+        .get_by_name("minecraft:flowing_lava")
+        .map(|lava| lava.max_state_id)
+        .unwrap();
     let pos = HOME.floor().as_ivec3() + IVec3::new(3, 0, 0);
     let chunk = h
         .world()
@@ -948,11 +980,15 @@ fn waterlogged_blocks_are_water_and_flowing_water_is_trusted() {
         blocks: &*world,
         table,
     };
-    assert!(terrain.block(pos.to_array()).water(), "waterlogged seagrass");
+    assert!(
+        terrain.block(pos.to_array()).water(),
+        "waterlogged seagrass"
+    );
     assert!(!terrain.block((pos + IVec3::X).to_array()).water(), "air");
     assert!(table.reproduces(*blocks::WATER), "still water");
     assert!(!table.reproduces(flowing), "flowing water");
-    assert!(!table.reproduces(lava), "lava");
+    assert!(table.reproduces(lava), "a lava source");
+    assert!(!table.reproduces(flowing_lava), "flowing lava");
     assert!(table.reproduces(*blocks::STONE), "stone");
 }
 

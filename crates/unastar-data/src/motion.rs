@@ -37,6 +37,12 @@ static TABLE: LazyLock<Vec<Block>> = LazyLock::new(|| {
             None
         };
         for state in block.min_state_id..=block.max_state_id {
+            let kind = match kind {
+                BlockKind::BubbleColumn { .. } => BlockKind::BubbleColumn {
+                    down: block.state_value(state, "drag_down") == Some(StateValue::Byte(1)),
+                },
+                kind => kind,
+            };
             table[state as usize] = Block {
                 friction: block.friction,
                 kind,

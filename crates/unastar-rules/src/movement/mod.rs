@@ -51,6 +51,12 @@ const CLIMB_SPEED: f32 = 0.2;
 /// The slowest fall onto slime that bounces (just over a standing player's
 /// 0.0784).
 const SLIME_MIN_BOUNCE: f32 = 0.080_000_12;
+/// Scaffolding: climbed and descended at this speed a tick.
+const SCAFFOLDING_SPEED: f32 = 0.15;
+/// The fastest slide down a honey block's side.
+const HONEY_SLIDE: f32 = 0.12;
+/// A fall longer than this lands on powder snow instead of sinking in.
+const POWDER_SNOW_LANDING: f32 = 2.5;
 /// Soul sand's friction is scaled by this for the acceleration only.
 const SOUL_SAND_ACCELERATION: f32 = 1.225;
 /// Levitation's pull per level each tick: a fifth of its 0.05 speed.
@@ -189,10 +195,17 @@ impl Aabb {
     }
 }
 
-/// The 65536-entry sine table Minecraft's movement trigonometry reads.
+/// The 65536-entry sine table Minecraft's movement trigonometry reads, its
+/// angles worked out in `f32` (`i × pi × 2 / 65536`): entry 32768 is
+/// sin(pi in f32) = -8.742278e-8, not 0, which is the sideways residue of a
+/// glide straight along z on BDS 1.26.51. The sine itself is taken in `f64`
+/// and rounded, so the table is the same on every platform.
 static SIN_TABLE: LazyLock<Vec<f32>> = LazyLock::new(|| {
-    (0..65536)
-        .map(|i| (f64::from(i) * std::f64::consts::PI * 2.0 / 65536.0).sin() as f32)
+    (0u16..=u16::MAX)
+        .map(|i| {
+            let angle = f32::from(i) * std::f32::consts::PI * 2.0 / 65536.0;
+            f64::from(angle).sin() as f32
+        })
         .collect()
 });
 
@@ -286,6 +299,15 @@ impl Block {
     pub fn lava(&self) -> bool {
         self.liquid.is_some_and(|l| l.kind == LiquidKind::Lava)
     }
+
+    /// Whether BDS runs confirmed how this block moves a player, bit for bit
+    /// (the movement differential, `tools/movement-diff`): its family
+    /// ([`BlockKind::confirmed`]) and its liquid: sources of water and lava.
+    /// A current (a liquid that is not a source) pushes, which the
+    /// simulation does not do yet.
+    pub fn confirmed(&self) -> bool {
+        self.kind.confirmed() && self.liquid.is_none_or(|liquid| liquid.depth == 0)
+    }
 }
 
 /// The movement families of blocks.
@@ -308,6 +330,14 @@ pub enum BlockKind {
     /// Soul soil: moved as a plain block, but soul speed acts on it (as on
     /// soul sand); soul speed is not simulated.
     SoulSoil,
+    /// Scaffolding: climbed with the jump key, descended sneaking.
+    Scaffolding,
+    /// A sweet berry bush: slows the body in it.
+    SweetBerryBush,
+    /// A bubble column: lifts (soul sand under it) or drags down (magma).
+    BubbleColumn {
+        down: bool,
+    },
 }
 
 impl BlockKind {
@@ -319,7 +349,17 @@ impl BlockKind {
             "minecraft:air" => Self::Air,
             "minecraft:web" => Self::Cobweb,
             "minecraft:powder_snow" => Self::PowderSnow,
-            "minecraft:ladder" | "minecraft:vine" => Self::Climbable,
+            "minecraft:ladder"
+            | "minecraft:vine"
+            | "minecraft:twisting_vines"
+            | "minecraft:weeping_vines"
+            | "minecraft:cave_vines"
+            | "minecraft:cave_vines_body_with_berries"
+            | "minecraft:cave_vines_head_with_berries" => Self::Climbable,
+            "minecraft:scaffolding" => Self::Scaffolding,
+            "minecraft:sweet_berry_bush" => Self::SweetBerryBush,
+            // Its direction is the state's `drag_down` (`unastar_data::motion`).
+            "minecraft:bubble_column" => Self::BubbleColumn { down: false },
             "minecraft:soul_sand" => Self::SoulSand,
             "minecraft:honey_block" => Self::Honey,
             "minecraft:soul_soil" => Self::SoulSoil,
@@ -329,9 +369,13 @@ impl BlockKind {
 
     /// Whether BDS runs confirmed how this family moves a player, bit for
     /// bit (the movement differential's scenarios, `tools/movement-diff`):
-    /// beds and powder snow are simulated, but not yet confirmed.
+    /// beds (the bounce) and powder snow (the freezing slowdown) are
+    /// simulated but not yet BDS's, bubble columns are not simulated.
     pub fn confirmed(self) -> bool {
-        !matches!(self, Self::Bed | Self::PowderSnow)
+        !matches!(
+            self,
+            Self::Bed | Self::PowderSnow | Self::BubbleColumn { .. }
+        )
     }
 }
 
@@ -369,7 +413,7 @@ fn water(terrain: &impl Terrain, area: &Aabb) -> bool {
 }
 
 /// How a block the body is in scales its move, if it does: powder snow at
-/// the feet, a cobweb anywhere in the box.
+/// the feet, a cobweb or a sweet berry bush anywhere in the box.
 fn stuck(terrain: &impl Terrain, body: &Aabb) -> Option<[f32; 3]> {
     let feet = [
         ((body.min[0] + body.max[0]) * 0.5).floor() as i32,
@@ -379,12 +423,12 @@ fn stuck(terrain: &impl Terrain, body: &Aabb) -> Option<[f32; 3]> {
     if terrain.block(feet).kind == BlockKind::PowderSnow {
         return Some([0.9, 1.5, 0.9]);
     }
-    let (min, max) = body.block_range();
-    let web = (min[0]..=max[0]).any(|x| {
-        (min[1]..=max[1])
-            .any(|y| (min[2]..=max[2]).any(|z| terrain.block([x, y, z]).kind == BlockKind::Cobweb))
-    });
-    web.then_some([0.25, 0.05, 0.25])
+    if any_block(terrain, body, |b| b.kind == BlockKind::Cobweb) {
+        return Some([0.25, 0.05, 0.25]);
+    }
+    // BDS 1.26.51, `sweet_berry_jump`: a jump of 0.315 (0.42 x 0.75), then a
+    // fall of 0.0588 a tick (0.0784 x 0.75); walking in, 0.0784 a tick.
+    any_block(terrain, body, |b| b.kind == BlockKind::SweetBerryBush).then_some([0.8, 0.75, 0.8])
 }
 
 /// The simulated player.
@@ -412,6 +456,8 @@ pub struct Body {
     pub slow_falling: bool,
     /// The levitation effect's level (1-based, 0 for none).
     pub levitation: u8,
+    /// How far the body has fallen since it last stood or swam.
+    pub fall_distance: f32,
     /// The last tick's move collided horizontally / vertically.
     pub horizontal_collision: bool,
     pub vertical_collision: bool,
@@ -440,6 +486,7 @@ impl Body {
             jump_boost: 0,
             slow_falling: false,
             levitation: 0,
+            fall_distance: 0.0,
             horizontal_collision: false,
             vertical_collision: false,
             swept: None,
@@ -504,7 +551,7 @@ impl Body {
     fn water_box(&self) -> Aabb {
         let bb = self.aabb();
         let shrink_y = ((bb.max[1] - bb.min[1]) / 2.0 - 0.001).min(0.4);
-        bb.inflate([-0.001, -shrink_y, -0.001])
+        bb.inflate([-0.001, -shrink_y - 0.001, -0.001])
     }
 }
 
@@ -535,35 +582,48 @@ pub struct Changes {
 /// carries) starts before this tick's move but stops after it: BDS still
 /// moves the player as a sprinter in the tick its `StopSprinting` arrives.
 /// A swim starts only once the eyes are under water (`submerged`), and goes
-/// on while the body is in water. Returns whether the sprint stops after the
-/// move.
+/// on while the body is in water. A sneak ends a sprint before the move
+/// (BDS 1.26.51, `sprint_sneak_toggle`: the sneak's first tick accelerates
+/// 0.0294, a walk's sneak). A sneak let go in the input that asks for a
+/// sprint still sneaks through that move, and the sprint starts with the
+/// next input (same scenario, tick 31); otherwise it ends before the move.
 pub fn update_state(
     body: &mut Body,
     controls: &Controls,
     submerged: bool,
     changes: &mut Changes,
-) -> bool {
-    if controls.sneak != body.sneaking {
-        body.sneaking = controls.sneak;
-        if controls.sneak {
-            changes.started_sneaking = true;
+) -> Pending {
+    let mut pending = Pending::default();
+    if controls.sneak && !body.sneaking {
+        body.sneaking = true;
+        changes.started_sneaking = true;
+    } else if !controls.sneak && body.sneaking {
+        changes.stopped_sneaking = true;
+        // A sprint asked for in the same input is refused while the body
+        // still sneaks, and the sneak then lasts through this move.
+        if controls.sprint && controls.forward > 0.0 && !body.sprinting {
+            pending.sneak = true;
         } else {
-            changes.stopped_sneaking = true;
+            body.sneaking = false;
         }
     }
     // The sprint key starts a sprint; it lasts while the player keeps moving
     // forward without sneaking (BDS answers a stop sent while still moving
     // forward with the unchanged sprint).
-    let can_sprint = controls.forward > 0.0 && !controls.sneak;
+    let can_sprint = controls.forward > 0.0 && !body.sneaking;
     let want_sprint = can_sprint && (controls.sprint || body.sprinting);
-    let mut stop = false;
     if want_sprint && !body.sprinting {
         body.sprinting = true;
         body.movement_speed = body.sprint_speed();
         changes.started_sprinting = true;
     } else if !want_sprint && body.sprinting {
         changes.stopped_sprinting = true;
-        stop = true;
+        if body.sneaking {
+            body.sprinting = false;
+            body.movement_speed = body.walk_speed;
+        } else {
+            pending.sprint = true;
+        }
     }
     // BDS 1.26.51 sprints at the surface without swimming (drag 0.9, the
     // sink, no pitch steering) until the eyes go under.
@@ -579,19 +639,26 @@ pub fn update_state(
     } else if !want_swim && body.swimming {
         changes.stopped_swimming = true;
     }
-    stop
+    pending
+}
+
+/// State changes [`update_state`] leaves for after the move.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Pending {
+    /// The sprint stops after the move.
+    pub sprint: bool,
+    /// The sneak stops after the move.
+    pub sneak: bool,
 }
 
 /// Move the body one tick.
 pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Changes {
     let mut changes = Changes::default();
-    // The sprint the last tick moved with: water drag keeps it a tick on.
-    let was_sprinting = body.moved_sprinting;
-    let stop_sprint = update_state(body, controls, eyes_in_water(body, terrain), &mut changes);
+    let pending = update_state(body, controls, eyes_in_water(body, terrain), &mut changes);
     if !terrain.loaded(&body.aabb().inflate([1.0, 1.0, 1.0])) {
         body.velocity = [0.0; 3];
         changes.frozen = true;
-        finish_sprint(body, stop_sprint, &changes);
+        finish(body, pending, &changes);
         return changes;
     }
     let liquid_box = body.water_box();
@@ -601,8 +668,13 @@ pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Cha
         body.gliding = false;
         changes.stopped_gliding = true;
     }
+    let y = body.feet[1];
     if body.in_water {
-        water_tick(body, controls, terrain, was_sprinting);
+        let swim = Swim {
+            steering: body.swimming && !changes.stopped_swimming,
+            sprint_drag: body.swimming || (body.sprinting && !pending.sprint),
+        };
+        water_tick(body, controls, terrain, swim);
     } else if body.in_lava {
         lava_tick(body, controls, terrain);
     } else if body.gliding {
@@ -610,22 +682,30 @@ pub fn step(body: &mut Body, controls: &Controls, terrain: &impl Terrain) -> Cha
     } else {
         land_tick(body, controls, terrain, &mut changes);
     }
+    body.fall_distance = if body.on_ground || body.in_water || body.in_lava {
+        0.0
+    } else {
+        body.fall_distance + (y - body.feet[1]).max(0.0)
+    };
     if !controls.jump {
         body.jump_delay = 0;
     } else if body.jump_delay > 0 {
         body.jump_delay -= 1;
     }
-    finish_sprint(body, stop_sprint, &changes);
+    finish(body, pending, &changes);
     changes
 }
 
 /// After the move: remember the sprint it used, then end a stopping sprint
-/// (and swim).
-fn finish_sprint(body: &mut Body, stop: bool, changes: &Changes) {
+/// (and swim) and sneak.
+fn finish(body: &mut Body, pending: Pending, changes: &Changes) {
     body.moved_sprinting = body.sprinting;
-    if stop {
+    if pending.sprint {
         body.sprinting = false;
         body.movement_speed = body.walk_speed;
+    }
+    if pending.sneak {
+        body.sneaking = false;
     }
     if changes.stopped_swimming {
         body.swimming = false;
@@ -759,10 +839,11 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         speed = ground_acceleration(body.movement_speed, pull);
     }
     let climbing = climbable(body, terrain);
+    let scaffolding = feet_block(body, terrain, 0).kind == BlockKind::Scaffolding;
     // The jump comes before the input's acceleration: a sprint jump's push
     // is added to the velocity first (a sprint jump on ice matches BDS only
     // this way).
-    if controls.jump && !climbing && body.on_ground && body.jump_delay == 0 {
+    if controls.jump && !climbing && !scaffolding && body.on_ground && body.jump_delay == 0 {
         let mut jump = JUMP_VELOCITY + JUMP_BOOST_STEP * f32::from(body.jump_boost);
         if on_honey(body, terrain) {
             jump *= HONEY_JUMP;
@@ -788,6 +869,18 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         if body.sneaking && body.velocity[1] < 0.0 {
             body.velocity[1] = 0.0;
         }
+    }
+    // In scaffolding the jump key climbs, and sneaking descends while the
+    // block a block under the feet is scaffolding (also from standing on
+    // top), 0.15 a tick either way; descending takes no gravity (BDS
+    // 1.26.51, `scaffolding_climb`: 0.15 moved, then 0.0686 up after
+    // gravity, -0.147 down after the drag alone; `scaffolding_sneak_down`).
+    let mut descending = false;
+    if scaffolding && controls.jump {
+        body.velocity[1] = SCAFFOLDING_SPEED;
+    } else if body.sneaking && feet_block(body, terrain, -1).kind == BlockKind::Scaffolding {
+        body.velocity[1] = -SCAFFOLDING_SPEED;
+        descending = true;
     }
     if body.sneaking && body.on_ground && body.velocity[1] <= 0.0 {
         avoid_edges(body, terrain);
@@ -830,6 +923,8 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
         // Pushing into a wall from a climbable block climbs, with no gravity
         // or drag this tick.
         body.velocity[1] = CLIMB_SPEED;
+    } else if descending {
+        body.velocity[1] *= VERTICAL_DRAG;
     } else if body.levitation > 0 {
         // Levitation replaces gravity: the vertical velocity moves a fifth of
         // the way to 0.05 a level each tick, rounded as 0.8 v + 0.01 a level
@@ -862,17 +957,98 @@ fn land_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, chang
             body.velocity[2] *= slow;
         }
     }
+    honey_slide(body, terrain);
+}
+
+/// The block `dy` blocks above the one the feet are in.
+fn feet_block(body: &Body, terrain: &impl Terrain, dy: i32) -> Block {
+    let [x, y, z] = body.feet.map(|v| v.floor() as i32);
+    terrain.block([x, y + dy, z])
+}
+
+/// Falling beside a honey block's side slides down it at most 0.12 a tick,
+/// the horizontal velocity slowed in proportion (BDS 1.26.51,
+/// `honey_wall_slide`: -0.12 a tick from the first tick the box reaches the
+/// block's cell, with the velocity after the tick -0.12 too). The body's
+/// centre must be at least 0.4375 + half its width from the block's centre
+/// on x or z, and its feet below the block's top less 1/16.
+fn honey_slide(body: &mut Body, terrain: &impl Terrain) {
+    let vy = body.velocity[1];
+    if body.on_ground || vy >= -HONEY_SLIDE {
+        return;
+    }
+    let bb = body.aabb();
+    let (min, max) = bb.block_range();
+    let reach = 0.4375 + WIDTH / 2.0;
+    let beside = (min[0]..=max[0]).any(|x| {
+        (min[1]..=max[1]).any(|y| {
+            (min[2]..=max[2]).any(|z| {
+                terrain.block([x, y, z]).kind == BlockKind::Honey
+                    && body.feet[1] <= y as f32 + 0.9375 - 1.0e-7
+                    && ((x as f32 + 0.5 - body.feet[0]).abs() + 1.0e-7 > reach
+                        || (z as f32 + 0.5 - body.feet[2]).abs() + 1.0e-7 > reach)
+            })
+        })
+    });
+    if beside {
+        let factor = -HONEY_SLIDE / vy;
+        body.velocity = [
+            body.velocity[0] * factor,
+            -HONEY_SLIDE,
+            body.velocity[2] * factor,
+        ];
+    }
+}
+
+/// Collision boxes that depend on the body: a scaffolding top under a body
+/// standing on it that does not sneak, and powder snow's 0.9 under a body
+/// that has fallen more than 2.5 (BDS 1.26.51, `powder_snow_fall`: the
+/// landing at the snow's 0.9, then sinking in).
+fn body_boxes(body: &Body, terrain: &impl Terrain, area: &Aabb, out: &mut Vec<Aabb>) {
+    let (min, max) = area.block_range();
+    for x in min[0]..=max[0] {
+        for y in min[1]..=max[1] {
+            for z in min[2]..=max[2] {
+                let top = match terrain.block([x, y, z]).kind {
+                    BlockKind::Scaffolding if !body.sneaking => 1.0,
+                    BlockKind::PowderSnow if body.fall_distance > POWDER_SNOW_LANDING => 0.9,
+                    _ => continue,
+                };
+                let [fx, fy, fz] = [x, y, z].map(|v| v as f32);
+                if body.feet[1] > fy + top - 1.0e-5 {
+                    out.push(Aabb {
+                        min: [fx, fy, fz],
+                        max: [fx + 1.0, fy + top, fz + 1.0],
+                    });
+                }
+            }
+        }
+    }
+}
+
+/// How a tick in water treats a sprinting swimmer.
+#[derive(Debug, Clone, Copy)]
+struct Swim {
+    /// The pitch steers: swimming, and not in the tick the swim stops.
+    steering: bool,
+    /// Horizontal drag 0.9: swimming (also in the tick the swim stops,
+    /// BDS 1.26.51 `water_swim_deep` tick 46), or sprinting at the surface
+    /// but not in the tick that sprint stops (`water_surface_sprint` tick
+    /// 36).
+    sprint_drag: bool,
 }
 
 /// One tick in water: the swimmer's pitch, the jump's lift, 0.02
-/// acceleration, drag 0.8 (0.9 for a sprinter, still in the tick its sprint
-/// stops and the next) and a 0.005 sink unless sprinting.
-fn water_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, was_sprinting: bool) {
-    if body.swimming {
+/// acceleration, drag 0.8 (0.9 for a sprinter, [`Swim`]) and a 0.005 sink
+/// unless swimming.
+fn water_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, swim: Swim) {
+    if swim.steering {
         // A swimmer heads where it looks: the vertical velocity moves
         // towards the look's y by 8.5 % a tick looking down (below -0.2),
         // 6 % otherwise, the latter only under water or jumping.
-        let look_y = -table_sin(controls.pitch * std::f32::consts::PI / 180.0);
+        // The look vector's y (BDS 1.26.51 `water_swim_deep`: only it gives
+        // the first swimming tick's bits).
+        let look_y = look_vector(controls)[1];
         let rate = if look_y < -0.2 { 0.085 } else { 0.06 };
         let head = [
             body.feet[0].floor() as i32,
@@ -893,7 +1069,7 @@ fn water_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, was_
     move_relative(body, controls, WATER_SPEED);
     let y = body.feet[1];
     move_and_collide(body, terrain);
-    let drag = if body.sprinting || was_sprinting {
+    let drag = if swim.sprint_drag {
         WATER_DRAG_SPRINTING
     } else {
         WATER_DRAG
@@ -901,8 +1077,9 @@ fn water_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain, was_
     body.velocity[0] *= drag;
     body.velocity[1] *= WATER_DRAG;
     body.velocity[2] *= drag;
-    // A swimmer does not sink; a sprinter at the surface does.
-    if !body.swimming {
+    // A swimmer does not sink; a sprinter at the surface does, and so does a
+    // swimmer in the tick its swim stops (BDS 1.26.51 `water_swim_deep`).
+    if !swim.steering {
         body.velocity[1] -= WATER_SINK;
     }
     climb_out_of_liquid(body, terrain, y);
@@ -941,24 +1118,27 @@ fn climb_out_of_liquid(body: &mut Body, terrain: &impl Terrain, y: f32) {
     }
 }
 
+/// Where the player looks, from the sine table: the yaw half a turn back
+/// and the pitch negated, in degrees times 0.017453292 (BDS 1.26.51,
+/// `elytra_glide`: every corrected velocity bit for bit, the sideways
+/// residue of table entry 32768 included).
+fn look_vector(controls: &Controls) -> [f32; 3] {
+    const DEGREES: f32 = 0.017_453_292;
+    let heading = -controls.yaw * DEGREES - std::f32::consts::PI;
+    let (heading_cos, heading_sin) = (table_cos(heading), table_sin(heading));
+    let pitch = -controls.pitch * DEGREES;
+    let (pitch_cos, pitch_sin) = (-table_cos(pitch), table_sin(pitch));
+    [heading_sin * pitch_cos, pitch_sin, heading_cos * pitch_cos]
+}
+
 fn glide_tick(body: &mut Body, controls: &Controls, terrain: &impl Terrain) {
-    let radians = std::f32::consts::PI / 180.0;
-    let (yaw, pitch) = (controls.yaw * radians, controls.pitch * radians);
+    let pitch = controls.pitch * (std::f32::consts::PI / 180.0);
     let pitch_cos = table_cos(pitch);
     let pitch_sin = table_sin(pitch);
-    // The look's heading is the exact sine and cosine of the yaw half a
-    // turn back, so facing straight along z it keeps sin(-pi) as a residue
-    // on x (BDS 1.26.51, `elytra_glide`: x velocity 3.0895e-9 on the first
-    // glide tick, 1.6917e-8 six ticks later); the pitch reads the table.
-    let (heading_sin, heading_cos) = (yaw - std::f32::consts::PI).sin_cos();
-    let look = [
-        heading_sin * pitch_cos,
-        -pitch_sin,
-        -heading_cos * pitch_cos,
-    ];
+    let look = look_vector(controls);
     let v = &mut body.velocity;
     let horizontal_speed = (v[0] * v[0] + v[2] * v[2]).sqrt();
-    let look_horizontal = pitch_cos;
+    let look_horizontal = (look[0] * look[0] + look[2] * look[2]).sqrt();
     let lift = pitch_cos * pitch_cos;
     v[1] += -GRAVITY + lift * 0.06;
     if v[1] < 0.0 && look_horizontal > 0.0 {
@@ -1041,7 +1221,9 @@ fn clip_all(bb: Aabb, velocity: [f32; 3], boxes: &[Aabb]) -> (Aabb, [f32; 3]) {
 fn move_and_collide(body: &mut Body, terrain: &impl Terrain) {
     let velocity = body.velocity;
     let start = body.aabb();
-    let boxes = collisions(terrain, &start.expand(velocity).inflate([1.0e-3; 3]));
+    let area = start.expand(velocity).inflate([1.0e-3; 3]);
+    let mut boxes = collisions(terrain, &area);
+    body_boxes(body, terrain, &area, &mut boxes);
     let (mut bb, mut moved) = clip_all(start, velocity, &boxes);
     let hit = |axis: usize, moved: &[f32; 3]| (velocity[axis] - moved[axis]).abs() >= 1.0e-5;
     let grounded = body.on_ground || (hit(1, &moved) && velocity[1] < 0.0);

@@ -69,6 +69,12 @@ pub struct Scenario {
     pub inputs: Vec<Segment>,
     #[serde(default)]
     pub events: Vec<Event>,
+    /// Blocks BDS forms from the placed ones while the scenario is set up
+    /// (a bubble column from water over soul sand, with the water in its
+    /// second layer; a bed's other half): part of the scenario's world and
+    /// of the setup check, never placed by a command. Placed after `world`.
+    #[serde(default)]
+    pub formed: Vec<Fill>,
 }
 
 /// A box of one block, corners inclusive.
@@ -78,6 +84,10 @@ pub struct Fill {
     pub from: [i32; 3],
     pub to: [i32; 3],
     pub block: BlockSpec,
+    /// The block layer: 0, or 1 for the water of a waterlogged block (only
+    /// in `formed`: no command places the second layer).
+    #[serde(default)]
+    pub layer: u8,
 }
 
 /// A block state: the block's name and the states that differ from its
@@ -256,6 +266,18 @@ impl Effect {
             Effect::FireResistance => "fire_resistance",
         }
     }
+
+    /// The effect's numeric id in `MobEffect`.
+    pub fn id(self) -> i32 {
+        match self {
+            Effect::Speed => 1,
+            Effect::Slowness => 2,
+            Effect::JumpBoost => 8,
+            Effect::FireResistance => 12,
+            Effect::Levitation => 24,
+            Effect::SlowFalling => 27,
+        }
+    }
 }
 
 /// `ticks` inputs with the same keys. Yaw and pitch carry over from the
@@ -306,7 +328,15 @@ pub struct TickInput {
 impl Scenario {
     fn validate(&self) -> Result<()> {
         let inside = |p: [i32; 3]| (0..3).all(|a| p[a] >= AREA_MIN[a] && p[a] <= AREA_MAX[a]);
-        for fill in &self.world {
+        ensure!(
+            self.world.iter().all(|fill| fill.layer == 0),
+            "a placed fill in the second layer (only formed blocks can be)"
+        );
+        ensure!(
+            self.formed.iter().all(|fill| fill.layer <= 1),
+            "a formed fill beyond the second layer"
+        );
+        for fill in self.world.iter().chain(&self.formed) {
             ensure!(
                 inside(fill.from) && inside(fill.to),
                 "fill {:?}..{:?} leaves the scenario area",
@@ -410,35 +440,53 @@ impl Scenario {
             .filter_map(|e| e.command.as_deref())
     }
 
-    /// The scenario's world for the simulation.
-    pub fn world(&self) -> Result<World> {
+    /// The block state of every position and layer of the scenario's world:
+    /// the placed fills, the later over the earlier, then the formed ones.
+    pub fn placed_blocks(&self) -> Result<BTreeMap<([i32; 3], u8), u32>> {
         let mut placed = BTreeMap::new();
-        for fill in &self.world {
+        for fill in self.world.iter().chain(&self.formed) {
             let state = fill.block.resolve()?.state;
             let (lo, hi) = corners(fill);
             for x in lo[0]..=hi[0] {
                 for y in lo[1]..=hi[1] {
                     for z in lo[2]..=hi[2] {
-                        placed.insert([x, y, z], state);
+                        placed.insert(([x, y, z], fill.layer), state);
                     }
                 }
             }
         }
+        Ok(placed)
+    }
+
+    /// The scenario's world for the simulation.
+    pub fn world(&self) -> Result<World> {
+        let mut placed = self.placed_blocks()?;
         // An air block marks the area so the columns around it load even
         // for a scenario without blocks.
         let air = blocks::get("minecraft:air").context("air")?.min_state_id;
-        placed.entry(AREA_MIN).or_insert(air);
-        placed.entry(AREA_MAX).or_insert(air);
-        World::with_blocks(placed.into_iter().map(|(pos, state)| (pos, state, 0)), 2)
+        placed.entry((AREA_MIN, 0)).or_insert(air);
+        placed.entry((AREA_MAX, 0)).or_insert(air);
+        World::with_blocks(
+            placed
+                .into_iter()
+                .map(|((pos, layer), state)| (pos, state, usize::from(layer))),
+            2,
+        )
     }
 
     /// The commands that build the scenario on BDS and give the player its
-    /// effects and equipment, before the teleport to the start.
+    /// effects and equipment, before the teleport to the start. The area is
+    /// filled with stone before it is cleared: `/fill` with air leaves the
+    /// water a block holds in its second layer (a bubble column's), which
+    /// then flows into the next scenarios.
     pub fn setup_commands(&self) -> Result<Vec<String>> {
-        let mut out = vec![format!(
-            "/fill {} {} {} {} {} {} air",
-            AREA_MIN[0], AREA_MIN[1], AREA_MIN[2], AREA_MAX[0], AREA_MAX[1], AREA_MAX[2]
-        )];
+        let area = |block: &str| {
+            format!(
+                "/fill {} {} {} {} {} {} {block}",
+                AREA_MIN[0], AREA_MIN[1], AREA_MIN[2], AREA_MAX[0], AREA_MAX[1], AREA_MAX[2]
+            )
+        };
+        let mut out = vec![area("stone"), area("air")];
         for fill in &self.world {
             let (lo, hi) = corners(fill);
             out.push(format!(
@@ -631,6 +679,113 @@ pub struct ScenarioTrace {
     /// The `minecraft:movement` values BDS sent during the scenario.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub movement_speeds: Vec<Exact<1>>,
+}
+
+impl ScenarioTrace {
+    /// A SHA-256 of the exact values every run of a scenario must repeat:
+    /// positions, ground contact, collision flags, the velocities set and the
+    /// speeds sent. Not the corrected velocities: which inputs BDS corrects
+    /// depends on when the first far input arrives, so two runs read the
+    /// velocity on different inputs ([`ScenarioTrace::velocities`]).
+    pub fn digest(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        let mut put = |values: &[f32]| {
+            for value in values {
+                hash.update(value.to_bits().to_le_bytes());
+            }
+        };
+        for state in &self.ticks {
+            put(&[f32::from_bits(state.tick)]);
+            put(&state.position.0);
+            for flag in [
+                state.on_ground,
+                state.horizontal_collision,
+                state.vertical_collision,
+            ] {
+                put(&[f32::from_bits(flag.map_or(2, u32::from))]);
+            }
+        }
+        for (tick, velocity) in &self.velocity_events {
+            put(&[f32::from_bits(*tick)]);
+            put(&velocity.0);
+        }
+        for speed in &self.movement_speeds {
+            put(&speed.0);
+        }
+        hex::encode(hash.finalize())
+    }
+}
+
+impl ScenarioTrace {
+    /// The corrected velocities, by input.
+    pub fn velocities(&self) -> BTreeMap<u32, Exact<3>> {
+        self.ticks
+            .iter()
+            .filter_map(|state| Some((state.tick, state.velocity?)))
+            .collect()
+    }
+}
+
+/// The harness's own checks against BDS (`tools/movement-diff/README.md`,
+/// "Harness validation"): other BDS runs of the corpus, each reduced to one
+/// digest per scenario ([`ScenarioTrace::digest`]), to compare with the
+/// committed run.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HarnessRuns {
+    pub runs: Vec<HarnessRun>,
+}
+
+/// One more BDS run of the corpus.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HarnessRun {
+    /// What the run checks: `repeat`, `offset` or `flags`.
+    pub check: HarnessCheck,
+    /// The run directory's name.
+    pub run: String,
+    /// The reported position's offset.
+    pub offset: [f32; 3],
+    /// Where the input flags came from: `simulation` or `keys`.
+    pub flag_source: String,
+    /// Each scenario's digest ([`ScenarioTrace::digest`]).
+    pub digests: BTreeMap<String, String>,
+    /// Each scenario's corrected velocities: equal to the committed run's on
+    /// every input both corrected.
+    pub velocities: BTreeMap<String, BTreeMap<u32, Exact<3>>>,
+    /// Scenarios this run is known to differ in from the committed run,
+    /// and why.
+    #[serde(default)]
+    pub differs: BTreeMap<String, String>,
+}
+
+/// What a harness run checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HarnessCheck {
+    /// The same corpus in another BDS session: repeatability.
+    Repeat,
+    /// Another reported offset: BDS's copy ignores the reported position.
+    Offset,
+    /// Input flags from the keys alone: BDS's copy does not depend on the
+    /// flags the subject derives from unastar's simulation.
+    Flags,
+}
+
+/// BDS's velocity after every input where shifted runs show it.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct DenseVelocities {
+    pub scenarios: BTreeMap<String, DenseVelocity>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DenseVelocity {
+    /// The velocity after each input (`None` where no run corrected it).
+    Known { velocities: Vec<Option<Exact<3>>> },
+    /// The shifted copies did not move as the original.
+    Diverged { reason: String },
 }
 
 /// Where the BDS runner played a scenario: the subject's runtime id and the

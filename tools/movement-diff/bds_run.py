@@ -91,6 +91,10 @@ def main() -> int:
     parser.add_argument('--corpus', type=Path, default=HERE / 'corpus.json')
     parser.add_argument('--only', nargs='*', help='play only these scenarios')
     parser.add_argument('--out', type=Path)
+    parser.add_argument('--offset', default='3,3,3',
+                        help='the reported position offset x,y,z (harness validation reruns with others)')
+    parser.add_argument('--flag-source', choices=['simulation', 'keys'], default='simulation',
+                        help='derive the input flags from the simulation (vanilla) or from the keys alone')
     target = REPO / 'target' / 'debug'
     parser.add_argument('--client', type=Path, default=target / 'bds-sweep-client.exe')
     parser.add_argument('--movement-diff', type=Path, default=target / 'movement-diff.exe')
@@ -123,7 +127,8 @@ def main() -> int:
                 viewer = launch(args.client, out, VIEWER, [])
                 clients.append(viewer)
                 subject = launch(args.client, out, SUBJECT,
-                                 ['--scenarios', str(played), '--scenario-log', str(out / 'scenarios.json')])
+                                 ['--scenarios', str(played), '--scenario-log', str(out / 'scenarios.json'),
+                                  f'--scenario-offset={args.offset}', '--flag-source', args.flag_source])
                 clients.append(subject)
                 for line in LOBBY:
                     bds.command(line)

@@ -23,7 +23,7 @@
 //! runs of the sweep client confirmed; any other input is trusted, the copy
 //! taking the client's position and velocity ([`Trust`]). How far a trusted
 //! input may move the copy depends on who brings the trust about: the
-//! server grants flight and effects (up to [`MAX_TRUSTED_MOVE`], beyond it
+//! server grants flight (up to [`MAX_TRUSTED_MOVE`], beyond it
 //! the input is rejected whole), while the blocks, gear, crawl spaces and
 //! riptide spins a client can seek out only cover about one tick of vanilla
 //! movement (beyond it the copy judges the input). A client that is only
@@ -55,7 +55,6 @@ use crate::entity::systems::{BlockSource, LayeredBlocks, chunk_layer};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::BlockRegistry;
-use crate::registry::block::LiquidKind;
 use crate::registry::collision;
 use crate::world::ChunkManager;
 use crate::world::ecs::{ChunkData, world_to_chunk_coords};
@@ -98,31 +97,10 @@ pub struct MotionTable {
     blocks: Vec<(Block, bool)>,
 }
 
-/// Blocks with movement rules of their own the simulation does not
-/// reproduce yet: a player near one is trusted. The climbable plants but
-/// ladders and vines, scaffolding (climbing it is not yet BDS's), sweet
-/// berries and bubble columns. Families the simulation has but no BDS run
-/// has confirmed ([`BlockKind::confirmed`]: beds, powder snow), lava and
-/// flowing water (whose current pushes) are not supported either.
-/// Ladders, vines, honey, soul sand, slime, cobwebs and ice are: the
-/// movement differential (`tools/movement-diff`) matches BDS on them bit for
-/// bit.
-const UNSUPPORTED: &[&str] = &[
-    "minecraft:twisting_vines",
-    "minecraft:weeping_vines",
-    "minecraft:cave_vines",
-    "minecraft:cave_vines_body_with_berries",
-    "minecraft:cave_vines_head_with_berries",
-    "minecraft:scaffolding",
-    "minecraft:sweet_berry_bush",
-    "minecraft:bubble_column",
-];
-
 impl MotionTable {
     pub fn new(registry: &BlockRegistry) -> Self {
         let mut blocks = Vec::new();
         for entry in registry.iter() {
-            let kind = BlockKind::of(&entry.string_id);
             for id in entry.min_state_id..=entry.max_state_id {
                 let index = id as usize;
                 if blocks.len() <= index {
@@ -130,15 +108,7 @@ impl MotionTable {
                     blocks.resize(index + 1, (Block::AIR, false));
                 }
                 let block = unastar_data::motion::block(id);
-                // Still water only: a current pushes, and lava has rules of
-                // its own.
-                let liquid_supported = block
-                    .liquid
-                    .is_none_or(|liquid| liquid.kind == LiquidKind::Water && liquid.depth == 0);
-                let supported = kind.confirmed()
-                    && !UNSUPPORTED.contains(&entry.string_id.as_str())
-                    && liquid_supported;
-                blocks[index] = (block, supported);
+                blocks[index] = (block, block.confirmed());
             }
         }
         Self { blocks }
@@ -306,8 +276,6 @@ pub enum Trust {
     /// Flying in a game mode that can fly, or a spectator: flight is not
     /// simulated.
     Flight,
-    /// Slowness or levitation (see [`MovementEffects::unsupported`]).
-    Effect,
     /// A riptide trident's spin, started in water, launches the player.
     Riptide,
     /// A block the simulation does not reproduce is near.
@@ -338,7 +306,7 @@ enum Reach {
 
 impl Trust {
     /// How far the client may be from the copy for this trust to hold: the
-    /// server grants flight and effects, while a client can seek out the
+    /// server grants flight, while a client can seek out the
     /// rest, which only cover about one tick of vanilla movement.
     fn reach(self) -> Reach {
         match self {
@@ -346,9 +314,7 @@ impl Trust {
             Trust::Block | Trust::Gear | Trust::Crawl => Reach::Near(NEAR_REACH),
             // Slowed, Spawn and Unsimulated are bounded where they are
             // decided.
-            Trust::Flight | Trust::Effect | Trust::Slowed | Trust::Spawn | Trust::Unsimulated => {
-                Reach::Far
-            }
+            Trust::Flight | Trust::Slowed | Trust::Spawn | Trust::Unsimulated => Reach::Far,
         }
     }
 }
@@ -368,7 +334,7 @@ pub enum Judgement {
 /// How far from the spawn point the first input may put the copy.
 const SPAWN_SETTLE: f32 = 2.0;
 
-/// The farthest a trust the server grants (flight, effects) may move the
+/// The farthest a trust the server grants (flight) may move the
 /// copy: farther, the input is rejected whole and the copy stays.
 pub const MAX_TRUSTED_MOVE: f32 = 64.0;
 
@@ -401,20 +367,6 @@ pub struct MovementEffects {
     pub speed: u8,
     pub slowness: u8,
     pub levitation: u8,
-}
-
-impl MovementEffects {
-    /// Whether an input is trusted under these effects. Speed, jump boost
-    /// and slow falling are simulated as BDS moves them. Levitation is
-    /// simulated too, but a levitating player's first ground contact is
-    /// not yet BDS's. Slowness is simulated as BDS moves it, but this
-    /// server does not send the movement attribute with the effect's
-    /// modifier, so whether a vanilla client slows down is not known: a
-    /// copy slowed where the client is not would correct it. (A client that
-    /// does not speed up is only slower than the copy, and taken.)
-    pub fn unsupported(&self) -> bool {
-        self.slowness > 0 || self.levitation > 0
-    }
 }
 
 /// Movement enchantments a player wears, and a riptide trident in hand.
@@ -691,8 +643,6 @@ impl PlayerMotion {
         let sneaking = input.input_data.contains(&Flag::Sneaking) || self.body.sneaking;
         if situation.flight {
             Some(Trust::Flight)
-        } else if situation.effects.unsupported() {
-            Some(Trust::Effect)
         } else if self.spin > 0 {
             Some(Trust::Riptide)
         } else if !terrain.supported(&search) {

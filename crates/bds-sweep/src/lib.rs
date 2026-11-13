@@ -5,5 +5,7 @@
 
 pub mod capture;
 pub mod physics;
+pub mod random;
 pub mod scenario;
+pub mod validation;
 pub mod world;
