@@ -727,8 +727,11 @@ fn move_relative(body: &mut Body, controls: &Controls, speed: f32) {
     }
     let scale = speed / force.sqrt().max(1.0);
     // The input turns by the exact sine and cosine (the sine table is only
-    // the sprint jump's): yaw 37.5 matches BDS only this way.
-    let (sin, cos) = controls.yaw.to_radians().sin_cos();
+    // the sprint jump's): yaw 37.5 matches BDS only this way. Taken in
+    // `f64` and rounded, as the table is, so every platform's `f32` sine
+    // and cosine give the same bits.
+    let radians = f64::from(controls.yaw.to_radians());
+    let (sin, cos) = (radians.sin() as f32, radians.cos() as f32);
     let (strafe, forward) = (strafe * scale, forward * scale);
     body.velocity[0] += strafe * cos - forward * sin;
     body.velocity[2] += strafe * sin + forward * cos;
