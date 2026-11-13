@@ -39,6 +39,9 @@ pub(super) fn on_hit(
     target: Target,
 ) -> bool {
     let mut removed = false;
+    if rules.douse_fire {
+        super::potion::douse_fire(world, projectile, at);
+    }
     if let Some(range) = rules.grant_xp {
         grant_xp(world, range, at);
     }
@@ -61,6 +64,9 @@ pub(super) fn on_hit(
     if let Some(spawn) = &rules.spawn_chance {
         spawn_on_hit(world, projectile, spawn, at);
     }
+    if rules.thrown_potion_effect {
+        super::potion::splash(world, projectile, owner, at, target);
+    }
     let sound = match target {
         Target::Actor(actor) => rules
             .hit_sound
@@ -70,9 +76,13 @@ pub(super) fn on_hit(
     };
     // Not attributed to the projectile (no actor identifier, unique id -1)
     // and sent on the next tick, as BDS 1.26.51 sends an xp bottle's
-    // `glass`.
-    if let Some(sound) = sound {
-        queue_synced_sound(world, None, at, sound, -1);
+    // `glass`. A projectile without a hit sound hitting a block sends the
+    // sound `undefined` (throwables capture: snowballs and eggs on the
+    // floor).
+    match (sound, target) {
+        (Some(sound), _) => queue_synced_sound(world, None, at, sound, -1),
+        (None, Target::Block) => queue_synced_sound(world, None, at, "undefined", -1),
+        (None, Target::Actor(_)) => {}
     }
     removed
 }

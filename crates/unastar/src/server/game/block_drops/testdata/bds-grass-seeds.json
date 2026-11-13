@@ -1,0 +1,413 @@
+{
+ "//": "BDS 1.26.51 drops sweep (tools/bds-sweep/sweep.py drops --blocks minecraft:short_grass,minecraft:fern,minecraft:tall_grass,minecraft:large_fern --samples 20000, 2026-11-11): /loot spawn <p> mine <block> mainhand per sample, the held tool (null for the hand), outcomes keyed as in data/measured/block_drops (\"\" for nothing, stacks joined by \";\")",
+ "cells": [
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": null,
+   "samples": 20000,
+   "outcomes": {
+    "": 17422,
+    "minecraft:wheat_seeds@0x1": 2578
+   }
+  },
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17608,
+    "minecraft:wheat_seeds@0x1": 2392
+   }
+  },
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "minecraft:short_grass@0x1": 20000
+   }
+  },
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17478,
+    "minecraft:wheat_seeds@0x1": 2522
+   }
+  },
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17523,
+    "minecraft:wheat_seeds@0x1": 2477
+   }
+  },
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17453,
+    "minecraft:wheat_seeds@0x1": 2547
+   }
+  },
+  {
+   "block": "minecraft:short_grass",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17538,
+    "minecraft:wheat_seeds@0x1": 2462
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": null,
+   "samples": 20000,
+   "outcomes": {
+    "": 17556,
+    "minecraft:wheat_seeds@0x1": 2444
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17436,
+    "minecraft:wheat_seeds@0x1": 2564
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "minecraft:fern@0x1": 20000
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17524,
+    "minecraft:wheat_seeds@0x1": 2476
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17529,
+    "minecraft:wheat_seeds@0x1": 2471
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17444,
+    "minecraft:wheat_seeds@0x1": 2556
+   }
+  },
+  {
+   "block": "minecraft:fern",
+   "states": {},
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17583,
+    "minecraft:wheat_seeds@0x1": 2417
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": null,
+   "samples": 20000,
+   "outcomes": {
+    "": 17531,
+    "minecraft:wheat_seeds@0x1": 2469
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17522,
+    "minecraft:wheat_seeds@0x1": 2478
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "minecraft:short_grass@0x1;minecraft:short_grass@0x1": 20000
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17496,
+    "minecraft:wheat_seeds@0x1": 2504
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17435,
+    "minecraft:wheat_seeds@0x1": 2565
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17473,
+    "minecraft:wheat_seeds@0x1": 2527
+   }
+  },
+  {
+   "block": "minecraft:tall_grass",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17505,
+    "minecraft:wheat_seeds@0x1": 2495
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": null,
+   "samples": 20000,
+   "outcomes": {
+    "": 17520,
+    "minecraft:wheat_seeds@0x1": 2480
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17499,
+    "minecraft:wheat_seeds@0x1": 2501
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:shears",
+    "enchantments": {}
+   },
+   "samples": 20000,
+   "outcomes": {
+    "minecraft:fern@0x1;minecraft:fern@0x1": 20000
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:silk_touch": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17480,
+    "minecraft:wheat_seeds@0x1": 2520
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 1
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17571,
+    "minecraft:wheat_seeds@0x1": 2429
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 2
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17416,
+    "minecraft:wheat_seeds@0x1": 2584
+   }
+  },
+  {
+   "block": "minecraft:large_fern",
+   "states": {
+    "upper_block_bit": 0
+   },
+   "tool": {
+    "item": "minecraft:diamond_pickaxe",
+    "enchantments": {
+     "minecraft:fortune": 3
+    }
+   },
+   "samples": 20000,
+   "outcomes": {
+    "": 17560,
+    "minecraft:wheat_seeds@0x1": 2440
+   }
+  }
+ ]
+}

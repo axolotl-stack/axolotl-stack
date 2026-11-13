@@ -5,7 +5,7 @@
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::types::Vec3;
-use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket, McpePacket};
+use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket, McpePacket, McpePacketData};
 
 use crate::entity::components::{Player, PlayerSession, RuntimeEntityId, RuntimeId};
 use crate::entity::definition::flags::ActorFlags;
@@ -119,6 +119,29 @@ pub fn queue_synced_sound(
         .get_resource_or_init::<SyncedSounds>()
         .0
         .push((due, position, packet));
+}
+
+/// Move the queued sounds `source` made to `position`: a projectile placed
+/// after it spawned (a launch offset) makes its `disappeared` sound where it
+/// ends up, as BDS 1.26.51 plays it (throwables capture).
+pub fn move_synced_sounds(world: &mut World, source: Entity, position: DVec3) {
+    let Some(unique_id) = world.get::<RuntimeId>(source).map(|id| id.0) else {
+        return;
+    };
+    let Some(mut queue) = world.get_resource_mut::<SyncedSounds>() else {
+        return;
+    };
+    for (_, at, packet) in &mut queue.0 {
+        if let McpePacket {
+            data: McpePacketData::LevelSoundEventPacket(sound),
+            ..
+        } = packet
+            && sound.actor_unique_id == unique_id
+        {
+            *at = position;
+            sound.position = wire(position);
+        }
+    }
 }
 
 /// System (`NetworkSendSet`, before actor data): send the queued sounds

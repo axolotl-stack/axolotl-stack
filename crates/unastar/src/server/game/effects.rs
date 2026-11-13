@@ -146,6 +146,37 @@ pub fn add_effect_with(
     }
 }
 
+/// An instant effect from a splash potion: `factor` of the drink's healing
+/// or damage, rounded to the nearest point, with no `MobEffect` (BDS 1.26.51
+/// throwables capture: splash harming at the thrower's feet hurt it and sent
+/// no effect packet).
+pub fn apply_instant(
+    world: &mut World,
+    player: Entity,
+    effect: EffectType,
+    amplifier: u8,
+    factor: f64,
+) {
+    if effect == EffectType::INSTANT_HEALTH {
+        let amount = (factor * f64::from(4u32 << amplifier.min(30)) + 0.5).floor();
+        heal(world, player, amount as f32);
+    } else if effect == EffectType::INSTANT_DAMAGE {
+        let amount = (factor * f64::from(6u32 << amplifier.min(28)) + 0.5).floor();
+        crate::entity::player_life::hurt_player(
+            world,
+            player,
+            &crate::entity::mob::combat::Hit {
+                damage: amount as f32,
+                cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
+                attacker: None,
+                by_player: false,
+                knockback_from: None,
+                knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+            },
+        );
+    }
+}
+
 /// The `MobEffect` add (1 tick) and remove (0) BDS sends for an instant
 /// effect.
 fn send_instant(

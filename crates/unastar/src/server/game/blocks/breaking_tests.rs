@@ -23,6 +23,11 @@
 //! played with `script.py --observer scripts/breaking-observer.txt`) adds a
 //! second player standing 3 blocks west, whose packets are compared the same
 //! way, and creative breaking.
+//!
+//! `testdata/bds-breaking-3.jsonl` (`tools/bds-sweep/scripts/breaking-3.txt`)
+//! puts other blocks where a break goes on: whether progress built over the
+//! air breaks them. These replays run in the `bds` breaking mode; the default
+//! `guarded` mode differs on purpose (decision 0056).
 
 use bytes::BytesMut;
 use glam::{DVec3, IVec3};
@@ -31,9 +36,10 @@ use jolyne::valentine::{
 };
 use tokio::sync::mpsc::Receiver;
 
-use crate::entity::components::{EffectType, GameMode, MainInventory};
+use crate::entity::components::{EffectType, GameMode, HeldSlot, MainInventory};
 use crate::entity::systems::BlockSource;
 use crate::registry::BlockRegistry;
+use crate::server::config::BlockBreaking;
 use crate::server::game::{GameServer, PlayerSpawnData, ServerConfig};
 
 const BDS: &str = include_str!("testdata/bds-breaking.jsonl");
@@ -43,6 +49,7 @@ const SHORT_GRASS_DROPS: &str = include_str!(concat!(
     "/../unastar-data/data/measured/block_drops/short_grass.json"
 ));
 const BDS_2: &str = include_str!("testdata/bds-breaking-2.jsonl");
+const BDS_3: &str = include_str!("testdata/bds-breaking-3.jsonl");
 const SESSION: u64 = 7;
 const OBSERVER_SESSION: u64 = 8;
 /// The sweep arena: the player's feet, facing east at the west face of the
@@ -236,8 +243,15 @@ struct Harness {
 
 impl Harness {
     fn new() -> Self {
+        Self::with_breaking(BlockBreaking::Bds)
+    }
+
+    /// [`Harness::new`] with the survival breaking `mode` (the BDS captures
+    /// replay in [`BlockBreaking::Bds`]).
+    fn with_breaking(mode: BlockBreaking) -> Self {
         let mut server = GameServer::with_config(ServerConfig {
             world: crate::world::WorldConfig::void_spawn_platform(1),
+            block_breaking: mode,
             ..ServerConfig::default()
         });
         let (outbound_tx, rx) = tokio::sync::mpsc::channel(1 << 16);
@@ -826,6 +840,210 @@ fn breaking_seen_by_another_player_and_in_creative_answers_like_bds() {
                     ));
                 }
             }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// The scenarios of `breaking-3.txt`: blocks put where a break goes on.
+const SCENARIOS_3: [Scenario; 7] = [
+    Scenario {
+        name: "obsidian put on the air of dirt broken by hand",
+        inputs: 50..98,
+    },
+    Scenario {
+        name: "coarse dirt put on the air of dirt broken by hand",
+        inputs: 110..153,
+    },
+    Scenario {
+        name: "dirt swapped for coarse dirt mid-break",
+        inputs: 170..203,
+    },
+    Scenario {
+        name: "a wooden shovel selected mid-break",
+        inputs: 220..253,
+    },
+    Scenario {
+        name: "obsidian put on the air of a released dirt break",
+        inputs: 270..330,
+    },
+    Scenario {
+        name: "obsidian put on the air of obsidian broken with a diamond pickaxe",
+        inputs: 350..773,
+    },
+    Scenario {
+        name: "dirt put on the air of obsidian broken with a diamond pickaxe",
+        inputs: 790..1033,
+    },
+];
+
+/// Where scenario `index` of `breaking-3.txt` breaks.
+fn mined_3(index: usize) -> IVec3 {
+    [
+        IVec3::new(1, -59, 0),
+        IVec3::new(1, -59, 1),
+        IVec3::new(1, -59, -1),
+        IVec3::new(1, -59, 2),
+        IVec3::new(1, -59, 3),
+        IVec3::new(2, -59, 0),
+        IVec3::new(2, -59, 1),
+    ][index]
+}
+
+/// The block `breaking-3.txt` puts on scenario `index`'s position inside
+/// its window.
+fn put_3(index: usize) -> &'static str {
+    match index {
+        0 | 4 | 5 => "minecraft:obsidian",
+        1 | 2 => "minecraft:coarse_dirt",
+        6 => "minecraft:dirt",
+        _ => "minecraft:air",
+    }
+}
+
+/// `breaking-3.txt`'s set-up before scenario `index`.
+fn set_up_3(h: &mut Harness, index: usize) {
+    if let Some(before) = index.checked_sub(1) {
+        h.set(mined_3(before), "minecraft:air");
+    }
+    let player = h.player;
+    h.world().get_mut::<HeldSlot>(player).unwrap().set(0);
+    match index {
+        0..=2 | 4 => h.hold(None),
+        3 => {
+            h.hold(None);
+            let player = h.player;
+            let shovel = crate::item::test_support::stack("minecraft:wooden_shovel", 1);
+            h.world()
+                .get_mut::<MainInventory>(player)
+                .unwrap()
+                .0
+                .set_item(1, shovel)
+                .unwrap();
+        }
+        _ => h.hold(Some("minecraft:diamond_pickaxe")),
+    }
+    let block = if index >= 5 {
+        "minecraft:obsidian"
+    } else {
+        "minecraft:dirt"
+    };
+    h.set(mined_3(index), block);
+    h.tick();
+    h.drain();
+    h.world()
+        .insert_resource(crate::entity::EntityRandom::seeded(index as u64));
+}
+
+fn in_window_step_3(h: &mut Harness, index: usize, input: u64) {
+    let player = h.player;
+    match (index, input) {
+        (0, 85) | (1, 140) | (2, 178) | (4, 305) | (5, 750) | (6, 1010) => {
+            h.set(mined_3(index), put_3(index))
+        }
+        (3, 228) => h.world().get_mut::<HeldSlot>(player).unwrap().set(1),
+        (3, 251) => h.world().get_mut::<HeldSlot>(player).unwrap().set(0),
+        _ => {}
+    }
+}
+
+/// The crack speeds and breaks of `levels` in order, each speed once: what
+/// is left to compare of an obsidian break with a diamond pickaxe, which
+/// took 130 inputs in one BDS run and 133 in another at the same crack
+/// speed (1/131.25 an input); a block put on its air must break with no
+/// crack in between.
+fn break_shape(levels: Vec<Event>) -> Vec<Event> {
+    let mut shape: Vec<Event> = levels
+        .into_iter()
+        .filter(|event| {
+            matches!(
+                event,
+                Event::Level(LEVEL_EVENT_BREAK_SPEED | LEVEL_EVENT_DESTROY, ..)
+            )
+        })
+        .collect();
+    shape.dedup();
+    shape
+}
+
+const LEVEL_EVENT_BREAK_SPEED: i32 = 3602;
+const LEVEL_EVENT_DESTROY: i32 = 2001;
+
+/// `testdata/bds-breaking-3.jsonl`: whether progress built over the air
+/// breaks a block put there afterwards (BDS counts the inputs over the air
+/// at that block's speed), replayed in the `bds` breaking mode. Tile drops
+/// were off on BDS, so drops are not compared; nor is the update of the put
+/// block, which BDS does not send when the block breaks in the tick it was
+/// put (the harness puts it before the tick, the script's command ran in it).
+#[test]
+fn blocks_put_on_a_break_answer_like_bds() {
+    let records = records_of(BDS_3);
+    let mut h = Harness::new();
+    let tool = crate::item::test_support::stack("minecraft:diamond_pickaxe", 1)
+        .item()
+        .unwrap()
+        .network_id() as i16;
+    let mut failures = Vec::new();
+    for (index, scenario) in SCENARIOS_3.iter().enumerate() {
+        set_up_3(&mut h, index);
+        let window: Vec<&Record> = records
+            .iter()
+            .filter(|record| scenario.inputs.contains(&record.input))
+            .collect();
+        let bds: Vec<Event> = window
+            .iter()
+            .filter(|record| !record.from_client)
+            .filter_map(|record| event(&record.packet, Some(tool)))
+            .collect();
+        let inputs: Vec<(u64, u64, &PlayerAuthInputPacket)> = window
+            .iter()
+            .filter(|record| record.from_client)
+            .map(|record| match &record.packet {
+                McpePacketData::PlayerAuthInputPacket(input) => {
+                    (record.input, record.t_ms, &**input)
+                }
+                _ => panic!("client records are inputs"),
+            })
+            .collect();
+        let (ours, _) = replay(&mut h, &inputs, Some(tool), |h, tick| {
+            in_window_step_3(h, index, tick)
+        });
+        let (bds_levels, bds_rest) = split(bds);
+        let (our_levels, our_rest) = split(ours);
+        let (bds_levels, our_levels) = if index >= 5 {
+            (break_shape(bds_levels), break_shape(our_levels))
+        } else {
+            (bds_levels, our_levels)
+        };
+        if bds_levels != our_levels {
+            failures.push(format!(
+                "{}: crack and destroy events\n  BDS  {bds_levels:?}\n  ours {our_levels:?}",
+                scenario.name
+            ));
+        }
+        let mined = mined_3(index).to_array();
+        let put = BlockRegistry::vanilla()
+            .default_state_id_by_name(put_3(index))
+            .unwrap();
+        let put = super::super::types::block_network_ids(h.world()).to_wire(put);
+        let compared = |events: Vec<Event>| {
+            changes_only(
+                events
+                    .into_iter()
+                    .filter(|event| match event {
+                        Event::Drop(..) => false,
+                        Event::Block(at, block, _) => !(*at == mined && *block == put),
+                        _ => true,
+                    })
+                    .collect(),
+            )
+        };
+        let (bds_rest, our_rest) = (compared(bds_rest), compared(our_rest));
+        if bds_rest != our_rest {
+            failures.push(format!(
+                "{}: block updates and wear\n  BDS  {bds_rest:?}\n  ours {our_rest:?}",
+                scenario.name
+            ));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

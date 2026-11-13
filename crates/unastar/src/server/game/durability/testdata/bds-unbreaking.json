@@ -1,0 +1,112 @@
+{
+ "source": "BDS 1.26.51, 2026-11-12: tools/bds-sweep/scripts/unbreaking.txt played with script.py (mining), and its armour and use sections again (unbreaking_script.py --kinds armour,use) after the first run's item uses were refused; tables by unbreaking_table.py",
+ "mining": {
+  "0": {
+   "samples": 100,
+   "worn": 100
+  },
+  "1": {
+   "samples": 800,
+   "worn": 399
+  },
+  "2": {
+   "samples": 800,
+   "worn": 283
+  },
+  "3": {
+   "samples": 800,
+   "worn": 211
+  }
+ },
+ "armour": {
+  "1": {
+   "hits": 250,
+   "pieces": {
+    "Feet": [
+     48,
+     0,
+     202
+    ],
+    "Head": [
+     69,
+     0,
+     181
+    ],
+    "Legs": [
+     44,
+     0,
+     206
+    ],
+    "Torso": [
+     54,
+     0,
+     196
+    ]
+   }
+  },
+  "2": {
+   "hits": 250,
+   "pieces": {
+    "Feet": [
+     67,
+     0,
+     183
+    ],
+    "Head": [
+     69,
+     0,
+     181
+    ],
+    "Legs": [
+     61,
+     0,
+     189
+    ],
+    "Torso": [
+     69,
+     0,
+     181
+    ]
+   }
+  },
+  "3": {
+   "hits": 250,
+   "pieces": {
+    "Feet": [
+     75,
+     0,
+     175
+    ],
+    "Head": [
+     71,
+     0,
+     179
+    ],
+    "Legs": [
+     76,
+     0,
+     174
+    ],
+    "Torso": [
+     89,
+     0,
+     161
+    ]
+   }
+  }
+ },
+ "use": {
+  "1": {
+   "samples": 400,
+   "worn": 191
+  },
+  "2": {
+   "samples": 400,
+   "worn": 136
+  },
+  "3": {
+   "samples": 400,
+   "worn": 105
+  }
+ }
+}

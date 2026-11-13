@@ -1,0 +1,4 @@
+# The second player of throwables-2.txt (`script.py --observer`): BDSSweep
+# moves it around the impact point; it records the effects it is given.
+# Its ticks are its own input ticks.
+3000 exit

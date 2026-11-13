@@ -41,7 +41,10 @@ Per-input progress has two consequences that are easy to miss:
     completed a break wait for the next tick, capped so that a spamming client cannot grow the queue.
 - **Breaks don't simply end.**
   - `StopDestroyBlock` does not end a break.
-  - A completed break goes on at that position from zero, at the last block's speed, even over air.
+  - A completed break goes on at that position from zero, even over air. (Corrected 2026-11-12:
+    the inputs over air count at the speed of the block put there next, not the last block's;
+    see [breaking-progress-over-air-counts-at-the-next-blocks-speed](breaking-progress-over-air-counts-at-the-next-blocks-speed.md).
+    Since decision 0056 this is the `bds` mode only.)
   - A test that puts a block back where a player broke one must expect it to break by itself.
 
   The rules are in `docs/quirks/bds.md` (Blocks / mining).

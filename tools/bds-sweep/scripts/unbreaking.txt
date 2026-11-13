@@ -1,0 +1,5931 @@
+# Unbreaking sampled on BDS 1.26.51; printed by tools/bds-sweep/unbreaking_script.py (see there).
+# The player (feet (0.5,-60,0.5), facing east) breaks the west face (4) of (1,-59,0).
+20 /gamerule sendcommandfeedback false
+21 /gamerule domobspawning false
+22 /gamerule dodaylightcycle false
+23 /gamerule randomtickspeed 0
+24 /gamerule dotiledrops false
+25 /time set 6000
+26 /fill -4 -61 -4 4 -61 4 stone
+27 /fill -4 -60 -4 4 -55 4 air
+28 /gamemode survival @s
+29 /clear @s
+30 /tp @s 0.5 -60 0.5 -90 0
+31 /effect @s resistance 100000 3 true
+32 /effect @s regeneration 100000 4 true
+33 /effect @s haste 100000 1 true
+44 /clear @s
+45 /replaceitem entity @s slot.hotbar 0 netherite_pickaxe
+48 /enchant @s efficiency 5
+51 /say unbreaking mining 0
+54 /setblock 1 -59 0 stone
+56 mine 1 -59 0 4 0
+58 /setblock 1 -59 0 stone
+60 /setblock 1 -59 0 stone
+62 /setblock 1 -59 0 stone
+64 /setblock 1 -59 0 stone
+66 /setblock 1 -59 0 stone
+68 /setblock 1 -59 0 stone
+70 /setblock 1 -59 0 stone
+72 /setblock 1 -59 0 stone
+74 /setblock 1 -59 0 stone
+76 /setblock 1 -59 0 stone
+78 /setblock 1 -59 0 stone
+80 /setblock 1 -59 0 stone
+82 /setblock 1 -59 0 stone
+84 /setblock 1 -59 0 stone
+86 /setblock 1 -59 0 stone
+88 /setblock 1 -59 0 stone
+90 /setblock 1 -59 0 stone
+92 /setblock 1 -59 0 stone
+94 /setblock 1 -59 0 stone
+96 /setblock 1 -59 0 stone
+98 /setblock 1 -59 0 stone
+100 /setblock 1 -59 0 stone
+102 /setblock 1 -59 0 stone
+104 /setblock 1 -59 0 stone
+106 /setblock 1 -59 0 stone
+108 /setblock 1 -59 0 stone
+110 /setblock 1 -59 0 stone
+112 /setblock 1 -59 0 stone
+114 /setblock 1 -59 0 stone
+116 /setblock 1 -59 0 stone
+118 /setblock 1 -59 0 stone
+120 /setblock 1 -59 0 stone
+122 /setblock 1 -59 0 stone
+124 /setblock 1 -59 0 stone
+126 /setblock 1 -59 0 stone
+128 /setblock 1 -59 0 stone
+130 /setblock 1 -59 0 stone
+132 /setblock 1 -59 0 stone
+134 /setblock 1 -59 0 stone
+136 /setblock 1 -59 0 stone
+138 /setblock 1 -59 0 stone
+140 /setblock 1 -59 0 stone
+142 /setblock 1 -59 0 stone
+144 /setblock 1 -59 0 stone
+146 /setblock 1 -59 0 stone
+148 /setblock 1 -59 0 stone
+150 /setblock 1 -59 0 stone
+152 /setblock 1 -59 0 stone
+154 /setblock 1 -59 0 stone
+156 /setblock 1 -59 0 stone
+158 /setblock 1 -59 0 stone
+160 /setblock 1 -59 0 stone
+162 /setblock 1 -59 0 stone
+164 /setblock 1 -59 0 stone
+166 /setblock 1 -59 0 stone
+168 /setblock 1 -59 0 stone
+170 /setblock 1 -59 0 stone
+172 /setblock 1 -59 0 stone
+174 /setblock 1 -59 0 stone
+176 /setblock 1 -59 0 stone
+178 /setblock 1 -59 0 stone
+180 /setblock 1 -59 0 stone
+182 /setblock 1 -59 0 stone
+184 /setblock 1 -59 0 stone
+186 /setblock 1 -59 0 stone
+188 /setblock 1 -59 0 stone
+190 /setblock 1 -59 0 stone
+192 /setblock 1 -59 0 stone
+194 /setblock 1 -59 0 stone
+196 /setblock 1 -59 0 stone
+198 /setblock 1 -59 0 stone
+200 /setblock 1 -59 0 stone
+202 /setblock 1 -59 0 stone
+204 /setblock 1 -59 0 stone
+206 /setblock 1 -59 0 stone
+208 /setblock 1 -59 0 stone
+210 /setblock 1 -59 0 stone
+212 /setblock 1 -59 0 stone
+214 /setblock 1 -59 0 stone
+216 /setblock 1 -59 0 stone
+218 /setblock 1 -59 0 stone
+220 /setblock 1 -59 0 stone
+222 /setblock 1 -59 0 stone
+224 /setblock 1 -59 0 stone
+226 /setblock 1 -59 0 stone
+228 /setblock 1 -59 0 stone
+230 /setblock 1 -59 0 stone
+232 /setblock 1 -59 0 stone
+234 /setblock 1 -59 0 stone
+236 /setblock 1 -59 0 stone
+238 /setblock 1 -59 0 stone
+240 /setblock 1 -59 0 stone
+242 /setblock 1 -59 0 stone
+244 /setblock 1 -59 0 stone
+246 /setblock 1 -59 0 stone
+248 /setblock 1 -59 0 stone
+250 /setblock 1 -59 0 stone
+252 /setblock 1 -59 0 stone
+254 /setblock 1 -59 0 stone
+256 stop
+261 /clear @s
+262 /replaceitem entity @s slot.hotbar 0 netherite_pickaxe
+265 /enchant @s efficiency 5
+268 /enchant @s unbreaking 1
+271 /say unbreaking mining 1
+274 /setblock 1 -59 0 stone
+276 mine 1 -59 0 4 0
+278 /setblock 1 -59 0 stone
+280 /setblock 1 -59 0 stone
+282 /setblock 1 -59 0 stone
+284 /setblock 1 -59 0 stone
+286 /setblock 1 -59 0 stone
+288 /setblock 1 -59 0 stone
+290 /setblock 1 -59 0 stone
+292 /setblock 1 -59 0 stone
+294 /setblock 1 -59 0 stone
+296 /setblock 1 -59 0 stone
+298 /setblock 1 -59 0 stone
+300 /setblock 1 -59 0 stone
+302 /setblock 1 -59 0 stone
+304 /setblock 1 -59 0 stone
+306 /setblock 1 -59 0 stone
+308 /setblock 1 -59 0 stone
+310 /setblock 1 -59 0 stone
+312 /setblock 1 -59 0 stone
+314 /setblock 1 -59 0 stone
+316 /setblock 1 -59 0 stone
+318 /setblock 1 -59 0 stone
+320 /setblock 1 -59 0 stone
+322 /setblock 1 -59 0 stone
+324 /setblock 1 -59 0 stone
+326 /setblock 1 -59 0 stone
+328 /setblock 1 -59 0 stone
+330 /setblock 1 -59 0 stone
+332 /setblock 1 -59 0 stone
+334 /setblock 1 -59 0 stone
+336 /setblock 1 -59 0 stone
+338 /setblock 1 -59 0 stone
+340 /setblock 1 -59 0 stone
+342 /setblock 1 -59 0 stone
+344 /setblock 1 -59 0 stone
+346 /setblock 1 -59 0 stone
+348 /setblock 1 -59 0 stone
+350 /setblock 1 -59 0 stone
+352 /setblock 1 -59 0 stone
+354 /setblock 1 -59 0 stone
+356 /setblock 1 -59 0 stone
+358 /setblock 1 -59 0 stone
+360 /setblock 1 -59 0 stone
+362 /setblock 1 -59 0 stone
+364 /setblock 1 -59 0 stone
+366 /setblock 1 -59 0 stone
+368 /setblock 1 -59 0 stone
+370 /setblock 1 -59 0 stone
+372 /setblock 1 -59 0 stone
+374 /setblock 1 -59 0 stone
+376 /setblock 1 -59 0 stone
+378 /setblock 1 -59 0 stone
+380 /setblock 1 -59 0 stone
+382 /setblock 1 -59 0 stone
+384 /setblock 1 -59 0 stone
+386 /setblock 1 -59 0 stone
+388 /setblock 1 -59 0 stone
+390 /setblock 1 -59 0 stone
+392 /setblock 1 -59 0 stone
+394 /setblock 1 -59 0 stone
+396 /setblock 1 -59 0 stone
+398 /setblock 1 -59 0 stone
+400 /setblock 1 -59 0 stone
+402 /setblock 1 -59 0 stone
+404 /setblock 1 -59 0 stone
+406 /setblock 1 -59 0 stone
+408 /setblock 1 -59 0 stone
+410 /setblock 1 -59 0 stone
+412 /setblock 1 -59 0 stone
+414 /setblock 1 -59 0 stone
+416 /setblock 1 -59 0 stone
+418 /setblock 1 -59 0 stone
+420 /setblock 1 -59 0 stone
+422 /setblock 1 -59 0 stone
+424 /setblock 1 -59 0 stone
+426 /setblock 1 -59 0 stone
+428 /setblock 1 -59 0 stone
+430 /setblock 1 -59 0 stone
+432 /setblock 1 -59 0 stone
+434 /setblock 1 -59 0 stone
+436 /setblock 1 -59 0 stone
+438 /setblock 1 -59 0 stone
+440 /setblock 1 -59 0 stone
+442 /setblock 1 -59 0 stone
+444 /setblock 1 -59 0 stone
+446 /setblock 1 -59 0 stone
+448 /setblock 1 -59 0 stone
+450 /setblock 1 -59 0 stone
+452 /setblock 1 -59 0 stone
+454 /setblock 1 -59 0 stone
+456 /setblock 1 -59 0 stone
+458 /setblock 1 -59 0 stone
+460 /setblock 1 -59 0 stone
+462 /setblock 1 -59 0 stone
+464 /setblock 1 -59 0 stone
+466 /setblock 1 -59 0 stone
+468 /setblock 1 -59 0 stone
+470 /setblock 1 -59 0 stone
+472 /setblock 1 -59 0 stone
+474 /setblock 1 -59 0 stone
+476 /setblock 1 -59 0 stone
+478 /setblock 1 -59 0 stone
+480 /setblock 1 -59 0 stone
+482 /setblock 1 -59 0 stone
+484 /setblock 1 -59 0 stone
+486 /setblock 1 -59 0 stone
+488 /setblock 1 -59 0 stone
+490 /setblock 1 -59 0 stone
+492 /setblock 1 -59 0 stone
+494 /setblock 1 -59 0 stone
+496 /setblock 1 -59 0 stone
+498 /setblock 1 -59 0 stone
+500 /setblock 1 -59 0 stone
+502 /setblock 1 -59 0 stone
+504 /setblock 1 -59 0 stone
+506 /setblock 1 -59 0 stone
+508 /setblock 1 -59 0 stone
+510 /setblock 1 -59 0 stone
+512 /setblock 1 -59 0 stone
+514 /setblock 1 -59 0 stone
+516 /setblock 1 -59 0 stone
+518 /setblock 1 -59 0 stone
+520 /setblock 1 -59 0 stone
+522 /setblock 1 -59 0 stone
+524 /setblock 1 -59 0 stone
+526 /setblock 1 -59 0 stone
+528 /setblock 1 -59 0 stone
+530 /setblock 1 -59 0 stone
+532 /setblock 1 -59 0 stone
+534 /setblock 1 -59 0 stone
+536 /setblock 1 -59 0 stone
+538 /setblock 1 -59 0 stone
+540 /setblock 1 -59 0 stone
+542 /setblock 1 -59 0 stone
+544 /setblock 1 -59 0 stone
+546 /setblock 1 -59 0 stone
+548 /setblock 1 -59 0 stone
+550 /setblock 1 -59 0 stone
+552 /setblock 1 -59 0 stone
+554 /setblock 1 -59 0 stone
+556 /setblock 1 -59 0 stone
+558 /setblock 1 -59 0 stone
+560 /setblock 1 -59 0 stone
+562 /setblock 1 -59 0 stone
+564 /setblock 1 -59 0 stone
+566 /setblock 1 -59 0 stone
+568 /setblock 1 -59 0 stone
+570 /setblock 1 -59 0 stone
+572 /setblock 1 -59 0 stone
+574 /setblock 1 -59 0 stone
+576 /setblock 1 -59 0 stone
+578 /setblock 1 -59 0 stone
+580 /setblock 1 -59 0 stone
+582 /setblock 1 -59 0 stone
+584 /setblock 1 -59 0 stone
+586 /setblock 1 -59 0 stone
+588 /setblock 1 -59 0 stone
+590 /setblock 1 -59 0 stone
+592 /setblock 1 -59 0 stone
+594 /setblock 1 -59 0 stone
+596 /setblock 1 -59 0 stone
+598 /setblock 1 -59 0 stone
+600 /setblock 1 -59 0 stone
+602 /setblock 1 -59 0 stone
+604 /setblock 1 -59 0 stone
+606 /setblock 1 -59 0 stone
+608 /setblock 1 -59 0 stone
+610 /setblock 1 -59 0 stone
+612 /setblock 1 -59 0 stone
+614 /setblock 1 -59 0 stone
+616 /setblock 1 -59 0 stone
+618 /setblock 1 -59 0 stone
+620 /setblock 1 -59 0 stone
+622 /setblock 1 -59 0 stone
+624 /setblock 1 -59 0 stone
+626 /setblock 1 -59 0 stone
+628 /setblock 1 -59 0 stone
+630 /setblock 1 -59 0 stone
+632 /setblock 1 -59 0 stone
+634 /setblock 1 -59 0 stone
+636 /setblock 1 -59 0 stone
+638 /setblock 1 -59 0 stone
+640 /setblock 1 -59 0 stone
+642 /setblock 1 -59 0 stone
+644 /setblock 1 -59 0 stone
+646 /setblock 1 -59 0 stone
+648 /setblock 1 -59 0 stone
+650 /setblock 1 -59 0 stone
+652 /setblock 1 -59 0 stone
+654 /setblock 1 -59 0 stone
+656 /setblock 1 -59 0 stone
+658 /setblock 1 -59 0 stone
+660 /setblock 1 -59 0 stone
+662 /setblock 1 -59 0 stone
+664 /setblock 1 -59 0 stone
+666 /setblock 1 -59 0 stone
+668 /setblock 1 -59 0 stone
+670 /setblock 1 -59 0 stone
+672 /setblock 1 -59 0 stone
+674 /setblock 1 -59 0 stone
+676 /setblock 1 -59 0 stone
+678 /setblock 1 -59 0 stone
+680 /setblock 1 -59 0 stone
+682 /setblock 1 -59 0 stone
+684 /setblock 1 -59 0 stone
+686 /setblock 1 -59 0 stone
+688 /setblock 1 -59 0 stone
+690 /setblock 1 -59 0 stone
+692 /setblock 1 -59 0 stone
+694 /setblock 1 -59 0 stone
+696 /setblock 1 -59 0 stone
+698 /setblock 1 -59 0 stone
+700 /setblock 1 -59 0 stone
+702 /setblock 1 -59 0 stone
+704 /setblock 1 -59 0 stone
+706 /setblock 1 -59 0 stone
+708 /setblock 1 -59 0 stone
+710 /setblock 1 -59 0 stone
+712 /setblock 1 -59 0 stone
+714 /setblock 1 -59 0 stone
+716 /setblock 1 -59 0 stone
+718 /setblock 1 -59 0 stone
+720 /setblock 1 -59 0 stone
+722 /setblock 1 -59 0 stone
+724 /setblock 1 -59 0 stone
+726 /setblock 1 -59 0 stone
+728 /setblock 1 -59 0 stone
+730 /setblock 1 -59 0 stone
+732 /setblock 1 -59 0 stone
+734 /setblock 1 -59 0 stone
+736 /setblock 1 -59 0 stone
+738 /setblock 1 -59 0 stone
+740 /setblock 1 -59 0 stone
+742 /setblock 1 -59 0 stone
+744 /setblock 1 -59 0 stone
+746 /setblock 1 -59 0 stone
+748 /setblock 1 -59 0 stone
+750 /setblock 1 -59 0 stone
+752 /setblock 1 -59 0 stone
+754 /setblock 1 -59 0 stone
+756 /setblock 1 -59 0 stone
+758 /setblock 1 -59 0 stone
+760 /setblock 1 -59 0 stone
+762 /setblock 1 -59 0 stone
+764 /setblock 1 -59 0 stone
+766 /setblock 1 -59 0 stone
+768 /setblock 1 -59 0 stone
+770 /setblock 1 -59 0 stone
+772 /setblock 1 -59 0 stone
+774 /setblock 1 -59 0 stone
+776 /setblock 1 -59 0 stone
+778 /setblock 1 -59 0 stone
+780 /setblock 1 -59 0 stone
+782 /setblock 1 -59 0 stone
+784 /setblock 1 -59 0 stone
+786 /setblock 1 -59 0 stone
+788 /setblock 1 -59 0 stone
+790 /setblock 1 -59 0 stone
+792 /setblock 1 -59 0 stone
+794 /setblock 1 -59 0 stone
+796 /setblock 1 -59 0 stone
+798 /setblock 1 -59 0 stone
+800 /setblock 1 -59 0 stone
+802 /setblock 1 -59 0 stone
+804 /setblock 1 -59 0 stone
+806 /setblock 1 -59 0 stone
+808 /setblock 1 -59 0 stone
+810 /setblock 1 -59 0 stone
+812 /setblock 1 -59 0 stone
+814 /setblock 1 -59 0 stone
+816 /setblock 1 -59 0 stone
+818 /setblock 1 -59 0 stone
+820 /setblock 1 -59 0 stone
+822 /setblock 1 -59 0 stone
+824 /setblock 1 -59 0 stone
+826 /setblock 1 -59 0 stone
+828 /setblock 1 -59 0 stone
+830 /setblock 1 -59 0 stone
+832 /setblock 1 -59 0 stone
+834 /setblock 1 -59 0 stone
+836 /setblock 1 -59 0 stone
+838 /setblock 1 -59 0 stone
+840 /setblock 1 -59 0 stone
+842 /setblock 1 -59 0 stone
+844 /setblock 1 -59 0 stone
+846 /setblock 1 -59 0 stone
+848 /setblock 1 -59 0 stone
+850 /setblock 1 -59 0 stone
+852 /setblock 1 -59 0 stone
+854 /setblock 1 -59 0 stone
+856 /setblock 1 -59 0 stone
+858 /setblock 1 -59 0 stone
+860 /setblock 1 -59 0 stone
+862 /setblock 1 -59 0 stone
+864 /setblock 1 -59 0 stone
+866 /setblock 1 -59 0 stone
+868 /setblock 1 -59 0 stone
+870 /setblock 1 -59 0 stone
+872 /setblock 1 -59 0 stone
+874 /setblock 1 -59 0 stone
+876 /setblock 1 -59 0 stone
+878 /setblock 1 -59 0 stone
+880 /setblock 1 -59 0 stone
+882 /setblock 1 -59 0 stone
+884 /setblock 1 -59 0 stone
+886 /setblock 1 -59 0 stone
+888 /setblock 1 -59 0 stone
+890 /setblock 1 -59 0 stone
+892 /setblock 1 -59 0 stone
+894 /setblock 1 -59 0 stone
+896 /setblock 1 -59 0 stone
+898 /setblock 1 -59 0 stone
+900 /setblock 1 -59 0 stone
+902 /setblock 1 -59 0 stone
+904 /setblock 1 -59 0 stone
+906 /setblock 1 -59 0 stone
+908 /setblock 1 -59 0 stone
+910 /setblock 1 -59 0 stone
+912 /setblock 1 -59 0 stone
+914 /setblock 1 -59 0 stone
+916 /setblock 1 -59 0 stone
+918 /setblock 1 -59 0 stone
+920 /setblock 1 -59 0 stone
+922 /setblock 1 -59 0 stone
+924 /setblock 1 -59 0 stone
+926 /setblock 1 -59 0 stone
+928 /setblock 1 -59 0 stone
+930 /setblock 1 -59 0 stone
+932 /setblock 1 -59 0 stone
+934 /setblock 1 -59 0 stone
+936 /setblock 1 -59 0 stone
+938 /setblock 1 -59 0 stone
+940 /setblock 1 -59 0 stone
+942 /setblock 1 -59 0 stone
+944 /setblock 1 -59 0 stone
+946 /setblock 1 -59 0 stone
+948 /setblock 1 -59 0 stone
+950 /setblock 1 -59 0 stone
+952 /setblock 1 -59 0 stone
+954 /setblock 1 -59 0 stone
+956 /setblock 1 -59 0 stone
+958 /setblock 1 -59 0 stone
+960 /setblock 1 -59 0 stone
+962 /setblock 1 -59 0 stone
+964 /setblock 1 -59 0 stone
+966 /setblock 1 -59 0 stone
+968 /setblock 1 -59 0 stone
+970 /setblock 1 -59 0 stone
+972 /setblock 1 -59 0 stone
+974 /setblock 1 -59 0 stone
+976 /setblock 1 -59 0 stone
+978 /setblock 1 -59 0 stone
+980 /setblock 1 -59 0 stone
+982 /setblock 1 -59 0 stone
+984 /setblock 1 -59 0 stone
+986 /setblock 1 -59 0 stone
+988 /setblock 1 -59 0 stone
+990 /setblock 1 -59 0 stone
+992 /setblock 1 -59 0 stone
+994 /setblock 1 -59 0 stone
+996 /setblock 1 -59 0 stone
+998 /setblock 1 -59 0 stone
+1000 /setblock 1 -59 0 stone
+1002 /setblock 1 -59 0 stone
+1004 /setblock 1 -59 0 stone
+1006 /setblock 1 -59 0 stone
+1008 /setblock 1 -59 0 stone
+1010 /setblock 1 -59 0 stone
+1012 /setblock 1 -59 0 stone
+1014 /setblock 1 -59 0 stone
+1016 /setblock 1 -59 0 stone
+1018 /setblock 1 -59 0 stone
+1020 /setblock 1 -59 0 stone
+1022 /setblock 1 -59 0 stone
+1024 /setblock 1 -59 0 stone
+1026 /setblock 1 -59 0 stone
+1028 /setblock 1 -59 0 stone
+1030 /setblock 1 -59 0 stone
+1032 /setblock 1 -59 0 stone
+1034 /setblock 1 -59 0 stone
+1036 /setblock 1 -59 0 stone
+1038 /setblock 1 -59 0 stone
+1040 /setblock 1 -59 0 stone
+1042 /setblock 1 -59 0 stone
+1044 /setblock 1 -59 0 stone
+1046 /setblock 1 -59 0 stone
+1048 /setblock 1 -59 0 stone
+1050 /setblock 1 -59 0 stone
+1052 /setblock 1 -59 0 stone
+1054 /setblock 1 -59 0 stone
+1056 /setblock 1 -59 0 stone
+1058 /setblock 1 -59 0 stone
+1060 /setblock 1 -59 0 stone
+1062 /setblock 1 -59 0 stone
+1064 /setblock 1 -59 0 stone
+1066 /setblock 1 -59 0 stone
+1068 /setblock 1 -59 0 stone
+1070 /setblock 1 -59 0 stone
+1072 /setblock 1 -59 0 stone
+1074 /setblock 1 -59 0 stone
+1076 /setblock 1 -59 0 stone
+1078 /setblock 1 -59 0 stone
+1080 /setblock 1 -59 0 stone
+1082 /setblock 1 -59 0 stone
+1084 /setblock 1 -59 0 stone
+1086 /setblock 1 -59 0 stone
+1088 /setblock 1 -59 0 stone
+1090 /setblock 1 -59 0 stone
+1092 /setblock 1 -59 0 stone
+1094 /setblock 1 -59 0 stone
+1096 /setblock 1 -59 0 stone
+1098 /setblock 1 -59 0 stone
+1100 /setblock 1 -59 0 stone
+1102 /setblock 1 -59 0 stone
+1104 /setblock 1 -59 0 stone
+1106 /setblock 1 -59 0 stone
+1108 /setblock 1 -59 0 stone
+1110 /setblock 1 -59 0 stone
+1112 /setblock 1 -59 0 stone
+1114 /setblock 1 -59 0 stone
+1116 /setblock 1 -59 0 stone
+1118 /setblock 1 -59 0 stone
+1120 /setblock 1 -59 0 stone
+1122 /setblock 1 -59 0 stone
+1124 /setblock 1 -59 0 stone
+1126 /setblock 1 -59 0 stone
+1128 /setblock 1 -59 0 stone
+1130 /setblock 1 -59 0 stone
+1132 /setblock 1 -59 0 stone
+1134 /setblock 1 -59 0 stone
+1136 /setblock 1 -59 0 stone
+1138 /setblock 1 -59 0 stone
+1140 /setblock 1 -59 0 stone
+1142 /setblock 1 -59 0 stone
+1144 /setblock 1 -59 0 stone
+1146 /setblock 1 -59 0 stone
+1148 /setblock 1 -59 0 stone
+1150 /setblock 1 -59 0 stone
+1152 /setblock 1 -59 0 stone
+1154 /setblock 1 -59 0 stone
+1156 /setblock 1 -59 0 stone
+1158 /setblock 1 -59 0 stone
+1160 /setblock 1 -59 0 stone
+1162 /setblock 1 -59 0 stone
+1164 /setblock 1 -59 0 stone
+1166 /setblock 1 -59 0 stone
+1168 /setblock 1 -59 0 stone
+1170 /setblock 1 -59 0 stone
+1172 /setblock 1 -59 0 stone
+1174 /setblock 1 -59 0 stone
+1176 /setblock 1 -59 0 stone
+1178 /setblock 1 -59 0 stone
+1180 /setblock 1 -59 0 stone
+1182 /setblock 1 -59 0 stone
+1184 /setblock 1 -59 0 stone
+1186 /setblock 1 -59 0 stone
+1188 /setblock 1 -59 0 stone
+1190 /setblock 1 -59 0 stone
+1192 /setblock 1 -59 0 stone
+1194 /setblock 1 -59 0 stone
+1196 /setblock 1 -59 0 stone
+1198 /setblock 1 -59 0 stone
+1200 /setblock 1 -59 0 stone
+1202 /setblock 1 -59 0 stone
+1204 /setblock 1 -59 0 stone
+1206 /setblock 1 -59 0 stone
+1208 /setblock 1 -59 0 stone
+1210 /setblock 1 -59 0 stone
+1212 /setblock 1 -59 0 stone
+1214 /setblock 1 -59 0 stone
+1216 /setblock 1 -59 0 stone
+1218 /setblock 1 -59 0 stone
+1220 /setblock 1 -59 0 stone
+1222 /setblock 1 -59 0 stone
+1224 /setblock 1 -59 0 stone
+1226 /setblock 1 -59 0 stone
+1228 /setblock 1 -59 0 stone
+1230 /setblock 1 -59 0 stone
+1232 /setblock 1 -59 0 stone
+1234 /setblock 1 -59 0 stone
+1236 /setblock 1 -59 0 stone
+1238 /setblock 1 -59 0 stone
+1240 /setblock 1 -59 0 stone
+1242 /setblock 1 -59 0 stone
+1244 /setblock 1 -59 0 stone
+1246 /setblock 1 -59 0 stone
+1248 /setblock 1 -59 0 stone
+1250 /setblock 1 -59 0 stone
+1252 /setblock 1 -59 0 stone
+1254 /setblock 1 -59 0 stone
+1256 /setblock 1 -59 0 stone
+1258 /setblock 1 -59 0 stone
+1260 /setblock 1 -59 0 stone
+1262 /setblock 1 -59 0 stone
+1264 /setblock 1 -59 0 stone
+1266 /setblock 1 -59 0 stone
+1268 /setblock 1 -59 0 stone
+1270 /setblock 1 -59 0 stone
+1272 /setblock 1 -59 0 stone
+1274 /setblock 1 -59 0 stone
+1276 /setblock 1 -59 0 stone
+1278 /setblock 1 -59 0 stone
+1280 /setblock 1 -59 0 stone
+1282 /setblock 1 -59 0 stone
+1284 /setblock 1 -59 0 stone
+1286 /setblock 1 -59 0 stone
+1288 /setblock 1 -59 0 stone
+1290 /setblock 1 -59 0 stone
+1292 /setblock 1 -59 0 stone
+1294 /setblock 1 -59 0 stone
+1296 /setblock 1 -59 0 stone
+1298 /setblock 1 -59 0 stone
+1300 /setblock 1 -59 0 stone
+1302 /setblock 1 -59 0 stone
+1304 /setblock 1 -59 0 stone
+1306 /setblock 1 -59 0 stone
+1308 /setblock 1 -59 0 stone
+1310 /setblock 1 -59 0 stone
+1312 /setblock 1 -59 0 stone
+1314 /setblock 1 -59 0 stone
+1316 /setblock 1 -59 0 stone
+1318 /setblock 1 -59 0 stone
+1320 /setblock 1 -59 0 stone
+1322 /setblock 1 -59 0 stone
+1324 /setblock 1 -59 0 stone
+1326 /setblock 1 -59 0 stone
+1328 /setblock 1 -59 0 stone
+1330 /setblock 1 -59 0 stone
+1332 /setblock 1 -59 0 stone
+1334 /setblock 1 -59 0 stone
+1336 /setblock 1 -59 0 stone
+1338 /setblock 1 -59 0 stone
+1340 /setblock 1 -59 0 stone
+1342 /setblock 1 -59 0 stone
+1344 /setblock 1 -59 0 stone
+1346 /setblock 1 -59 0 stone
+1348 /setblock 1 -59 0 stone
+1350 /setblock 1 -59 0 stone
+1352 /setblock 1 -59 0 stone
+1354 /setblock 1 -59 0 stone
+1356 /setblock 1 -59 0 stone
+1358 /setblock 1 -59 0 stone
+1360 /setblock 1 -59 0 stone
+1362 /setblock 1 -59 0 stone
+1364 /setblock 1 -59 0 stone
+1366 /setblock 1 -59 0 stone
+1368 /setblock 1 -59 0 stone
+1370 /setblock 1 -59 0 stone
+1372 /setblock 1 -59 0 stone
+1374 /setblock 1 -59 0 stone
+1376 /setblock 1 -59 0 stone
+1378 /setblock 1 -59 0 stone
+1380 /setblock 1 -59 0 stone
+1382 /setblock 1 -59 0 stone
+1384 /setblock 1 -59 0 stone
+1386 /setblock 1 -59 0 stone
+1388 /setblock 1 -59 0 stone
+1390 /setblock 1 -59 0 stone
+1392 /setblock 1 -59 0 stone
+1394 /setblock 1 -59 0 stone
+1396 /setblock 1 -59 0 stone
+1398 /setblock 1 -59 0 stone
+1400 /setblock 1 -59 0 stone
+1402 /setblock 1 -59 0 stone
+1404 /setblock 1 -59 0 stone
+1406 /setblock 1 -59 0 stone
+1408 /setblock 1 -59 0 stone
+1410 /setblock 1 -59 0 stone
+1412 /setblock 1 -59 0 stone
+1414 /setblock 1 -59 0 stone
+1416 /setblock 1 -59 0 stone
+1418 /setblock 1 -59 0 stone
+1420 /setblock 1 -59 0 stone
+1422 /setblock 1 -59 0 stone
+1424 /setblock 1 -59 0 stone
+1426 /setblock 1 -59 0 stone
+1428 /setblock 1 -59 0 stone
+1430 /setblock 1 -59 0 stone
+1432 /setblock 1 -59 0 stone
+1434 /setblock 1 -59 0 stone
+1436 /setblock 1 -59 0 stone
+1438 /setblock 1 -59 0 stone
+1440 /setblock 1 -59 0 stone
+1442 /setblock 1 -59 0 stone
+1444 /setblock 1 -59 0 stone
+1446 /setblock 1 -59 0 stone
+1448 /setblock 1 -59 0 stone
+1450 /setblock 1 -59 0 stone
+1452 /setblock 1 -59 0 stone
+1454 /setblock 1 -59 0 stone
+1456 /setblock 1 -59 0 stone
+1458 /setblock 1 -59 0 stone
+1460 /setblock 1 -59 0 stone
+1462 /setblock 1 -59 0 stone
+1464 /setblock 1 -59 0 stone
+1466 /setblock 1 -59 0 stone
+1468 /setblock 1 -59 0 stone
+1470 /setblock 1 -59 0 stone
+1472 /setblock 1 -59 0 stone
+1474 /setblock 1 -59 0 stone
+1476 /setblock 1 -59 0 stone
+1478 /setblock 1 -59 0 stone
+1480 /setblock 1 -59 0 stone
+1482 /setblock 1 -59 0 stone
+1484 /setblock 1 -59 0 stone
+1486 /setblock 1 -59 0 stone
+1488 /setblock 1 -59 0 stone
+1490 /setblock 1 -59 0 stone
+1492 /setblock 1 -59 0 stone
+1494 /setblock 1 -59 0 stone
+1496 /setblock 1 -59 0 stone
+1498 /setblock 1 -59 0 stone
+1500 /setblock 1 -59 0 stone
+1502 /setblock 1 -59 0 stone
+1504 /setblock 1 -59 0 stone
+1506 /setblock 1 -59 0 stone
+1508 /setblock 1 -59 0 stone
+1510 /setblock 1 -59 0 stone
+1512 /setblock 1 -59 0 stone
+1514 /setblock 1 -59 0 stone
+1516 /setblock 1 -59 0 stone
+1518 /setblock 1 -59 0 stone
+1520 /setblock 1 -59 0 stone
+1522 /setblock 1 -59 0 stone
+1524 /setblock 1 -59 0 stone
+1526 /setblock 1 -59 0 stone
+1528 /setblock 1 -59 0 stone
+1530 /setblock 1 -59 0 stone
+1532 /setblock 1 -59 0 stone
+1534 /setblock 1 -59 0 stone
+1536 /setblock 1 -59 0 stone
+1538 /setblock 1 -59 0 stone
+1540 /setblock 1 -59 0 stone
+1542 /setblock 1 -59 0 stone
+1544 /setblock 1 -59 0 stone
+1546 /setblock 1 -59 0 stone
+1548 /setblock 1 -59 0 stone
+1550 /setblock 1 -59 0 stone
+1552 /setblock 1 -59 0 stone
+1554 /setblock 1 -59 0 stone
+1556 /setblock 1 -59 0 stone
+1558 /setblock 1 -59 0 stone
+1560 /setblock 1 -59 0 stone
+1562 /setblock 1 -59 0 stone
+1564 /setblock 1 -59 0 stone
+1566 /setblock 1 -59 0 stone
+1568 /setblock 1 -59 0 stone
+1570 /setblock 1 -59 0 stone
+1572 /setblock 1 -59 0 stone
+1574 /setblock 1 -59 0 stone
+1576 /setblock 1 -59 0 stone
+1578 /setblock 1 -59 0 stone
+1580 /setblock 1 -59 0 stone
+1582 /setblock 1 -59 0 stone
+1584 /setblock 1 -59 0 stone
+1586 /setblock 1 -59 0 stone
+1588 /setblock 1 -59 0 stone
+1590 /setblock 1 -59 0 stone
+1592 /setblock 1 -59 0 stone
+1594 /setblock 1 -59 0 stone
+1596 /setblock 1 -59 0 stone
+1598 /setblock 1 -59 0 stone
+1600 /setblock 1 -59 0 stone
+1602 /setblock 1 -59 0 stone
+1604 /setblock 1 -59 0 stone
+1606 /setblock 1 -59 0 stone
+1608 /setblock 1 -59 0 stone
+1610 /setblock 1 -59 0 stone
+1612 /setblock 1 -59 0 stone
+1614 /setblock 1 -59 0 stone
+1616 /setblock 1 -59 0 stone
+1618 /setblock 1 -59 0 stone
+1620 /setblock 1 -59 0 stone
+1622 /setblock 1 -59 0 stone
+1624 /setblock 1 -59 0 stone
+1626 /setblock 1 -59 0 stone
+1628 /setblock 1 -59 0 stone
+1630 /setblock 1 -59 0 stone
+1632 /setblock 1 -59 0 stone
+1634 /setblock 1 -59 0 stone
+1636 /setblock 1 -59 0 stone
+1638 /setblock 1 -59 0 stone
+1640 /setblock 1 -59 0 stone
+1642 /setblock 1 -59 0 stone
+1644 /setblock 1 -59 0 stone
+1646 /setblock 1 -59 0 stone
+1648 /setblock 1 -59 0 stone
+1650 /setblock 1 -59 0 stone
+1652 /setblock 1 -59 0 stone
+1654 /setblock 1 -59 0 stone
+1656 /setblock 1 -59 0 stone
+1658 /setblock 1 -59 0 stone
+1660 /setblock 1 -59 0 stone
+1662 /setblock 1 -59 0 stone
+1664 /setblock 1 -59 0 stone
+1666 /setblock 1 -59 0 stone
+1668 /setblock 1 -59 0 stone
+1670 /setblock 1 -59 0 stone
+1672 /setblock 1 -59 0 stone
+1674 /setblock 1 -59 0 stone
+1676 /setblock 1 -59 0 stone
+1678 /setblock 1 -59 0 stone
+1680 /setblock 1 -59 0 stone
+1682 /setblock 1 -59 0 stone
+1684 /setblock 1 -59 0 stone
+1686 /setblock 1 -59 0 stone
+1688 /setblock 1 -59 0 stone
+1690 /setblock 1 -59 0 stone
+1692 /setblock 1 -59 0 stone
+1694 /setblock 1 -59 0 stone
+1696 /setblock 1 -59 0 stone
+1698 /setblock 1 -59 0 stone
+1700 /setblock 1 -59 0 stone
+1702 /setblock 1 -59 0 stone
+1704 /setblock 1 -59 0 stone
+1706 /setblock 1 -59 0 stone
+1708 /setblock 1 -59 0 stone
+1710 /setblock 1 -59 0 stone
+1712 /setblock 1 -59 0 stone
+1714 /setblock 1 -59 0 stone
+1716 /setblock 1 -59 0 stone
+1718 /setblock 1 -59 0 stone
+1720 /setblock 1 -59 0 stone
+1722 /setblock 1 -59 0 stone
+1724 /setblock 1 -59 0 stone
+1726 /setblock 1 -59 0 stone
+1728 /setblock 1 -59 0 stone
+1730 /setblock 1 -59 0 stone
+1732 /setblock 1 -59 0 stone
+1734 /setblock 1 -59 0 stone
+1736 /setblock 1 -59 0 stone
+1738 /setblock 1 -59 0 stone
+1740 /setblock 1 -59 0 stone
+1742 /setblock 1 -59 0 stone
+1744 /setblock 1 -59 0 stone
+1746 /setblock 1 -59 0 stone
+1748 /setblock 1 -59 0 stone
+1750 /setblock 1 -59 0 stone
+1752 /setblock 1 -59 0 stone
+1754 /setblock 1 -59 0 stone
+1756 /setblock 1 -59 0 stone
+1758 /setblock 1 -59 0 stone
+1760 /setblock 1 -59 0 stone
+1762 /setblock 1 -59 0 stone
+1764 /setblock 1 -59 0 stone
+1766 /setblock 1 -59 0 stone
+1768 /setblock 1 -59 0 stone
+1770 /setblock 1 -59 0 stone
+1772 /setblock 1 -59 0 stone
+1774 /setblock 1 -59 0 stone
+1776 /setblock 1 -59 0 stone
+1778 /setblock 1 -59 0 stone
+1780 /setblock 1 -59 0 stone
+1782 /setblock 1 -59 0 stone
+1784 /setblock 1 -59 0 stone
+1786 /setblock 1 -59 0 stone
+1788 /setblock 1 -59 0 stone
+1790 /setblock 1 -59 0 stone
+1792 /setblock 1 -59 0 stone
+1794 /setblock 1 -59 0 stone
+1796 /setblock 1 -59 0 stone
+1798 /setblock 1 -59 0 stone
+1800 /setblock 1 -59 0 stone
+1802 /setblock 1 -59 0 stone
+1804 /setblock 1 -59 0 stone
+1806 /setblock 1 -59 0 stone
+1808 /setblock 1 -59 0 stone
+1810 /setblock 1 -59 0 stone
+1812 /setblock 1 -59 0 stone
+1814 /setblock 1 -59 0 stone
+1816 /setblock 1 -59 0 stone
+1818 /setblock 1 -59 0 stone
+1820 /setblock 1 -59 0 stone
+1822 /setblock 1 -59 0 stone
+1824 /setblock 1 -59 0 stone
+1826 /setblock 1 -59 0 stone
+1828 /setblock 1 -59 0 stone
+1830 /setblock 1 -59 0 stone
+1832 /setblock 1 -59 0 stone
+1834 /setblock 1 -59 0 stone
+1836 /setblock 1 -59 0 stone
+1838 /setblock 1 -59 0 stone
+1840 /setblock 1 -59 0 stone
+1842 /setblock 1 -59 0 stone
+1844 /setblock 1 -59 0 stone
+1846 /setblock 1 -59 0 stone
+1848 /setblock 1 -59 0 stone
+1850 /setblock 1 -59 0 stone
+1852 /setblock 1 -59 0 stone
+1854 /setblock 1 -59 0 stone
+1856 /setblock 1 -59 0 stone
+1858 /setblock 1 -59 0 stone
+1860 /setblock 1 -59 0 stone
+1862 /setblock 1 -59 0 stone
+1864 /setblock 1 -59 0 stone
+1866 /setblock 1 -59 0 stone
+1868 /setblock 1 -59 0 stone
+1870 /setblock 1 -59 0 stone
+1872 /setblock 1 -59 0 stone
+1874 /setblock 1 -59 0 stone
+1876 stop
+1881 /clear @s
+1882 /replaceitem entity @s slot.hotbar 0 netherite_pickaxe
+1885 /enchant @s efficiency 5
+1888 /enchant @s unbreaking 2
+1891 /say unbreaking mining 2
+1894 /setblock 1 -59 0 stone
+1896 mine 1 -59 0 4 0
+1898 /setblock 1 -59 0 stone
+1900 /setblock 1 -59 0 stone
+1902 /setblock 1 -59 0 stone
+1904 /setblock 1 -59 0 stone
+1906 /setblock 1 -59 0 stone
+1908 /setblock 1 -59 0 stone
+1910 /setblock 1 -59 0 stone
+1912 /setblock 1 -59 0 stone
+1914 /setblock 1 -59 0 stone
+1916 /setblock 1 -59 0 stone
+1918 /setblock 1 -59 0 stone
+1920 /setblock 1 -59 0 stone
+1922 /setblock 1 -59 0 stone
+1924 /setblock 1 -59 0 stone
+1926 /setblock 1 -59 0 stone
+1928 /setblock 1 -59 0 stone
+1930 /setblock 1 -59 0 stone
+1932 /setblock 1 -59 0 stone
+1934 /setblock 1 -59 0 stone
+1936 /setblock 1 -59 0 stone
+1938 /setblock 1 -59 0 stone
+1940 /setblock 1 -59 0 stone
+1942 /setblock 1 -59 0 stone
+1944 /setblock 1 -59 0 stone
+1946 /setblock 1 -59 0 stone
+1948 /setblock 1 -59 0 stone
+1950 /setblock 1 -59 0 stone
+1952 /setblock 1 -59 0 stone
+1954 /setblock 1 -59 0 stone
+1956 /setblock 1 -59 0 stone
+1958 /setblock 1 -59 0 stone
+1960 /setblock 1 -59 0 stone
+1962 /setblock 1 -59 0 stone
+1964 /setblock 1 -59 0 stone
+1966 /setblock 1 -59 0 stone
+1968 /setblock 1 -59 0 stone
+1970 /setblock 1 -59 0 stone
+1972 /setblock 1 -59 0 stone
+1974 /setblock 1 -59 0 stone
+1976 /setblock 1 -59 0 stone
+1978 /setblock 1 -59 0 stone
+1980 /setblock 1 -59 0 stone
+1982 /setblock 1 -59 0 stone
+1984 /setblock 1 -59 0 stone
+1986 /setblock 1 -59 0 stone
+1988 /setblock 1 -59 0 stone
+1990 /setblock 1 -59 0 stone
+1992 /setblock 1 -59 0 stone
+1994 /setblock 1 -59 0 stone
+1996 /setblock 1 -59 0 stone
+1998 /setblock 1 -59 0 stone
+2000 /setblock 1 -59 0 stone
+2002 /setblock 1 -59 0 stone
+2004 /setblock 1 -59 0 stone
+2006 /setblock 1 -59 0 stone
+2008 /setblock 1 -59 0 stone
+2010 /setblock 1 -59 0 stone
+2012 /setblock 1 -59 0 stone
+2014 /setblock 1 -59 0 stone
+2016 /setblock 1 -59 0 stone
+2018 /setblock 1 -59 0 stone
+2020 /setblock 1 -59 0 stone
+2022 /setblock 1 -59 0 stone
+2024 /setblock 1 -59 0 stone
+2026 /setblock 1 -59 0 stone
+2028 /setblock 1 -59 0 stone
+2030 /setblock 1 -59 0 stone
+2032 /setblock 1 -59 0 stone
+2034 /setblock 1 -59 0 stone
+2036 /setblock 1 -59 0 stone
+2038 /setblock 1 -59 0 stone
+2040 /setblock 1 -59 0 stone
+2042 /setblock 1 -59 0 stone
+2044 /setblock 1 -59 0 stone
+2046 /setblock 1 -59 0 stone
+2048 /setblock 1 -59 0 stone
+2050 /setblock 1 -59 0 stone
+2052 /setblock 1 -59 0 stone
+2054 /setblock 1 -59 0 stone
+2056 /setblock 1 -59 0 stone
+2058 /setblock 1 -59 0 stone
+2060 /setblock 1 -59 0 stone
+2062 /setblock 1 -59 0 stone
+2064 /setblock 1 -59 0 stone
+2066 /setblock 1 -59 0 stone
+2068 /setblock 1 -59 0 stone
+2070 /setblock 1 -59 0 stone
+2072 /setblock 1 -59 0 stone
+2074 /setblock 1 -59 0 stone
+2076 /setblock 1 -59 0 stone
+2078 /setblock 1 -59 0 stone
+2080 /setblock 1 -59 0 stone
+2082 /setblock 1 -59 0 stone
+2084 /setblock 1 -59 0 stone
+2086 /setblock 1 -59 0 stone
+2088 /setblock 1 -59 0 stone
+2090 /setblock 1 -59 0 stone
+2092 /setblock 1 -59 0 stone
+2094 /setblock 1 -59 0 stone
+2096 /setblock 1 -59 0 stone
+2098 /setblock 1 -59 0 stone
+2100 /setblock 1 -59 0 stone
+2102 /setblock 1 -59 0 stone
+2104 /setblock 1 -59 0 stone
+2106 /setblock 1 -59 0 stone
+2108 /setblock 1 -59 0 stone
+2110 /setblock 1 -59 0 stone
+2112 /setblock 1 -59 0 stone
+2114 /setblock 1 -59 0 stone
+2116 /setblock 1 -59 0 stone
+2118 /setblock 1 -59 0 stone
+2120 /setblock 1 -59 0 stone
+2122 /setblock 1 -59 0 stone
+2124 /setblock 1 -59 0 stone
+2126 /setblock 1 -59 0 stone
+2128 /setblock 1 -59 0 stone
+2130 /setblock 1 -59 0 stone
+2132 /setblock 1 -59 0 stone
+2134 /setblock 1 -59 0 stone
+2136 /setblock 1 -59 0 stone
+2138 /setblock 1 -59 0 stone
+2140 /setblock 1 -59 0 stone
+2142 /setblock 1 -59 0 stone
+2144 /setblock 1 -59 0 stone
+2146 /setblock 1 -59 0 stone
+2148 /setblock 1 -59 0 stone
+2150 /setblock 1 -59 0 stone
+2152 /setblock 1 -59 0 stone
+2154 /setblock 1 -59 0 stone
+2156 /setblock 1 -59 0 stone
+2158 /setblock 1 -59 0 stone
+2160 /setblock 1 -59 0 stone
+2162 /setblock 1 -59 0 stone
+2164 /setblock 1 -59 0 stone
+2166 /setblock 1 -59 0 stone
+2168 /setblock 1 -59 0 stone
+2170 /setblock 1 -59 0 stone
+2172 /setblock 1 -59 0 stone
+2174 /setblock 1 -59 0 stone
+2176 /setblock 1 -59 0 stone
+2178 /setblock 1 -59 0 stone
+2180 /setblock 1 -59 0 stone
+2182 /setblock 1 -59 0 stone
+2184 /setblock 1 -59 0 stone
+2186 /setblock 1 -59 0 stone
+2188 /setblock 1 -59 0 stone
+2190 /setblock 1 -59 0 stone
+2192 /setblock 1 -59 0 stone
+2194 /setblock 1 -59 0 stone
+2196 /setblock 1 -59 0 stone
+2198 /setblock 1 -59 0 stone
+2200 /setblock 1 -59 0 stone
+2202 /setblock 1 -59 0 stone
+2204 /setblock 1 -59 0 stone
+2206 /setblock 1 -59 0 stone
+2208 /setblock 1 -59 0 stone
+2210 /setblock 1 -59 0 stone
+2212 /setblock 1 -59 0 stone
+2214 /setblock 1 -59 0 stone
+2216 /setblock 1 -59 0 stone
+2218 /setblock 1 -59 0 stone
+2220 /setblock 1 -59 0 stone
+2222 /setblock 1 -59 0 stone
+2224 /setblock 1 -59 0 stone
+2226 /setblock 1 -59 0 stone
+2228 /setblock 1 -59 0 stone
+2230 /setblock 1 -59 0 stone
+2232 /setblock 1 -59 0 stone
+2234 /setblock 1 -59 0 stone
+2236 /setblock 1 -59 0 stone
+2238 /setblock 1 -59 0 stone
+2240 /setblock 1 -59 0 stone
+2242 /setblock 1 -59 0 stone
+2244 /setblock 1 -59 0 stone
+2246 /setblock 1 -59 0 stone
+2248 /setblock 1 -59 0 stone
+2250 /setblock 1 -59 0 stone
+2252 /setblock 1 -59 0 stone
+2254 /setblock 1 -59 0 stone
+2256 /setblock 1 -59 0 stone
+2258 /setblock 1 -59 0 stone
+2260 /setblock 1 -59 0 stone
+2262 /setblock 1 -59 0 stone
+2264 /setblock 1 -59 0 stone
+2266 /setblock 1 -59 0 stone
+2268 /setblock 1 -59 0 stone
+2270 /setblock 1 -59 0 stone
+2272 /setblock 1 -59 0 stone
+2274 /setblock 1 -59 0 stone
+2276 /setblock 1 -59 0 stone
+2278 /setblock 1 -59 0 stone
+2280 /setblock 1 -59 0 stone
+2282 /setblock 1 -59 0 stone
+2284 /setblock 1 -59 0 stone
+2286 /setblock 1 -59 0 stone
+2288 /setblock 1 -59 0 stone
+2290 /setblock 1 -59 0 stone
+2292 /setblock 1 -59 0 stone
+2294 /setblock 1 -59 0 stone
+2296 /setblock 1 -59 0 stone
+2298 /setblock 1 -59 0 stone
+2300 /setblock 1 -59 0 stone
+2302 /setblock 1 -59 0 stone
+2304 /setblock 1 -59 0 stone
+2306 /setblock 1 -59 0 stone
+2308 /setblock 1 -59 0 stone
+2310 /setblock 1 -59 0 stone
+2312 /setblock 1 -59 0 stone
+2314 /setblock 1 -59 0 stone
+2316 /setblock 1 -59 0 stone
+2318 /setblock 1 -59 0 stone
+2320 /setblock 1 -59 0 stone
+2322 /setblock 1 -59 0 stone
+2324 /setblock 1 -59 0 stone
+2326 /setblock 1 -59 0 stone
+2328 /setblock 1 -59 0 stone
+2330 /setblock 1 -59 0 stone
+2332 /setblock 1 -59 0 stone
+2334 /setblock 1 -59 0 stone
+2336 /setblock 1 -59 0 stone
+2338 /setblock 1 -59 0 stone
+2340 /setblock 1 -59 0 stone
+2342 /setblock 1 -59 0 stone
+2344 /setblock 1 -59 0 stone
+2346 /setblock 1 -59 0 stone
+2348 /setblock 1 -59 0 stone
+2350 /setblock 1 -59 0 stone
+2352 /setblock 1 -59 0 stone
+2354 /setblock 1 -59 0 stone
+2356 /setblock 1 -59 0 stone
+2358 /setblock 1 -59 0 stone
+2360 /setblock 1 -59 0 stone
+2362 /setblock 1 -59 0 stone
+2364 /setblock 1 -59 0 stone
+2366 /setblock 1 -59 0 stone
+2368 /setblock 1 -59 0 stone
+2370 /setblock 1 -59 0 stone
+2372 /setblock 1 -59 0 stone
+2374 /setblock 1 -59 0 stone
+2376 /setblock 1 -59 0 stone
+2378 /setblock 1 -59 0 stone
+2380 /setblock 1 -59 0 stone
+2382 /setblock 1 -59 0 stone
+2384 /setblock 1 -59 0 stone
+2386 /setblock 1 -59 0 stone
+2388 /setblock 1 -59 0 stone
+2390 /setblock 1 -59 0 stone
+2392 /setblock 1 -59 0 stone
+2394 /setblock 1 -59 0 stone
+2396 /setblock 1 -59 0 stone
+2398 /setblock 1 -59 0 stone
+2400 /setblock 1 -59 0 stone
+2402 /setblock 1 -59 0 stone
+2404 /setblock 1 -59 0 stone
+2406 /setblock 1 -59 0 stone
+2408 /setblock 1 -59 0 stone
+2410 /setblock 1 -59 0 stone
+2412 /setblock 1 -59 0 stone
+2414 /setblock 1 -59 0 stone
+2416 /setblock 1 -59 0 stone
+2418 /setblock 1 -59 0 stone
+2420 /setblock 1 -59 0 stone
+2422 /setblock 1 -59 0 stone
+2424 /setblock 1 -59 0 stone
+2426 /setblock 1 -59 0 stone
+2428 /setblock 1 -59 0 stone
+2430 /setblock 1 -59 0 stone
+2432 /setblock 1 -59 0 stone
+2434 /setblock 1 -59 0 stone
+2436 /setblock 1 -59 0 stone
+2438 /setblock 1 -59 0 stone
+2440 /setblock 1 -59 0 stone
+2442 /setblock 1 -59 0 stone
+2444 /setblock 1 -59 0 stone
+2446 /setblock 1 -59 0 stone
+2448 /setblock 1 -59 0 stone
+2450 /setblock 1 -59 0 stone
+2452 /setblock 1 -59 0 stone
+2454 /setblock 1 -59 0 stone
+2456 /setblock 1 -59 0 stone
+2458 /setblock 1 -59 0 stone
+2460 /setblock 1 -59 0 stone
+2462 /setblock 1 -59 0 stone
+2464 /setblock 1 -59 0 stone
+2466 /setblock 1 -59 0 stone
+2468 /setblock 1 -59 0 stone
+2470 /setblock 1 -59 0 stone
+2472 /setblock 1 -59 0 stone
+2474 /setblock 1 -59 0 stone
+2476 /setblock 1 -59 0 stone
+2478 /setblock 1 -59 0 stone
+2480 /setblock 1 -59 0 stone
+2482 /setblock 1 -59 0 stone
+2484 /setblock 1 -59 0 stone
+2486 /setblock 1 -59 0 stone
+2488 /setblock 1 -59 0 stone
+2490 /setblock 1 -59 0 stone
+2492 /setblock 1 -59 0 stone
+2494 /setblock 1 -59 0 stone
+2496 /setblock 1 -59 0 stone
+2498 /setblock 1 -59 0 stone
+2500 /setblock 1 -59 0 stone
+2502 /setblock 1 -59 0 stone
+2504 /setblock 1 -59 0 stone
+2506 /setblock 1 -59 0 stone
+2508 /setblock 1 -59 0 stone
+2510 /setblock 1 -59 0 stone
+2512 /setblock 1 -59 0 stone
+2514 /setblock 1 -59 0 stone
+2516 /setblock 1 -59 0 stone
+2518 /setblock 1 -59 0 stone
+2520 /setblock 1 -59 0 stone
+2522 /setblock 1 -59 0 stone
+2524 /setblock 1 -59 0 stone
+2526 /setblock 1 -59 0 stone
+2528 /setblock 1 -59 0 stone
+2530 /setblock 1 -59 0 stone
+2532 /setblock 1 -59 0 stone
+2534 /setblock 1 -59 0 stone
+2536 /setblock 1 -59 0 stone
+2538 /setblock 1 -59 0 stone
+2540 /setblock 1 -59 0 stone
+2542 /setblock 1 -59 0 stone
+2544 /setblock 1 -59 0 stone
+2546 /setblock 1 -59 0 stone
+2548 /setblock 1 -59 0 stone
+2550 /setblock 1 -59 0 stone
+2552 /setblock 1 -59 0 stone
+2554 /setblock 1 -59 0 stone
+2556 /setblock 1 -59 0 stone
+2558 /setblock 1 -59 0 stone
+2560 /setblock 1 -59 0 stone
+2562 /setblock 1 -59 0 stone
+2564 /setblock 1 -59 0 stone
+2566 /setblock 1 -59 0 stone
+2568 /setblock 1 -59 0 stone
+2570 /setblock 1 -59 0 stone
+2572 /setblock 1 -59 0 stone
+2574 /setblock 1 -59 0 stone
+2576 /setblock 1 -59 0 stone
+2578 /setblock 1 -59 0 stone
+2580 /setblock 1 -59 0 stone
+2582 /setblock 1 -59 0 stone
+2584 /setblock 1 -59 0 stone
+2586 /setblock 1 -59 0 stone
+2588 /setblock 1 -59 0 stone
+2590 /setblock 1 -59 0 stone
+2592 /setblock 1 -59 0 stone
+2594 /setblock 1 -59 0 stone
+2596 /setblock 1 -59 0 stone
+2598 /setblock 1 -59 0 stone
+2600 /setblock 1 -59 0 stone
+2602 /setblock 1 -59 0 stone
+2604 /setblock 1 -59 0 stone
+2606 /setblock 1 -59 0 stone
+2608 /setblock 1 -59 0 stone
+2610 /setblock 1 -59 0 stone
+2612 /setblock 1 -59 0 stone
+2614 /setblock 1 -59 0 stone
+2616 /setblock 1 -59 0 stone
+2618 /setblock 1 -59 0 stone
+2620 /setblock 1 -59 0 stone
+2622 /setblock 1 -59 0 stone
+2624 /setblock 1 -59 0 stone
+2626 /setblock 1 -59 0 stone
+2628 /setblock 1 -59 0 stone
+2630 /setblock 1 -59 0 stone
+2632 /setblock 1 -59 0 stone
+2634 /setblock 1 -59 0 stone
+2636 /setblock 1 -59 0 stone
+2638 /setblock 1 -59 0 stone
+2640 /setblock 1 -59 0 stone
+2642 /setblock 1 -59 0 stone
+2644 /setblock 1 -59 0 stone
+2646 /setblock 1 -59 0 stone
+2648 /setblock 1 -59 0 stone
+2650 /setblock 1 -59 0 stone
+2652 /setblock 1 -59 0 stone
+2654 /setblock 1 -59 0 stone
+2656 /setblock 1 -59 0 stone
+2658 /setblock 1 -59 0 stone
+2660 /setblock 1 -59 0 stone
+2662 /setblock 1 -59 0 stone
+2664 /setblock 1 -59 0 stone
+2666 /setblock 1 -59 0 stone
+2668 /setblock 1 -59 0 stone
+2670 /setblock 1 -59 0 stone
+2672 /setblock 1 -59 0 stone
+2674 /setblock 1 -59 0 stone
+2676 /setblock 1 -59 0 stone
+2678 /setblock 1 -59 0 stone
+2680 /setblock 1 -59 0 stone
+2682 /setblock 1 -59 0 stone
+2684 /setblock 1 -59 0 stone
+2686 /setblock 1 -59 0 stone
+2688 /setblock 1 -59 0 stone
+2690 /setblock 1 -59 0 stone
+2692 /setblock 1 -59 0 stone
+2694 /setblock 1 -59 0 stone
+2696 /setblock 1 -59 0 stone
+2698 /setblock 1 -59 0 stone
+2700 /setblock 1 -59 0 stone
+2702 /setblock 1 -59 0 stone
+2704 /setblock 1 -59 0 stone
+2706 /setblock 1 -59 0 stone
+2708 /setblock 1 -59 0 stone
+2710 /setblock 1 -59 0 stone
+2712 /setblock 1 -59 0 stone
+2714 /setblock 1 -59 0 stone
+2716 /setblock 1 -59 0 stone
+2718 /setblock 1 -59 0 stone
+2720 /setblock 1 -59 0 stone
+2722 /setblock 1 -59 0 stone
+2724 /setblock 1 -59 0 stone
+2726 /setblock 1 -59 0 stone
+2728 /setblock 1 -59 0 stone
+2730 /setblock 1 -59 0 stone
+2732 /setblock 1 -59 0 stone
+2734 /setblock 1 -59 0 stone
+2736 /setblock 1 -59 0 stone
+2738 /setblock 1 -59 0 stone
+2740 /setblock 1 -59 0 stone
+2742 /setblock 1 -59 0 stone
+2744 /setblock 1 -59 0 stone
+2746 /setblock 1 -59 0 stone
+2748 /setblock 1 -59 0 stone
+2750 /setblock 1 -59 0 stone
+2752 /setblock 1 -59 0 stone
+2754 /setblock 1 -59 0 stone
+2756 /setblock 1 -59 0 stone
+2758 /setblock 1 -59 0 stone
+2760 /setblock 1 -59 0 stone
+2762 /setblock 1 -59 0 stone
+2764 /setblock 1 -59 0 stone
+2766 /setblock 1 -59 0 stone
+2768 /setblock 1 -59 0 stone
+2770 /setblock 1 -59 0 stone
+2772 /setblock 1 -59 0 stone
+2774 /setblock 1 -59 0 stone
+2776 /setblock 1 -59 0 stone
+2778 /setblock 1 -59 0 stone
+2780 /setblock 1 -59 0 stone
+2782 /setblock 1 -59 0 stone
+2784 /setblock 1 -59 0 stone
+2786 /setblock 1 -59 0 stone
+2788 /setblock 1 -59 0 stone
+2790 /setblock 1 -59 0 stone
+2792 /setblock 1 -59 0 stone
+2794 /setblock 1 -59 0 stone
+2796 /setblock 1 -59 0 stone
+2798 /setblock 1 -59 0 stone
+2800 /setblock 1 -59 0 stone
+2802 /setblock 1 -59 0 stone
+2804 /setblock 1 -59 0 stone
+2806 /setblock 1 -59 0 stone
+2808 /setblock 1 -59 0 stone
+2810 /setblock 1 -59 0 stone
+2812 /setblock 1 -59 0 stone
+2814 /setblock 1 -59 0 stone
+2816 /setblock 1 -59 0 stone
+2818 /setblock 1 -59 0 stone
+2820 /setblock 1 -59 0 stone
+2822 /setblock 1 -59 0 stone
+2824 /setblock 1 -59 0 stone
+2826 /setblock 1 -59 0 stone
+2828 /setblock 1 -59 0 stone
+2830 /setblock 1 -59 0 stone
+2832 /setblock 1 -59 0 stone
+2834 /setblock 1 -59 0 stone
+2836 /setblock 1 -59 0 stone
+2838 /setblock 1 -59 0 stone
+2840 /setblock 1 -59 0 stone
+2842 /setblock 1 -59 0 stone
+2844 /setblock 1 -59 0 stone
+2846 /setblock 1 -59 0 stone
+2848 /setblock 1 -59 0 stone
+2850 /setblock 1 -59 0 stone
+2852 /setblock 1 -59 0 stone
+2854 /setblock 1 -59 0 stone
+2856 /setblock 1 -59 0 stone
+2858 /setblock 1 -59 0 stone
+2860 /setblock 1 -59 0 stone
+2862 /setblock 1 -59 0 stone
+2864 /setblock 1 -59 0 stone
+2866 /setblock 1 -59 0 stone
+2868 /setblock 1 -59 0 stone
+2870 /setblock 1 -59 0 stone
+2872 /setblock 1 -59 0 stone
+2874 /setblock 1 -59 0 stone
+2876 /setblock 1 -59 0 stone
+2878 /setblock 1 -59 0 stone
+2880 /setblock 1 -59 0 stone
+2882 /setblock 1 -59 0 stone
+2884 /setblock 1 -59 0 stone
+2886 /setblock 1 -59 0 stone
+2888 /setblock 1 -59 0 stone
+2890 /setblock 1 -59 0 stone
+2892 /setblock 1 -59 0 stone
+2894 /setblock 1 -59 0 stone
+2896 /setblock 1 -59 0 stone
+2898 /setblock 1 -59 0 stone
+2900 /setblock 1 -59 0 stone
+2902 /setblock 1 -59 0 stone
+2904 /setblock 1 -59 0 stone
+2906 /setblock 1 -59 0 stone
+2908 /setblock 1 -59 0 stone
+2910 /setblock 1 -59 0 stone
+2912 /setblock 1 -59 0 stone
+2914 /setblock 1 -59 0 stone
+2916 /setblock 1 -59 0 stone
+2918 /setblock 1 -59 0 stone
+2920 /setblock 1 -59 0 stone
+2922 /setblock 1 -59 0 stone
+2924 /setblock 1 -59 0 stone
+2926 /setblock 1 -59 0 stone
+2928 /setblock 1 -59 0 stone
+2930 /setblock 1 -59 0 stone
+2932 /setblock 1 -59 0 stone
+2934 /setblock 1 -59 0 stone
+2936 /setblock 1 -59 0 stone
+2938 /setblock 1 -59 0 stone
+2940 /setblock 1 -59 0 stone
+2942 /setblock 1 -59 0 stone
+2944 /setblock 1 -59 0 stone
+2946 /setblock 1 -59 0 stone
+2948 /setblock 1 -59 0 stone
+2950 /setblock 1 -59 0 stone
+2952 /setblock 1 -59 0 stone
+2954 /setblock 1 -59 0 stone
+2956 /setblock 1 -59 0 stone
+2958 /setblock 1 -59 0 stone
+2960 /setblock 1 -59 0 stone
+2962 /setblock 1 -59 0 stone
+2964 /setblock 1 -59 0 stone
+2966 /setblock 1 -59 0 stone
+2968 /setblock 1 -59 0 stone
+2970 /setblock 1 -59 0 stone
+2972 /setblock 1 -59 0 stone
+2974 /setblock 1 -59 0 stone
+2976 /setblock 1 -59 0 stone
+2978 /setblock 1 -59 0 stone
+2980 /setblock 1 -59 0 stone
+2982 /setblock 1 -59 0 stone
+2984 /setblock 1 -59 0 stone
+2986 /setblock 1 -59 0 stone
+2988 /setblock 1 -59 0 stone
+2990 /setblock 1 -59 0 stone
+2992 /setblock 1 -59 0 stone
+2994 /setblock 1 -59 0 stone
+2996 /setblock 1 -59 0 stone
+2998 /setblock 1 -59 0 stone
+3000 /setblock 1 -59 0 stone
+3002 /setblock 1 -59 0 stone
+3004 /setblock 1 -59 0 stone
+3006 /setblock 1 -59 0 stone
+3008 /setblock 1 -59 0 stone
+3010 /setblock 1 -59 0 stone
+3012 /setblock 1 -59 0 stone
+3014 /setblock 1 -59 0 stone
+3016 /setblock 1 -59 0 stone
+3018 /setblock 1 -59 0 stone
+3020 /setblock 1 -59 0 stone
+3022 /setblock 1 -59 0 stone
+3024 /setblock 1 -59 0 stone
+3026 /setblock 1 -59 0 stone
+3028 /setblock 1 -59 0 stone
+3030 /setblock 1 -59 0 stone
+3032 /setblock 1 -59 0 stone
+3034 /setblock 1 -59 0 stone
+3036 /setblock 1 -59 0 stone
+3038 /setblock 1 -59 0 stone
+3040 /setblock 1 -59 0 stone
+3042 /setblock 1 -59 0 stone
+3044 /setblock 1 -59 0 stone
+3046 /setblock 1 -59 0 stone
+3048 /setblock 1 -59 0 stone
+3050 /setblock 1 -59 0 stone
+3052 /setblock 1 -59 0 stone
+3054 /setblock 1 -59 0 stone
+3056 /setblock 1 -59 0 stone
+3058 /setblock 1 -59 0 stone
+3060 /setblock 1 -59 0 stone
+3062 /setblock 1 -59 0 stone
+3064 /setblock 1 -59 0 stone
+3066 /setblock 1 -59 0 stone
+3068 /setblock 1 -59 0 stone
+3070 /setblock 1 -59 0 stone
+3072 /setblock 1 -59 0 stone
+3074 /setblock 1 -59 0 stone
+3076 /setblock 1 -59 0 stone
+3078 /setblock 1 -59 0 stone
+3080 /setblock 1 -59 0 stone
+3082 /setblock 1 -59 0 stone
+3084 /setblock 1 -59 0 stone
+3086 /setblock 1 -59 0 stone
+3088 /setblock 1 -59 0 stone
+3090 /setblock 1 -59 0 stone
+3092 /setblock 1 -59 0 stone
+3094 /setblock 1 -59 0 stone
+3096 /setblock 1 -59 0 stone
+3098 /setblock 1 -59 0 stone
+3100 /setblock 1 -59 0 stone
+3102 /setblock 1 -59 0 stone
+3104 /setblock 1 -59 0 stone
+3106 /setblock 1 -59 0 stone
+3108 /setblock 1 -59 0 stone
+3110 /setblock 1 -59 0 stone
+3112 /setblock 1 -59 0 stone
+3114 /setblock 1 -59 0 stone
+3116 /setblock 1 -59 0 stone
+3118 /setblock 1 -59 0 stone
+3120 /setblock 1 -59 0 stone
+3122 /setblock 1 -59 0 stone
+3124 /setblock 1 -59 0 stone
+3126 /setblock 1 -59 0 stone
+3128 /setblock 1 -59 0 stone
+3130 /setblock 1 -59 0 stone
+3132 /setblock 1 -59 0 stone
+3134 /setblock 1 -59 0 stone
+3136 /setblock 1 -59 0 stone
+3138 /setblock 1 -59 0 stone
+3140 /setblock 1 -59 0 stone
+3142 /setblock 1 -59 0 stone
+3144 /setblock 1 -59 0 stone
+3146 /setblock 1 -59 0 stone
+3148 /setblock 1 -59 0 stone
+3150 /setblock 1 -59 0 stone
+3152 /setblock 1 -59 0 stone
+3154 /setblock 1 -59 0 stone
+3156 /setblock 1 -59 0 stone
+3158 /setblock 1 -59 0 stone
+3160 /setblock 1 -59 0 stone
+3162 /setblock 1 -59 0 stone
+3164 /setblock 1 -59 0 stone
+3166 /setblock 1 -59 0 stone
+3168 /setblock 1 -59 0 stone
+3170 /setblock 1 -59 0 stone
+3172 /setblock 1 -59 0 stone
+3174 /setblock 1 -59 0 stone
+3176 /setblock 1 -59 0 stone
+3178 /setblock 1 -59 0 stone
+3180 /setblock 1 -59 0 stone
+3182 /setblock 1 -59 0 stone
+3184 /setblock 1 -59 0 stone
+3186 /setblock 1 -59 0 stone
+3188 /setblock 1 -59 0 stone
+3190 /setblock 1 -59 0 stone
+3192 /setblock 1 -59 0 stone
+3194 /setblock 1 -59 0 stone
+3196 /setblock 1 -59 0 stone
+3198 /setblock 1 -59 0 stone
+3200 /setblock 1 -59 0 stone
+3202 /setblock 1 -59 0 stone
+3204 /setblock 1 -59 0 stone
+3206 /setblock 1 -59 0 stone
+3208 /setblock 1 -59 0 stone
+3210 /setblock 1 -59 0 stone
+3212 /setblock 1 -59 0 stone
+3214 /setblock 1 -59 0 stone
+3216 /setblock 1 -59 0 stone
+3218 /setblock 1 -59 0 stone
+3220 /setblock 1 -59 0 stone
+3222 /setblock 1 -59 0 stone
+3224 /setblock 1 -59 0 stone
+3226 /setblock 1 -59 0 stone
+3228 /setblock 1 -59 0 stone
+3230 /setblock 1 -59 0 stone
+3232 /setblock 1 -59 0 stone
+3234 /setblock 1 -59 0 stone
+3236 /setblock 1 -59 0 stone
+3238 /setblock 1 -59 0 stone
+3240 /setblock 1 -59 0 stone
+3242 /setblock 1 -59 0 stone
+3244 /setblock 1 -59 0 stone
+3246 /setblock 1 -59 0 stone
+3248 /setblock 1 -59 0 stone
+3250 /setblock 1 -59 0 stone
+3252 /setblock 1 -59 0 stone
+3254 /setblock 1 -59 0 stone
+3256 /setblock 1 -59 0 stone
+3258 /setblock 1 -59 0 stone
+3260 /setblock 1 -59 0 stone
+3262 /setblock 1 -59 0 stone
+3264 /setblock 1 -59 0 stone
+3266 /setblock 1 -59 0 stone
+3268 /setblock 1 -59 0 stone
+3270 /setblock 1 -59 0 stone
+3272 /setblock 1 -59 0 stone
+3274 /setblock 1 -59 0 stone
+3276 /setblock 1 -59 0 stone
+3278 /setblock 1 -59 0 stone
+3280 /setblock 1 -59 0 stone
+3282 /setblock 1 -59 0 stone
+3284 /setblock 1 -59 0 stone
+3286 /setblock 1 -59 0 stone
+3288 /setblock 1 -59 0 stone
+3290 /setblock 1 -59 0 stone
+3292 /setblock 1 -59 0 stone
+3294 /setblock 1 -59 0 stone
+3296 /setblock 1 -59 0 stone
+3298 /setblock 1 -59 0 stone
+3300 /setblock 1 -59 0 stone
+3302 /setblock 1 -59 0 stone
+3304 /setblock 1 -59 0 stone
+3306 /setblock 1 -59 0 stone
+3308 /setblock 1 -59 0 stone
+3310 /setblock 1 -59 0 stone
+3312 /setblock 1 -59 0 stone
+3314 /setblock 1 -59 0 stone
+3316 /setblock 1 -59 0 stone
+3318 /setblock 1 -59 0 stone
+3320 /setblock 1 -59 0 stone
+3322 /setblock 1 -59 0 stone
+3324 /setblock 1 -59 0 stone
+3326 /setblock 1 -59 0 stone
+3328 /setblock 1 -59 0 stone
+3330 /setblock 1 -59 0 stone
+3332 /setblock 1 -59 0 stone
+3334 /setblock 1 -59 0 stone
+3336 /setblock 1 -59 0 stone
+3338 /setblock 1 -59 0 stone
+3340 /setblock 1 -59 0 stone
+3342 /setblock 1 -59 0 stone
+3344 /setblock 1 -59 0 stone
+3346 /setblock 1 -59 0 stone
+3348 /setblock 1 -59 0 stone
+3350 /setblock 1 -59 0 stone
+3352 /setblock 1 -59 0 stone
+3354 /setblock 1 -59 0 stone
+3356 /setblock 1 -59 0 stone
+3358 /setblock 1 -59 0 stone
+3360 /setblock 1 -59 0 stone
+3362 /setblock 1 -59 0 stone
+3364 /setblock 1 -59 0 stone
+3366 /setblock 1 -59 0 stone
+3368 /setblock 1 -59 0 stone
+3370 /setblock 1 -59 0 stone
+3372 /setblock 1 -59 0 stone
+3374 /setblock 1 -59 0 stone
+3376 /setblock 1 -59 0 stone
+3378 /setblock 1 -59 0 stone
+3380 /setblock 1 -59 0 stone
+3382 /setblock 1 -59 0 stone
+3384 /setblock 1 -59 0 stone
+3386 /setblock 1 -59 0 stone
+3388 /setblock 1 -59 0 stone
+3390 /setblock 1 -59 0 stone
+3392 /setblock 1 -59 0 stone
+3394 /setblock 1 -59 0 stone
+3396 /setblock 1 -59 0 stone
+3398 /setblock 1 -59 0 stone
+3400 /setblock 1 -59 0 stone
+3402 /setblock 1 -59 0 stone
+3404 /setblock 1 -59 0 stone
+3406 /setblock 1 -59 0 stone
+3408 /setblock 1 -59 0 stone
+3410 /setblock 1 -59 0 stone
+3412 /setblock 1 -59 0 stone
+3414 /setblock 1 -59 0 stone
+3416 /setblock 1 -59 0 stone
+3418 /setblock 1 -59 0 stone
+3420 /setblock 1 -59 0 stone
+3422 /setblock 1 -59 0 stone
+3424 /setblock 1 -59 0 stone
+3426 /setblock 1 -59 0 stone
+3428 /setblock 1 -59 0 stone
+3430 /setblock 1 -59 0 stone
+3432 /setblock 1 -59 0 stone
+3434 /setblock 1 -59 0 stone
+3436 /setblock 1 -59 0 stone
+3438 /setblock 1 -59 0 stone
+3440 /setblock 1 -59 0 stone
+3442 /setblock 1 -59 0 stone
+3444 /setblock 1 -59 0 stone
+3446 /setblock 1 -59 0 stone
+3448 /setblock 1 -59 0 stone
+3450 /setblock 1 -59 0 stone
+3452 /setblock 1 -59 0 stone
+3454 /setblock 1 -59 0 stone
+3456 /setblock 1 -59 0 stone
+3458 /setblock 1 -59 0 stone
+3460 /setblock 1 -59 0 stone
+3462 /setblock 1 -59 0 stone
+3464 /setblock 1 -59 0 stone
+3466 /setblock 1 -59 0 stone
+3468 /setblock 1 -59 0 stone
+3470 /setblock 1 -59 0 stone
+3472 /setblock 1 -59 0 stone
+3474 /setblock 1 -59 0 stone
+3476 /setblock 1 -59 0 stone
+3478 /setblock 1 -59 0 stone
+3480 /setblock 1 -59 0 stone
+3482 /setblock 1 -59 0 stone
+3484 /setblock 1 -59 0 stone
+3486 /setblock 1 -59 0 stone
+3488 /setblock 1 -59 0 stone
+3490 /setblock 1 -59 0 stone
+3492 /setblock 1 -59 0 stone
+3494 /setblock 1 -59 0 stone
+3496 stop
+3501 /clear @s
+3502 /replaceitem entity @s slot.hotbar 0 netherite_pickaxe
+3505 /enchant @s efficiency 5
+3508 /enchant @s unbreaking 3
+3511 /say unbreaking mining 3
+3514 /setblock 1 -59 0 stone
+3516 mine 1 -59 0 4 0
+3518 /setblock 1 -59 0 stone
+3520 /setblock 1 -59 0 stone
+3522 /setblock 1 -59 0 stone
+3524 /setblock 1 -59 0 stone
+3526 /setblock 1 -59 0 stone
+3528 /setblock 1 -59 0 stone
+3530 /setblock 1 -59 0 stone
+3532 /setblock 1 -59 0 stone
+3534 /setblock 1 -59 0 stone
+3536 /setblock 1 -59 0 stone
+3538 /setblock 1 -59 0 stone
+3540 /setblock 1 -59 0 stone
+3542 /setblock 1 -59 0 stone
+3544 /setblock 1 -59 0 stone
+3546 /setblock 1 -59 0 stone
+3548 /setblock 1 -59 0 stone
+3550 /setblock 1 -59 0 stone
+3552 /setblock 1 -59 0 stone
+3554 /setblock 1 -59 0 stone
+3556 /setblock 1 -59 0 stone
+3558 /setblock 1 -59 0 stone
+3560 /setblock 1 -59 0 stone
+3562 /setblock 1 -59 0 stone
+3564 /setblock 1 -59 0 stone
+3566 /setblock 1 -59 0 stone
+3568 /setblock 1 -59 0 stone
+3570 /setblock 1 -59 0 stone
+3572 /setblock 1 -59 0 stone
+3574 /setblock 1 -59 0 stone
+3576 /setblock 1 -59 0 stone
+3578 /setblock 1 -59 0 stone
+3580 /setblock 1 -59 0 stone
+3582 /setblock 1 -59 0 stone
+3584 /setblock 1 -59 0 stone
+3586 /setblock 1 -59 0 stone
+3588 /setblock 1 -59 0 stone
+3590 /setblock 1 -59 0 stone
+3592 /setblock 1 -59 0 stone
+3594 /setblock 1 -59 0 stone
+3596 /setblock 1 -59 0 stone
+3598 /setblock 1 -59 0 stone
+3600 /setblock 1 -59 0 stone
+3602 /setblock 1 -59 0 stone
+3604 /setblock 1 -59 0 stone
+3606 /setblock 1 -59 0 stone
+3608 /setblock 1 -59 0 stone
+3610 /setblock 1 -59 0 stone
+3612 /setblock 1 -59 0 stone
+3614 /setblock 1 -59 0 stone
+3616 /setblock 1 -59 0 stone
+3618 /setblock 1 -59 0 stone
+3620 /setblock 1 -59 0 stone
+3622 /setblock 1 -59 0 stone
+3624 /setblock 1 -59 0 stone
+3626 /setblock 1 -59 0 stone
+3628 /setblock 1 -59 0 stone
+3630 /setblock 1 -59 0 stone
+3632 /setblock 1 -59 0 stone
+3634 /setblock 1 -59 0 stone
+3636 /setblock 1 -59 0 stone
+3638 /setblock 1 -59 0 stone
+3640 /setblock 1 -59 0 stone
+3642 /setblock 1 -59 0 stone
+3644 /setblock 1 -59 0 stone
+3646 /setblock 1 -59 0 stone
+3648 /setblock 1 -59 0 stone
+3650 /setblock 1 -59 0 stone
+3652 /setblock 1 -59 0 stone
+3654 /setblock 1 -59 0 stone
+3656 /setblock 1 -59 0 stone
+3658 /setblock 1 -59 0 stone
+3660 /setblock 1 -59 0 stone
+3662 /setblock 1 -59 0 stone
+3664 /setblock 1 -59 0 stone
+3666 /setblock 1 -59 0 stone
+3668 /setblock 1 -59 0 stone
+3670 /setblock 1 -59 0 stone
+3672 /setblock 1 -59 0 stone
+3674 /setblock 1 -59 0 stone
+3676 /setblock 1 -59 0 stone
+3678 /setblock 1 -59 0 stone
+3680 /setblock 1 -59 0 stone
+3682 /setblock 1 -59 0 stone
+3684 /setblock 1 -59 0 stone
+3686 /setblock 1 -59 0 stone
+3688 /setblock 1 -59 0 stone
+3690 /setblock 1 -59 0 stone
+3692 /setblock 1 -59 0 stone
+3694 /setblock 1 -59 0 stone
+3696 /setblock 1 -59 0 stone
+3698 /setblock 1 -59 0 stone
+3700 /setblock 1 -59 0 stone
+3702 /setblock 1 -59 0 stone
+3704 /setblock 1 -59 0 stone
+3706 /setblock 1 -59 0 stone
+3708 /setblock 1 -59 0 stone
+3710 /setblock 1 -59 0 stone
+3712 /setblock 1 -59 0 stone
+3714 /setblock 1 -59 0 stone
+3716 /setblock 1 -59 0 stone
+3718 /setblock 1 -59 0 stone
+3720 /setblock 1 -59 0 stone
+3722 /setblock 1 -59 0 stone
+3724 /setblock 1 -59 0 stone
+3726 /setblock 1 -59 0 stone
+3728 /setblock 1 -59 0 stone
+3730 /setblock 1 -59 0 stone
+3732 /setblock 1 -59 0 stone
+3734 /setblock 1 -59 0 stone
+3736 /setblock 1 -59 0 stone
+3738 /setblock 1 -59 0 stone
+3740 /setblock 1 -59 0 stone
+3742 /setblock 1 -59 0 stone
+3744 /setblock 1 -59 0 stone
+3746 /setblock 1 -59 0 stone
+3748 /setblock 1 -59 0 stone
+3750 /setblock 1 -59 0 stone
+3752 /setblock 1 -59 0 stone
+3754 /setblock 1 -59 0 stone
+3756 /setblock 1 -59 0 stone
+3758 /setblock 1 -59 0 stone
+3760 /setblock 1 -59 0 stone
+3762 /setblock 1 -59 0 stone
+3764 /setblock 1 -59 0 stone
+3766 /setblock 1 -59 0 stone
+3768 /setblock 1 -59 0 stone
+3770 /setblock 1 -59 0 stone
+3772 /setblock 1 -59 0 stone
+3774 /setblock 1 -59 0 stone
+3776 /setblock 1 -59 0 stone
+3778 /setblock 1 -59 0 stone
+3780 /setblock 1 -59 0 stone
+3782 /setblock 1 -59 0 stone
+3784 /setblock 1 -59 0 stone
+3786 /setblock 1 -59 0 stone
+3788 /setblock 1 -59 0 stone
+3790 /setblock 1 -59 0 stone
+3792 /setblock 1 -59 0 stone
+3794 /setblock 1 -59 0 stone
+3796 /setblock 1 -59 0 stone
+3798 /setblock 1 -59 0 stone
+3800 /setblock 1 -59 0 stone
+3802 /setblock 1 -59 0 stone
+3804 /setblock 1 -59 0 stone
+3806 /setblock 1 -59 0 stone
+3808 /setblock 1 -59 0 stone
+3810 /setblock 1 -59 0 stone
+3812 /setblock 1 -59 0 stone
+3814 /setblock 1 -59 0 stone
+3816 /setblock 1 -59 0 stone
+3818 /setblock 1 -59 0 stone
+3820 /setblock 1 -59 0 stone
+3822 /setblock 1 -59 0 stone
+3824 /setblock 1 -59 0 stone
+3826 /setblock 1 -59 0 stone
+3828 /setblock 1 -59 0 stone
+3830 /setblock 1 -59 0 stone
+3832 /setblock 1 -59 0 stone
+3834 /setblock 1 -59 0 stone
+3836 /setblock 1 -59 0 stone
+3838 /setblock 1 -59 0 stone
+3840 /setblock 1 -59 0 stone
+3842 /setblock 1 -59 0 stone
+3844 /setblock 1 -59 0 stone
+3846 /setblock 1 -59 0 stone
+3848 /setblock 1 -59 0 stone
+3850 /setblock 1 -59 0 stone
+3852 /setblock 1 -59 0 stone
+3854 /setblock 1 -59 0 stone
+3856 /setblock 1 -59 0 stone
+3858 /setblock 1 -59 0 stone
+3860 /setblock 1 -59 0 stone
+3862 /setblock 1 -59 0 stone
+3864 /setblock 1 -59 0 stone
+3866 /setblock 1 -59 0 stone
+3868 /setblock 1 -59 0 stone
+3870 /setblock 1 -59 0 stone
+3872 /setblock 1 -59 0 stone
+3874 /setblock 1 -59 0 stone
+3876 /setblock 1 -59 0 stone
+3878 /setblock 1 -59 0 stone
+3880 /setblock 1 -59 0 stone
+3882 /setblock 1 -59 0 stone
+3884 /setblock 1 -59 0 stone
+3886 /setblock 1 -59 0 stone
+3888 /setblock 1 -59 0 stone
+3890 /setblock 1 -59 0 stone
+3892 /setblock 1 -59 0 stone
+3894 /setblock 1 -59 0 stone
+3896 /setblock 1 -59 0 stone
+3898 /setblock 1 -59 0 stone
+3900 /setblock 1 -59 0 stone
+3902 /setblock 1 -59 0 stone
+3904 /setblock 1 -59 0 stone
+3906 /setblock 1 -59 0 stone
+3908 /setblock 1 -59 0 stone
+3910 /setblock 1 -59 0 stone
+3912 /setblock 1 -59 0 stone
+3914 /setblock 1 -59 0 stone
+3916 /setblock 1 -59 0 stone
+3918 /setblock 1 -59 0 stone
+3920 /setblock 1 -59 0 stone
+3922 /setblock 1 -59 0 stone
+3924 /setblock 1 -59 0 stone
+3926 /setblock 1 -59 0 stone
+3928 /setblock 1 -59 0 stone
+3930 /setblock 1 -59 0 stone
+3932 /setblock 1 -59 0 stone
+3934 /setblock 1 -59 0 stone
+3936 /setblock 1 -59 0 stone
+3938 /setblock 1 -59 0 stone
+3940 /setblock 1 -59 0 stone
+3942 /setblock 1 -59 0 stone
+3944 /setblock 1 -59 0 stone
+3946 /setblock 1 -59 0 stone
+3948 /setblock 1 -59 0 stone
+3950 /setblock 1 -59 0 stone
+3952 /setblock 1 -59 0 stone
+3954 /setblock 1 -59 0 stone
+3956 /setblock 1 -59 0 stone
+3958 /setblock 1 -59 0 stone
+3960 /setblock 1 -59 0 stone
+3962 /setblock 1 -59 0 stone
+3964 /setblock 1 -59 0 stone
+3966 /setblock 1 -59 0 stone
+3968 /setblock 1 -59 0 stone
+3970 /setblock 1 -59 0 stone
+3972 /setblock 1 -59 0 stone
+3974 /setblock 1 -59 0 stone
+3976 /setblock 1 -59 0 stone
+3978 /setblock 1 -59 0 stone
+3980 /setblock 1 -59 0 stone
+3982 /setblock 1 -59 0 stone
+3984 /setblock 1 -59 0 stone
+3986 /setblock 1 -59 0 stone
+3988 /setblock 1 -59 0 stone
+3990 /setblock 1 -59 0 stone
+3992 /setblock 1 -59 0 stone
+3994 /setblock 1 -59 0 stone
+3996 /setblock 1 -59 0 stone
+3998 /setblock 1 -59 0 stone
+4000 /setblock 1 -59 0 stone
+4002 /setblock 1 -59 0 stone
+4004 /setblock 1 -59 0 stone
+4006 /setblock 1 -59 0 stone
+4008 /setblock 1 -59 0 stone
+4010 /setblock 1 -59 0 stone
+4012 /setblock 1 -59 0 stone
+4014 /setblock 1 -59 0 stone
+4016 /setblock 1 -59 0 stone
+4018 /setblock 1 -59 0 stone
+4020 /setblock 1 -59 0 stone
+4022 /setblock 1 -59 0 stone
+4024 /setblock 1 -59 0 stone
+4026 /setblock 1 -59 0 stone
+4028 /setblock 1 -59 0 stone
+4030 /setblock 1 -59 0 stone
+4032 /setblock 1 -59 0 stone
+4034 /setblock 1 -59 0 stone
+4036 /setblock 1 -59 0 stone
+4038 /setblock 1 -59 0 stone
+4040 /setblock 1 -59 0 stone
+4042 /setblock 1 -59 0 stone
+4044 /setblock 1 -59 0 stone
+4046 /setblock 1 -59 0 stone
+4048 /setblock 1 -59 0 stone
+4050 /setblock 1 -59 0 stone
+4052 /setblock 1 -59 0 stone
+4054 /setblock 1 -59 0 stone
+4056 /setblock 1 -59 0 stone
+4058 /setblock 1 -59 0 stone
+4060 /setblock 1 -59 0 stone
+4062 /setblock 1 -59 0 stone
+4064 /setblock 1 -59 0 stone
+4066 /setblock 1 -59 0 stone
+4068 /setblock 1 -59 0 stone
+4070 /setblock 1 -59 0 stone
+4072 /setblock 1 -59 0 stone
+4074 /setblock 1 -59 0 stone
+4076 /setblock 1 -59 0 stone
+4078 /setblock 1 -59 0 stone
+4080 /setblock 1 -59 0 stone
+4082 /setblock 1 -59 0 stone
+4084 /setblock 1 -59 0 stone
+4086 /setblock 1 -59 0 stone
+4088 /setblock 1 -59 0 stone
+4090 /setblock 1 -59 0 stone
+4092 /setblock 1 -59 0 stone
+4094 /setblock 1 -59 0 stone
+4096 /setblock 1 -59 0 stone
+4098 /setblock 1 -59 0 stone
+4100 /setblock 1 -59 0 stone
+4102 /setblock 1 -59 0 stone
+4104 /setblock 1 -59 0 stone
+4106 /setblock 1 -59 0 stone
+4108 /setblock 1 -59 0 stone
+4110 /setblock 1 -59 0 stone
+4112 /setblock 1 -59 0 stone
+4114 /setblock 1 -59 0 stone
+4116 /setblock 1 -59 0 stone
+4118 /setblock 1 -59 0 stone
+4120 /setblock 1 -59 0 stone
+4122 /setblock 1 -59 0 stone
+4124 /setblock 1 -59 0 stone
+4126 /setblock 1 -59 0 stone
+4128 /setblock 1 -59 0 stone
+4130 /setblock 1 -59 0 stone
+4132 /setblock 1 -59 0 stone
+4134 /setblock 1 -59 0 stone
+4136 /setblock 1 -59 0 stone
+4138 /setblock 1 -59 0 stone
+4140 /setblock 1 -59 0 stone
+4142 /setblock 1 -59 0 stone
+4144 /setblock 1 -59 0 stone
+4146 /setblock 1 -59 0 stone
+4148 /setblock 1 -59 0 stone
+4150 /setblock 1 -59 0 stone
+4152 /setblock 1 -59 0 stone
+4154 /setblock 1 -59 0 stone
+4156 /setblock 1 -59 0 stone
+4158 /setblock 1 -59 0 stone
+4160 /setblock 1 -59 0 stone
+4162 /setblock 1 -59 0 stone
+4164 /setblock 1 -59 0 stone
+4166 /setblock 1 -59 0 stone
+4168 /setblock 1 -59 0 stone
+4170 /setblock 1 -59 0 stone
+4172 /setblock 1 -59 0 stone
+4174 /setblock 1 -59 0 stone
+4176 /setblock 1 -59 0 stone
+4178 /setblock 1 -59 0 stone
+4180 /setblock 1 -59 0 stone
+4182 /setblock 1 -59 0 stone
+4184 /setblock 1 -59 0 stone
+4186 /setblock 1 -59 0 stone
+4188 /setblock 1 -59 0 stone
+4190 /setblock 1 -59 0 stone
+4192 /setblock 1 -59 0 stone
+4194 /setblock 1 -59 0 stone
+4196 /setblock 1 -59 0 stone
+4198 /setblock 1 -59 0 stone
+4200 /setblock 1 -59 0 stone
+4202 /setblock 1 -59 0 stone
+4204 /setblock 1 -59 0 stone
+4206 /setblock 1 -59 0 stone
+4208 /setblock 1 -59 0 stone
+4210 /setblock 1 -59 0 stone
+4212 /setblock 1 -59 0 stone
+4214 /setblock 1 -59 0 stone
+4216 /setblock 1 -59 0 stone
+4218 /setblock 1 -59 0 stone
+4220 /setblock 1 -59 0 stone
+4222 /setblock 1 -59 0 stone
+4224 /setblock 1 -59 0 stone
+4226 /setblock 1 -59 0 stone
+4228 /setblock 1 -59 0 stone
+4230 /setblock 1 -59 0 stone
+4232 /setblock 1 -59 0 stone
+4234 /setblock 1 -59 0 stone
+4236 /setblock 1 -59 0 stone
+4238 /setblock 1 -59 0 stone
+4240 /setblock 1 -59 0 stone
+4242 /setblock 1 -59 0 stone
+4244 /setblock 1 -59 0 stone
+4246 /setblock 1 -59 0 stone
+4248 /setblock 1 -59 0 stone
+4250 /setblock 1 -59 0 stone
+4252 /setblock 1 -59 0 stone
+4254 /setblock 1 -59 0 stone
+4256 /setblock 1 -59 0 stone
+4258 /setblock 1 -59 0 stone
+4260 /setblock 1 -59 0 stone
+4262 /setblock 1 -59 0 stone
+4264 /setblock 1 -59 0 stone
+4266 /setblock 1 -59 0 stone
+4268 /setblock 1 -59 0 stone
+4270 /setblock 1 -59 0 stone
+4272 /setblock 1 -59 0 stone
+4274 /setblock 1 -59 0 stone
+4276 /setblock 1 -59 0 stone
+4278 /setblock 1 -59 0 stone
+4280 /setblock 1 -59 0 stone
+4282 /setblock 1 -59 0 stone
+4284 /setblock 1 -59 0 stone
+4286 /setblock 1 -59 0 stone
+4288 /setblock 1 -59 0 stone
+4290 /setblock 1 -59 0 stone
+4292 /setblock 1 -59 0 stone
+4294 /setblock 1 -59 0 stone
+4296 /setblock 1 -59 0 stone
+4298 /setblock 1 -59 0 stone
+4300 /setblock 1 -59 0 stone
+4302 /setblock 1 -59 0 stone
+4304 /setblock 1 -59 0 stone
+4306 /setblock 1 -59 0 stone
+4308 /setblock 1 -59 0 stone
+4310 /setblock 1 -59 0 stone
+4312 /setblock 1 -59 0 stone
+4314 /setblock 1 -59 0 stone
+4316 /setblock 1 -59 0 stone
+4318 /setblock 1 -59 0 stone
+4320 /setblock 1 -59 0 stone
+4322 /setblock 1 -59 0 stone
+4324 /setblock 1 -59 0 stone
+4326 /setblock 1 -59 0 stone
+4328 /setblock 1 -59 0 stone
+4330 /setblock 1 -59 0 stone
+4332 /setblock 1 -59 0 stone
+4334 /setblock 1 -59 0 stone
+4336 /setblock 1 -59 0 stone
+4338 /setblock 1 -59 0 stone
+4340 /setblock 1 -59 0 stone
+4342 /setblock 1 -59 0 stone
+4344 /setblock 1 -59 0 stone
+4346 /setblock 1 -59 0 stone
+4348 /setblock 1 -59 0 stone
+4350 /setblock 1 -59 0 stone
+4352 /setblock 1 -59 0 stone
+4354 /setblock 1 -59 0 stone
+4356 /setblock 1 -59 0 stone
+4358 /setblock 1 -59 0 stone
+4360 /setblock 1 -59 0 stone
+4362 /setblock 1 -59 0 stone
+4364 /setblock 1 -59 0 stone
+4366 /setblock 1 -59 0 stone
+4368 /setblock 1 -59 0 stone
+4370 /setblock 1 -59 0 stone
+4372 /setblock 1 -59 0 stone
+4374 /setblock 1 -59 0 stone
+4376 /setblock 1 -59 0 stone
+4378 /setblock 1 -59 0 stone
+4380 /setblock 1 -59 0 stone
+4382 /setblock 1 -59 0 stone
+4384 /setblock 1 -59 0 stone
+4386 /setblock 1 -59 0 stone
+4388 /setblock 1 -59 0 stone
+4390 /setblock 1 -59 0 stone
+4392 /setblock 1 -59 0 stone
+4394 /setblock 1 -59 0 stone
+4396 /setblock 1 -59 0 stone
+4398 /setblock 1 -59 0 stone
+4400 /setblock 1 -59 0 stone
+4402 /setblock 1 -59 0 stone
+4404 /setblock 1 -59 0 stone
+4406 /setblock 1 -59 0 stone
+4408 /setblock 1 -59 0 stone
+4410 /setblock 1 -59 0 stone
+4412 /setblock 1 -59 0 stone
+4414 /setblock 1 -59 0 stone
+4416 /setblock 1 -59 0 stone
+4418 /setblock 1 -59 0 stone
+4420 /setblock 1 -59 0 stone
+4422 /setblock 1 -59 0 stone
+4424 /setblock 1 -59 0 stone
+4426 /setblock 1 -59 0 stone
+4428 /setblock 1 -59 0 stone
+4430 /setblock 1 -59 0 stone
+4432 /setblock 1 -59 0 stone
+4434 /setblock 1 -59 0 stone
+4436 /setblock 1 -59 0 stone
+4438 /setblock 1 -59 0 stone
+4440 /setblock 1 -59 0 stone
+4442 /setblock 1 -59 0 stone
+4444 /setblock 1 -59 0 stone
+4446 /setblock 1 -59 0 stone
+4448 /setblock 1 -59 0 stone
+4450 /setblock 1 -59 0 stone
+4452 /setblock 1 -59 0 stone
+4454 /setblock 1 -59 0 stone
+4456 /setblock 1 -59 0 stone
+4458 /setblock 1 -59 0 stone
+4460 /setblock 1 -59 0 stone
+4462 /setblock 1 -59 0 stone
+4464 /setblock 1 -59 0 stone
+4466 /setblock 1 -59 0 stone
+4468 /setblock 1 -59 0 stone
+4470 /setblock 1 -59 0 stone
+4472 /setblock 1 -59 0 stone
+4474 /setblock 1 -59 0 stone
+4476 /setblock 1 -59 0 stone
+4478 /setblock 1 -59 0 stone
+4480 /setblock 1 -59 0 stone
+4482 /setblock 1 -59 0 stone
+4484 /setblock 1 -59 0 stone
+4486 /setblock 1 -59 0 stone
+4488 /setblock 1 -59 0 stone
+4490 /setblock 1 -59 0 stone
+4492 /setblock 1 -59 0 stone
+4494 /setblock 1 -59 0 stone
+4496 /setblock 1 -59 0 stone
+4498 /setblock 1 -59 0 stone
+4500 /setblock 1 -59 0 stone
+4502 /setblock 1 -59 0 stone
+4504 /setblock 1 -59 0 stone
+4506 /setblock 1 -59 0 stone
+4508 /setblock 1 -59 0 stone
+4510 /setblock 1 -59 0 stone
+4512 /setblock 1 -59 0 stone
+4514 /setblock 1 -59 0 stone
+4516 /setblock 1 -59 0 stone
+4518 /setblock 1 -59 0 stone
+4520 /setblock 1 -59 0 stone
+4522 /setblock 1 -59 0 stone
+4524 /setblock 1 -59 0 stone
+4526 /setblock 1 -59 0 stone
+4528 /setblock 1 -59 0 stone
+4530 /setblock 1 -59 0 stone
+4532 /setblock 1 -59 0 stone
+4534 /setblock 1 -59 0 stone
+4536 /setblock 1 -59 0 stone
+4538 /setblock 1 -59 0 stone
+4540 /setblock 1 -59 0 stone
+4542 /setblock 1 -59 0 stone
+4544 /setblock 1 -59 0 stone
+4546 /setblock 1 -59 0 stone
+4548 /setblock 1 -59 0 stone
+4550 /setblock 1 -59 0 stone
+4552 /setblock 1 -59 0 stone
+4554 /setblock 1 -59 0 stone
+4556 /setblock 1 -59 0 stone
+4558 /setblock 1 -59 0 stone
+4560 /setblock 1 -59 0 stone
+4562 /setblock 1 -59 0 stone
+4564 /setblock 1 -59 0 stone
+4566 /setblock 1 -59 0 stone
+4568 /setblock 1 -59 0 stone
+4570 /setblock 1 -59 0 stone
+4572 /setblock 1 -59 0 stone
+4574 /setblock 1 -59 0 stone
+4576 /setblock 1 -59 0 stone
+4578 /setblock 1 -59 0 stone
+4580 /setblock 1 -59 0 stone
+4582 /setblock 1 -59 0 stone
+4584 /setblock 1 -59 0 stone
+4586 /setblock 1 -59 0 stone
+4588 /setblock 1 -59 0 stone
+4590 /setblock 1 -59 0 stone
+4592 /setblock 1 -59 0 stone
+4594 /setblock 1 -59 0 stone
+4596 /setblock 1 -59 0 stone
+4598 /setblock 1 -59 0 stone
+4600 /setblock 1 -59 0 stone
+4602 /setblock 1 -59 0 stone
+4604 /setblock 1 -59 0 stone
+4606 /setblock 1 -59 0 stone
+4608 /setblock 1 -59 0 stone
+4610 /setblock 1 -59 0 stone
+4612 /setblock 1 -59 0 stone
+4614 /setblock 1 -59 0 stone
+4616 /setblock 1 -59 0 stone
+4618 /setblock 1 -59 0 stone
+4620 /setblock 1 -59 0 stone
+4622 /setblock 1 -59 0 stone
+4624 /setblock 1 -59 0 stone
+4626 /setblock 1 -59 0 stone
+4628 /setblock 1 -59 0 stone
+4630 /setblock 1 -59 0 stone
+4632 /setblock 1 -59 0 stone
+4634 /setblock 1 -59 0 stone
+4636 /setblock 1 -59 0 stone
+4638 /setblock 1 -59 0 stone
+4640 /setblock 1 -59 0 stone
+4642 /setblock 1 -59 0 stone
+4644 /setblock 1 -59 0 stone
+4646 /setblock 1 -59 0 stone
+4648 /setblock 1 -59 0 stone
+4650 /setblock 1 -59 0 stone
+4652 /setblock 1 -59 0 stone
+4654 /setblock 1 -59 0 stone
+4656 /setblock 1 -59 0 stone
+4658 /setblock 1 -59 0 stone
+4660 /setblock 1 -59 0 stone
+4662 /setblock 1 -59 0 stone
+4664 /setblock 1 -59 0 stone
+4666 /setblock 1 -59 0 stone
+4668 /setblock 1 -59 0 stone
+4670 /setblock 1 -59 0 stone
+4672 /setblock 1 -59 0 stone
+4674 /setblock 1 -59 0 stone
+4676 /setblock 1 -59 0 stone
+4678 /setblock 1 -59 0 stone
+4680 /setblock 1 -59 0 stone
+4682 /setblock 1 -59 0 stone
+4684 /setblock 1 -59 0 stone
+4686 /setblock 1 -59 0 stone
+4688 /setblock 1 -59 0 stone
+4690 /setblock 1 -59 0 stone
+4692 /setblock 1 -59 0 stone
+4694 /setblock 1 -59 0 stone
+4696 /setblock 1 -59 0 stone
+4698 /setblock 1 -59 0 stone
+4700 /setblock 1 -59 0 stone
+4702 /setblock 1 -59 0 stone
+4704 /setblock 1 -59 0 stone
+4706 /setblock 1 -59 0 stone
+4708 /setblock 1 -59 0 stone
+4710 /setblock 1 -59 0 stone
+4712 /setblock 1 -59 0 stone
+4714 /setblock 1 -59 0 stone
+4716 /setblock 1 -59 0 stone
+4718 /setblock 1 -59 0 stone
+4720 /setblock 1 -59 0 stone
+4722 /setblock 1 -59 0 stone
+4724 /setblock 1 -59 0 stone
+4726 /setblock 1 -59 0 stone
+4728 /setblock 1 -59 0 stone
+4730 /setblock 1 -59 0 stone
+4732 /setblock 1 -59 0 stone
+4734 /setblock 1 -59 0 stone
+4736 /setblock 1 -59 0 stone
+4738 /setblock 1 -59 0 stone
+4740 /setblock 1 -59 0 stone
+4742 /setblock 1 -59 0 stone
+4744 /setblock 1 -59 0 stone
+4746 /setblock 1 -59 0 stone
+4748 /setblock 1 -59 0 stone
+4750 /setblock 1 -59 0 stone
+4752 /setblock 1 -59 0 stone
+4754 /setblock 1 -59 0 stone
+4756 /setblock 1 -59 0 stone
+4758 /setblock 1 -59 0 stone
+4760 /setblock 1 -59 0 stone
+4762 /setblock 1 -59 0 stone
+4764 /setblock 1 -59 0 stone
+4766 /setblock 1 -59 0 stone
+4768 /setblock 1 -59 0 stone
+4770 /setblock 1 -59 0 stone
+4772 /setblock 1 -59 0 stone
+4774 /setblock 1 -59 0 stone
+4776 /setblock 1 -59 0 stone
+4778 /setblock 1 -59 0 stone
+4780 /setblock 1 -59 0 stone
+4782 /setblock 1 -59 0 stone
+4784 /setblock 1 -59 0 stone
+4786 /setblock 1 -59 0 stone
+4788 /setblock 1 -59 0 stone
+4790 /setblock 1 -59 0 stone
+4792 /setblock 1 -59 0 stone
+4794 /setblock 1 -59 0 stone
+4796 /setblock 1 -59 0 stone
+4798 /setblock 1 -59 0 stone
+4800 /setblock 1 -59 0 stone
+4802 /setblock 1 -59 0 stone
+4804 /setblock 1 -59 0 stone
+4806 /setblock 1 -59 0 stone
+4808 /setblock 1 -59 0 stone
+4810 /setblock 1 -59 0 stone
+4812 /setblock 1 -59 0 stone
+4814 /setblock 1 -59 0 stone
+4816 /setblock 1 -59 0 stone
+4818 /setblock 1 -59 0 stone
+4820 /setblock 1 -59 0 stone
+4822 /setblock 1 -59 0 stone
+4824 /setblock 1 -59 0 stone
+4826 /setblock 1 -59 0 stone
+4828 /setblock 1 -59 0 stone
+4830 /setblock 1 -59 0 stone
+4832 /setblock 1 -59 0 stone
+4834 /setblock 1 -59 0 stone
+4836 /setblock 1 -59 0 stone
+4838 /setblock 1 -59 0 stone
+4840 /setblock 1 -59 0 stone
+4842 /setblock 1 -59 0 stone
+4844 /setblock 1 -59 0 stone
+4846 /setblock 1 -59 0 stone
+4848 /setblock 1 -59 0 stone
+4850 /setblock 1 -59 0 stone
+4852 /setblock 1 -59 0 stone
+4854 /setblock 1 -59 0 stone
+4856 /setblock 1 -59 0 stone
+4858 /setblock 1 -59 0 stone
+4860 /setblock 1 -59 0 stone
+4862 /setblock 1 -59 0 stone
+4864 /setblock 1 -59 0 stone
+4866 /setblock 1 -59 0 stone
+4868 /setblock 1 -59 0 stone
+4870 /setblock 1 -59 0 stone
+4872 /setblock 1 -59 0 stone
+4874 /setblock 1 -59 0 stone
+4876 /setblock 1 -59 0 stone
+4878 /setblock 1 -59 0 stone
+4880 /setblock 1 -59 0 stone
+4882 /setblock 1 -59 0 stone
+4884 /setblock 1 -59 0 stone
+4886 /setblock 1 -59 0 stone
+4888 /setblock 1 -59 0 stone
+4890 /setblock 1 -59 0 stone
+4892 /setblock 1 -59 0 stone
+4894 /setblock 1 -59 0 stone
+4896 /setblock 1 -59 0 stone
+4898 /setblock 1 -59 0 stone
+4900 /setblock 1 -59 0 stone
+4902 /setblock 1 -59 0 stone
+4904 /setblock 1 -59 0 stone
+4906 /setblock 1 -59 0 stone
+4908 /setblock 1 -59 0 stone
+4910 /setblock 1 -59 0 stone
+4912 /setblock 1 -59 0 stone
+4914 /setblock 1 -59 0 stone
+4916 /setblock 1 -59 0 stone
+4918 /setblock 1 -59 0 stone
+4920 /setblock 1 -59 0 stone
+4922 /setblock 1 -59 0 stone
+4924 /setblock 1 -59 0 stone
+4926 /setblock 1 -59 0 stone
+4928 /setblock 1 -59 0 stone
+4930 /setblock 1 -59 0 stone
+4932 /setblock 1 -59 0 stone
+4934 /setblock 1 -59 0 stone
+4936 /setblock 1 -59 0 stone
+4938 /setblock 1 -59 0 stone
+4940 /setblock 1 -59 0 stone
+4942 /setblock 1 -59 0 stone
+4944 /setblock 1 -59 0 stone
+4946 /setblock 1 -59 0 stone
+4948 /setblock 1 -59 0 stone
+4950 /setblock 1 -59 0 stone
+4952 /setblock 1 -59 0 stone
+4954 /setblock 1 -59 0 stone
+4956 /setblock 1 -59 0 stone
+4958 /setblock 1 -59 0 stone
+4960 /setblock 1 -59 0 stone
+4962 /setblock 1 -59 0 stone
+4964 /setblock 1 -59 0 stone
+4966 /setblock 1 -59 0 stone
+4968 /setblock 1 -59 0 stone
+4970 /setblock 1 -59 0 stone
+4972 /setblock 1 -59 0 stone
+4974 /setblock 1 -59 0 stone
+4976 /setblock 1 -59 0 stone
+4978 /setblock 1 -59 0 stone
+4980 /setblock 1 -59 0 stone
+4982 /setblock 1 -59 0 stone
+4984 /setblock 1 -59 0 stone
+4986 /setblock 1 -59 0 stone
+4988 /setblock 1 -59 0 stone
+4990 /setblock 1 -59 0 stone
+4992 /setblock 1 -59 0 stone
+4994 /setblock 1 -59 0 stone
+4996 /setblock 1 -59 0 stone
+4998 /setblock 1 -59 0 stone
+5000 /setblock 1 -59 0 stone
+5002 /setblock 1 -59 0 stone
+5004 /setblock 1 -59 0 stone
+5006 /setblock 1 -59 0 stone
+5008 /setblock 1 -59 0 stone
+5010 /setblock 1 -59 0 stone
+5012 /setblock 1 -59 0 stone
+5014 /setblock 1 -59 0 stone
+5016 /setblock 1 -59 0 stone
+5018 /setblock 1 -59 0 stone
+5020 /setblock 1 -59 0 stone
+5022 /setblock 1 -59 0 stone
+5024 /setblock 1 -59 0 stone
+5026 /setblock 1 -59 0 stone
+5028 /setblock 1 -59 0 stone
+5030 /setblock 1 -59 0 stone
+5032 /setblock 1 -59 0 stone
+5034 /setblock 1 -59 0 stone
+5036 /setblock 1 -59 0 stone
+5038 /setblock 1 -59 0 stone
+5040 /setblock 1 -59 0 stone
+5042 /setblock 1 -59 0 stone
+5044 /setblock 1 -59 0 stone
+5046 /setblock 1 -59 0 stone
+5048 /setblock 1 -59 0 stone
+5050 /setblock 1 -59 0 stone
+5052 /setblock 1 -59 0 stone
+5054 /setblock 1 -59 0 stone
+5056 /setblock 1 -59 0 stone
+5058 /setblock 1 -59 0 stone
+5060 /setblock 1 -59 0 stone
+5062 /setblock 1 -59 0 stone
+5064 /setblock 1 -59 0 stone
+5066 /setblock 1 -59 0 stone
+5068 /setblock 1 -59 0 stone
+5070 /setblock 1 -59 0 stone
+5072 /setblock 1 -59 0 stone
+5074 /setblock 1 -59 0 stone
+5076 /setblock 1 -59 0 stone
+5078 /setblock 1 -59 0 stone
+5080 /setblock 1 -59 0 stone
+5082 /setblock 1 -59 0 stone
+5084 /setblock 1 -59 0 stone
+5086 /setblock 1 -59 0 stone
+5088 /setblock 1 -59 0 stone
+5090 /setblock 1 -59 0 stone
+5092 /setblock 1 -59 0 stone
+5094 /setblock 1 -59 0 stone
+5096 /setblock 1 -59 0 stone
+5098 /setblock 1 -59 0 stone
+5100 /setblock 1 -59 0 stone
+5102 /setblock 1 -59 0 stone
+5104 /setblock 1 -59 0 stone
+5106 /setblock 1 -59 0 stone
+5108 /setblock 1 -59 0 stone
+5110 /setblock 1 -59 0 stone
+5112 /setblock 1 -59 0 stone
+5114 /setblock 1 -59 0 stone
+5116 stop
+5121 /clear @s
+5122 /replaceitem entity @s slot.armor.head 0 air
+5123 /replaceitem entity @s slot.armor.chest 0 air
+5124 /replaceitem entity @s slot.armor.legs 0 air
+5125 /replaceitem entity @s slot.armor.feet 0 air
+5126 /replaceitem entity @s slot.hotbar 1 diamond_helmet
+5128 /replaceitem entity @s slot.hotbar 2 diamond_chestplate
+5130 /replaceitem entity @s slot.hotbar 3 diamond_leggings
+5132 /replaceitem entity @s slot.hotbar 4 diamond_boots
+5134 select 1
+5137 /enchant @s unbreaking 1
+5140 use
+5145 use
+5150 select 2
+5153 /enchant @s unbreaking 1
+5156 use
+5161 use
+5166 select 3
+5169 /enchant @s unbreaking 1
+5172 use
+5177 use
+5182 select 4
+5185 /enchant @s unbreaking 1
+5188 use
+5193 use
+5198 select 0
+5201 /say unbreaking armour 1
+5204 /damage @s 8 entity_attack
+5215 /damage @s 8 entity_attack
+5226 /damage @s 8 entity_attack
+5237 /damage @s 8 entity_attack
+5248 /damage @s 8 entity_attack
+5259 /damage @s 8 entity_attack
+5270 /damage @s 8 entity_attack
+5281 /damage @s 8 entity_attack
+5292 /damage @s 8 entity_attack
+5303 /damage @s 8 entity_attack
+5314 /damage @s 8 entity_attack
+5325 /damage @s 8 entity_attack
+5336 /damage @s 8 entity_attack
+5347 /damage @s 8 entity_attack
+5358 /damage @s 8 entity_attack
+5369 /damage @s 8 entity_attack
+5380 /damage @s 8 entity_attack
+5391 /damage @s 8 entity_attack
+5402 /damage @s 8 entity_attack
+5413 /damage @s 8 entity_attack
+5424 /damage @s 8 entity_attack
+5435 /damage @s 8 entity_attack
+5446 /damage @s 8 entity_attack
+5457 /damage @s 8 entity_attack
+5468 /damage @s 8 entity_attack
+5479 /damage @s 8 entity_attack
+5490 /damage @s 8 entity_attack
+5501 /damage @s 8 entity_attack
+5512 /damage @s 8 entity_attack
+5523 /damage @s 8 entity_attack
+5534 /damage @s 8 entity_attack
+5545 /damage @s 8 entity_attack
+5556 /damage @s 8 entity_attack
+5567 /damage @s 8 entity_attack
+5578 /damage @s 8 entity_attack
+5589 /damage @s 8 entity_attack
+5600 /damage @s 8 entity_attack
+5611 /damage @s 8 entity_attack
+5622 /damage @s 8 entity_attack
+5633 /damage @s 8 entity_attack
+5644 /damage @s 8 entity_attack
+5655 /damage @s 8 entity_attack
+5666 /damage @s 8 entity_attack
+5677 /damage @s 8 entity_attack
+5688 /damage @s 8 entity_attack
+5699 /damage @s 8 entity_attack
+5710 /damage @s 8 entity_attack
+5721 /damage @s 8 entity_attack
+5732 /damage @s 8 entity_attack
+5743 /damage @s 8 entity_attack
+5754 /damage @s 8 entity_attack
+5765 /damage @s 8 entity_attack
+5776 /damage @s 8 entity_attack
+5787 /damage @s 8 entity_attack
+5798 /damage @s 8 entity_attack
+5809 /damage @s 8 entity_attack
+5820 /damage @s 8 entity_attack
+5831 /damage @s 8 entity_attack
+5842 /damage @s 8 entity_attack
+5853 /damage @s 8 entity_attack
+5864 /damage @s 8 entity_attack
+5875 /damage @s 8 entity_attack
+5886 /damage @s 8 entity_attack
+5897 /damage @s 8 entity_attack
+5908 /damage @s 8 entity_attack
+5919 /damage @s 8 entity_attack
+5930 /damage @s 8 entity_attack
+5941 /damage @s 8 entity_attack
+5952 /damage @s 8 entity_attack
+5963 /damage @s 8 entity_attack
+5974 /damage @s 8 entity_attack
+5985 /damage @s 8 entity_attack
+5996 /damage @s 8 entity_attack
+6007 /damage @s 8 entity_attack
+6018 /damage @s 8 entity_attack
+6029 /damage @s 8 entity_attack
+6040 /damage @s 8 entity_attack
+6051 /damage @s 8 entity_attack
+6062 /damage @s 8 entity_attack
+6073 /damage @s 8 entity_attack
+6084 /damage @s 8 entity_attack
+6095 /damage @s 8 entity_attack
+6106 /damage @s 8 entity_attack
+6117 /damage @s 8 entity_attack
+6128 /damage @s 8 entity_attack
+6139 /damage @s 8 entity_attack
+6150 /damage @s 8 entity_attack
+6161 /damage @s 8 entity_attack
+6172 /damage @s 8 entity_attack
+6183 /damage @s 8 entity_attack
+6194 /damage @s 8 entity_attack
+6205 /damage @s 8 entity_attack
+6216 /damage @s 8 entity_attack
+6227 /damage @s 8 entity_attack
+6238 /damage @s 8 entity_attack
+6249 /damage @s 8 entity_attack
+6260 /damage @s 8 entity_attack
+6271 /damage @s 8 entity_attack
+6282 /damage @s 8 entity_attack
+6293 /damage @s 8 entity_attack
+6304 /damage @s 8 entity_attack
+6315 /damage @s 8 entity_attack
+6326 /damage @s 8 entity_attack
+6337 /damage @s 8 entity_attack
+6348 /damage @s 8 entity_attack
+6359 /damage @s 8 entity_attack
+6370 /damage @s 8 entity_attack
+6381 /damage @s 8 entity_attack
+6392 /damage @s 8 entity_attack
+6403 /damage @s 8 entity_attack
+6414 /damage @s 8 entity_attack
+6425 /damage @s 8 entity_attack
+6436 /damage @s 8 entity_attack
+6447 /damage @s 8 entity_attack
+6458 /damage @s 8 entity_attack
+6469 /damage @s 8 entity_attack
+6480 /damage @s 8 entity_attack
+6491 /damage @s 8 entity_attack
+6502 /damage @s 8 entity_attack
+6513 /damage @s 8 entity_attack
+6524 /damage @s 8 entity_attack
+6535 /damage @s 8 entity_attack
+6546 /damage @s 8 entity_attack
+6557 /damage @s 8 entity_attack
+6568 /damage @s 8 entity_attack
+6579 /damage @s 8 entity_attack
+6590 /damage @s 8 entity_attack
+6601 /damage @s 8 entity_attack
+6612 /damage @s 8 entity_attack
+6623 /damage @s 8 entity_attack
+6634 /damage @s 8 entity_attack
+6645 /damage @s 8 entity_attack
+6656 /damage @s 8 entity_attack
+6667 /damage @s 8 entity_attack
+6678 /damage @s 8 entity_attack
+6689 /damage @s 8 entity_attack
+6700 /damage @s 8 entity_attack
+6711 /damage @s 8 entity_attack
+6722 /damage @s 8 entity_attack
+6733 /damage @s 8 entity_attack
+6744 /damage @s 8 entity_attack
+6755 /damage @s 8 entity_attack
+6766 /damage @s 8 entity_attack
+6777 /damage @s 8 entity_attack
+6788 /damage @s 8 entity_attack
+6799 /damage @s 8 entity_attack
+6810 /damage @s 8 entity_attack
+6821 /damage @s 8 entity_attack
+6832 /damage @s 8 entity_attack
+6843 /damage @s 8 entity_attack
+6854 /damage @s 8 entity_attack
+6865 /damage @s 8 entity_attack
+6876 /damage @s 8 entity_attack
+6887 /damage @s 8 entity_attack
+6898 /damage @s 8 entity_attack
+6909 /damage @s 8 entity_attack
+6920 /damage @s 8 entity_attack
+6931 /damage @s 8 entity_attack
+6942 /damage @s 8 entity_attack
+6953 /damage @s 8 entity_attack
+6964 /damage @s 8 entity_attack
+6975 /damage @s 8 entity_attack
+6986 /damage @s 8 entity_attack
+6997 /damage @s 8 entity_attack
+7008 /damage @s 8 entity_attack
+7019 /damage @s 8 entity_attack
+7030 /damage @s 8 entity_attack
+7041 /damage @s 8 entity_attack
+7052 /damage @s 8 entity_attack
+7063 /damage @s 8 entity_attack
+7074 /damage @s 8 entity_attack
+7085 /damage @s 8 entity_attack
+7096 /damage @s 8 entity_attack
+7107 /damage @s 8 entity_attack
+7118 /damage @s 8 entity_attack
+7129 /damage @s 8 entity_attack
+7140 /damage @s 8 entity_attack
+7151 /damage @s 8 entity_attack
+7162 /damage @s 8 entity_attack
+7173 /damage @s 8 entity_attack
+7184 /damage @s 8 entity_attack
+7195 /damage @s 8 entity_attack
+7206 /damage @s 8 entity_attack
+7217 /damage @s 8 entity_attack
+7228 /damage @s 8 entity_attack
+7239 /damage @s 8 entity_attack
+7250 /damage @s 8 entity_attack
+7261 /damage @s 8 entity_attack
+7272 /damage @s 8 entity_attack
+7283 /damage @s 8 entity_attack
+7294 /damage @s 8 entity_attack
+7305 /damage @s 8 entity_attack
+7316 /damage @s 8 entity_attack
+7327 /damage @s 8 entity_attack
+7338 /damage @s 8 entity_attack
+7349 /damage @s 8 entity_attack
+7360 /damage @s 8 entity_attack
+7371 /damage @s 8 entity_attack
+7382 /damage @s 8 entity_attack
+7393 /damage @s 8 entity_attack
+7404 /damage @s 8 entity_attack
+7415 /damage @s 8 entity_attack
+7426 /damage @s 8 entity_attack
+7437 /damage @s 8 entity_attack
+7448 /damage @s 8 entity_attack
+7459 /damage @s 8 entity_attack
+7470 /damage @s 8 entity_attack
+7481 /damage @s 8 entity_attack
+7492 /damage @s 8 entity_attack
+7503 /damage @s 8 entity_attack
+7514 /damage @s 8 entity_attack
+7525 /damage @s 8 entity_attack
+7536 /damage @s 8 entity_attack
+7547 /damage @s 8 entity_attack
+7558 /damage @s 8 entity_attack
+7569 /damage @s 8 entity_attack
+7580 /damage @s 8 entity_attack
+7591 /damage @s 8 entity_attack
+7602 /damage @s 8 entity_attack
+7613 /damage @s 8 entity_attack
+7624 /damage @s 8 entity_attack
+7635 /damage @s 8 entity_attack
+7646 /damage @s 8 entity_attack
+7657 /damage @s 8 entity_attack
+7668 /damage @s 8 entity_attack
+7679 /damage @s 8 entity_attack
+7690 /damage @s 8 entity_attack
+7701 /damage @s 8 entity_attack
+7712 /damage @s 8 entity_attack
+7723 /damage @s 8 entity_attack
+7734 /damage @s 8 entity_attack
+7745 /damage @s 8 entity_attack
+7756 /damage @s 8 entity_attack
+7767 /damage @s 8 entity_attack
+7778 /damage @s 8 entity_attack
+7789 /damage @s 8 entity_attack
+7800 /damage @s 8 entity_attack
+7811 /damage @s 8 entity_attack
+7822 /damage @s 8 entity_attack
+7833 /damage @s 8 entity_attack
+7844 /damage @s 8 entity_attack
+7855 /damage @s 8 entity_attack
+7866 /damage @s 8 entity_attack
+7877 /damage @s 8 entity_attack
+7888 /damage @s 8 entity_attack
+7899 /damage @s 8 entity_attack
+7910 /damage @s 8 entity_attack
+7921 /damage @s 8 entity_attack
+7932 /damage @s 8 entity_attack
+7943 /damage @s 8 entity_attack
+7959 /clear @s
+7960 /replaceitem entity @s slot.armor.head 0 air
+7961 /replaceitem entity @s slot.armor.chest 0 air
+7962 /replaceitem entity @s slot.armor.legs 0 air
+7963 /replaceitem entity @s slot.armor.feet 0 air
+7964 /replaceitem entity @s slot.hotbar 1 diamond_helmet
+7966 /replaceitem entity @s slot.hotbar 2 diamond_chestplate
+7968 /replaceitem entity @s slot.hotbar 3 diamond_leggings
+7970 /replaceitem entity @s slot.hotbar 4 diamond_boots
+7972 select 1
+7975 /enchant @s unbreaking 2
+7978 use
+7983 use
+7988 select 2
+7991 /enchant @s unbreaking 2
+7994 use
+7999 use
+8004 select 3
+8007 /enchant @s unbreaking 2
+8010 use
+8015 use
+8020 select 4
+8023 /enchant @s unbreaking 2
+8026 use
+8031 use
+8036 select 0
+8039 /say unbreaking armour 2
+8042 /damage @s 8 entity_attack
+8053 /damage @s 8 entity_attack
+8064 /damage @s 8 entity_attack
+8075 /damage @s 8 entity_attack
+8086 /damage @s 8 entity_attack
+8097 /damage @s 8 entity_attack
+8108 /damage @s 8 entity_attack
+8119 /damage @s 8 entity_attack
+8130 /damage @s 8 entity_attack
+8141 /damage @s 8 entity_attack
+8152 /damage @s 8 entity_attack
+8163 /damage @s 8 entity_attack
+8174 /damage @s 8 entity_attack
+8185 /damage @s 8 entity_attack
+8196 /damage @s 8 entity_attack
+8207 /damage @s 8 entity_attack
+8218 /damage @s 8 entity_attack
+8229 /damage @s 8 entity_attack
+8240 /damage @s 8 entity_attack
+8251 /damage @s 8 entity_attack
+8262 /damage @s 8 entity_attack
+8273 /damage @s 8 entity_attack
+8284 /damage @s 8 entity_attack
+8295 /damage @s 8 entity_attack
+8306 /damage @s 8 entity_attack
+8317 /damage @s 8 entity_attack
+8328 /damage @s 8 entity_attack
+8339 /damage @s 8 entity_attack
+8350 /damage @s 8 entity_attack
+8361 /damage @s 8 entity_attack
+8372 /damage @s 8 entity_attack
+8383 /damage @s 8 entity_attack
+8394 /damage @s 8 entity_attack
+8405 /damage @s 8 entity_attack
+8416 /damage @s 8 entity_attack
+8427 /damage @s 8 entity_attack
+8438 /damage @s 8 entity_attack
+8449 /damage @s 8 entity_attack
+8460 /damage @s 8 entity_attack
+8471 /damage @s 8 entity_attack
+8482 /damage @s 8 entity_attack
+8493 /damage @s 8 entity_attack
+8504 /damage @s 8 entity_attack
+8515 /damage @s 8 entity_attack
+8526 /damage @s 8 entity_attack
+8537 /damage @s 8 entity_attack
+8548 /damage @s 8 entity_attack
+8559 /damage @s 8 entity_attack
+8570 /damage @s 8 entity_attack
+8581 /damage @s 8 entity_attack
+8592 /damage @s 8 entity_attack
+8603 /damage @s 8 entity_attack
+8614 /damage @s 8 entity_attack
+8625 /damage @s 8 entity_attack
+8636 /damage @s 8 entity_attack
+8647 /damage @s 8 entity_attack
+8658 /damage @s 8 entity_attack
+8669 /damage @s 8 entity_attack
+8680 /damage @s 8 entity_attack
+8691 /damage @s 8 entity_attack
+8702 /damage @s 8 entity_attack
+8713 /damage @s 8 entity_attack
+8724 /damage @s 8 entity_attack
+8735 /damage @s 8 entity_attack
+8746 /damage @s 8 entity_attack
+8757 /damage @s 8 entity_attack
+8768 /damage @s 8 entity_attack
+8779 /damage @s 8 entity_attack
+8790 /damage @s 8 entity_attack
+8801 /damage @s 8 entity_attack
+8812 /damage @s 8 entity_attack
+8823 /damage @s 8 entity_attack
+8834 /damage @s 8 entity_attack
+8845 /damage @s 8 entity_attack
+8856 /damage @s 8 entity_attack
+8867 /damage @s 8 entity_attack
+8878 /damage @s 8 entity_attack
+8889 /damage @s 8 entity_attack
+8900 /damage @s 8 entity_attack
+8911 /damage @s 8 entity_attack
+8922 /damage @s 8 entity_attack
+8933 /damage @s 8 entity_attack
+8944 /damage @s 8 entity_attack
+8955 /damage @s 8 entity_attack
+8966 /damage @s 8 entity_attack
+8977 /damage @s 8 entity_attack
+8988 /damage @s 8 entity_attack
+8999 /damage @s 8 entity_attack
+9010 /damage @s 8 entity_attack
+9021 /damage @s 8 entity_attack
+9032 /damage @s 8 entity_attack
+9043 /damage @s 8 entity_attack
+9054 /damage @s 8 entity_attack
+9065 /damage @s 8 entity_attack
+9076 /damage @s 8 entity_attack
+9087 /damage @s 8 entity_attack
+9098 /damage @s 8 entity_attack
+9109 /damage @s 8 entity_attack
+9120 /damage @s 8 entity_attack
+9131 /damage @s 8 entity_attack
+9142 /damage @s 8 entity_attack
+9153 /damage @s 8 entity_attack
+9164 /damage @s 8 entity_attack
+9175 /damage @s 8 entity_attack
+9186 /damage @s 8 entity_attack
+9197 /damage @s 8 entity_attack
+9208 /damage @s 8 entity_attack
+9219 /damage @s 8 entity_attack
+9230 /damage @s 8 entity_attack
+9241 /damage @s 8 entity_attack
+9252 /damage @s 8 entity_attack
+9263 /damage @s 8 entity_attack
+9274 /damage @s 8 entity_attack
+9285 /damage @s 8 entity_attack
+9296 /damage @s 8 entity_attack
+9307 /damage @s 8 entity_attack
+9318 /damage @s 8 entity_attack
+9329 /damage @s 8 entity_attack
+9340 /damage @s 8 entity_attack
+9351 /damage @s 8 entity_attack
+9362 /damage @s 8 entity_attack
+9373 /damage @s 8 entity_attack
+9384 /damage @s 8 entity_attack
+9395 /damage @s 8 entity_attack
+9406 /damage @s 8 entity_attack
+9417 /damage @s 8 entity_attack
+9428 /damage @s 8 entity_attack
+9439 /damage @s 8 entity_attack
+9450 /damage @s 8 entity_attack
+9461 /damage @s 8 entity_attack
+9472 /damage @s 8 entity_attack
+9483 /damage @s 8 entity_attack
+9494 /damage @s 8 entity_attack
+9505 /damage @s 8 entity_attack
+9516 /damage @s 8 entity_attack
+9527 /damage @s 8 entity_attack
+9538 /damage @s 8 entity_attack
+9549 /damage @s 8 entity_attack
+9560 /damage @s 8 entity_attack
+9571 /damage @s 8 entity_attack
+9582 /damage @s 8 entity_attack
+9593 /damage @s 8 entity_attack
+9604 /damage @s 8 entity_attack
+9615 /damage @s 8 entity_attack
+9626 /damage @s 8 entity_attack
+9637 /damage @s 8 entity_attack
+9648 /damage @s 8 entity_attack
+9659 /damage @s 8 entity_attack
+9670 /damage @s 8 entity_attack
+9681 /damage @s 8 entity_attack
+9692 /damage @s 8 entity_attack
+9703 /damage @s 8 entity_attack
+9714 /damage @s 8 entity_attack
+9725 /damage @s 8 entity_attack
+9736 /damage @s 8 entity_attack
+9747 /damage @s 8 entity_attack
+9758 /damage @s 8 entity_attack
+9769 /damage @s 8 entity_attack
+9780 /damage @s 8 entity_attack
+9791 /damage @s 8 entity_attack
+9802 /damage @s 8 entity_attack
+9813 /damage @s 8 entity_attack
+9824 /damage @s 8 entity_attack
+9835 /damage @s 8 entity_attack
+9846 /damage @s 8 entity_attack
+9857 /damage @s 8 entity_attack
+9868 /damage @s 8 entity_attack
+9879 /damage @s 8 entity_attack
+9890 /damage @s 8 entity_attack
+9901 /damage @s 8 entity_attack
+9912 /damage @s 8 entity_attack
+9923 /damage @s 8 entity_attack
+9934 /damage @s 8 entity_attack
+9945 /damage @s 8 entity_attack
+9956 /damage @s 8 entity_attack
+9967 /damage @s 8 entity_attack
+9978 /damage @s 8 entity_attack
+9989 /damage @s 8 entity_attack
+10000 /damage @s 8 entity_attack
+10011 /damage @s 8 entity_attack
+10022 /damage @s 8 entity_attack
+10033 /damage @s 8 entity_attack
+10044 /damage @s 8 entity_attack
+10055 /damage @s 8 entity_attack
+10066 /damage @s 8 entity_attack
+10077 /damage @s 8 entity_attack
+10088 /damage @s 8 entity_attack
+10099 /damage @s 8 entity_attack
+10110 /damage @s 8 entity_attack
+10121 /damage @s 8 entity_attack
+10132 /damage @s 8 entity_attack
+10143 /damage @s 8 entity_attack
+10154 /damage @s 8 entity_attack
+10165 /damage @s 8 entity_attack
+10176 /damage @s 8 entity_attack
+10187 /damage @s 8 entity_attack
+10198 /damage @s 8 entity_attack
+10209 /damage @s 8 entity_attack
+10220 /damage @s 8 entity_attack
+10231 /damage @s 8 entity_attack
+10242 /damage @s 8 entity_attack
+10253 /damage @s 8 entity_attack
+10264 /damage @s 8 entity_attack
+10275 /damage @s 8 entity_attack
+10286 /damage @s 8 entity_attack
+10297 /damage @s 8 entity_attack
+10308 /damage @s 8 entity_attack
+10319 /damage @s 8 entity_attack
+10330 /damage @s 8 entity_attack
+10341 /damage @s 8 entity_attack
+10352 /damage @s 8 entity_attack
+10363 /damage @s 8 entity_attack
+10374 /damage @s 8 entity_attack
+10385 /damage @s 8 entity_attack
+10396 /damage @s 8 entity_attack
+10407 /damage @s 8 entity_attack
+10418 /damage @s 8 entity_attack
+10429 /damage @s 8 entity_attack
+10440 /damage @s 8 entity_attack
+10451 /damage @s 8 entity_attack
+10462 /damage @s 8 entity_attack
+10473 /damage @s 8 entity_attack
+10484 /damage @s 8 entity_attack
+10495 /damage @s 8 entity_attack
+10506 /damage @s 8 entity_attack
+10517 /damage @s 8 entity_attack
+10528 /damage @s 8 entity_attack
+10539 /damage @s 8 entity_attack
+10550 /damage @s 8 entity_attack
+10561 /damage @s 8 entity_attack
+10572 /damage @s 8 entity_attack
+10583 /damage @s 8 entity_attack
+10594 /damage @s 8 entity_attack
+10605 /damage @s 8 entity_attack
+10616 /damage @s 8 entity_attack
+10627 /damage @s 8 entity_attack
+10638 /damage @s 8 entity_attack
+10649 /damage @s 8 entity_attack
+10660 /damage @s 8 entity_attack
+10671 /damage @s 8 entity_attack
+10682 /damage @s 8 entity_attack
+10693 /damage @s 8 entity_attack
+10704 /damage @s 8 entity_attack
+10715 /damage @s 8 entity_attack
+10726 /damage @s 8 entity_attack
+10737 /damage @s 8 entity_attack
+10748 /damage @s 8 entity_attack
+10759 /damage @s 8 entity_attack
+10770 /damage @s 8 entity_attack
+10781 /damage @s 8 entity_attack
+10797 /clear @s
+10798 /replaceitem entity @s slot.armor.head 0 air
+10799 /replaceitem entity @s slot.armor.chest 0 air
+10800 /replaceitem entity @s slot.armor.legs 0 air
+10801 /replaceitem entity @s slot.armor.feet 0 air
+10802 /replaceitem entity @s slot.hotbar 1 diamond_helmet
+10804 /replaceitem entity @s slot.hotbar 2 diamond_chestplate
+10806 /replaceitem entity @s slot.hotbar 3 diamond_leggings
+10808 /replaceitem entity @s slot.hotbar 4 diamond_boots
+10810 select 1
+10813 /enchant @s unbreaking 3
+10816 use
+10821 use
+10826 select 2
+10829 /enchant @s unbreaking 3
+10832 use
+10837 use
+10842 select 3
+10845 /enchant @s unbreaking 3
+10848 use
+10853 use
+10858 select 4
+10861 /enchant @s unbreaking 3
+10864 use
+10869 use
+10874 select 0
+10877 /say unbreaking armour 3
+10880 /damage @s 8 entity_attack
+10891 /damage @s 8 entity_attack
+10902 /damage @s 8 entity_attack
+10913 /damage @s 8 entity_attack
+10924 /damage @s 8 entity_attack
+10935 /damage @s 8 entity_attack
+10946 /damage @s 8 entity_attack
+10957 /damage @s 8 entity_attack
+10968 /damage @s 8 entity_attack
+10979 /damage @s 8 entity_attack
+10990 /damage @s 8 entity_attack
+11001 /damage @s 8 entity_attack
+11012 /damage @s 8 entity_attack
+11023 /damage @s 8 entity_attack
+11034 /damage @s 8 entity_attack
+11045 /damage @s 8 entity_attack
+11056 /damage @s 8 entity_attack
+11067 /damage @s 8 entity_attack
+11078 /damage @s 8 entity_attack
+11089 /damage @s 8 entity_attack
+11100 /damage @s 8 entity_attack
+11111 /damage @s 8 entity_attack
+11122 /damage @s 8 entity_attack
+11133 /damage @s 8 entity_attack
+11144 /damage @s 8 entity_attack
+11155 /damage @s 8 entity_attack
+11166 /damage @s 8 entity_attack
+11177 /damage @s 8 entity_attack
+11188 /damage @s 8 entity_attack
+11199 /damage @s 8 entity_attack
+11210 /damage @s 8 entity_attack
+11221 /damage @s 8 entity_attack
+11232 /damage @s 8 entity_attack
+11243 /damage @s 8 entity_attack
+11254 /damage @s 8 entity_attack
+11265 /damage @s 8 entity_attack
+11276 /damage @s 8 entity_attack
+11287 /damage @s 8 entity_attack
+11298 /damage @s 8 entity_attack
+11309 /damage @s 8 entity_attack
+11320 /damage @s 8 entity_attack
+11331 /damage @s 8 entity_attack
+11342 /damage @s 8 entity_attack
+11353 /damage @s 8 entity_attack
+11364 /damage @s 8 entity_attack
+11375 /damage @s 8 entity_attack
+11386 /damage @s 8 entity_attack
+11397 /damage @s 8 entity_attack
+11408 /damage @s 8 entity_attack
+11419 /damage @s 8 entity_attack
+11430 /damage @s 8 entity_attack
+11441 /damage @s 8 entity_attack
+11452 /damage @s 8 entity_attack
+11463 /damage @s 8 entity_attack
+11474 /damage @s 8 entity_attack
+11485 /damage @s 8 entity_attack
+11496 /damage @s 8 entity_attack
+11507 /damage @s 8 entity_attack
+11518 /damage @s 8 entity_attack
+11529 /damage @s 8 entity_attack
+11540 /damage @s 8 entity_attack
+11551 /damage @s 8 entity_attack
+11562 /damage @s 8 entity_attack
+11573 /damage @s 8 entity_attack
+11584 /damage @s 8 entity_attack
+11595 /damage @s 8 entity_attack
+11606 /damage @s 8 entity_attack
+11617 /damage @s 8 entity_attack
+11628 /damage @s 8 entity_attack
+11639 /damage @s 8 entity_attack
+11650 /damage @s 8 entity_attack
+11661 /damage @s 8 entity_attack
+11672 /damage @s 8 entity_attack
+11683 /damage @s 8 entity_attack
+11694 /damage @s 8 entity_attack
+11705 /damage @s 8 entity_attack
+11716 /damage @s 8 entity_attack
+11727 /damage @s 8 entity_attack
+11738 /damage @s 8 entity_attack
+11749 /damage @s 8 entity_attack
+11760 /damage @s 8 entity_attack
+11771 /damage @s 8 entity_attack
+11782 /damage @s 8 entity_attack
+11793 /damage @s 8 entity_attack
+11804 /damage @s 8 entity_attack
+11815 /damage @s 8 entity_attack
+11826 /damage @s 8 entity_attack
+11837 /damage @s 8 entity_attack
+11848 /damage @s 8 entity_attack
+11859 /damage @s 8 entity_attack
+11870 /damage @s 8 entity_attack
+11881 /damage @s 8 entity_attack
+11892 /damage @s 8 entity_attack
+11903 /damage @s 8 entity_attack
+11914 /damage @s 8 entity_attack
+11925 /damage @s 8 entity_attack
+11936 /damage @s 8 entity_attack
+11947 /damage @s 8 entity_attack
+11958 /damage @s 8 entity_attack
+11969 /damage @s 8 entity_attack
+11980 /damage @s 8 entity_attack
+11991 /damage @s 8 entity_attack
+12002 /damage @s 8 entity_attack
+12013 /damage @s 8 entity_attack
+12024 /damage @s 8 entity_attack
+12035 /damage @s 8 entity_attack
+12046 /damage @s 8 entity_attack
+12057 /damage @s 8 entity_attack
+12068 /damage @s 8 entity_attack
+12079 /damage @s 8 entity_attack
+12090 /damage @s 8 entity_attack
+12101 /damage @s 8 entity_attack
+12112 /damage @s 8 entity_attack
+12123 /damage @s 8 entity_attack
+12134 /damage @s 8 entity_attack
+12145 /damage @s 8 entity_attack
+12156 /damage @s 8 entity_attack
+12167 /damage @s 8 entity_attack
+12178 /damage @s 8 entity_attack
+12189 /damage @s 8 entity_attack
+12200 /damage @s 8 entity_attack
+12211 /damage @s 8 entity_attack
+12222 /damage @s 8 entity_attack
+12233 /damage @s 8 entity_attack
+12244 /damage @s 8 entity_attack
+12255 /damage @s 8 entity_attack
+12266 /damage @s 8 entity_attack
+12277 /damage @s 8 entity_attack
+12288 /damage @s 8 entity_attack
+12299 /damage @s 8 entity_attack
+12310 /damage @s 8 entity_attack
+12321 /damage @s 8 entity_attack
+12332 /damage @s 8 entity_attack
+12343 /damage @s 8 entity_attack
+12354 /damage @s 8 entity_attack
+12365 /damage @s 8 entity_attack
+12376 /damage @s 8 entity_attack
+12387 /damage @s 8 entity_attack
+12398 /damage @s 8 entity_attack
+12409 /damage @s 8 entity_attack
+12420 /damage @s 8 entity_attack
+12431 /damage @s 8 entity_attack
+12442 /damage @s 8 entity_attack
+12453 /damage @s 8 entity_attack
+12464 /damage @s 8 entity_attack
+12475 /damage @s 8 entity_attack
+12486 /damage @s 8 entity_attack
+12497 /damage @s 8 entity_attack
+12508 /damage @s 8 entity_attack
+12519 /damage @s 8 entity_attack
+12530 /damage @s 8 entity_attack
+12541 /damage @s 8 entity_attack
+12552 /damage @s 8 entity_attack
+12563 /damage @s 8 entity_attack
+12574 /damage @s 8 entity_attack
+12585 /damage @s 8 entity_attack
+12596 /damage @s 8 entity_attack
+12607 /damage @s 8 entity_attack
+12618 /damage @s 8 entity_attack
+12629 /damage @s 8 entity_attack
+12640 /damage @s 8 entity_attack
+12651 /damage @s 8 entity_attack
+12662 /damage @s 8 entity_attack
+12673 /damage @s 8 entity_attack
+12684 /damage @s 8 entity_attack
+12695 /damage @s 8 entity_attack
+12706 /damage @s 8 entity_attack
+12717 /damage @s 8 entity_attack
+12728 /damage @s 8 entity_attack
+12739 /damage @s 8 entity_attack
+12750 /damage @s 8 entity_attack
+12761 /damage @s 8 entity_attack
+12772 /damage @s 8 entity_attack
+12783 /damage @s 8 entity_attack
+12794 /damage @s 8 entity_attack
+12805 /damage @s 8 entity_attack
+12816 /damage @s 8 entity_attack
+12827 /damage @s 8 entity_attack
+12838 /damage @s 8 entity_attack
+12849 /damage @s 8 entity_attack
+12860 /damage @s 8 entity_attack
+12871 /damage @s 8 entity_attack
+12882 /damage @s 8 entity_attack
+12893 /damage @s 8 entity_attack
+12904 /damage @s 8 entity_attack
+12915 /damage @s 8 entity_attack
+12926 /damage @s 8 entity_attack
+12937 /damage @s 8 entity_attack
+12948 /damage @s 8 entity_attack
+12959 /damage @s 8 entity_attack
+12970 /damage @s 8 entity_attack
+12981 /damage @s 8 entity_attack
+12992 /damage @s 8 entity_attack
+13003 /damage @s 8 entity_attack
+13014 /damage @s 8 entity_attack
+13025 /damage @s 8 entity_attack
+13036 /damage @s 8 entity_attack
+13047 /damage @s 8 entity_attack
+13058 /damage @s 8 entity_attack
+13069 /damage @s 8 entity_attack
+13080 /damage @s 8 entity_attack
+13091 /damage @s 8 entity_attack
+13102 /damage @s 8 entity_attack
+13113 /damage @s 8 entity_attack
+13124 /damage @s 8 entity_attack
+13135 /damage @s 8 entity_attack
+13146 /damage @s 8 entity_attack
+13157 /damage @s 8 entity_attack
+13168 /damage @s 8 entity_attack
+13179 /damage @s 8 entity_attack
+13190 /damage @s 8 entity_attack
+13201 /damage @s 8 entity_attack
+13212 /damage @s 8 entity_attack
+13223 /damage @s 8 entity_attack
+13234 /damage @s 8 entity_attack
+13245 /damage @s 8 entity_attack
+13256 /damage @s 8 entity_attack
+13267 /damage @s 8 entity_attack
+13278 /damage @s 8 entity_attack
+13289 /damage @s 8 entity_attack
+13300 /damage @s 8 entity_attack
+13311 /damage @s 8 entity_attack
+13322 /damage @s 8 entity_attack
+13333 /damage @s 8 entity_attack
+13344 /damage @s 8 entity_attack
+13355 /damage @s 8 entity_attack
+13366 /damage @s 8 entity_attack
+13377 /damage @s 8 entity_attack
+13388 /damage @s 8 entity_attack
+13399 /damage @s 8 entity_attack
+13410 /damage @s 8 entity_attack
+13421 /damage @s 8 entity_attack
+13432 /damage @s 8 entity_attack
+13443 /damage @s 8 entity_attack
+13454 /damage @s 8 entity_attack
+13465 /damage @s 8 entity_attack
+13476 /damage @s 8 entity_attack
+13487 /damage @s 8 entity_attack
+13498 /damage @s 8 entity_attack
+13509 /damage @s 8 entity_attack
+13520 /damage @s 8 entity_attack
+13531 /damage @s 8 entity_attack
+13542 /damage @s 8 entity_attack
+13553 /damage @s 8 entity_attack
+13564 /damage @s 8 entity_attack
+13575 /damage @s 8 entity_attack
+13586 /damage @s 8 entity_attack
+13597 /damage @s 8 entity_attack
+13608 /damage @s 8 entity_attack
+13619 /damage @s 8 entity_attack
+13635 /clear @s
+13636 /replaceitem entity @s slot.armor.head 0 air
+13637 /replaceitem entity @s slot.armor.chest 0 air
+13638 /replaceitem entity @s slot.armor.legs 0 air
+13639 /replaceitem entity @s slot.armor.feet 0 air
+13640 /setblock 2 -60 0 netherrack
+13642 /clear @s
+13643 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+13646 /enchant @s unbreaking 1
+13649 use
+13652 /say unbreaking use 1
+13655 use-on 2 -60 0 1
+13657 /setblock 2 -59 0 air
+13659 use-on 2 -60 0 1
+13661 /setblock 2 -59 0 air
+13663 use-on 2 -60 0 1
+13665 /setblock 2 -59 0 air
+13667 use-on 2 -60 0 1
+13669 /setblock 2 -59 0 air
+13671 use-on 2 -60 0 1
+13673 /setblock 2 -59 0 air
+13675 use-on 2 -60 0 1
+13677 /setblock 2 -59 0 air
+13679 use-on 2 -60 0 1
+13681 /setblock 2 -59 0 air
+13683 use-on 2 -60 0 1
+13685 /setblock 2 -59 0 air
+13687 use-on 2 -60 0 1
+13689 /setblock 2 -59 0 air
+13691 use-on 2 -60 0 1
+13693 /setblock 2 -59 0 air
+13695 use-on 2 -60 0 1
+13697 /setblock 2 -59 0 air
+13699 use-on 2 -60 0 1
+13701 /setblock 2 -59 0 air
+13703 use-on 2 -60 0 1
+13705 /setblock 2 -59 0 air
+13707 use-on 2 -60 0 1
+13709 /setblock 2 -59 0 air
+13711 use-on 2 -60 0 1
+13713 /setblock 2 -59 0 air
+13715 use-on 2 -60 0 1
+13717 /setblock 2 -59 0 air
+13719 use-on 2 -60 0 1
+13721 /setblock 2 -59 0 air
+13723 use-on 2 -60 0 1
+13725 /setblock 2 -59 0 air
+13727 use-on 2 -60 0 1
+13729 /setblock 2 -59 0 air
+13731 use-on 2 -60 0 1
+13733 /setblock 2 -59 0 air
+13735 use-on 2 -60 0 1
+13737 /setblock 2 -59 0 air
+13739 use-on 2 -60 0 1
+13741 /setblock 2 -59 0 air
+13743 use-on 2 -60 0 1
+13745 /setblock 2 -59 0 air
+13747 use-on 2 -60 0 1
+13749 /setblock 2 -59 0 air
+13751 use-on 2 -60 0 1
+13753 /setblock 2 -59 0 air
+13755 use-on 2 -60 0 1
+13757 /setblock 2 -59 0 air
+13759 use-on 2 -60 0 1
+13761 /setblock 2 -59 0 air
+13763 use-on 2 -60 0 1
+13765 /setblock 2 -59 0 air
+13767 use-on 2 -60 0 1
+13769 /setblock 2 -59 0 air
+13771 use-on 2 -60 0 1
+13773 /setblock 2 -59 0 air
+13775 use-on 2 -60 0 1
+13777 /setblock 2 -59 0 air
+13779 use-on 2 -60 0 1
+13781 /setblock 2 -59 0 air
+13783 use-on 2 -60 0 1
+13785 /setblock 2 -59 0 air
+13787 use-on 2 -60 0 1
+13789 /setblock 2 -59 0 air
+13791 use-on 2 -60 0 1
+13793 /setblock 2 -59 0 air
+13795 use-on 2 -60 0 1
+13797 /setblock 2 -59 0 air
+13799 use-on 2 -60 0 1
+13801 /setblock 2 -59 0 air
+13803 use-on 2 -60 0 1
+13805 /setblock 2 -59 0 air
+13807 use-on 2 -60 0 1
+13809 /setblock 2 -59 0 air
+13811 use-on 2 -60 0 1
+13813 /setblock 2 -59 0 air
+13815 /clear @s
+13816 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+13819 /enchant @s unbreaking 1
+13822 use
+13825 /say unbreaking use 1
+13828 use-on 2 -60 0 1
+13830 /setblock 2 -59 0 air
+13832 use-on 2 -60 0 1
+13834 /setblock 2 -59 0 air
+13836 use-on 2 -60 0 1
+13838 /setblock 2 -59 0 air
+13840 use-on 2 -60 0 1
+13842 /setblock 2 -59 0 air
+13844 use-on 2 -60 0 1
+13846 /setblock 2 -59 0 air
+13848 use-on 2 -60 0 1
+13850 /setblock 2 -59 0 air
+13852 use-on 2 -60 0 1
+13854 /setblock 2 -59 0 air
+13856 use-on 2 -60 0 1
+13858 /setblock 2 -59 0 air
+13860 use-on 2 -60 0 1
+13862 /setblock 2 -59 0 air
+13864 use-on 2 -60 0 1
+13866 /setblock 2 -59 0 air
+13868 use-on 2 -60 0 1
+13870 /setblock 2 -59 0 air
+13872 use-on 2 -60 0 1
+13874 /setblock 2 -59 0 air
+13876 use-on 2 -60 0 1
+13878 /setblock 2 -59 0 air
+13880 use-on 2 -60 0 1
+13882 /setblock 2 -59 0 air
+13884 use-on 2 -60 0 1
+13886 /setblock 2 -59 0 air
+13888 use-on 2 -60 0 1
+13890 /setblock 2 -59 0 air
+13892 use-on 2 -60 0 1
+13894 /setblock 2 -59 0 air
+13896 use-on 2 -60 0 1
+13898 /setblock 2 -59 0 air
+13900 use-on 2 -60 0 1
+13902 /setblock 2 -59 0 air
+13904 use-on 2 -60 0 1
+13906 /setblock 2 -59 0 air
+13908 use-on 2 -60 0 1
+13910 /setblock 2 -59 0 air
+13912 use-on 2 -60 0 1
+13914 /setblock 2 -59 0 air
+13916 use-on 2 -60 0 1
+13918 /setblock 2 -59 0 air
+13920 use-on 2 -60 0 1
+13922 /setblock 2 -59 0 air
+13924 use-on 2 -60 0 1
+13926 /setblock 2 -59 0 air
+13928 use-on 2 -60 0 1
+13930 /setblock 2 -59 0 air
+13932 use-on 2 -60 0 1
+13934 /setblock 2 -59 0 air
+13936 use-on 2 -60 0 1
+13938 /setblock 2 -59 0 air
+13940 use-on 2 -60 0 1
+13942 /setblock 2 -59 0 air
+13944 use-on 2 -60 0 1
+13946 /setblock 2 -59 0 air
+13948 use-on 2 -60 0 1
+13950 /setblock 2 -59 0 air
+13952 use-on 2 -60 0 1
+13954 /setblock 2 -59 0 air
+13956 use-on 2 -60 0 1
+13958 /setblock 2 -59 0 air
+13960 use-on 2 -60 0 1
+13962 /setblock 2 -59 0 air
+13964 use-on 2 -60 0 1
+13966 /setblock 2 -59 0 air
+13968 use-on 2 -60 0 1
+13970 /setblock 2 -59 0 air
+13972 use-on 2 -60 0 1
+13974 /setblock 2 -59 0 air
+13976 use-on 2 -60 0 1
+13978 /setblock 2 -59 0 air
+13980 use-on 2 -60 0 1
+13982 /setblock 2 -59 0 air
+13984 use-on 2 -60 0 1
+13986 /setblock 2 -59 0 air
+13988 /clear @s
+13989 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+13992 /enchant @s unbreaking 1
+13995 use
+13998 /say unbreaking use 1
+14001 use-on 2 -60 0 1
+14003 /setblock 2 -59 0 air
+14005 use-on 2 -60 0 1
+14007 /setblock 2 -59 0 air
+14009 use-on 2 -60 0 1
+14011 /setblock 2 -59 0 air
+14013 use-on 2 -60 0 1
+14015 /setblock 2 -59 0 air
+14017 use-on 2 -60 0 1
+14019 /setblock 2 -59 0 air
+14021 use-on 2 -60 0 1
+14023 /setblock 2 -59 0 air
+14025 use-on 2 -60 0 1
+14027 /setblock 2 -59 0 air
+14029 use-on 2 -60 0 1
+14031 /setblock 2 -59 0 air
+14033 use-on 2 -60 0 1
+14035 /setblock 2 -59 0 air
+14037 use-on 2 -60 0 1
+14039 /setblock 2 -59 0 air
+14041 use-on 2 -60 0 1
+14043 /setblock 2 -59 0 air
+14045 use-on 2 -60 0 1
+14047 /setblock 2 -59 0 air
+14049 use-on 2 -60 0 1
+14051 /setblock 2 -59 0 air
+14053 use-on 2 -60 0 1
+14055 /setblock 2 -59 0 air
+14057 use-on 2 -60 0 1
+14059 /setblock 2 -59 0 air
+14061 use-on 2 -60 0 1
+14063 /setblock 2 -59 0 air
+14065 use-on 2 -60 0 1
+14067 /setblock 2 -59 0 air
+14069 use-on 2 -60 0 1
+14071 /setblock 2 -59 0 air
+14073 use-on 2 -60 0 1
+14075 /setblock 2 -59 0 air
+14077 use-on 2 -60 0 1
+14079 /setblock 2 -59 0 air
+14081 use-on 2 -60 0 1
+14083 /setblock 2 -59 0 air
+14085 use-on 2 -60 0 1
+14087 /setblock 2 -59 0 air
+14089 use-on 2 -60 0 1
+14091 /setblock 2 -59 0 air
+14093 use-on 2 -60 0 1
+14095 /setblock 2 -59 0 air
+14097 use-on 2 -60 0 1
+14099 /setblock 2 -59 0 air
+14101 use-on 2 -60 0 1
+14103 /setblock 2 -59 0 air
+14105 use-on 2 -60 0 1
+14107 /setblock 2 -59 0 air
+14109 use-on 2 -60 0 1
+14111 /setblock 2 -59 0 air
+14113 use-on 2 -60 0 1
+14115 /setblock 2 -59 0 air
+14117 use-on 2 -60 0 1
+14119 /setblock 2 -59 0 air
+14121 use-on 2 -60 0 1
+14123 /setblock 2 -59 0 air
+14125 use-on 2 -60 0 1
+14127 /setblock 2 -59 0 air
+14129 use-on 2 -60 0 1
+14131 /setblock 2 -59 0 air
+14133 use-on 2 -60 0 1
+14135 /setblock 2 -59 0 air
+14137 use-on 2 -60 0 1
+14139 /setblock 2 -59 0 air
+14141 use-on 2 -60 0 1
+14143 /setblock 2 -59 0 air
+14145 use-on 2 -60 0 1
+14147 /setblock 2 -59 0 air
+14149 use-on 2 -60 0 1
+14151 /setblock 2 -59 0 air
+14153 use-on 2 -60 0 1
+14155 /setblock 2 -59 0 air
+14157 use-on 2 -60 0 1
+14159 /setblock 2 -59 0 air
+14161 /clear @s
+14162 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+14165 /enchant @s unbreaking 1
+14168 use
+14171 /say unbreaking use 1
+14174 use-on 2 -60 0 1
+14176 /setblock 2 -59 0 air
+14178 use-on 2 -60 0 1
+14180 /setblock 2 -59 0 air
+14182 use-on 2 -60 0 1
+14184 /setblock 2 -59 0 air
+14186 use-on 2 -60 0 1
+14188 /setblock 2 -59 0 air
+14190 use-on 2 -60 0 1
+14192 /setblock 2 -59 0 air
+14194 use-on 2 -60 0 1
+14196 /setblock 2 -59 0 air
+14198 use-on 2 -60 0 1
+14200 /setblock 2 -59 0 air
+14202 use-on 2 -60 0 1
+14204 /setblock 2 -59 0 air
+14206 use-on 2 -60 0 1
+14208 /setblock 2 -59 0 air
+14210 use-on 2 -60 0 1
+14212 /setblock 2 -59 0 air
+14214 use-on 2 -60 0 1
+14216 /setblock 2 -59 0 air
+14218 use-on 2 -60 0 1
+14220 /setblock 2 -59 0 air
+14222 use-on 2 -60 0 1
+14224 /setblock 2 -59 0 air
+14226 use-on 2 -60 0 1
+14228 /setblock 2 -59 0 air
+14230 use-on 2 -60 0 1
+14232 /setblock 2 -59 0 air
+14234 use-on 2 -60 0 1
+14236 /setblock 2 -59 0 air
+14238 use-on 2 -60 0 1
+14240 /setblock 2 -59 0 air
+14242 use-on 2 -60 0 1
+14244 /setblock 2 -59 0 air
+14246 use-on 2 -60 0 1
+14248 /setblock 2 -59 0 air
+14250 use-on 2 -60 0 1
+14252 /setblock 2 -59 0 air
+14254 use-on 2 -60 0 1
+14256 /setblock 2 -59 0 air
+14258 use-on 2 -60 0 1
+14260 /setblock 2 -59 0 air
+14262 use-on 2 -60 0 1
+14264 /setblock 2 -59 0 air
+14266 use-on 2 -60 0 1
+14268 /setblock 2 -59 0 air
+14270 use-on 2 -60 0 1
+14272 /setblock 2 -59 0 air
+14274 use-on 2 -60 0 1
+14276 /setblock 2 -59 0 air
+14278 use-on 2 -60 0 1
+14280 /setblock 2 -59 0 air
+14282 use-on 2 -60 0 1
+14284 /setblock 2 -59 0 air
+14286 use-on 2 -60 0 1
+14288 /setblock 2 -59 0 air
+14290 use-on 2 -60 0 1
+14292 /setblock 2 -59 0 air
+14294 use-on 2 -60 0 1
+14296 /setblock 2 -59 0 air
+14298 use-on 2 -60 0 1
+14300 /setblock 2 -59 0 air
+14302 use-on 2 -60 0 1
+14304 /setblock 2 -59 0 air
+14306 use-on 2 -60 0 1
+14308 /setblock 2 -59 0 air
+14310 use-on 2 -60 0 1
+14312 /setblock 2 -59 0 air
+14314 use-on 2 -60 0 1
+14316 /setblock 2 -59 0 air
+14318 use-on 2 -60 0 1
+14320 /setblock 2 -59 0 air
+14322 use-on 2 -60 0 1
+14324 /setblock 2 -59 0 air
+14326 use-on 2 -60 0 1
+14328 /setblock 2 -59 0 air
+14330 use-on 2 -60 0 1
+14332 /setblock 2 -59 0 air
+14334 /clear @s
+14335 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+14338 /enchant @s unbreaking 1
+14341 use
+14344 /say unbreaking use 1
+14347 use-on 2 -60 0 1
+14349 /setblock 2 -59 0 air
+14351 use-on 2 -60 0 1
+14353 /setblock 2 -59 0 air
+14355 use-on 2 -60 0 1
+14357 /setblock 2 -59 0 air
+14359 use-on 2 -60 0 1
+14361 /setblock 2 -59 0 air
+14363 use-on 2 -60 0 1
+14365 /setblock 2 -59 0 air
+14367 use-on 2 -60 0 1
+14369 /setblock 2 -59 0 air
+14371 use-on 2 -60 0 1
+14373 /setblock 2 -59 0 air
+14375 use-on 2 -60 0 1
+14377 /setblock 2 -59 0 air
+14379 use-on 2 -60 0 1
+14381 /setblock 2 -59 0 air
+14383 use-on 2 -60 0 1
+14385 /setblock 2 -59 0 air
+14387 use-on 2 -60 0 1
+14389 /setblock 2 -59 0 air
+14391 use-on 2 -60 0 1
+14393 /setblock 2 -59 0 air
+14395 use-on 2 -60 0 1
+14397 /setblock 2 -59 0 air
+14399 use-on 2 -60 0 1
+14401 /setblock 2 -59 0 air
+14403 use-on 2 -60 0 1
+14405 /setblock 2 -59 0 air
+14407 use-on 2 -60 0 1
+14409 /setblock 2 -59 0 air
+14411 use-on 2 -60 0 1
+14413 /setblock 2 -59 0 air
+14415 use-on 2 -60 0 1
+14417 /setblock 2 -59 0 air
+14419 use-on 2 -60 0 1
+14421 /setblock 2 -59 0 air
+14423 use-on 2 -60 0 1
+14425 /setblock 2 -59 0 air
+14427 use-on 2 -60 0 1
+14429 /setblock 2 -59 0 air
+14431 use-on 2 -60 0 1
+14433 /setblock 2 -59 0 air
+14435 use-on 2 -60 0 1
+14437 /setblock 2 -59 0 air
+14439 use-on 2 -60 0 1
+14441 /setblock 2 -59 0 air
+14443 use-on 2 -60 0 1
+14445 /setblock 2 -59 0 air
+14447 use-on 2 -60 0 1
+14449 /setblock 2 -59 0 air
+14451 use-on 2 -60 0 1
+14453 /setblock 2 -59 0 air
+14455 use-on 2 -60 0 1
+14457 /setblock 2 -59 0 air
+14459 use-on 2 -60 0 1
+14461 /setblock 2 -59 0 air
+14463 use-on 2 -60 0 1
+14465 /setblock 2 -59 0 air
+14467 use-on 2 -60 0 1
+14469 /setblock 2 -59 0 air
+14471 use-on 2 -60 0 1
+14473 /setblock 2 -59 0 air
+14475 use-on 2 -60 0 1
+14477 /setblock 2 -59 0 air
+14479 use-on 2 -60 0 1
+14481 /setblock 2 -59 0 air
+14483 use-on 2 -60 0 1
+14485 /setblock 2 -59 0 air
+14487 use-on 2 -60 0 1
+14489 /setblock 2 -59 0 air
+14491 use-on 2 -60 0 1
+14493 /setblock 2 -59 0 air
+14495 use-on 2 -60 0 1
+14497 /setblock 2 -59 0 air
+14499 use-on 2 -60 0 1
+14501 /setblock 2 -59 0 air
+14503 use-on 2 -60 0 1
+14505 /setblock 2 -59 0 air
+14507 /clear @s
+14508 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+14511 /enchant @s unbreaking 1
+14514 use
+14517 /say unbreaking use 1
+14520 use-on 2 -60 0 1
+14522 /setblock 2 -59 0 air
+14524 use-on 2 -60 0 1
+14526 /setblock 2 -59 0 air
+14528 use-on 2 -60 0 1
+14530 /setblock 2 -59 0 air
+14532 use-on 2 -60 0 1
+14534 /setblock 2 -59 0 air
+14536 use-on 2 -60 0 1
+14538 /setblock 2 -59 0 air
+14540 use-on 2 -60 0 1
+14542 /setblock 2 -59 0 air
+14544 use-on 2 -60 0 1
+14546 /setblock 2 -59 0 air
+14548 use-on 2 -60 0 1
+14550 /setblock 2 -59 0 air
+14552 use-on 2 -60 0 1
+14554 /setblock 2 -59 0 air
+14556 use-on 2 -60 0 1
+14558 /setblock 2 -59 0 air
+14560 use-on 2 -60 0 1
+14562 /setblock 2 -59 0 air
+14564 use-on 2 -60 0 1
+14566 /setblock 2 -59 0 air
+14568 use-on 2 -60 0 1
+14570 /setblock 2 -59 0 air
+14572 use-on 2 -60 0 1
+14574 /setblock 2 -59 0 air
+14576 use-on 2 -60 0 1
+14578 /setblock 2 -59 0 air
+14580 use-on 2 -60 0 1
+14582 /setblock 2 -59 0 air
+14584 use-on 2 -60 0 1
+14586 /setblock 2 -59 0 air
+14588 use-on 2 -60 0 1
+14590 /setblock 2 -59 0 air
+14592 use-on 2 -60 0 1
+14594 /setblock 2 -59 0 air
+14596 use-on 2 -60 0 1
+14598 /setblock 2 -59 0 air
+14600 use-on 2 -60 0 1
+14602 /setblock 2 -59 0 air
+14604 use-on 2 -60 0 1
+14606 /setblock 2 -59 0 air
+14608 use-on 2 -60 0 1
+14610 /setblock 2 -59 0 air
+14612 use-on 2 -60 0 1
+14614 /setblock 2 -59 0 air
+14616 use-on 2 -60 0 1
+14618 /setblock 2 -59 0 air
+14620 use-on 2 -60 0 1
+14622 /setblock 2 -59 0 air
+14624 use-on 2 -60 0 1
+14626 /setblock 2 -59 0 air
+14628 use-on 2 -60 0 1
+14630 /setblock 2 -59 0 air
+14632 use-on 2 -60 0 1
+14634 /setblock 2 -59 0 air
+14636 use-on 2 -60 0 1
+14638 /setblock 2 -59 0 air
+14640 use-on 2 -60 0 1
+14642 /setblock 2 -59 0 air
+14644 use-on 2 -60 0 1
+14646 /setblock 2 -59 0 air
+14648 use-on 2 -60 0 1
+14650 /setblock 2 -59 0 air
+14652 use-on 2 -60 0 1
+14654 /setblock 2 -59 0 air
+14656 use-on 2 -60 0 1
+14658 /setblock 2 -59 0 air
+14660 use-on 2 -60 0 1
+14662 /setblock 2 -59 0 air
+14664 use-on 2 -60 0 1
+14666 /setblock 2 -59 0 air
+14668 use-on 2 -60 0 1
+14670 /setblock 2 -59 0 air
+14672 use-on 2 -60 0 1
+14674 /setblock 2 -59 0 air
+14676 use-on 2 -60 0 1
+14678 /setblock 2 -59 0 air
+14680 /clear @s
+14681 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+14684 /enchant @s unbreaking 1
+14687 use
+14690 /say unbreaking use 1
+14693 use-on 2 -60 0 1
+14695 /setblock 2 -59 0 air
+14697 use-on 2 -60 0 1
+14699 /setblock 2 -59 0 air
+14701 use-on 2 -60 0 1
+14703 /setblock 2 -59 0 air
+14705 use-on 2 -60 0 1
+14707 /setblock 2 -59 0 air
+14709 use-on 2 -60 0 1
+14711 /setblock 2 -59 0 air
+14713 use-on 2 -60 0 1
+14715 /setblock 2 -59 0 air
+14717 use-on 2 -60 0 1
+14719 /setblock 2 -59 0 air
+14721 use-on 2 -60 0 1
+14723 /setblock 2 -59 0 air
+14725 use-on 2 -60 0 1
+14727 /setblock 2 -59 0 air
+14729 use-on 2 -60 0 1
+14731 /setblock 2 -59 0 air
+14733 use-on 2 -60 0 1
+14735 /setblock 2 -59 0 air
+14737 use-on 2 -60 0 1
+14739 /setblock 2 -59 0 air
+14741 use-on 2 -60 0 1
+14743 /setblock 2 -59 0 air
+14745 use-on 2 -60 0 1
+14747 /setblock 2 -59 0 air
+14749 use-on 2 -60 0 1
+14751 /setblock 2 -59 0 air
+14753 use-on 2 -60 0 1
+14755 /setblock 2 -59 0 air
+14757 use-on 2 -60 0 1
+14759 /setblock 2 -59 0 air
+14761 use-on 2 -60 0 1
+14763 /setblock 2 -59 0 air
+14765 use-on 2 -60 0 1
+14767 /setblock 2 -59 0 air
+14769 use-on 2 -60 0 1
+14771 /setblock 2 -59 0 air
+14773 use-on 2 -60 0 1
+14775 /setblock 2 -59 0 air
+14777 use-on 2 -60 0 1
+14779 /setblock 2 -59 0 air
+14781 use-on 2 -60 0 1
+14783 /setblock 2 -59 0 air
+14785 use-on 2 -60 0 1
+14787 /setblock 2 -59 0 air
+14789 use-on 2 -60 0 1
+14791 /setblock 2 -59 0 air
+14793 use-on 2 -60 0 1
+14795 /setblock 2 -59 0 air
+14797 use-on 2 -60 0 1
+14799 /setblock 2 -59 0 air
+14801 use-on 2 -60 0 1
+14803 /setblock 2 -59 0 air
+14805 use-on 2 -60 0 1
+14807 /setblock 2 -59 0 air
+14809 use-on 2 -60 0 1
+14811 /setblock 2 -59 0 air
+14813 use-on 2 -60 0 1
+14815 /setblock 2 -59 0 air
+14817 use-on 2 -60 0 1
+14819 /setblock 2 -59 0 air
+14821 use-on 2 -60 0 1
+14823 /setblock 2 -59 0 air
+14825 use-on 2 -60 0 1
+14827 /setblock 2 -59 0 air
+14829 use-on 2 -60 0 1
+14831 /setblock 2 -59 0 air
+14833 use-on 2 -60 0 1
+14835 /setblock 2 -59 0 air
+14837 use-on 2 -60 0 1
+14839 /setblock 2 -59 0 air
+14841 use-on 2 -60 0 1
+14843 /setblock 2 -59 0 air
+14845 use-on 2 -60 0 1
+14847 /setblock 2 -59 0 air
+14849 use-on 2 -60 0 1
+14851 /setblock 2 -59 0 air
+14853 /clear @s
+14854 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+14857 /enchant @s unbreaking 1
+14860 use
+14863 /say unbreaking use 1
+14866 use-on 2 -60 0 1
+14868 /setblock 2 -59 0 air
+14870 use-on 2 -60 0 1
+14872 /setblock 2 -59 0 air
+14874 use-on 2 -60 0 1
+14876 /setblock 2 -59 0 air
+14878 use-on 2 -60 0 1
+14880 /setblock 2 -59 0 air
+14882 use-on 2 -60 0 1
+14884 /setblock 2 -59 0 air
+14886 use-on 2 -60 0 1
+14888 /setblock 2 -59 0 air
+14890 use-on 2 -60 0 1
+14892 /setblock 2 -59 0 air
+14894 use-on 2 -60 0 1
+14896 /setblock 2 -59 0 air
+14898 use-on 2 -60 0 1
+14900 /setblock 2 -59 0 air
+14902 use-on 2 -60 0 1
+14904 /setblock 2 -59 0 air
+14906 use-on 2 -60 0 1
+14908 /setblock 2 -59 0 air
+14910 use-on 2 -60 0 1
+14912 /setblock 2 -59 0 air
+14914 use-on 2 -60 0 1
+14916 /setblock 2 -59 0 air
+14918 use-on 2 -60 0 1
+14920 /setblock 2 -59 0 air
+14922 use-on 2 -60 0 1
+14924 /setblock 2 -59 0 air
+14926 use-on 2 -60 0 1
+14928 /setblock 2 -59 0 air
+14930 use-on 2 -60 0 1
+14932 /setblock 2 -59 0 air
+14934 use-on 2 -60 0 1
+14936 /setblock 2 -59 0 air
+14938 use-on 2 -60 0 1
+14940 /setblock 2 -59 0 air
+14942 use-on 2 -60 0 1
+14944 /setblock 2 -59 0 air
+14946 use-on 2 -60 0 1
+14948 /setblock 2 -59 0 air
+14950 use-on 2 -60 0 1
+14952 /setblock 2 -59 0 air
+14954 use-on 2 -60 0 1
+14956 /setblock 2 -59 0 air
+14958 use-on 2 -60 0 1
+14960 /setblock 2 -59 0 air
+14962 use-on 2 -60 0 1
+14964 /setblock 2 -59 0 air
+14966 use-on 2 -60 0 1
+14968 /setblock 2 -59 0 air
+14970 use-on 2 -60 0 1
+14972 /setblock 2 -59 0 air
+14974 use-on 2 -60 0 1
+14976 /setblock 2 -59 0 air
+14978 use-on 2 -60 0 1
+14980 /setblock 2 -59 0 air
+14982 use-on 2 -60 0 1
+14984 /setblock 2 -59 0 air
+14986 use-on 2 -60 0 1
+14988 /setblock 2 -59 0 air
+14990 use-on 2 -60 0 1
+14992 /setblock 2 -59 0 air
+14994 use-on 2 -60 0 1
+14996 /setblock 2 -59 0 air
+14998 use-on 2 -60 0 1
+15000 /setblock 2 -59 0 air
+15002 use-on 2 -60 0 1
+15004 /setblock 2 -59 0 air
+15006 use-on 2 -60 0 1
+15008 /setblock 2 -59 0 air
+15010 use-on 2 -60 0 1
+15012 /setblock 2 -59 0 air
+15014 use-on 2 -60 0 1
+15016 /setblock 2 -59 0 air
+15018 use-on 2 -60 0 1
+15020 /setblock 2 -59 0 air
+15022 use-on 2 -60 0 1
+15024 /setblock 2 -59 0 air
+15026 /clear @s
+15027 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+15030 /enchant @s unbreaking 1
+15033 use
+15036 /say unbreaking use 1
+15039 use-on 2 -60 0 1
+15041 /setblock 2 -59 0 air
+15043 use-on 2 -60 0 1
+15045 /setblock 2 -59 0 air
+15047 use-on 2 -60 0 1
+15049 /setblock 2 -59 0 air
+15051 use-on 2 -60 0 1
+15053 /setblock 2 -59 0 air
+15055 use-on 2 -60 0 1
+15057 /setblock 2 -59 0 air
+15059 use-on 2 -60 0 1
+15061 /setblock 2 -59 0 air
+15063 use-on 2 -60 0 1
+15065 /setblock 2 -59 0 air
+15067 use-on 2 -60 0 1
+15069 /setblock 2 -59 0 air
+15071 use-on 2 -60 0 1
+15073 /setblock 2 -59 0 air
+15075 use-on 2 -60 0 1
+15077 /setblock 2 -59 0 air
+15079 use-on 2 -60 0 1
+15081 /setblock 2 -59 0 air
+15083 use-on 2 -60 0 1
+15085 /setblock 2 -59 0 air
+15087 use-on 2 -60 0 1
+15089 /setblock 2 -59 0 air
+15091 use-on 2 -60 0 1
+15093 /setblock 2 -59 0 air
+15095 use-on 2 -60 0 1
+15097 /setblock 2 -59 0 air
+15099 use-on 2 -60 0 1
+15101 /setblock 2 -59 0 air
+15103 use-on 2 -60 0 1
+15105 /setblock 2 -59 0 air
+15107 use-on 2 -60 0 1
+15109 /setblock 2 -59 0 air
+15111 use-on 2 -60 0 1
+15113 /setblock 2 -59 0 air
+15115 use-on 2 -60 0 1
+15117 /setblock 2 -59 0 air
+15119 use-on 2 -60 0 1
+15121 /setblock 2 -59 0 air
+15123 use-on 2 -60 0 1
+15125 /setblock 2 -59 0 air
+15127 use-on 2 -60 0 1
+15129 /setblock 2 -59 0 air
+15131 use-on 2 -60 0 1
+15133 /setblock 2 -59 0 air
+15135 use-on 2 -60 0 1
+15137 /setblock 2 -59 0 air
+15139 use-on 2 -60 0 1
+15141 /setblock 2 -59 0 air
+15143 use-on 2 -60 0 1
+15145 /setblock 2 -59 0 air
+15147 use-on 2 -60 0 1
+15149 /setblock 2 -59 0 air
+15151 use-on 2 -60 0 1
+15153 /setblock 2 -59 0 air
+15155 use-on 2 -60 0 1
+15157 /setblock 2 -59 0 air
+15159 use-on 2 -60 0 1
+15161 /setblock 2 -59 0 air
+15163 use-on 2 -60 0 1
+15165 /setblock 2 -59 0 air
+15167 use-on 2 -60 0 1
+15169 /setblock 2 -59 0 air
+15171 use-on 2 -60 0 1
+15173 /setblock 2 -59 0 air
+15175 use-on 2 -60 0 1
+15177 /setblock 2 -59 0 air
+15179 use-on 2 -60 0 1
+15181 /setblock 2 -59 0 air
+15183 use-on 2 -60 0 1
+15185 /setblock 2 -59 0 air
+15187 use-on 2 -60 0 1
+15189 /setblock 2 -59 0 air
+15191 use-on 2 -60 0 1
+15193 /setblock 2 -59 0 air
+15195 use-on 2 -60 0 1
+15197 /setblock 2 -59 0 air
+15199 /clear @s
+15200 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+15203 /enchant @s unbreaking 1
+15206 use
+15209 /say unbreaking use 1
+15212 use-on 2 -60 0 1
+15214 /setblock 2 -59 0 air
+15216 use-on 2 -60 0 1
+15218 /setblock 2 -59 0 air
+15220 use-on 2 -60 0 1
+15222 /setblock 2 -59 0 air
+15224 use-on 2 -60 0 1
+15226 /setblock 2 -59 0 air
+15228 use-on 2 -60 0 1
+15230 /setblock 2 -59 0 air
+15232 use-on 2 -60 0 1
+15234 /setblock 2 -59 0 air
+15236 use-on 2 -60 0 1
+15238 /setblock 2 -59 0 air
+15240 use-on 2 -60 0 1
+15242 /setblock 2 -59 0 air
+15244 use-on 2 -60 0 1
+15246 /setblock 2 -59 0 air
+15248 use-on 2 -60 0 1
+15250 /setblock 2 -59 0 air
+15252 use-on 2 -60 0 1
+15254 /setblock 2 -59 0 air
+15256 use-on 2 -60 0 1
+15258 /setblock 2 -59 0 air
+15260 use-on 2 -60 0 1
+15262 /setblock 2 -59 0 air
+15264 use-on 2 -60 0 1
+15266 /setblock 2 -59 0 air
+15268 use-on 2 -60 0 1
+15270 /setblock 2 -59 0 air
+15272 use-on 2 -60 0 1
+15274 /setblock 2 -59 0 air
+15276 use-on 2 -60 0 1
+15278 /setblock 2 -59 0 air
+15280 use-on 2 -60 0 1
+15282 /setblock 2 -59 0 air
+15284 use-on 2 -60 0 1
+15286 /setblock 2 -59 0 air
+15288 use-on 2 -60 0 1
+15290 /setblock 2 -59 0 air
+15292 use-on 2 -60 0 1
+15294 /setblock 2 -59 0 air
+15296 use-on 2 -60 0 1
+15298 /setblock 2 -59 0 air
+15300 use-on 2 -60 0 1
+15302 /setblock 2 -59 0 air
+15304 use-on 2 -60 0 1
+15306 /setblock 2 -59 0 air
+15308 use-on 2 -60 0 1
+15310 /setblock 2 -59 0 air
+15312 use-on 2 -60 0 1
+15314 /setblock 2 -59 0 air
+15316 use-on 2 -60 0 1
+15318 /setblock 2 -59 0 air
+15320 use-on 2 -60 0 1
+15322 /setblock 2 -59 0 air
+15324 use-on 2 -60 0 1
+15326 /setblock 2 -59 0 air
+15328 use-on 2 -60 0 1
+15330 /setblock 2 -59 0 air
+15332 use-on 2 -60 0 1
+15334 /setblock 2 -59 0 air
+15336 use-on 2 -60 0 1
+15338 /setblock 2 -59 0 air
+15340 use-on 2 -60 0 1
+15342 /setblock 2 -59 0 air
+15344 use-on 2 -60 0 1
+15346 /setblock 2 -59 0 air
+15348 use-on 2 -60 0 1
+15350 /setblock 2 -59 0 air
+15352 use-on 2 -60 0 1
+15354 /setblock 2 -59 0 air
+15356 use-on 2 -60 0 1
+15358 /setblock 2 -59 0 air
+15360 use-on 2 -60 0 1
+15362 /setblock 2 -59 0 air
+15364 use-on 2 -60 0 1
+15366 /setblock 2 -59 0 air
+15368 use-on 2 -60 0 1
+15370 /setblock 2 -59 0 air
+15377 /clear @s
+15378 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+15381 /enchant @s unbreaking 2
+15384 use
+15387 /say unbreaking use 2
+15390 use-on 2 -60 0 1
+15392 /setblock 2 -59 0 air
+15394 use-on 2 -60 0 1
+15396 /setblock 2 -59 0 air
+15398 use-on 2 -60 0 1
+15400 /setblock 2 -59 0 air
+15402 use-on 2 -60 0 1
+15404 /setblock 2 -59 0 air
+15406 use-on 2 -60 0 1
+15408 /setblock 2 -59 0 air
+15410 use-on 2 -60 0 1
+15412 /setblock 2 -59 0 air
+15414 use-on 2 -60 0 1
+15416 /setblock 2 -59 0 air
+15418 use-on 2 -60 0 1
+15420 /setblock 2 -59 0 air
+15422 use-on 2 -60 0 1
+15424 /setblock 2 -59 0 air
+15426 use-on 2 -60 0 1
+15428 /setblock 2 -59 0 air
+15430 use-on 2 -60 0 1
+15432 /setblock 2 -59 0 air
+15434 use-on 2 -60 0 1
+15436 /setblock 2 -59 0 air
+15438 use-on 2 -60 0 1
+15440 /setblock 2 -59 0 air
+15442 use-on 2 -60 0 1
+15444 /setblock 2 -59 0 air
+15446 use-on 2 -60 0 1
+15448 /setblock 2 -59 0 air
+15450 use-on 2 -60 0 1
+15452 /setblock 2 -59 0 air
+15454 use-on 2 -60 0 1
+15456 /setblock 2 -59 0 air
+15458 use-on 2 -60 0 1
+15460 /setblock 2 -59 0 air
+15462 use-on 2 -60 0 1
+15464 /setblock 2 -59 0 air
+15466 use-on 2 -60 0 1
+15468 /setblock 2 -59 0 air
+15470 use-on 2 -60 0 1
+15472 /setblock 2 -59 0 air
+15474 use-on 2 -60 0 1
+15476 /setblock 2 -59 0 air
+15478 use-on 2 -60 0 1
+15480 /setblock 2 -59 0 air
+15482 use-on 2 -60 0 1
+15484 /setblock 2 -59 0 air
+15486 use-on 2 -60 0 1
+15488 /setblock 2 -59 0 air
+15490 use-on 2 -60 0 1
+15492 /setblock 2 -59 0 air
+15494 use-on 2 -60 0 1
+15496 /setblock 2 -59 0 air
+15498 use-on 2 -60 0 1
+15500 /setblock 2 -59 0 air
+15502 use-on 2 -60 0 1
+15504 /setblock 2 -59 0 air
+15506 use-on 2 -60 0 1
+15508 /setblock 2 -59 0 air
+15510 use-on 2 -60 0 1
+15512 /setblock 2 -59 0 air
+15514 use-on 2 -60 0 1
+15516 /setblock 2 -59 0 air
+15518 use-on 2 -60 0 1
+15520 /setblock 2 -59 0 air
+15522 use-on 2 -60 0 1
+15524 /setblock 2 -59 0 air
+15526 use-on 2 -60 0 1
+15528 /setblock 2 -59 0 air
+15530 use-on 2 -60 0 1
+15532 /setblock 2 -59 0 air
+15534 use-on 2 -60 0 1
+15536 /setblock 2 -59 0 air
+15538 use-on 2 -60 0 1
+15540 /setblock 2 -59 0 air
+15542 use-on 2 -60 0 1
+15544 /setblock 2 -59 0 air
+15546 use-on 2 -60 0 1
+15548 /setblock 2 -59 0 air
+15550 /clear @s
+15551 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+15554 /enchant @s unbreaking 2
+15557 use
+15560 /say unbreaking use 2
+15563 use-on 2 -60 0 1
+15565 /setblock 2 -59 0 air
+15567 use-on 2 -60 0 1
+15569 /setblock 2 -59 0 air
+15571 use-on 2 -60 0 1
+15573 /setblock 2 -59 0 air
+15575 use-on 2 -60 0 1
+15577 /setblock 2 -59 0 air
+15579 use-on 2 -60 0 1
+15581 /setblock 2 -59 0 air
+15583 use-on 2 -60 0 1
+15585 /setblock 2 -59 0 air
+15587 use-on 2 -60 0 1
+15589 /setblock 2 -59 0 air
+15591 use-on 2 -60 0 1
+15593 /setblock 2 -59 0 air
+15595 use-on 2 -60 0 1
+15597 /setblock 2 -59 0 air
+15599 use-on 2 -60 0 1
+15601 /setblock 2 -59 0 air
+15603 use-on 2 -60 0 1
+15605 /setblock 2 -59 0 air
+15607 use-on 2 -60 0 1
+15609 /setblock 2 -59 0 air
+15611 use-on 2 -60 0 1
+15613 /setblock 2 -59 0 air
+15615 use-on 2 -60 0 1
+15617 /setblock 2 -59 0 air
+15619 use-on 2 -60 0 1
+15621 /setblock 2 -59 0 air
+15623 use-on 2 -60 0 1
+15625 /setblock 2 -59 0 air
+15627 use-on 2 -60 0 1
+15629 /setblock 2 -59 0 air
+15631 use-on 2 -60 0 1
+15633 /setblock 2 -59 0 air
+15635 use-on 2 -60 0 1
+15637 /setblock 2 -59 0 air
+15639 use-on 2 -60 0 1
+15641 /setblock 2 -59 0 air
+15643 use-on 2 -60 0 1
+15645 /setblock 2 -59 0 air
+15647 use-on 2 -60 0 1
+15649 /setblock 2 -59 0 air
+15651 use-on 2 -60 0 1
+15653 /setblock 2 -59 0 air
+15655 use-on 2 -60 0 1
+15657 /setblock 2 -59 0 air
+15659 use-on 2 -60 0 1
+15661 /setblock 2 -59 0 air
+15663 use-on 2 -60 0 1
+15665 /setblock 2 -59 0 air
+15667 use-on 2 -60 0 1
+15669 /setblock 2 -59 0 air
+15671 use-on 2 -60 0 1
+15673 /setblock 2 -59 0 air
+15675 use-on 2 -60 0 1
+15677 /setblock 2 -59 0 air
+15679 use-on 2 -60 0 1
+15681 /setblock 2 -59 0 air
+15683 use-on 2 -60 0 1
+15685 /setblock 2 -59 0 air
+15687 use-on 2 -60 0 1
+15689 /setblock 2 -59 0 air
+15691 use-on 2 -60 0 1
+15693 /setblock 2 -59 0 air
+15695 use-on 2 -60 0 1
+15697 /setblock 2 -59 0 air
+15699 use-on 2 -60 0 1
+15701 /setblock 2 -59 0 air
+15703 use-on 2 -60 0 1
+15705 /setblock 2 -59 0 air
+15707 use-on 2 -60 0 1
+15709 /setblock 2 -59 0 air
+15711 use-on 2 -60 0 1
+15713 /setblock 2 -59 0 air
+15715 use-on 2 -60 0 1
+15717 /setblock 2 -59 0 air
+15719 use-on 2 -60 0 1
+15721 /setblock 2 -59 0 air
+15723 /clear @s
+15724 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+15727 /enchant @s unbreaking 2
+15730 use
+15733 /say unbreaking use 2
+15736 use-on 2 -60 0 1
+15738 /setblock 2 -59 0 air
+15740 use-on 2 -60 0 1
+15742 /setblock 2 -59 0 air
+15744 use-on 2 -60 0 1
+15746 /setblock 2 -59 0 air
+15748 use-on 2 -60 0 1
+15750 /setblock 2 -59 0 air
+15752 use-on 2 -60 0 1
+15754 /setblock 2 -59 0 air
+15756 use-on 2 -60 0 1
+15758 /setblock 2 -59 0 air
+15760 use-on 2 -60 0 1
+15762 /setblock 2 -59 0 air
+15764 use-on 2 -60 0 1
+15766 /setblock 2 -59 0 air
+15768 use-on 2 -60 0 1
+15770 /setblock 2 -59 0 air
+15772 use-on 2 -60 0 1
+15774 /setblock 2 -59 0 air
+15776 use-on 2 -60 0 1
+15778 /setblock 2 -59 0 air
+15780 use-on 2 -60 0 1
+15782 /setblock 2 -59 0 air
+15784 use-on 2 -60 0 1
+15786 /setblock 2 -59 0 air
+15788 use-on 2 -60 0 1
+15790 /setblock 2 -59 0 air
+15792 use-on 2 -60 0 1
+15794 /setblock 2 -59 0 air
+15796 use-on 2 -60 0 1
+15798 /setblock 2 -59 0 air
+15800 use-on 2 -60 0 1
+15802 /setblock 2 -59 0 air
+15804 use-on 2 -60 0 1
+15806 /setblock 2 -59 0 air
+15808 use-on 2 -60 0 1
+15810 /setblock 2 -59 0 air
+15812 use-on 2 -60 0 1
+15814 /setblock 2 -59 0 air
+15816 use-on 2 -60 0 1
+15818 /setblock 2 -59 0 air
+15820 use-on 2 -60 0 1
+15822 /setblock 2 -59 0 air
+15824 use-on 2 -60 0 1
+15826 /setblock 2 -59 0 air
+15828 use-on 2 -60 0 1
+15830 /setblock 2 -59 0 air
+15832 use-on 2 -60 0 1
+15834 /setblock 2 -59 0 air
+15836 use-on 2 -60 0 1
+15838 /setblock 2 -59 0 air
+15840 use-on 2 -60 0 1
+15842 /setblock 2 -59 0 air
+15844 use-on 2 -60 0 1
+15846 /setblock 2 -59 0 air
+15848 use-on 2 -60 0 1
+15850 /setblock 2 -59 0 air
+15852 use-on 2 -60 0 1
+15854 /setblock 2 -59 0 air
+15856 use-on 2 -60 0 1
+15858 /setblock 2 -59 0 air
+15860 use-on 2 -60 0 1
+15862 /setblock 2 -59 0 air
+15864 use-on 2 -60 0 1
+15866 /setblock 2 -59 0 air
+15868 use-on 2 -60 0 1
+15870 /setblock 2 -59 0 air
+15872 use-on 2 -60 0 1
+15874 /setblock 2 -59 0 air
+15876 use-on 2 -60 0 1
+15878 /setblock 2 -59 0 air
+15880 use-on 2 -60 0 1
+15882 /setblock 2 -59 0 air
+15884 use-on 2 -60 0 1
+15886 /setblock 2 -59 0 air
+15888 use-on 2 -60 0 1
+15890 /setblock 2 -59 0 air
+15892 use-on 2 -60 0 1
+15894 /setblock 2 -59 0 air
+15896 /clear @s
+15897 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+15900 /enchant @s unbreaking 2
+15903 use
+15906 /say unbreaking use 2
+15909 use-on 2 -60 0 1
+15911 /setblock 2 -59 0 air
+15913 use-on 2 -60 0 1
+15915 /setblock 2 -59 0 air
+15917 use-on 2 -60 0 1
+15919 /setblock 2 -59 0 air
+15921 use-on 2 -60 0 1
+15923 /setblock 2 -59 0 air
+15925 use-on 2 -60 0 1
+15927 /setblock 2 -59 0 air
+15929 use-on 2 -60 0 1
+15931 /setblock 2 -59 0 air
+15933 use-on 2 -60 0 1
+15935 /setblock 2 -59 0 air
+15937 use-on 2 -60 0 1
+15939 /setblock 2 -59 0 air
+15941 use-on 2 -60 0 1
+15943 /setblock 2 -59 0 air
+15945 use-on 2 -60 0 1
+15947 /setblock 2 -59 0 air
+15949 use-on 2 -60 0 1
+15951 /setblock 2 -59 0 air
+15953 use-on 2 -60 0 1
+15955 /setblock 2 -59 0 air
+15957 use-on 2 -60 0 1
+15959 /setblock 2 -59 0 air
+15961 use-on 2 -60 0 1
+15963 /setblock 2 -59 0 air
+15965 use-on 2 -60 0 1
+15967 /setblock 2 -59 0 air
+15969 use-on 2 -60 0 1
+15971 /setblock 2 -59 0 air
+15973 use-on 2 -60 0 1
+15975 /setblock 2 -59 0 air
+15977 use-on 2 -60 0 1
+15979 /setblock 2 -59 0 air
+15981 use-on 2 -60 0 1
+15983 /setblock 2 -59 0 air
+15985 use-on 2 -60 0 1
+15987 /setblock 2 -59 0 air
+15989 use-on 2 -60 0 1
+15991 /setblock 2 -59 0 air
+15993 use-on 2 -60 0 1
+15995 /setblock 2 -59 0 air
+15997 use-on 2 -60 0 1
+15999 /setblock 2 -59 0 air
+16001 use-on 2 -60 0 1
+16003 /setblock 2 -59 0 air
+16005 use-on 2 -60 0 1
+16007 /setblock 2 -59 0 air
+16009 use-on 2 -60 0 1
+16011 /setblock 2 -59 0 air
+16013 use-on 2 -60 0 1
+16015 /setblock 2 -59 0 air
+16017 use-on 2 -60 0 1
+16019 /setblock 2 -59 0 air
+16021 use-on 2 -60 0 1
+16023 /setblock 2 -59 0 air
+16025 use-on 2 -60 0 1
+16027 /setblock 2 -59 0 air
+16029 use-on 2 -60 0 1
+16031 /setblock 2 -59 0 air
+16033 use-on 2 -60 0 1
+16035 /setblock 2 -59 0 air
+16037 use-on 2 -60 0 1
+16039 /setblock 2 -59 0 air
+16041 use-on 2 -60 0 1
+16043 /setblock 2 -59 0 air
+16045 use-on 2 -60 0 1
+16047 /setblock 2 -59 0 air
+16049 use-on 2 -60 0 1
+16051 /setblock 2 -59 0 air
+16053 use-on 2 -60 0 1
+16055 /setblock 2 -59 0 air
+16057 use-on 2 -60 0 1
+16059 /setblock 2 -59 0 air
+16061 use-on 2 -60 0 1
+16063 /setblock 2 -59 0 air
+16065 use-on 2 -60 0 1
+16067 /setblock 2 -59 0 air
+16069 /clear @s
+16070 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+16073 /enchant @s unbreaking 2
+16076 use
+16079 /say unbreaking use 2
+16082 use-on 2 -60 0 1
+16084 /setblock 2 -59 0 air
+16086 use-on 2 -60 0 1
+16088 /setblock 2 -59 0 air
+16090 use-on 2 -60 0 1
+16092 /setblock 2 -59 0 air
+16094 use-on 2 -60 0 1
+16096 /setblock 2 -59 0 air
+16098 use-on 2 -60 0 1
+16100 /setblock 2 -59 0 air
+16102 use-on 2 -60 0 1
+16104 /setblock 2 -59 0 air
+16106 use-on 2 -60 0 1
+16108 /setblock 2 -59 0 air
+16110 use-on 2 -60 0 1
+16112 /setblock 2 -59 0 air
+16114 use-on 2 -60 0 1
+16116 /setblock 2 -59 0 air
+16118 use-on 2 -60 0 1
+16120 /setblock 2 -59 0 air
+16122 use-on 2 -60 0 1
+16124 /setblock 2 -59 0 air
+16126 use-on 2 -60 0 1
+16128 /setblock 2 -59 0 air
+16130 use-on 2 -60 0 1
+16132 /setblock 2 -59 0 air
+16134 use-on 2 -60 0 1
+16136 /setblock 2 -59 0 air
+16138 use-on 2 -60 0 1
+16140 /setblock 2 -59 0 air
+16142 use-on 2 -60 0 1
+16144 /setblock 2 -59 0 air
+16146 use-on 2 -60 0 1
+16148 /setblock 2 -59 0 air
+16150 use-on 2 -60 0 1
+16152 /setblock 2 -59 0 air
+16154 use-on 2 -60 0 1
+16156 /setblock 2 -59 0 air
+16158 use-on 2 -60 0 1
+16160 /setblock 2 -59 0 air
+16162 use-on 2 -60 0 1
+16164 /setblock 2 -59 0 air
+16166 use-on 2 -60 0 1
+16168 /setblock 2 -59 0 air
+16170 use-on 2 -60 0 1
+16172 /setblock 2 -59 0 air
+16174 use-on 2 -60 0 1
+16176 /setblock 2 -59 0 air
+16178 use-on 2 -60 0 1
+16180 /setblock 2 -59 0 air
+16182 use-on 2 -60 0 1
+16184 /setblock 2 -59 0 air
+16186 use-on 2 -60 0 1
+16188 /setblock 2 -59 0 air
+16190 use-on 2 -60 0 1
+16192 /setblock 2 -59 0 air
+16194 use-on 2 -60 0 1
+16196 /setblock 2 -59 0 air
+16198 use-on 2 -60 0 1
+16200 /setblock 2 -59 0 air
+16202 use-on 2 -60 0 1
+16204 /setblock 2 -59 0 air
+16206 use-on 2 -60 0 1
+16208 /setblock 2 -59 0 air
+16210 use-on 2 -60 0 1
+16212 /setblock 2 -59 0 air
+16214 use-on 2 -60 0 1
+16216 /setblock 2 -59 0 air
+16218 use-on 2 -60 0 1
+16220 /setblock 2 -59 0 air
+16222 use-on 2 -60 0 1
+16224 /setblock 2 -59 0 air
+16226 use-on 2 -60 0 1
+16228 /setblock 2 -59 0 air
+16230 use-on 2 -60 0 1
+16232 /setblock 2 -59 0 air
+16234 use-on 2 -60 0 1
+16236 /setblock 2 -59 0 air
+16238 use-on 2 -60 0 1
+16240 /setblock 2 -59 0 air
+16242 /clear @s
+16243 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+16246 /enchant @s unbreaking 2
+16249 use
+16252 /say unbreaking use 2
+16255 use-on 2 -60 0 1
+16257 /setblock 2 -59 0 air
+16259 use-on 2 -60 0 1
+16261 /setblock 2 -59 0 air
+16263 use-on 2 -60 0 1
+16265 /setblock 2 -59 0 air
+16267 use-on 2 -60 0 1
+16269 /setblock 2 -59 0 air
+16271 use-on 2 -60 0 1
+16273 /setblock 2 -59 0 air
+16275 use-on 2 -60 0 1
+16277 /setblock 2 -59 0 air
+16279 use-on 2 -60 0 1
+16281 /setblock 2 -59 0 air
+16283 use-on 2 -60 0 1
+16285 /setblock 2 -59 0 air
+16287 use-on 2 -60 0 1
+16289 /setblock 2 -59 0 air
+16291 use-on 2 -60 0 1
+16293 /setblock 2 -59 0 air
+16295 use-on 2 -60 0 1
+16297 /setblock 2 -59 0 air
+16299 use-on 2 -60 0 1
+16301 /setblock 2 -59 0 air
+16303 use-on 2 -60 0 1
+16305 /setblock 2 -59 0 air
+16307 use-on 2 -60 0 1
+16309 /setblock 2 -59 0 air
+16311 use-on 2 -60 0 1
+16313 /setblock 2 -59 0 air
+16315 use-on 2 -60 0 1
+16317 /setblock 2 -59 0 air
+16319 use-on 2 -60 0 1
+16321 /setblock 2 -59 0 air
+16323 use-on 2 -60 0 1
+16325 /setblock 2 -59 0 air
+16327 use-on 2 -60 0 1
+16329 /setblock 2 -59 0 air
+16331 use-on 2 -60 0 1
+16333 /setblock 2 -59 0 air
+16335 use-on 2 -60 0 1
+16337 /setblock 2 -59 0 air
+16339 use-on 2 -60 0 1
+16341 /setblock 2 -59 0 air
+16343 use-on 2 -60 0 1
+16345 /setblock 2 -59 0 air
+16347 use-on 2 -60 0 1
+16349 /setblock 2 -59 0 air
+16351 use-on 2 -60 0 1
+16353 /setblock 2 -59 0 air
+16355 use-on 2 -60 0 1
+16357 /setblock 2 -59 0 air
+16359 use-on 2 -60 0 1
+16361 /setblock 2 -59 0 air
+16363 use-on 2 -60 0 1
+16365 /setblock 2 -59 0 air
+16367 use-on 2 -60 0 1
+16369 /setblock 2 -59 0 air
+16371 use-on 2 -60 0 1
+16373 /setblock 2 -59 0 air
+16375 use-on 2 -60 0 1
+16377 /setblock 2 -59 0 air
+16379 use-on 2 -60 0 1
+16381 /setblock 2 -59 0 air
+16383 use-on 2 -60 0 1
+16385 /setblock 2 -59 0 air
+16387 use-on 2 -60 0 1
+16389 /setblock 2 -59 0 air
+16391 use-on 2 -60 0 1
+16393 /setblock 2 -59 0 air
+16395 use-on 2 -60 0 1
+16397 /setblock 2 -59 0 air
+16399 use-on 2 -60 0 1
+16401 /setblock 2 -59 0 air
+16403 use-on 2 -60 0 1
+16405 /setblock 2 -59 0 air
+16407 use-on 2 -60 0 1
+16409 /setblock 2 -59 0 air
+16411 use-on 2 -60 0 1
+16413 /setblock 2 -59 0 air
+16415 /clear @s
+16416 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+16419 /enchant @s unbreaking 2
+16422 use
+16425 /say unbreaking use 2
+16428 use-on 2 -60 0 1
+16430 /setblock 2 -59 0 air
+16432 use-on 2 -60 0 1
+16434 /setblock 2 -59 0 air
+16436 use-on 2 -60 0 1
+16438 /setblock 2 -59 0 air
+16440 use-on 2 -60 0 1
+16442 /setblock 2 -59 0 air
+16444 use-on 2 -60 0 1
+16446 /setblock 2 -59 0 air
+16448 use-on 2 -60 0 1
+16450 /setblock 2 -59 0 air
+16452 use-on 2 -60 0 1
+16454 /setblock 2 -59 0 air
+16456 use-on 2 -60 0 1
+16458 /setblock 2 -59 0 air
+16460 use-on 2 -60 0 1
+16462 /setblock 2 -59 0 air
+16464 use-on 2 -60 0 1
+16466 /setblock 2 -59 0 air
+16468 use-on 2 -60 0 1
+16470 /setblock 2 -59 0 air
+16472 use-on 2 -60 0 1
+16474 /setblock 2 -59 0 air
+16476 use-on 2 -60 0 1
+16478 /setblock 2 -59 0 air
+16480 use-on 2 -60 0 1
+16482 /setblock 2 -59 0 air
+16484 use-on 2 -60 0 1
+16486 /setblock 2 -59 0 air
+16488 use-on 2 -60 0 1
+16490 /setblock 2 -59 0 air
+16492 use-on 2 -60 0 1
+16494 /setblock 2 -59 0 air
+16496 use-on 2 -60 0 1
+16498 /setblock 2 -59 0 air
+16500 use-on 2 -60 0 1
+16502 /setblock 2 -59 0 air
+16504 use-on 2 -60 0 1
+16506 /setblock 2 -59 0 air
+16508 use-on 2 -60 0 1
+16510 /setblock 2 -59 0 air
+16512 use-on 2 -60 0 1
+16514 /setblock 2 -59 0 air
+16516 use-on 2 -60 0 1
+16518 /setblock 2 -59 0 air
+16520 use-on 2 -60 0 1
+16522 /setblock 2 -59 0 air
+16524 use-on 2 -60 0 1
+16526 /setblock 2 -59 0 air
+16528 use-on 2 -60 0 1
+16530 /setblock 2 -59 0 air
+16532 use-on 2 -60 0 1
+16534 /setblock 2 -59 0 air
+16536 use-on 2 -60 0 1
+16538 /setblock 2 -59 0 air
+16540 use-on 2 -60 0 1
+16542 /setblock 2 -59 0 air
+16544 use-on 2 -60 0 1
+16546 /setblock 2 -59 0 air
+16548 use-on 2 -60 0 1
+16550 /setblock 2 -59 0 air
+16552 use-on 2 -60 0 1
+16554 /setblock 2 -59 0 air
+16556 use-on 2 -60 0 1
+16558 /setblock 2 -59 0 air
+16560 use-on 2 -60 0 1
+16562 /setblock 2 -59 0 air
+16564 use-on 2 -60 0 1
+16566 /setblock 2 -59 0 air
+16568 use-on 2 -60 0 1
+16570 /setblock 2 -59 0 air
+16572 use-on 2 -60 0 1
+16574 /setblock 2 -59 0 air
+16576 use-on 2 -60 0 1
+16578 /setblock 2 -59 0 air
+16580 use-on 2 -60 0 1
+16582 /setblock 2 -59 0 air
+16584 use-on 2 -60 0 1
+16586 /setblock 2 -59 0 air
+16588 /clear @s
+16589 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+16592 /enchant @s unbreaking 2
+16595 use
+16598 /say unbreaking use 2
+16601 use-on 2 -60 0 1
+16603 /setblock 2 -59 0 air
+16605 use-on 2 -60 0 1
+16607 /setblock 2 -59 0 air
+16609 use-on 2 -60 0 1
+16611 /setblock 2 -59 0 air
+16613 use-on 2 -60 0 1
+16615 /setblock 2 -59 0 air
+16617 use-on 2 -60 0 1
+16619 /setblock 2 -59 0 air
+16621 use-on 2 -60 0 1
+16623 /setblock 2 -59 0 air
+16625 use-on 2 -60 0 1
+16627 /setblock 2 -59 0 air
+16629 use-on 2 -60 0 1
+16631 /setblock 2 -59 0 air
+16633 use-on 2 -60 0 1
+16635 /setblock 2 -59 0 air
+16637 use-on 2 -60 0 1
+16639 /setblock 2 -59 0 air
+16641 use-on 2 -60 0 1
+16643 /setblock 2 -59 0 air
+16645 use-on 2 -60 0 1
+16647 /setblock 2 -59 0 air
+16649 use-on 2 -60 0 1
+16651 /setblock 2 -59 0 air
+16653 use-on 2 -60 0 1
+16655 /setblock 2 -59 0 air
+16657 use-on 2 -60 0 1
+16659 /setblock 2 -59 0 air
+16661 use-on 2 -60 0 1
+16663 /setblock 2 -59 0 air
+16665 use-on 2 -60 0 1
+16667 /setblock 2 -59 0 air
+16669 use-on 2 -60 0 1
+16671 /setblock 2 -59 0 air
+16673 use-on 2 -60 0 1
+16675 /setblock 2 -59 0 air
+16677 use-on 2 -60 0 1
+16679 /setblock 2 -59 0 air
+16681 use-on 2 -60 0 1
+16683 /setblock 2 -59 0 air
+16685 use-on 2 -60 0 1
+16687 /setblock 2 -59 0 air
+16689 use-on 2 -60 0 1
+16691 /setblock 2 -59 0 air
+16693 use-on 2 -60 0 1
+16695 /setblock 2 -59 0 air
+16697 use-on 2 -60 0 1
+16699 /setblock 2 -59 0 air
+16701 use-on 2 -60 0 1
+16703 /setblock 2 -59 0 air
+16705 use-on 2 -60 0 1
+16707 /setblock 2 -59 0 air
+16709 use-on 2 -60 0 1
+16711 /setblock 2 -59 0 air
+16713 use-on 2 -60 0 1
+16715 /setblock 2 -59 0 air
+16717 use-on 2 -60 0 1
+16719 /setblock 2 -59 0 air
+16721 use-on 2 -60 0 1
+16723 /setblock 2 -59 0 air
+16725 use-on 2 -60 0 1
+16727 /setblock 2 -59 0 air
+16729 use-on 2 -60 0 1
+16731 /setblock 2 -59 0 air
+16733 use-on 2 -60 0 1
+16735 /setblock 2 -59 0 air
+16737 use-on 2 -60 0 1
+16739 /setblock 2 -59 0 air
+16741 use-on 2 -60 0 1
+16743 /setblock 2 -59 0 air
+16745 use-on 2 -60 0 1
+16747 /setblock 2 -59 0 air
+16749 use-on 2 -60 0 1
+16751 /setblock 2 -59 0 air
+16753 use-on 2 -60 0 1
+16755 /setblock 2 -59 0 air
+16757 use-on 2 -60 0 1
+16759 /setblock 2 -59 0 air
+16761 /clear @s
+16762 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+16765 /enchant @s unbreaking 2
+16768 use
+16771 /say unbreaking use 2
+16774 use-on 2 -60 0 1
+16776 /setblock 2 -59 0 air
+16778 use-on 2 -60 0 1
+16780 /setblock 2 -59 0 air
+16782 use-on 2 -60 0 1
+16784 /setblock 2 -59 0 air
+16786 use-on 2 -60 0 1
+16788 /setblock 2 -59 0 air
+16790 use-on 2 -60 0 1
+16792 /setblock 2 -59 0 air
+16794 use-on 2 -60 0 1
+16796 /setblock 2 -59 0 air
+16798 use-on 2 -60 0 1
+16800 /setblock 2 -59 0 air
+16802 use-on 2 -60 0 1
+16804 /setblock 2 -59 0 air
+16806 use-on 2 -60 0 1
+16808 /setblock 2 -59 0 air
+16810 use-on 2 -60 0 1
+16812 /setblock 2 -59 0 air
+16814 use-on 2 -60 0 1
+16816 /setblock 2 -59 0 air
+16818 use-on 2 -60 0 1
+16820 /setblock 2 -59 0 air
+16822 use-on 2 -60 0 1
+16824 /setblock 2 -59 0 air
+16826 use-on 2 -60 0 1
+16828 /setblock 2 -59 0 air
+16830 use-on 2 -60 0 1
+16832 /setblock 2 -59 0 air
+16834 use-on 2 -60 0 1
+16836 /setblock 2 -59 0 air
+16838 use-on 2 -60 0 1
+16840 /setblock 2 -59 0 air
+16842 use-on 2 -60 0 1
+16844 /setblock 2 -59 0 air
+16846 use-on 2 -60 0 1
+16848 /setblock 2 -59 0 air
+16850 use-on 2 -60 0 1
+16852 /setblock 2 -59 0 air
+16854 use-on 2 -60 0 1
+16856 /setblock 2 -59 0 air
+16858 use-on 2 -60 0 1
+16860 /setblock 2 -59 0 air
+16862 use-on 2 -60 0 1
+16864 /setblock 2 -59 0 air
+16866 use-on 2 -60 0 1
+16868 /setblock 2 -59 0 air
+16870 use-on 2 -60 0 1
+16872 /setblock 2 -59 0 air
+16874 use-on 2 -60 0 1
+16876 /setblock 2 -59 0 air
+16878 use-on 2 -60 0 1
+16880 /setblock 2 -59 0 air
+16882 use-on 2 -60 0 1
+16884 /setblock 2 -59 0 air
+16886 use-on 2 -60 0 1
+16888 /setblock 2 -59 0 air
+16890 use-on 2 -60 0 1
+16892 /setblock 2 -59 0 air
+16894 use-on 2 -60 0 1
+16896 /setblock 2 -59 0 air
+16898 use-on 2 -60 0 1
+16900 /setblock 2 -59 0 air
+16902 use-on 2 -60 0 1
+16904 /setblock 2 -59 0 air
+16906 use-on 2 -60 0 1
+16908 /setblock 2 -59 0 air
+16910 use-on 2 -60 0 1
+16912 /setblock 2 -59 0 air
+16914 use-on 2 -60 0 1
+16916 /setblock 2 -59 0 air
+16918 use-on 2 -60 0 1
+16920 /setblock 2 -59 0 air
+16922 use-on 2 -60 0 1
+16924 /setblock 2 -59 0 air
+16926 use-on 2 -60 0 1
+16928 /setblock 2 -59 0 air
+16930 use-on 2 -60 0 1
+16932 /setblock 2 -59 0 air
+16934 /clear @s
+16935 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+16938 /enchant @s unbreaking 2
+16941 use
+16944 /say unbreaking use 2
+16947 use-on 2 -60 0 1
+16949 /setblock 2 -59 0 air
+16951 use-on 2 -60 0 1
+16953 /setblock 2 -59 0 air
+16955 use-on 2 -60 0 1
+16957 /setblock 2 -59 0 air
+16959 use-on 2 -60 0 1
+16961 /setblock 2 -59 0 air
+16963 use-on 2 -60 0 1
+16965 /setblock 2 -59 0 air
+16967 use-on 2 -60 0 1
+16969 /setblock 2 -59 0 air
+16971 use-on 2 -60 0 1
+16973 /setblock 2 -59 0 air
+16975 use-on 2 -60 0 1
+16977 /setblock 2 -59 0 air
+16979 use-on 2 -60 0 1
+16981 /setblock 2 -59 0 air
+16983 use-on 2 -60 0 1
+16985 /setblock 2 -59 0 air
+16987 use-on 2 -60 0 1
+16989 /setblock 2 -59 0 air
+16991 use-on 2 -60 0 1
+16993 /setblock 2 -59 0 air
+16995 use-on 2 -60 0 1
+16997 /setblock 2 -59 0 air
+16999 use-on 2 -60 0 1
+17001 /setblock 2 -59 0 air
+17003 use-on 2 -60 0 1
+17005 /setblock 2 -59 0 air
+17007 use-on 2 -60 0 1
+17009 /setblock 2 -59 0 air
+17011 use-on 2 -60 0 1
+17013 /setblock 2 -59 0 air
+17015 use-on 2 -60 0 1
+17017 /setblock 2 -59 0 air
+17019 use-on 2 -60 0 1
+17021 /setblock 2 -59 0 air
+17023 use-on 2 -60 0 1
+17025 /setblock 2 -59 0 air
+17027 use-on 2 -60 0 1
+17029 /setblock 2 -59 0 air
+17031 use-on 2 -60 0 1
+17033 /setblock 2 -59 0 air
+17035 use-on 2 -60 0 1
+17037 /setblock 2 -59 0 air
+17039 use-on 2 -60 0 1
+17041 /setblock 2 -59 0 air
+17043 use-on 2 -60 0 1
+17045 /setblock 2 -59 0 air
+17047 use-on 2 -60 0 1
+17049 /setblock 2 -59 0 air
+17051 use-on 2 -60 0 1
+17053 /setblock 2 -59 0 air
+17055 use-on 2 -60 0 1
+17057 /setblock 2 -59 0 air
+17059 use-on 2 -60 0 1
+17061 /setblock 2 -59 0 air
+17063 use-on 2 -60 0 1
+17065 /setblock 2 -59 0 air
+17067 use-on 2 -60 0 1
+17069 /setblock 2 -59 0 air
+17071 use-on 2 -60 0 1
+17073 /setblock 2 -59 0 air
+17075 use-on 2 -60 0 1
+17077 /setblock 2 -59 0 air
+17079 use-on 2 -60 0 1
+17081 /setblock 2 -59 0 air
+17083 use-on 2 -60 0 1
+17085 /setblock 2 -59 0 air
+17087 use-on 2 -60 0 1
+17089 /setblock 2 -59 0 air
+17091 use-on 2 -60 0 1
+17093 /setblock 2 -59 0 air
+17095 use-on 2 -60 0 1
+17097 /setblock 2 -59 0 air
+17099 use-on 2 -60 0 1
+17101 /setblock 2 -59 0 air
+17103 use-on 2 -60 0 1
+17105 /setblock 2 -59 0 air
+17112 /clear @s
+17113 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+17116 /enchant @s unbreaking 3
+17119 use
+17122 /say unbreaking use 3
+17125 use-on 2 -60 0 1
+17127 /setblock 2 -59 0 air
+17129 use-on 2 -60 0 1
+17131 /setblock 2 -59 0 air
+17133 use-on 2 -60 0 1
+17135 /setblock 2 -59 0 air
+17137 use-on 2 -60 0 1
+17139 /setblock 2 -59 0 air
+17141 use-on 2 -60 0 1
+17143 /setblock 2 -59 0 air
+17145 use-on 2 -60 0 1
+17147 /setblock 2 -59 0 air
+17149 use-on 2 -60 0 1
+17151 /setblock 2 -59 0 air
+17153 use-on 2 -60 0 1
+17155 /setblock 2 -59 0 air
+17157 use-on 2 -60 0 1
+17159 /setblock 2 -59 0 air
+17161 use-on 2 -60 0 1
+17163 /setblock 2 -59 0 air
+17165 use-on 2 -60 0 1
+17167 /setblock 2 -59 0 air
+17169 use-on 2 -60 0 1
+17171 /setblock 2 -59 0 air
+17173 use-on 2 -60 0 1
+17175 /setblock 2 -59 0 air
+17177 use-on 2 -60 0 1
+17179 /setblock 2 -59 0 air
+17181 use-on 2 -60 0 1
+17183 /setblock 2 -59 0 air
+17185 use-on 2 -60 0 1
+17187 /setblock 2 -59 0 air
+17189 use-on 2 -60 0 1
+17191 /setblock 2 -59 0 air
+17193 use-on 2 -60 0 1
+17195 /setblock 2 -59 0 air
+17197 use-on 2 -60 0 1
+17199 /setblock 2 -59 0 air
+17201 use-on 2 -60 0 1
+17203 /setblock 2 -59 0 air
+17205 use-on 2 -60 0 1
+17207 /setblock 2 -59 0 air
+17209 use-on 2 -60 0 1
+17211 /setblock 2 -59 0 air
+17213 use-on 2 -60 0 1
+17215 /setblock 2 -59 0 air
+17217 use-on 2 -60 0 1
+17219 /setblock 2 -59 0 air
+17221 use-on 2 -60 0 1
+17223 /setblock 2 -59 0 air
+17225 use-on 2 -60 0 1
+17227 /setblock 2 -59 0 air
+17229 use-on 2 -60 0 1
+17231 /setblock 2 -59 0 air
+17233 use-on 2 -60 0 1
+17235 /setblock 2 -59 0 air
+17237 use-on 2 -60 0 1
+17239 /setblock 2 -59 0 air
+17241 use-on 2 -60 0 1
+17243 /setblock 2 -59 0 air
+17245 use-on 2 -60 0 1
+17247 /setblock 2 -59 0 air
+17249 use-on 2 -60 0 1
+17251 /setblock 2 -59 0 air
+17253 use-on 2 -60 0 1
+17255 /setblock 2 -59 0 air
+17257 use-on 2 -60 0 1
+17259 /setblock 2 -59 0 air
+17261 use-on 2 -60 0 1
+17263 /setblock 2 -59 0 air
+17265 use-on 2 -60 0 1
+17267 /setblock 2 -59 0 air
+17269 use-on 2 -60 0 1
+17271 /setblock 2 -59 0 air
+17273 use-on 2 -60 0 1
+17275 /setblock 2 -59 0 air
+17277 use-on 2 -60 0 1
+17279 /setblock 2 -59 0 air
+17281 use-on 2 -60 0 1
+17283 /setblock 2 -59 0 air
+17285 /clear @s
+17286 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+17289 /enchant @s unbreaking 3
+17292 use
+17295 /say unbreaking use 3
+17298 use-on 2 -60 0 1
+17300 /setblock 2 -59 0 air
+17302 use-on 2 -60 0 1
+17304 /setblock 2 -59 0 air
+17306 use-on 2 -60 0 1
+17308 /setblock 2 -59 0 air
+17310 use-on 2 -60 0 1
+17312 /setblock 2 -59 0 air
+17314 use-on 2 -60 0 1
+17316 /setblock 2 -59 0 air
+17318 use-on 2 -60 0 1
+17320 /setblock 2 -59 0 air
+17322 use-on 2 -60 0 1
+17324 /setblock 2 -59 0 air
+17326 use-on 2 -60 0 1
+17328 /setblock 2 -59 0 air
+17330 use-on 2 -60 0 1
+17332 /setblock 2 -59 0 air
+17334 use-on 2 -60 0 1
+17336 /setblock 2 -59 0 air
+17338 use-on 2 -60 0 1
+17340 /setblock 2 -59 0 air
+17342 use-on 2 -60 0 1
+17344 /setblock 2 -59 0 air
+17346 use-on 2 -60 0 1
+17348 /setblock 2 -59 0 air
+17350 use-on 2 -60 0 1
+17352 /setblock 2 -59 0 air
+17354 use-on 2 -60 0 1
+17356 /setblock 2 -59 0 air
+17358 use-on 2 -60 0 1
+17360 /setblock 2 -59 0 air
+17362 use-on 2 -60 0 1
+17364 /setblock 2 -59 0 air
+17366 use-on 2 -60 0 1
+17368 /setblock 2 -59 0 air
+17370 use-on 2 -60 0 1
+17372 /setblock 2 -59 0 air
+17374 use-on 2 -60 0 1
+17376 /setblock 2 -59 0 air
+17378 use-on 2 -60 0 1
+17380 /setblock 2 -59 0 air
+17382 use-on 2 -60 0 1
+17384 /setblock 2 -59 0 air
+17386 use-on 2 -60 0 1
+17388 /setblock 2 -59 0 air
+17390 use-on 2 -60 0 1
+17392 /setblock 2 -59 0 air
+17394 use-on 2 -60 0 1
+17396 /setblock 2 -59 0 air
+17398 use-on 2 -60 0 1
+17400 /setblock 2 -59 0 air
+17402 use-on 2 -60 0 1
+17404 /setblock 2 -59 0 air
+17406 use-on 2 -60 0 1
+17408 /setblock 2 -59 0 air
+17410 use-on 2 -60 0 1
+17412 /setblock 2 -59 0 air
+17414 use-on 2 -60 0 1
+17416 /setblock 2 -59 0 air
+17418 use-on 2 -60 0 1
+17420 /setblock 2 -59 0 air
+17422 use-on 2 -60 0 1
+17424 /setblock 2 -59 0 air
+17426 use-on 2 -60 0 1
+17428 /setblock 2 -59 0 air
+17430 use-on 2 -60 0 1
+17432 /setblock 2 -59 0 air
+17434 use-on 2 -60 0 1
+17436 /setblock 2 -59 0 air
+17438 use-on 2 -60 0 1
+17440 /setblock 2 -59 0 air
+17442 use-on 2 -60 0 1
+17444 /setblock 2 -59 0 air
+17446 use-on 2 -60 0 1
+17448 /setblock 2 -59 0 air
+17450 use-on 2 -60 0 1
+17452 /setblock 2 -59 0 air
+17454 use-on 2 -60 0 1
+17456 /setblock 2 -59 0 air
+17458 /clear @s
+17459 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+17462 /enchant @s unbreaking 3
+17465 use
+17468 /say unbreaking use 3
+17471 use-on 2 -60 0 1
+17473 /setblock 2 -59 0 air
+17475 use-on 2 -60 0 1
+17477 /setblock 2 -59 0 air
+17479 use-on 2 -60 0 1
+17481 /setblock 2 -59 0 air
+17483 use-on 2 -60 0 1
+17485 /setblock 2 -59 0 air
+17487 use-on 2 -60 0 1
+17489 /setblock 2 -59 0 air
+17491 use-on 2 -60 0 1
+17493 /setblock 2 -59 0 air
+17495 use-on 2 -60 0 1
+17497 /setblock 2 -59 0 air
+17499 use-on 2 -60 0 1
+17501 /setblock 2 -59 0 air
+17503 use-on 2 -60 0 1
+17505 /setblock 2 -59 0 air
+17507 use-on 2 -60 0 1
+17509 /setblock 2 -59 0 air
+17511 use-on 2 -60 0 1
+17513 /setblock 2 -59 0 air
+17515 use-on 2 -60 0 1
+17517 /setblock 2 -59 0 air
+17519 use-on 2 -60 0 1
+17521 /setblock 2 -59 0 air
+17523 use-on 2 -60 0 1
+17525 /setblock 2 -59 0 air
+17527 use-on 2 -60 0 1
+17529 /setblock 2 -59 0 air
+17531 use-on 2 -60 0 1
+17533 /setblock 2 -59 0 air
+17535 use-on 2 -60 0 1
+17537 /setblock 2 -59 0 air
+17539 use-on 2 -60 0 1
+17541 /setblock 2 -59 0 air
+17543 use-on 2 -60 0 1
+17545 /setblock 2 -59 0 air
+17547 use-on 2 -60 0 1
+17549 /setblock 2 -59 0 air
+17551 use-on 2 -60 0 1
+17553 /setblock 2 -59 0 air
+17555 use-on 2 -60 0 1
+17557 /setblock 2 -59 0 air
+17559 use-on 2 -60 0 1
+17561 /setblock 2 -59 0 air
+17563 use-on 2 -60 0 1
+17565 /setblock 2 -59 0 air
+17567 use-on 2 -60 0 1
+17569 /setblock 2 -59 0 air
+17571 use-on 2 -60 0 1
+17573 /setblock 2 -59 0 air
+17575 use-on 2 -60 0 1
+17577 /setblock 2 -59 0 air
+17579 use-on 2 -60 0 1
+17581 /setblock 2 -59 0 air
+17583 use-on 2 -60 0 1
+17585 /setblock 2 -59 0 air
+17587 use-on 2 -60 0 1
+17589 /setblock 2 -59 0 air
+17591 use-on 2 -60 0 1
+17593 /setblock 2 -59 0 air
+17595 use-on 2 -60 0 1
+17597 /setblock 2 -59 0 air
+17599 use-on 2 -60 0 1
+17601 /setblock 2 -59 0 air
+17603 use-on 2 -60 0 1
+17605 /setblock 2 -59 0 air
+17607 use-on 2 -60 0 1
+17609 /setblock 2 -59 0 air
+17611 use-on 2 -60 0 1
+17613 /setblock 2 -59 0 air
+17615 use-on 2 -60 0 1
+17617 /setblock 2 -59 0 air
+17619 use-on 2 -60 0 1
+17621 /setblock 2 -59 0 air
+17623 use-on 2 -60 0 1
+17625 /setblock 2 -59 0 air
+17627 use-on 2 -60 0 1
+17629 /setblock 2 -59 0 air
+17631 /clear @s
+17632 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+17635 /enchant @s unbreaking 3
+17638 use
+17641 /say unbreaking use 3
+17644 use-on 2 -60 0 1
+17646 /setblock 2 -59 0 air
+17648 use-on 2 -60 0 1
+17650 /setblock 2 -59 0 air
+17652 use-on 2 -60 0 1
+17654 /setblock 2 -59 0 air
+17656 use-on 2 -60 0 1
+17658 /setblock 2 -59 0 air
+17660 use-on 2 -60 0 1
+17662 /setblock 2 -59 0 air
+17664 use-on 2 -60 0 1
+17666 /setblock 2 -59 0 air
+17668 use-on 2 -60 0 1
+17670 /setblock 2 -59 0 air
+17672 use-on 2 -60 0 1
+17674 /setblock 2 -59 0 air
+17676 use-on 2 -60 0 1
+17678 /setblock 2 -59 0 air
+17680 use-on 2 -60 0 1
+17682 /setblock 2 -59 0 air
+17684 use-on 2 -60 0 1
+17686 /setblock 2 -59 0 air
+17688 use-on 2 -60 0 1
+17690 /setblock 2 -59 0 air
+17692 use-on 2 -60 0 1
+17694 /setblock 2 -59 0 air
+17696 use-on 2 -60 0 1
+17698 /setblock 2 -59 0 air
+17700 use-on 2 -60 0 1
+17702 /setblock 2 -59 0 air
+17704 use-on 2 -60 0 1
+17706 /setblock 2 -59 0 air
+17708 use-on 2 -60 0 1
+17710 /setblock 2 -59 0 air
+17712 use-on 2 -60 0 1
+17714 /setblock 2 -59 0 air
+17716 use-on 2 -60 0 1
+17718 /setblock 2 -59 0 air
+17720 use-on 2 -60 0 1
+17722 /setblock 2 -59 0 air
+17724 use-on 2 -60 0 1
+17726 /setblock 2 -59 0 air
+17728 use-on 2 -60 0 1
+17730 /setblock 2 -59 0 air
+17732 use-on 2 -60 0 1
+17734 /setblock 2 -59 0 air
+17736 use-on 2 -60 0 1
+17738 /setblock 2 -59 0 air
+17740 use-on 2 -60 0 1
+17742 /setblock 2 -59 0 air
+17744 use-on 2 -60 0 1
+17746 /setblock 2 -59 0 air
+17748 use-on 2 -60 0 1
+17750 /setblock 2 -59 0 air
+17752 use-on 2 -60 0 1
+17754 /setblock 2 -59 0 air
+17756 use-on 2 -60 0 1
+17758 /setblock 2 -59 0 air
+17760 use-on 2 -60 0 1
+17762 /setblock 2 -59 0 air
+17764 use-on 2 -60 0 1
+17766 /setblock 2 -59 0 air
+17768 use-on 2 -60 0 1
+17770 /setblock 2 -59 0 air
+17772 use-on 2 -60 0 1
+17774 /setblock 2 -59 0 air
+17776 use-on 2 -60 0 1
+17778 /setblock 2 -59 0 air
+17780 use-on 2 -60 0 1
+17782 /setblock 2 -59 0 air
+17784 use-on 2 -60 0 1
+17786 /setblock 2 -59 0 air
+17788 use-on 2 -60 0 1
+17790 /setblock 2 -59 0 air
+17792 use-on 2 -60 0 1
+17794 /setblock 2 -59 0 air
+17796 use-on 2 -60 0 1
+17798 /setblock 2 -59 0 air
+17800 use-on 2 -60 0 1
+17802 /setblock 2 -59 0 air
+17804 /clear @s
+17805 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+17808 /enchant @s unbreaking 3
+17811 use
+17814 /say unbreaking use 3
+17817 use-on 2 -60 0 1
+17819 /setblock 2 -59 0 air
+17821 use-on 2 -60 0 1
+17823 /setblock 2 -59 0 air
+17825 use-on 2 -60 0 1
+17827 /setblock 2 -59 0 air
+17829 use-on 2 -60 0 1
+17831 /setblock 2 -59 0 air
+17833 use-on 2 -60 0 1
+17835 /setblock 2 -59 0 air
+17837 use-on 2 -60 0 1
+17839 /setblock 2 -59 0 air
+17841 use-on 2 -60 0 1
+17843 /setblock 2 -59 0 air
+17845 use-on 2 -60 0 1
+17847 /setblock 2 -59 0 air
+17849 use-on 2 -60 0 1
+17851 /setblock 2 -59 0 air
+17853 use-on 2 -60 0 1
+17855 /setblock 2 -59 0 air
+17857 use-on 2 -60 0 1
+17859 /setblock 2 -59 0 air
+17861 use-on 2 -60 0 1
+17863 /setblock 2 -59 0 air
+17865 use-on 2 -60 0 1
+17867 /setblock 2 -59 0 air
+17869 use-on 2 -60 0 1
+17871 /setblock 2 -59 0 air
+17873 use-on 2 -60 0 1
+17875 /setblock 2 -59 0 air
+17877 use-on 2 -60 0 1
+17879 /setblock 2 -59 0 air
+17881 use-on 2 -60 0 1
+17883 /setblock 2 -59 0 air
+17885 use-on 2 -60 0 1
+17887 /setblock 2 -59 0 air
+17889 use-on 2 -60 0 1
+17891 /setblock 2 -59 0 air
+17893 use-on 2 -60 0 1
+17895 /setblock 2 -59 0 air
+17897 use-on 2 -60 0 1
+17899 /setblock 2 -59 0 air
+17901 use-on 2 -60 0 1
+17903 /setblock 2 -59 0 air
+17905 use-on 2 -60 0 1
+17907 /setblock 2 -59 0 air
+17909 use-on 2 -60 0 1
+17911 /setblock 2 -59 0 air
+17913 use-on 2 -60 0 1
+17915 /setblock 2 -59 0 air
+17917 use-on 2 -60 0 1
+17919 /setblock 2 -59 0 air
+17921 use-on 2 -60 0 1
+17923 /setblock 2 -59 0 air
+17925 use-on 2 -60 0 1
+17927 /setblock 2 -59 0 air
+17929 use-on 2 -60 0 1
+17931 /setblock 2 -59 0 air
+17933 use-on 2 -60 0 1
+17935 /setblock 2 -59 0 air
+17937 use-on 2 -60 0 1
+17939 /setblock 2 -59 0 air
+17941 use-on 2 -60 0 1
+17943 /setblock 2 -59 0 air
+17945 use-on 2 -60 0 1
+17947 /setblock 2 -59 0 air
+17949 use-on 2 -60 0 1
+17951 /setblock 2 -59 0 air
+17953 use-on 2 -60 0 1
+17955 /setblock 2 -59 0 air
+17957 use-on 2 -60 0 1
+17959 /setblock 2 -59 0 air
+17961 use-on 2 -60 0 1
+17963 /setblock 2 -59 0 air
+17965 use-on 2 -60 0 1
+17967 /setblock 2 -59 0 air
+17969 use-on 2 -60 0 1
+17971 /setblock 2 -59 0 air
+17973 use-on 2 -60 0 1
+17975 /setblock 2 -59 0 air
+17977 /clear @s
+17978 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+17981 /enchant @s unbreaking 3
+17984 use
+17987 /say unbreaking use 3
+17990 use-on 2 -60 0 1
+17992 /setblock 2 -59 0 air
+17994 use-on 2 -60 0 1
+17996 /setblock 2 -59 0 air
+17998 use-on 2 -60 0 1
+18000 /setblock 2 -59 0 air
+18002 use-on 2 -60 0 1
+18004 /setblock 2 -59 0 air
+18006 use-on 2 -60 0 1
+18008 /setblock 2 -59 0 air
+18010 use-on 2 -60 0 1
+18012 /setblock 2 -59 0 air
+18014 use-on 2 -60 0 1
+18016 /setblock 2 -59 0 air
+18018 use-on 2 -60 0 1
+18020 /setblock 2 -59 0 air
+18022 use-on 2 -60 0 1
+18024 /setblock 2 -59 0 air
+18026 use-on 2 -60 0 1
+18028 /setblock 2 -59 0 air
+18030 use-on 2 -60 0 1
+18032 /setblock 2 -59 0 air
+18034 use-on 2 -60 0 1
+18036 /setblock 2 -59 0 air
+18038 use-on 2 -60 0 1
+18040 /setblock 2 -59 0 air
+18042 use-on 2 -60 0 1
+18044 /setblock 2 -59 0 air
+18046 use-on 2 -60 0 1
+18048 /setblock 2 -59 0 air
+18050 use-on 2 -60 0 1
+18052 /setblock 2 -59 0 air
+18054 use-on 2 -60 0 1
+18056 /setblock 2 -59 0 air
+18058 use-on 2 -60 0 1
+18060 /setblock 2 -59 0 air
+18062 use-on 2 -60 0 1
+18064 /setblock 2 -59 0 air
+18066 use-on 2 -60 0 1
+18068 /setblock 2 -59 0 air
+18070 use-on 2 -60 0 1
+18072 /setblock 2 -59 0 air
+18074 use-on 2 -60 0 1
+18076 /setblock 2 -59 0 air
+18078 use-on 2 -60 0 1
+18080 /setblock 2 -59 0 air
+18082 use-on 2 -60 0 1
+18084 /setblock 2 -59 0 air
+18086 use-on 2 -60 0 1
+18088 /setblock 2 -59 0 air
+18090 use-on 2 -60 0 1
+18092 /setblock 2 -59 0 air
+18094 use-on 2 -60 0 1
+18096 /setblock 2 -59 0 air
+18098 use-on 2 -60 0 1
+18100 /setblock 2 -59 0 air
+18102 use-on 2 -60 0 1
+18104 /setblock 2 -59 0 air
+18106 use-on 2 -60 0 1
+18108 /setblock 2 -59 0 air
+18110 use-on 2 -60 0 1
+18112 /setblock 2 -59 0 air
+18114 use-on 2 -60 0 1
+18116 /setblock 2 -59 0 air
+18118 use-on 2 -60 0 1
+18120 /setblock 2 -59 0 air
+18122 use-on 2 -60 0 1
+18124 /setblock 2 -59 0 air
+18126 use-on 2 -60 0 1
+18128 /setblock 2 -59 0 air
+18130 use-on 2 -60 0 1
+18132 /setblock 2 -59 0 air
+18134 use-on 2 -60 0 1
+18136 /setblock 2 -59 0 air
+18138 use-on 2 -60 0 1
+18140 /setblock 2 -59 0 air
+18142 use-on 2 -60 0 1
+18144 /setblock 2 -59 0 air
+18146 use-on 2 -60 0 1
+18148 /setblock 2 -59 0 air
+18150 /clear @s
+18151 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+18154 /enchant @s unbreaking 3
+18157 use
+18160 /say unbreaking use 3
+18163 use-on 2 -60 0 1
+18165 /setblock 2 -59 0 air
+18167 use-on 2 -60 0 1
+18169 /setblock 2 -59 0 air
+18171 use-on 2 -60 0 1
+18173 /setblock 2 -59 0 air
+18175 use-on 2 -60 0 1
+18177 /setblock 2 -59 0 air
+18179 use-on 2 -60 0 1
+18181 /setblock 2 -59 0 air
+18183 use-on 2 -60 0 1
+18185 /setblock 2 -59 0 air
+18187 use-on 2 -60 0 1
+18189 /setblock 2 -59 0 air
+18191 use-on 2 -60 0 1
+18193 /setblock 2 -59 0 air
+18195 use-on 2 -60 0 1
+18197 /setblock 2 -59 0 air
+18199 use-on 2 -60 0 1
+18201 /setblock 2 -59 0 air
+18203 use-on 2 -60 0 1
+18205 /setblock 2 -59 0 air
+18207 use-on 2 -60 0 1
+18209 /setblock 2 -59 0 air
+18211 use-on 2 -60 0 1
+18213 /setblock 2 -59 0 air
+18215 use-on 2 -60 0 1
+18217 /setblock 2 -59 0 air
+18219 use-on 2 -60 0 1
+18221 /setblock 2 -59 0 air
+18223 use-on 2 -60 0 1
+18225 /setblock 2 -59 0 air
+18227 use-on 2 -60 0 1
+18229 /setblock 2 -59 0 air
+18231 use-on 2 -60 0 1
+18233 /setblock 2 -59 0 air
+18235 use-on 2 -60 0 1
+18237 /setblock 2 -59 0 air
+18239 use-on 2 -60 0 1
+18241 /setblock 2 -59 0 air
+18243 use-on 2 -60 0 1
+18245 /setblock 2 -59 0 air
+18247 use-on 2 -60 0 1
+18249 /setblock 2 -59 0 air
+18251 use-on 2 -60 0 1
+18253 /setblock 2 -59 0 air
+18255 use-on 2 -60 0 1
+18257 /setblock 2 -59 0 air
+18259 use-on 2 -60 0 1
+18261 /setblock 2 -59 0 air
+18263 use-on 2 -60 0 1
+18265 /setblock 2 -59 0 air
+18267 use-on 2 -60 0 1
+18269 /setblock 2 -59 0 air
+18271 use-on 2 -60 0 1
+18273 /setblock 2 -59 0 air
+18275 use-on 2 -60 0 1
+18277 /setblock 2 -59 0 air
+18279 use-on 2 -60 0 1
+18281 /setblock 2 -59 0 air
+18283 use-on 2 -60 0 1
+18285 /setblock 2 -59 0 air
+18287 use-on 2 -60 0 1
+18289 /setblock 2 -59 0 air
+18291 use-on 2 -60 0 1
+18293 /setblock 2 -59 0 air
+18295 use-on 2 -60 0 1
+18297 /setblock 2 -59 0 air
+18299 use-on 2 -60 0 1
+18301 /setblock 2 -59 0 air
+18303 use-on 2 -60 0 1
+18305 /setblock 2 -59 0 air
+18307 use-on 2 -60 0 1
+18309 /setblock 2 -59 0 air
+18311 use-on 2 -60 0 1
+18313 /setblock 2 -59 0 air
+18315 use-on 2 -60 0 1
+18317 /setblock 2 -59 0 air
+18319 use-on 2 -60 0 1
+18321 /setblock 2 -59 0 air
+18323 /clear @s
+18324 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+18327 /enchant @s unbreaking 3
+18330 use
+18333 /say unbreaking use 3
+18336 use-on 2 -60 0 1
+18338 /setblock 2 -59 0 air
+18340 use-on 2 -60 0 1
+18342 /setblock 2 -59 0 air
+18344 use-on 2 -60 0 1
+18346 /setblock 2 -59 0 air
+18348 use-on 2 -60 0 1
+18350 /setblock 2 -59 0 air
+18352 use-on 2 -60 0 1
+18354 /setblock 2 -59 0 air
+18356 use-on 2 -60 0 1
+18358 /setblock 2 -59 0 air
+18360 use-on 2 -60 0 1
+18362 /setblock 2 -59 0 air
+18364 use-on 2 -60 0 1
+18366 /setblock 2 -59 0 air
+18368 use-on 2 -60 0 1
+18370 /setblock 2 -59 0 air
+18372 use-on 2 -60 0 1
+18374 /setblock 2 -59 0 air
+18376 use-on 2 -60 0 1
+18378 /setblock 2 -59 0 air
+18380 use-on 2 -60 0 1
+18382 /setblock 2 -59 0 air
+18384 use-on 2 -60 0 1
+18386 /setblock 2 -59 0 air
+18388 use-on 2 -60 0 1
+18390 /setblock 2 -59 0 air
+18392 use-on 2 -60 0 1
+18394 /setblock 2 -59 0 air
+18396 use-on 2 -60 0 1
+18398 /setblock 2 -59 0 air
+18400 use-on 2 -60 0 1
+18402 /setblock 2 -59 0 air
+18404 use-on 2 -60 0 1
+18406 /setblock 2 -59 0 air
+18408 use-on 2 -60 0 1
+18410 /setblock 2 -59 0 air
+18412 use-on 2 -60 0 1
+18414 /setblock 2 -59 0 air
+18416 use-on 2 -60 0 1
+18418 /setblock 2 -59 0 air
+18420 use-on 2 -60 0 1
+18422 /setblock 2 -59 0 air
+18424 use-on 2 -60 0 1
+18426 /setblock 2 -59 0 air
+18428 use-on 2 -60 0 1
+18430 /setblock 2 -59 0 air
+18432 use-on 2 -60 0 1
+18434 /setblock 2 -59 0 air
+18436 use-on 2 -60 0 1
+18438 /setblock 2 -59 0 air
+18440 use-on 2 -60 0 1
+18442 /setblock 2 -59 0 air
+18444 use-on 2 -60 0 1
+18446 /setblock 2 -59 0 air
+18448 use-on 2 -60 0 1
+18450 /setblock 2 -59 0 air
+18452 use-on 2 -60 0 1
+18454 /setblock 2 -59 0 air
+18456 use-on 2 -60 0 1
+18458 /setblock 2 -59 0 air
+18460 use-on 2 -60 0 1
+18462 /setblock 2 -59 0 air
+18464 use-on 2 -60 0 1
+18466 /setblock 2 -59 0 air
+18468 use-on 2 -60 0 1
+18470 /setblock 2 -59 0 air
+18472 use-on 2 -60 0 1
+18474 /setblock 2 -59 0 air
+18476 use-on 2 -60 0 1
+18478 /setblock 2 -59 0 air
+18480 use-on 2 -60 0 1
+18482 /setblock 2 -59 0 air
+18484 use-on 2 -60 0 1
+18486 /setblock 2 -59 0 air
+18488 use-on 2 -60 0 1
+18490 /setblock 2 -59 0 air
+18492 use-on 2 -60 0 1
+18494 /setblock 2 -59 0 air
+18496 /clear @s
+18497 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+18500 /enchant @s unbreaking 3
+18503 use
+18506 /say unbreaking use 3
+18509 use-on 2 -60 0 1
+18511 /setblock 2 -59 0 air
+18513 use-on 2 -60 0 1
+18515 /setblock 2 -59 0 air
+18517 use-on 2 -60 0 1
+18519 /setblock 2 -59 0 air
+18521 use-on 2 -60 0 1
+18523 /setblock 2 -59 0 air
+18525 use-on 2 -60 0 1
+18527 /setblock 2 -59 0 air
+18529 use-on 2 -60 0 1
+18531 /setblock 2 -59 0 air
+18533 use-on 2 -60 0 1
+18535 /setblock 2 -59 0 air
+18537 use-on 2 -60 0 1
+18539 /setblock 2 -59 0 air
+18541 use-on 2 -60 0 1
+18543 /setblock 2 -59 0 air
+18545 use-on 2 -60 0 1
+18547 /setblock 2 -59 0 air
+18549 use-on 2 -60 0 1
+18551 /setblock 2 -59 0 air
+18553 use-on 2 -60 0 1
+18555 /setblock 2 -59 0 air
+18557 use-on 2 -60 0 1
+18559 /setblock 2 -59 0 air
+18561 use-on 2 -60 0 1
+18563 /setblock 2 -59 0 air
+18565 use-on 2 -60 0 1
+18567 /setblock 2 -59 0 air
+18569 use-on 2 -60 0 1
+18571 /setblock 2 -59 0 air
+18573 use-on 2 -60 0 1
+18575 /setblock 2 -59 0 air
+18577 use-on 2 -60 0 1
+18579 /setblock 2 -59 0 air
+18581 use-on 2 -60 0 1
+18583 /setblock 2 -59 0 air
+18585 use-on 2 -60 0 1
+18587 /setblock 2 -59 0 air
+18589 use-on 2 -60 0 1
+18591 /setblock 2 -59 0 air
+18593 use-on 2 -60 0 1
+18595 /setblock 2 -59 0 air
+18597 use-on 2 -60 0 1
+18599 /setblock 2 -59 0 air
+18601 use-on 2 -60 0 1
+18603 /setblock 2 -59 0 air
+18605 use-on 2 -60 0 1
+18607 /setblock 2 -59 0 air
+18609 use-on 2 -60 0 1
+18611 /setblock 2 -59 0 air
+18613 use-on 2 -60 0 1
+18615 /setblock 2 -59 0 air
+18617 use-on 2 -60 0 1
+18619 /setblock 2 -59 0 air
+18621 use-on 2 -60 0 1
+18623 /setblock 2 -59 0 air
+18625 use-on 2 -60 0 1
+18627 /setblock 2 -59 0 air
+18629 use-on 2 -60 0 1
+18631 /setblock 2 -59 0 air
+18633 use-on 2 -60 0 1
+18635 /setblock 2 -59 0 air
+18637 use-on 2 -60 0 1
+18639 /setblock 2 -59 0 air
+18641 use-on 2 -60 0 1
+18643 /setblock 2 -59 0 air
+18645 use-on 2 -60 0 1
+18647 /setblock 2 -59 0 air
+18649 use-on 2 -60 0 1
+18651 /setblock 2 -59 0 air
+18653 use-on 2 -60 0 1
+18655 /setblock 2 -59 0 air
+18657 use-on 2 -60 0 1
+18659 /setblock 2 -59 0 air
+18661 use-on 2 -60 0 1
+18663 /setblock 2 -59 0 air
+18665 use-on 2 -60 0 1
+18667 /setblock 2 -59 0 air
+18669 /clear @s
+18670 /replaceitem entity @s slot.hotbar 0 flint_and_steel
+18673 /enchant @s unbreaking 3
+18676 use
+18679 /say unbreaking use 3
+18682 use-on 2 -60 0 1
+18684 /setblock 2 -59 0 air
+18686 use-on 2 -60 0 1
+18688 /setblock 2 -59 0 air
+18690 use-on 2 -60 0 1
+18692 /setblock 2 -59 0 air
+18694 use-on 2 -60 0 1
+18696 /setblock 2 -59 0 air
+18698 use-on 2 -60 0 1
+18700 /setblock 2 -59 0 air
+18702 use-on 2 -60 0 1
+18704 /setblock 2 -59 0 air
+18706 use-on 2 -60 0 1
+18708 /setblock 2 -59 0 air
+18710 use-on 2 -60 0 1
+18712 /setblock 2 -59 0 air
+18714 use-on 2 -60 0 1
+18716 /setblock 2 -59 0 air
+18718 use-on 2 -60 0 1
+18720 /setblock 2 -59 0 air
+18722 use-on 2 -60 0 1
+18724 /setblock 2 -59 0 air
+18726 use-on 2 -60 0 1
+18728 /setblock 2 -59 0 air
+18730 use-on 2 -60 0 1
+18732 /setblock 2 -59 0 air
+18734 use-on 2 -60 0 1
+18736 /setblock 2 -59 0 air
+18738 use-on 2 -60 0 1
+18740 /setblock 2 -59 0 air
+18742 use-on 2 -60 0 1
+18744 /setblock 2 -59 0 air
+18746 use-on 2 -60 0 1
+18748 /setblock 2 -59 0 air
+18750 use-on 2 -60 0 1
+18752 /setblock 2 -59 0 air
+18754 use-on 2 -60 0 1
+18756 /setblock 2 -59 0 air
+18758 use-on 2 -60 0 1
+18760 /setblock 2 -59 0 air
+18762 use-on 2 -60 0 1
+18764 /setblock 2 -59 0 air
+18766 use-on 2 -60 0 1
+18768 /setblock 2 -59 0 air
+18770 use-on 2 -60 0 1
+18772 /setblock 2 -59 0 air
+18774 use-on 2 -60 0 1
+18776 /setblock 2 -59 0 air
+18778 use-on 2 -60 0 1
+18780 /setblock 2 -59 0 air
+18782 use-on 2 -60 0 1
+18784 /setblock 2 -59 0 air
+18786 use-on 2 -60 0 1
+18788 /setblock 2 -59 0 air
+18790 use-on 2 -60 0 1
+18792 /setblock 2 -59 0 air
+18794 use-on 2 -60 0 1
+18796 /setblock 2 -59 0 air
+18798 use-on 2 -60 0 1
+18800 /setblock 2 -59 0 air
+18802 use-on 2 -60 0 1
+18804 /setblock 2 -59 0 air
+18806 use-on 2 -60 0 1
+18808 /setblock 2 -59 0 air
+18810 use-on 2 -60 0 1
+18812 /setblock 2 -59 0 air
+18814 use-on 2 -60 0 1
+18816 /setblock 2 -59 0 air
+18818 use-on 2 -60 0 1
+18820 /setblock 2 -59 0 air
+18822 use-on 2 -60 0 1
+18824 /setblock 2 -59 0 air
+18826 use-on 2 -60 0 1
+18828 /setblock 2 -59 0 air
+18830 use-on 2 -60 0 1
+18832 /setblock 2 -59 0 air
+18834 use-on 2 -60 0 1
+18836 /setblock 2 -59 0 air
+18838 use-on 2 -60 0 1
+18840 /setblock 2 -59 0 air
+18847 exit

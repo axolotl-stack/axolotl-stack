@@ -3272,7 +3272,7 @@
     ]
   },
   "blocks/fern": {
-    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "//source": "Measured against BDS 1.26.51 (tools/bds-sweep drops sweep of 20000 /loot samples per tool, 2026-11-11): wheat seeds at 1/8 whatever the tool, never more than one and unchanged by Fortune; shears give the plant",
     "pools": [
       {
         "rolls": 1,
@@ -3293,16 +3293,6 @@
               {
                 "type": "item",
                 "name": "minecraft:wheat_seeds",
-                "functions": [
-                  {
-                    "function": "apply_bonus",
-                    "enchantment": "fortune",
-                    "formula": "uniform_bonus_count",
-                    "parameters": {
-                      "bonusMultiplier": 2
-                    }
-                  }
-                ],
                 "conditions": [
                   {
                     "condition": "random_chance",
@@ -4523,7 +4513,7 @@
     ]
   },
   "blocks/large_fern": {
-    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "//source": "Measured against BDS 1.26.51 (tools/bds-sweep drops sweep of 20000 /loot samples per tool, 2026-11-11): wheat seeds at 1/8 whatever the tool, never more than one and unchanged by Fortune; shears give the plant as two separate stacks of one",
     "pools": [
       {
         "rolls": 1,
@@ -4534,12 +4524,6 @@
               {
                 "type": "item",
                 "name": "minecraft:fern",
-                "functions": [
-                  {
-                    "function": "set_count",
-                    "count": 2
-                  }
-                ],
                 "conditions": [
                   {
                     "condition": "match_tool",
@@ -4550,22 +4534,27 @@
               {
                 "type": "item",
                 "name": "minecraft:wheat_seeds",
-                "functions": [
-                  {
-                    "function": "apply_bonus",
-                    "enchantment": "fortune",
-                    "formula": "uniform_bonus_count",
-                    "parameters": {
-                      "bonusMultiplier": 2
-                    }
-                  }
-                ],
                 "conditions": [
                   {
                     "condition": "random_chance",
                     "chance": 0.125
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:fern",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
               }
             ]
           }
@@ -7358,7 +7347,7 @@
     ]
   },
   "blocks/short_grass": {
-    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "//source": "Measured against BDS 1.26.51 (tools/bds-sweep drops sweep of 20000 /loot samples per tool, 2026-11-11): wheat seeds at 1/8 whatever the tool, never more than one and unchanged by Fortune; shears give the plant",
     "pools": [
       {
         "rolls": 1,
@@ -7379,16 +7368,6 @@
               {
                 "type": "item",
                 "name": "minecraft:wheat_seeds",
-                "functions": [
-                  {
-                    "function": "apply_bonus",
-                    "enchantment": "fortune",
-                    "formula": "uniform_bonus_count",
-                    "parameters": {
-                      "bonusMultiplier": 2
-                    }
-                  }
-                ],
                 "conditions": [
                   {
                     "condition": "random_chance",
@@ -8106,7 +8085,7 @@
     ]
   },
   "blocks/tall_grass": {
-    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "//source": "Measured against BDS 1.26.51 (tools/bds-sweep drops sweep of 20000 /loot samples per tool, 2026-11-11): wheat seeds at 1/8 whatever the tool, never more than one and unchanged by Fortune; shears give the plant as two separate stacks of one",
     "pools": [
       {
         "rolls": 1,
@@ -8117,12 +8096,6 @@
               {
                 "type": "item",
                 "name": "minecraft:short_grass",
-                "functions": [
-                  {
-                    "function": "set_count",
-                    "count": 2
-                  }
-                ],
                 "conditions": [
                   {
                     "condition": "match_tool",
@@ -8133,22 +8106,27 @@
               {
                 "type": "item",
                 "name": "minecraft:wheat_seeds",
-                "functions": [
-                  {
-                    "function": "apply_bonus",
-                    "enchantment": "fortune",
-                    "formula": "uniform_bonus_count",
-                    "parameters": {
-                      "bonusMultiplier": 2
-                    }
-                  }
-                ],
                 "conditions": [
                   {
                     "condition": "random_chance",
                     "chance": 0.125
                   }
                 ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:short_grass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
               }
             ]
           }

@@ -837,8 +837,15 @@ Survival breaking follows BDS input by input:
   the mace. An input carrying `CreativeDestroyBlock` is refused as malformed and ends the session,
   as on BDS.
 
+- A block put where a break goes on is broken by the inputs since counted at that block's speed:
+  at once if it is no slower than the progress built over the air.
+
 `server/game/blocks/breaking_tests.rs` replays BDS captures of all of this, one with a second
-player watching.
+player watching, with `[gameplay] block_breaking = "bds"`. The default, `"guarded"`
+([decision 0056](../../docs/decisions/0056-guarded-block-breaking.md)), changes two things a
+modified client could use: at most one input of progress counts per server tick since the
+progress began (a lagging client may catch up, never get ahead), and the progress begins again
+when the block at the position is no longer the one being broken.
 Block break/place intents dispatch before mutation; cancellation sends authoritative
 corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not
@@ -974,12 +981,15 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Flint and steel: the click corrections, update, `ignite` position, relit campfire actor data and wear (no slot update) | done | BDS capture (`server/game/item_use/flint_tests.rs`) |
 | Placed containers announced with actor data: chests, ender chests and barrels, not furnaces or hoppers | done | BDS capture (`server/game/containers/tests.rs`) |
 | Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
-| Buckets: take and place water, lava, powder snow | done | public reference; liquids do not flow, fish/axolotl buckets not done |
-| Bow, crossbow, snowball, egg | done | capture (speeds 3.0/3.15/1.5, sounds); draw curve and spread are public references |
+| Buckets: take and place water, lava, powder snow; milk | done | BDS buckets capture (`server/game/item_use/bucket_tests.rs`, sounds at the player's feet); liquids do not flow, no waterlogging, fish/axolotl buckets not done (their mobs cannot spawn) |
+| Bow, crossbow, snowball, egg | done | capture (speeds 3.0/3.15/1.5, sounds); throws replayed against the BDS throwables capture (`server/game/item_use/throw_tests.rs`); draw curve and spread are public references |
+| Splash potions and experience bottles: splash colours, effects by distance, fire put out, orbs | done | BDS throwables captures (`server/game/item_use/throw_tests.rs`); the splash reaches players only |
+| Spawn eggs on blocks: survival use, peaceful monsters, the PlayerSpawnedMob event | done | BDS buckets-eggs capture; a spawner set by an egg not done |
+| `/give` user data (Damage 0, banner, map, fireworks) | done | BDS `/give` sweep of every item (`command/exec/give.rs`) |
 | Stuck arrows: shake, pickup, despawn after 1200 ticks | done | capture (shake event); lifetime is a public reference |
-| Ender pearls | not done | needs `teleport_owner` and the endermite archetype (entity lane) |
+| Ender pearls, lingering potions, wind charges | not done | measured (row notes in `docs/parity/items.toml`); their actors cannot spawn yet |
 | Tridents | not done | `minecraft:thrown_trident` lacks a measured `AddActor` shape |
-| Potions and ominous bottles: drinking (32 ticks), the effects of all 47 potion data values, instant health and damage, Bad Omen, sounds, glass bottle | done | BDS item-use capture (`server/game/item_use/drink_tests.rs`); splash and lingering potions and tipped arrows not done |
+| Potions and ominous bottles: drinking (32 ticks), the effects of all 47 potion data values, instant health and damage, Bad Omen, sounds, glass bottle | done | BDS item-use capture (`server/game/item_use/drink_tests.rs`); tipped arrows not done |
 | Effect pulses (poison, wither, regeneration on the duration before the tick), poison as a hurt, invisibility sounds, effect packet order | done | BDS item-use capture |
 | Goat horns (`horn_call<data>`, 140-tick cooldown, using flag) and the spyglass (using flag) | done | BDS item-use capture |
 | Jukeboxes: music discs in and out, popup, actor data, drops, breaking a playing jukebox | done | BDS jukebox capture (`server/game/jukebox/tests.rs`); no redstone signal |

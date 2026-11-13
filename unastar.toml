@@ -95,6 +95,15 @@ seed = 12345
 # coords [-r..r]:
 # platform_radius_chunks = 1
 
+[gameplay]
+# Survival block breaking:
+# - "guarded" (default): BDS's per-input breaking, but a client gets at most one
+#   input's worth of progress per server tick (flooding inputs does not break
+#   faster), and the progress begins again when the block being broken changes
+#   (progress built while aiming at air does not break a block placed there).
+# - "bds": exactly what BDS 1.26.51 does, both of the above included.
+block_breaking = "guarded"
+
 [players]
 # Where Unastar stores per-player files (e.g. last known position).
 data_dir = "playerdata"

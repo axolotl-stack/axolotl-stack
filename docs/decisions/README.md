@@ -52,5 +52,6 @@ documents and still appear in code comments and research docs; the table maps th
 | [0046](0046-resolve-a-pvp-hit-with-the-attacker-state-passed-in.md) | Resolve a PvP hit with the attacker's state passed in, from before its first input of the tick | 2026-11-11 | proposed | |
 | [0052](0052-generate-one-enchantment-type.md) | Generate one canonical Enchantment type from source-attributed data | 2026-11-12 | accepted | |
 | [0053](0053-bedrock-terrain-uses-java-exact-noise.md) | Bedrock-style terrain uses the Java-exact noise backend | 2026-11-12 | proposed | |
+| [0056](0056-guarded-block-breaking.md) | Guard survival block breaking by default, keep BDS's breaking as an option | 2026-11-12 | accepted | |
 
 Proposed records await the owner's approval; their work is an open OpenSpec change anyone can pick up.

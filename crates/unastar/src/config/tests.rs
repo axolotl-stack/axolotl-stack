@@ -168,6 +168,38 @@ fn difficulty_defaults_to_easy_and_reaches_runtime_configuration() {
     ));
 }
 
+/// Survival breaking is guarded unless `[gameplay] block_breaking = "bds"`
+/// (decision 0056); other values fail to load.
+#[test]
+fn block_breaking_defaults_to_guarded_and_reaches_runtime_configuration() {
+    use crate::server::config::BlockBreaking;
+    let file = ConfigFile::new();
+    std::fs::write(&file.0, VOID_WORLD).unwrap();
+    let config = UnastarConfig::load_or_create(&file.0).unwrap();
+    assert_eq!(
+        config.server_config().block_breaking,
+        BlockBreaking::Guarded
+    );
+
+    std::fs::write(
+        &file.0,
+        format!("{VOID_WORLD}[gameplay]\nblock_breaking = 'bds'"),
+    )
+    .unwrap();
+    let config = UnastarConfig::load_or_create(&file.0).unwrap();
+    assert_eq!(config.server_config().block_breaking, BlockBreaking::Bds);
+
+    std::fs::write(
+        &file.0,
+        format!("{VOID_WORLD}[gameplay]\nblock_breaking = 'lenient'"),
+    )
+    .unwrap();
+    assert!(matches!(
+        UnastarConfig::load_or_create(&file.0),
+        Err(ConfigError::Parse { .. })
+    ));
+}
+
 #[test]
 fn strict_world_variants_still_load_valid_options() {
     use crate::world::{WorldBounds, WorldGenerator};
